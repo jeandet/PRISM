@@ -52,14 +52,25 @@ prism_software_backend_dep = declare_dependency(
 # preloaded into the virtual filesystem at its desktop path, so font lookup is unchanged too.
 # One pre-started worker for model_app's logic thread: without it emscripten spawns the worker
 # on demand and warns that the (exhausted) pool may deadlock.
+app_link_args = []
+app_sources = []
 if host_machine.system() == 'emscripten'
-  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1', '--preload-file', font_path + '@' + font_path]
-else
-  app_link_args = []
+  # 10k of the Nerd Font's 11.7k characters are icons PRISM never draws. The page ships a subset
+  # with only the text ranges (Latin, IPA, Greek, Cyrillic, punctuation, arrows, maths, box
+  # drawing, shapes): ~100 KB compressed instead of ~1.3 MB. pyftsubset comes from fonttools.
+  web_font = custom_target('web_font',
+    input : font_path,
+    output : 'web_font.ttf',
+    command : [find_program('pyftsubset'), '@INPUT@', '--output-file=@OUTPUT@', '--layout-features=*',
+               '--unicodes=U+0000-02FF,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-2BFF,U+FB00-FB06,U+FFFD'],
+  )
+  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1', '--preload-file', web_font.full_path() + '@' + font_path]
+  app_sources = [web_font]
 endif
 
 # Convenience: core + default software backend (SDL3 headers exposed for keycodes etc.)
 prism_dep = declare_dependency(
   dependencies : [prism_core_dep, prism_software_backend_dep, sdl3_dep],
+  sources : app_sources,
   link_args : app_link_args,
 )

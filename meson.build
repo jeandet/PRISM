@@ -22,6 +22,14 @@ project('prism', 'cpp',
 )
 
 cpp = meson.get_compiler('cpp')
+
+# Meson passes the optimization level to em++ when compiling only. Emscripten needs it when
+# linking too: that is where it runs wasm-opt over the whole binary (ports included) and
+# minifies the JS glue. Without it every link is effectively -O0.
+if host_machine.system() == 'emscripten' and get_option('optimization') != 'plain'
+  add_project_link_arguments('-O' + get_option('optimization'), language : ['c', 'cpp'])
+endif
+
 # Probe the feature macro, not just the flag: emscripten's clang accepts -freflection
 # (with an unused-argument warning) but doesn't implement it.
 has_reflection = cpp.compiles('''

@@ -92,7 +92,7 @@ jobs:
           python-version: '3.13'
       - name: Install deps
         run: |
-          pip install 'meson>=1.5' ninja
+          pip install 'meson>=1.5' ninja fonttools
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
           "$HOME/emsdk/emsdk" install "$EMSDK_VERSION"
           "$HOME/emsdk/emsdk" activate "$EMSDK_VERSION"
