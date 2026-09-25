@@ -1,4 +1,5 @@
 #include <prism/backends/sdl_window.hpp>
+#include "sdl_platform.hpp"
 
 #include <array>
 #include <cmath>
@@ -50,8 +51,10 @@ SDL_HitTestResult sdl_hit_test_callback(SDL_Window* win, const SDL_Point* area, 
 } // namespace
 
 SdlWindow::SdlWindow(WindowId id, WindowConfig cfg)
-    : id_(id), decoration_(cfg.decoration), title_(cfg.title), config_(cfg)
+    : id_(id), config_(platform_window_config(cfg))
 {
+    decoration_ = config_.decoration;
+    title_ = config_.title;
     // SDL window creation is deferred — call ensure_created() after SDL_Init
 }
 
@@ -89,7 +92,7 @@ void SdlWindow::ensure_created() {
 }
 
 void SdlWindow::create_sdl_window() {
-    uint64_t flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    uint64_t flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | platform_window_flags();
     if (config_.resizable) flags |= SDL_WINDOW_RESIZABLE;
     if (config_.fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
     if (decoration_ == DecorationMode::Custom || decoration_ == DecorationMode::None)

@@ -18,7 +18,8 @@
              align-items: baseline; }
     header a { color: #7aa2f7; text-decoration: none; }
     #status { color: #9aa5ce; margin-left: auto; }
-    canvas { display: block; margin: 8px auto 24px; outline: none; max-width: 100%; }
+    /* The app window fills the page (SDL's fill-document mode hides the header once it runs). */
+    canvas { display: block; margin: 0; outline: none; }
   </style>
 </head>
 <body>

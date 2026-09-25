@@ -18,9 +18,11 @@ if host_machine.system() == 'emscripten'
   # The wrapdb SDL3 port has no emscripten support; emscripten ships its own ports.
   sdl3_dep = declare_dependency(compile_args : ['--use-port=sdl3'], link_args : ['--use-port=sdl3'])
   sdl3_ttf_dep = declare_dependency(compile_args : ['--use-port=sdl3_ttf'], link_args : ['--use-port=sdl3_ttf'])
+  sdl_platform_src = 'backends/sdl_platform_web.cpp'
 else
   sdl3_dep = dependency('sdl3', fallback : ['sdl3', 'sdl3_dep'])
   sdl3_ttf_dep = dependency('sdl3_ttf', fallback : ['sdl3_ttf', 'sdl3_ttf_dep'])
+  sdl_platform_src = 'backends/sdl_platform_desktop.cpp'
 endif
 
 font_path = meson.project_source_root() / 'assets' / 'fonts' / 'JetBrainsMonoNerdFont-Regular.ttf'
@@ -30,6 +32,7 @@ prism_software_backend_lib = library('prism-software-backend',
   'backend.cpp',
   'backends/software_backend.cpp',
   'backends/sdl_window.cpp',
+  sdl_platform_src,
   dependencies : [prism_core_dep, sdl3_dep, sdl3_ttf_dep],
   cpp_args : ['-DPRISM_FONT_PATH="' + font_path + '"',
               '-DPRISM_FONT_INSTALL_PATH="' + font_install_path + '"'],
