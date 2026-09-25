@@ -238,10 +238,11 @@ TEST_CASE("transition() interpolates on set()") {
     auto guard = prism::transition(clock, value,
         AnimationConfig{.duration = 100ms, .easing = ease::linear});
 
-    auto t0 = AnimationClock::clock::now();
-
     value.set(100.f);
     CHECK(clock.active());
+    // After set(): the transition stamps its own start inside set(), so a t0 taken before it
+    // leaves t0 + 100ms short of the end by however long set() took.
+    auto t0 = AnimationClock::clock::now();
 
     clock.tick(t0 + 50ms);
     CHECK(value.get() == doctest::Approx(50.f).epsilon(5.f));
