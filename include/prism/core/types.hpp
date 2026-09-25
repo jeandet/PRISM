@@ -3,6 +3,7 @@
 #include <cmath>
 #include <compare>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 
 namespace prism::core {
@@ -129,11 +130,11 @@ constexpr Scalar<Tag>& operator/=(Scalar<Tag>& a, float s) {
 template <typename Tag>
 struct IntScalar {
     constexpr IntScalar() : v_(0) {}
-    constexpr explicit IntScalar(size_t v) : v_(v) {}
-    [[nodiscard]] constexpr size_t raw() const { return v_; }
+    constexpr explicit IntScalar(std::size_t v) : v_(v) {}
+    [[nodiscard]] constexpr std::size_t raw() const { return v_; }
     constexpr auto operator<=>(const IntScalar&) const = default;
 private:
-    size_t v_;
+    std::size_t v_;
 };
 
 struct ItemIndexTag {};

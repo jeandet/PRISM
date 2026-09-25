@@ -3,6 +3,7 @@
 #include <prism/app/backend.hpp>
 #include <prism/backends/frame_pacer.hpp>
 #include <prism/backends/sdl_window.hpp>
+#include <prism/core/atomic_cell.hpp>
 #include <prism/core/mpsc_queue.hpp>
 
 #include <SDL3/SDL.h>
@@ -66,7 +67,7 @@ private:
     // Per-window snapshot storage — guarded by windows_mutex_ except for
     // per-slot atomic snapshot pointer itself.
     struct WindowSnapshot {
-        std::atomic<std::shared_ptr<const SceneSnapshot>> snapshot;
+        core::atomic_shared_ptr<const SceneSnapshot> snapshot;
         // Present statistics (see BackendBase::present_stats); written by the render
         // thread, read via present_stats() under windows_mutex_.
         std::atomic<uint64_t> present_count{0};

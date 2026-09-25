@@ -57,7 +57,7 @@ public:
 
         auto mtime = std::filesystem::last_write_time(path, ec);
         if (!ec) {
-            auto sys_time = std::chrono::clock_cast<std::chrono::system_clock>(mtime);
+            auto sys_time = std::chrono::file_clock::to_sys(mtime);
             attrs.emplace_back("modified",
                 fmt::format("{:%Y-%m-%d %H:%M:%S}",
                             std::chrono::time_point_cast<std::chrono::seconds>(sys_time)));
