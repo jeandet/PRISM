@@ -143,7 +143,9 @@ test_software_backend_present_stats = executable('test_software_backend_present_
   files('test_software_backend_present_stats.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
-test('software_backend_present_stats', test_software_backend_present_stats)
+if can_open_window
+  test('software_backend_present_stats', test_software_backend_present_stats)
+endif
 
 test_model_app_chrome_cursor = executable('test_model_app_chrome_cursor',
   files('test_model_app_chrome_cursor.cpp'),
