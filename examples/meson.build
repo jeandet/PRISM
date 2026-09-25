@@ -9,8 +9,8 @@ subdir('hello_rect')
 subdir('model_dashboard')
 subdir('model_plot')
 subdir('model_tree_browser')
+subdir('perf_lab')
 if not is_wasm
   subdir('model_system_monitor') # reads /proc
-  subdir('perf_lab')             # not tried on wasm yet
   subdir('showcase')             # headless SVG capture tools, not apps
 endif
