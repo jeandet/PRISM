@@ -160,7 +160,7 @@ backend_tests = {
 
 foreach name, src : backend_tests
   exe = executable('test_' + name, src,
-    dependencies : [prism_dep, doctest_dep],
+    dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
   )
   if can_open_window
     test(name, exe)

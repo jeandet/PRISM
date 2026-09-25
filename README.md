@@ -565,6 +565,20 @@ meson test -C builddir
 
 The build auto-detects `-freflection` support and conditionally enables P2996. Dependencies (SDL3, stdexec, doctest, magic_enum) are fetched via Meson wraps.
 
+### In the browser (WebAssembly)
+
+The same application code builds for the web with [Emscripten](https://emscripten.org) 6.0.10+. There is no reflection there (upstream clang lacks P2996), so models need a `view()` method.
+
+```bash
+source /path/to/emsdk/emsdk_env.sh
+meson setup builddir-wasm --cross-file cross/wasm32-emscripten.ini
+ninja -C builddir-wasm
+meson test -C builddir-wasm                                     # tests run under node
+emrun builddir-wasm/examples/model_dashboard/model_dashboard.html
+```
+
+Applications linking `prism_dep` get the browser setup automatically: SDL3 from Emscripten's ports, the font bundled in, and JSPI so the event loop can wait without freezing the page. PRISM needs threads, so the page must be served with COOP/COEP headers; `emrun` sends them. JSPI needs Chrome 137+, Firefox 153+ or Safari 27.
+
 ## Roadmap
 
 ```mermaid

@@ -79,7 +79,8 @@ jobs:
           name: meson-testlog-clang-libcxx
           path: builddir/meson-logs/testlog.txt
 
-  # Cross-builds to wasm32 and runs the tests under node (window-opening tests are built, not run).
+  # Cross-builds to wasm32 (examples as web pages) and runs the tests under node
+  # (window-opening tests are built, not run).
   wasm-node:
     runs-on: ubuntu-24.04
     env:
@@ -99,7 +100,7 @@ jobs:
         run: |
           source "$HOME/emsdk/emsdk_env.sh"
           meson setup builddir --cross-file cross/wasm32-emscripten.ini \
-            -Dexamples=disabled -Dbenchmarks=disabled -Dmagic_enum:test=false
+            -Dbenchmarks=disabled -Dmagic_enum:test=false
       - name: Build
         run: |
           source "$HOME/emsdk/emsdk_env.sh"

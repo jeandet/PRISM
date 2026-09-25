@@ -43,7 +43,18 @@ prism_software_backend_dep = declare_dependency(
   dependencies : [prism_core_dep],
 )
 
+# In a browser the main thread must keep returning to the page's event loop, but the backend's
+# loop blocks in SDL_WaitEvent. Under JSPI, SDL's wait sleeps via emscripten_sleep, which
+# suspends the wasm stack and resumes it later -- so the desktop loop runs unchanged. The font is
+# preloaded into the virtual filesystem at its desktop path, so font lookup is unchanged too.
+if host_machine.system() == 'emscripten'
+  app_link_args = ['-sJSPI', '--preload-file', font_path + '@' + font_path]
+else
+  app_link_args = []
+endif
+
 # Convenience: core + default software backend (SDL3 headers exposed for keycodes etc.)
 prism_dep = declare_dependency(
   dependencies : [prism_core_dep, prism_software_backend_dep, sdl3_dep],
+  link_args : app_link_args,
 )
