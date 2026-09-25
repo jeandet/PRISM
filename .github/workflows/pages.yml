@@ -31,6 +31,10 @@ jobs:
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
           "$HOME/emsdk/emsdk" install "$EMSDK_VERSION"
           "$HOME/emsdk/emsdk" activate "$EMSDK_VERSION"
+          # Build the ports once up front: on a cold cache every parallel em++ tries to build
+          # them and they collide on emscripten's cache lock.
+          source "$HOME/emsdk/emsdk_env.sh"
+          embuilder build sdl3-mt sdl3_ttf-mt harfbuzz-mt freetype freetype-legacysjlj freetype-wasmsjlj
       - name: Build examples
         run: |
           source "$HOME/emsdk/emsdk_env.sh"
