@@ -33,6 +33,12 @@ using namespace prism::app::widget_detail;
 
 class ViewBuilder;
 
+// Names T through a dependent type, so a member template can use a type that is only
+// forward-declared at its definition. GCC defers the completeness check to instantiation
+// on its own; clang (and so Emscripten) checks non-dependent types at definition time.
+template <typename T, typename>
+struct dependent_type { using type = T; };
+
 // index_ stores raw pointers into the tree — built after construction;
 // virtualized containers (VirtualList/Table/Tabs) mutate the tree and
 // rebuild the index via reindex() so pointers stay valid.
@@ -642,7 +648,7 @@ private:
             }
 #endif
 #endif
-            ViewBuilder vb{*this, root};
+            typename dependent_type<ViewBuilder, Model>::type vb{*this, root};
             model.view(vb);
             // vb.placed()/vb.finalize() are non-dependent calls on a non-dependent local
             // object; called directly here they'd require ViewBuilder complete at this point

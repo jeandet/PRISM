@@ -23,7 +23,7 @@ struct FlatModel {
 // leaf_ids() only covers true leaves; flatten_tree also needs every *container* id in the
 // expanded set to descend into it (see WidgetTree::ViewBuilder::finalize()'s single-child
 // hoisting, which can still leave multiple nesting levels for e.g. Tabs content).
-void collect_all_ids(const prism::WidgetNode& n, std::set<prism::WidgetId>& ids) {
+[[maybe_unused]] void collect_all_ids(const prism::WidgetNode& n, std::set<prism::WidgetId>& ids) {
     ids.insert(n.id);
     for (auto& c : n.children) collect_all_ids(c, ids);
 }

@@ -42,6 +42,43 @@ jobs:
           name: meson-testlog-build-and-test
           path: builddir/meson-logs/testlog.txt
 
+  # Every other lane compiles PRISM's C++ with GCC. Emscripten (the wasm path) is clang +
+  # libc++ only, so this lane keeps the code building there. Python is excluded: the wasm
+  # build won't have it, and a libc++ extension inside a libstdc++ CPython tests nothing useful.
+  clang-libcxx:
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang-22
+      CXX: clang++-22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install deps
+        run: |
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          sudo bash llvm.sh 22
+          sudo apt-get install -y libc++-22-dev libc++abi-22-dev pkg-config libfreetype-dev libharfbuzz-dev \
+            libudev-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev \
+            libxss-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl-dev libdrm-dev libgbm-dev \
+            libdbus-1-dev libasound2-dev libpulse-dev libibus-1.0-dev libpipewire-0.3-dev libwayland-bin xvfb
+          pip install 'meson>=1.5' ninja
+      - name: Setup builddir
+        run: >
+          meson setup builddir -Dmagic_enum:test=false
+          -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0
+          -Dcpp_args=-stdlib=libc++ -Dcpp_link_args=-stdlib=libc++
+      - name: Build
+        run: ninja -C builddir
+      - name: Run tests (C++ only)
+        run: xvfb-run -a meson test -C builddir --print-errorlogs --exclude python_bindings
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-testlog-clang-libcxx
+          path: builddir/meson-logs/testlog.txt
+
   tsan:
     runs-on: ubuntu-24.04
     steps:

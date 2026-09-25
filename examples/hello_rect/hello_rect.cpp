@@ -18,13 +18,11 @@ struct State {
     int selected_panel = 0;
 };
 
-static constexpr auto bg       = prism::Color::rgba(30, 30, 40);
 static constexpr auto sidebar  = prism::Color::rgba(45, 45, 55);
 static constexpr auto header   = prism::Color::rgba(0, 120, 215);
 static constexpr auto footer   = prism::Color::rgba(50, 50, 60);
 static constexpr auto accent   = prism::Color::rgba(0, 180, 120);
 static constexpr auto muted    = prism::Color::rgba(60, 60, 75);
-static constexpr auto panel_bg = prism::Color::rgba(38, 38, 50);
 
 namespace {
 prism::Rect R(float x, float y, float w, float h) {

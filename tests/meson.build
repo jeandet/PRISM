@@ -1,4 +1,12 @@
-doctest_dep = dependency('doctest', fallback : ['doctest', 'doctest_dep'])
+# simplify: doctest 2.4.12 (latest on wrapdb) trips two clang-only warnings in every test TU:
+# TEST_CASE expands __COUNTER__ (-Wc2y-extensions under -Wpedantic) and it always includes the
+# removed <ciso646> header (-W#warnings). Upstream 2.5.x fixes the header; drop the -W#warnings
+# silencing once wrapdb ships it.
+doctest_clang_args = cpp.get_id() == 'clang' ? ['-Wno-c2y-extensions', '-Wno-#warnings'] : []
+doctest_dep = declare_dependency(
+  dependencies : dependency('doctest', fallback : ['doctest', 'doctest_dep']),
+  compile_args : cpp.get_supported_arguments(doctest_clang_args),
+)
 
 # Headless tests — no SDL, no backend
 headless_tests = {

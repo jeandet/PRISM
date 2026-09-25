@@ -13,7 +13,6 @@ TEST_CASE("windows_mutex concurrent submit/sdl_id lookup no race") {
     // Pre-create one window so snapshots map has entry
     backend.create_window({});
 
-    std::atomic<bool> stop{false};
     std::atomic<int> errors{0};
 
     auto worker = [&] {
