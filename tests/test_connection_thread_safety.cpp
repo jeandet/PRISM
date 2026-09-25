@@ -4,6 +4,7 @@
 #include <prism/core/connection.hpp>
 #include <thread>
 #include <atomic>
+#include <latch>
 #include <vector>
 
 namespace prism::core {} namespace prism::render {} namespace prism::input {}
@@ -68,6 +69,9 @@ TEST_CASE("concurrent emit/connect/disconnect hammer is TSan-clean") {
     prism::SenderHub<int> hub;
     std::atomic<bool> stop{false};
     std::atomic<int> emits{0};
+    // Threads can start slowly (a Web Worker each under emscripten): only start the clock
+    // once all five are actually running.
+    std::latch running{5};
 
     // Keep some long-lived connections alive
     auto keep = hub.connect([](int) {});
@@ -76,6 +80,7 @@ TEST_CASE("concurrent emit/connect/disconnect hammer is TSan-clean") {
     // 2 emitters
     for (int i = 0; i < 2; ++i) {
         workers.emplace_back([&] {
+            running.count_down();
             while (!stop.load()) {
                 hub.emit(1);
                 ++emits;
@@ -85,6 +90,7 @@ TEST_CASE("concurrent emit/connect/disconnect hammer is TSan-clean") {
     // 2 connectors/disconnectors
     for (int i = 0; i < 2; ++i) {
         workers.emplace_back([&] {
+            running.count_down();
             while (!stop.load()) {
                 auto c = hub.connect([](int) {});
                 // c disconnects on destruction
@@ -93,6 +99,7 @@ TEST_CASE("concurrent emit/connect/disconnect hammer is TSan-clean") {
     }
     // 1 thread that disconnects from GC-like context
     workers.emplace_back([&] {
+        running.count_down();
         while (!stop.load()) {
             auto c = hub.connect([](int) {});
             c.disconnect();
@@ -100,6 +107,7 @@ TEST_CASE("concurrent emit/connect/disconnect hammer is TSan-clean") {
     });
 
     // Let it hammer for ~50ms
+    running.wait();
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     stop.store(true);
     for (auto& t : workers) t.join();
