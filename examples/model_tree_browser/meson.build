@@ -1,6 +1,8 @@
 model_tree_browser_exe = executable('model_tree_browser', 'model_tree_browser.cpp',
   dependencies : [prism_dep],
   name_suffix : example_suffix,
+  link_args : example_link_args,
+  link_depends : example_shell,
 )
 
 if not is_wasm

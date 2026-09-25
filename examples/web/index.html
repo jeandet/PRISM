@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>PRISM · WebAssembly examples</title>
+  <!-- Registering here too means the first example opened already runs cross-origin isolated. -->
+  <script src="coi-serviceworker.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #16161e; color: #c0caf5; font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 4px; font-size: 26px; }
+    p { color: #9aa5ce; margin: 4px 0 20px; }
+    a { color: #7aa2f7; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .card { display: block; background: #1f2335; border: 1px solid #292e42; border-radius: 8px;
+            overflow: hidden; color: inherit; text-decoration: none; }
+    .card:hover { border-color: #7aa2f7; }
+    .card img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #1a1b26; }
+    .card div { padding: 10px 14px 14px; }
+    .card h2 { margin: 0 0 4px; font-size: 16px; color: #c0caf5; }
+    .card span { color: #9aa5ce; font-size: 14px; }
+    footer { margin-top: 28px; color: #565f89; font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>PRISM in the browser</h1>
+  <p>The same C++ examples as the desktop build, compiled to WebAssembly with Emscripten — no
+     code changes. <a href="https://github.com/jeandet/PRSIM">Source on GitHub</a>.</p>
+
+  <div class="grid">
+    <a class="card" href="model_dashboard.html">
+      <img src="screenshots/model_dashboard.svg" alt="">
+      <div><h2>Dashboard</h2><span>Tabs, table, canvas, animation — the fullest tour of the widget set.</span></div>
+    </a>
+    <a class="card" href="model_plot.html">
+      <img src="screenshots/model_plot.svg" alt="">
+      <div><h2>Plot</h2><span>Sliders driving a live chart. Drag to pan, scroll to zoom, right-click to auto-fit.</span></div>
+    </a>
+    <a class="card" href="hello_rect.html">
+      <img src="screenshots/hello_rect.svg" alt="">
+      <div><h2>Layout</h2><span>Hand-composed rows and columns, keyboard-driven state.</span></div>
+    </a>
+  </div>
+
+  <footer>Needs a recent browser (Chrome 137+, Firefox 153+, Safari 27): the event loop relies on
+    WebAssembly JSPI. The first visit reloads once to enable threads.</footer>
+</main>
+</body>
+</html>

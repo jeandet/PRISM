@@ -1,0 +1,54 @@
+name: Pages
+
+# Builds the examples to WebAssembly and publishes them to GitHub Pages.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      EMSDK_VERSION: '6.0.10'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install deps
+        run: |
+          pip install 'meson>=1.5' ninja
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+          "$HOME/emsdk/emsdk" install "$EMSDK_VERSION"
+          "$HOME/emsdk/emsdk" activate "$EMSDK_VERSION"
+      - name: Build examples
+        run: |
+          source "$HOME/emsdk/emsdk_env.sh"
+          meson setup builddir-wasm --cross-file cross/wasm32-emscripten.ini --buildtype=release \
+            -Dtests=disabled -Dbenchmarks=disabled -Dmagic_enum:test=false
+          ninja -C builddir-wasm
+      - name: Assemble site
+        run: scripts/build_web_site.sh builddir-wasm _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

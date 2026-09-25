@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>PRISM · WebAssembly demo</title>
+  <!-- Threads need cross-origin isolation (COOP/COEP headers). Static hosts like GitHub Pages
+       can't send them, so this service worker adds them; it does nothing where the server
+       already sends them (e.g. emrun). -->
+  <script src="coi-serviceworker.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; background: #16161e; color: #c0caf5;
+           font: 14px/1.4 system-ui, sans-serif; display: flex; flex-direction: column;
+           align-items: center; }
+    header { width: 100%; box-sizing: border-box; padding: 10px 16px; display: flex; gap: 16px;
+             align-items: baseline; }
+    header a { color: #7aa2f7; text-decoration: none; }
+    #status { color: #9aa5ce; margin-left: auto; }
+    canvas { display: block; margin: 8px auto 24px; outline: none; max-width: 100%; }
+  </style>
+</head>
+<body>
+  <header><a href="./">← PRISM examples</a><span id="status">Loading…</span></header>
+  <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+  <script>
+    var statusEl = document.getElementById('status');
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      setStatus: function (text) { statusEl.textContent = text; },
+      print: function (text) { console.log(text); },
+      printErr: function (text) { console.error(text); },
+    };
+    window.addEventListener('error', function () { statusEl.textContent = 'Error — see the browser console'; });
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

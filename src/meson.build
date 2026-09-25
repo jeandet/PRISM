@@ -47,8 +47,10 @@ prism_software_backend_dep = declare_dependency(
 # loop blocks in SDL_WaitEvent. Under JSPI, SDL's wait sleeps via emscripten_sleep, which
 # suspends the wasm stack and resumes it later -- so the desktop loop runs unchanged. The font is
 # preloaded into the virtual filesystem at its desktop path, so font lookup is unchanged too.
+# One pre-started worker for model_app's logic thread: without it emscripten spawns the worker
+# on demand and warns that the (exhausted) pool may deadlock.
 if host_machine.system() == 'emscripten'
-  app_link_args = ['-sJSPI', '--preload-file', font_path + '@' + font_path]
+  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1', '--preload-file', font_path + '@' + font_path]
 else
   app_link_args = []
 endif

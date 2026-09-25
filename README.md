@@ -567,7 +567,7 @@ The build auto-detects `-freflection` support and conditionally enables P2996. D
 
 ### In the browser (WebAssembly)
 
-The same application code builds for the web with [Emscripten](https://emscripten.org) 6.0.10+. There is no reflection there (upstream clang lacks P2996), so models need a `view()` method.
+The same application code builds for the web with [Emscripten](https://emscripten.org) 6.0.10+. There is no reflection there (upstream clang lacks P2996), so models need a `view()` method. **Live demos:** <https://jeandet.github.io/PRSIM/> (built and deployed by `.github/workflows/pages.yml`; `scripts/build_web_site.sh` assembles the same site locally).
 
 ```bash
 source /path/to/emsdk/emsdk_env.sh

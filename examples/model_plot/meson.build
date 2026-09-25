@@ -1,6 +1,8 @@
 model_plot_exe = executable('model_plot', 'model_plot.cpp',
   dependencies : [prism_dep],
   name_suffix : example_suffix,
+  link_args : example_link_args,
+  link_depends : example_shell,
 )
 
 if not is_wasm

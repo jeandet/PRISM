@@ -1,6 +1,8 @@
 model_dashboard_exe = executable('model_dashboard', 'model_dashboard.cpp',
   dependencies : [prism_dep],
   name_suffix : example_suffix,
+  link_args : example_link_args,
+  link_depends : example_shell,
 )
 
 if not is_wasm

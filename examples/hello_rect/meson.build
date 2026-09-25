@@ -1,6 +1,8 @@
 hello_rect_exe = executable('hello_rect', 'hello_rect.cpp',
   dependencies : [prism_dep],
   name_suffix : example_suffix,
+  link_args : example_link_args,
+  link_depends : example_shell,
 )
 
 if not is_wasm
