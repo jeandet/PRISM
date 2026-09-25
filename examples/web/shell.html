@@ -25,7 +25,11 @@
 <body>
   <a id="back" href="./">← PRISM examples</a>
   <div id="status">Loading…</div>
-  <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+  <!-- The canvas must be its container's only child. SDL's fill-document mode records the
+       canvas's next sibling, hides every other <body> element, and later (e.g. when it recreates
+       the window for the renderer) re-inserts the canvas before that sibling -- which throws if
+       the sibling was an element it had hidden, as happens once emcc minifies this page. -->
+  <div id="app"><canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas></div>
   <script>
     var statusEl = document.getElementById('status');
     var backEl = document.getElementById('back');
