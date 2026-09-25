@@ -122,6 +122,18 @@ TEST_CASE("summarize_build_times computes nearest-rank percentiles") {
     CHECK(empty.max_ms == 0.0);
 }
 
+TEST_CASE("tick_deadline of a missed tick lies in the past") {
+    // libc++'s sleep_until(deadline) is sleep_for(deadline - now()): a missed deadline must give
+    // a negative wait, not one wrapped to ~585 years by unsigned duration arithmetic.
+    using namespace std::chrono;
+    const auto t0 = steady_clock::now();
+    const auto now = t0 + 2ms;
+    const auto missed = tick_deadline(t0, 1ms, 1) - now;
+    CHECK(missed.count() < 0);
+    CHECK(duration_cast<milliseconds>(missed).count() == -1);
+    CHECK(duration_cast<milliseconds>(tick_deadline(t0, 1ms, 3) - now).count() == 1);
+}
+
 TEST_CASE("rate_per_second and format_bytes") {
     CHECK(rate_per_second(120, 2.0) == 60.0);
     CHECK(rate_per_second(120, 0.0) == 0.0);

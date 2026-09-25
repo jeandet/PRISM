@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <climits>
 #include <cmath>
 #include <cstdint>
@@ -186,6 +187,15 @@ inline std::optional<LabConfig> parse_lab_args(const std::vector<std::string>& a
         }
     }
     return cfg;
+}
+
+// Deadline of the n-th tick of a drift-free fixed-rate loop started at t0. The tick count is
+// cast to the clock's signed rep: `period * n` with an unsigned n yields an unsigned duration,
+// so a missed deadline minus now() wraps to ~585 years and libc++'s sleep_until never returns.
+inline std::chrono::steady_clock::time_point tick_deadline(std::chrono::steady_clock::time_point t0,
+                                                           std::chrono::steady_clock::duration period,
+                                                           uint64_t n) {
+    return t0 + period * static_cast<std::chrono::steady_clock::rep>(n);
 }
 
 // Windowed rate from a monotonic counter delta over wall seconds; 0 when dt <= 0.

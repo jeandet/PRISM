@@ -128,7 +128,7 @@ static void produce_loop(std::stop_token st, prism::Shared<double>& out, double 
         const double t =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         out.set(gen.next(t));
-        std::this_thread::sleep_until(t0 + period * n);
+        std::this_thread::sleep_until(perf_lab::tick_deadline(t0, period, n));
     }
 }
 
