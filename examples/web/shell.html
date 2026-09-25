@@ -12,21 +12,28 @@
   <style>
     :root { color-scheme: dark; }
     body { margin: 0; min-height: 100vh; background: #16161e; color: #c0caf5;
-           font: 14px/1.4 system-ui, sans-serif; display: flex; flex-direction: column;
-           align-items: center; }
-    header { width: 100%; box-sizing: border-box; padding: 10px 16px; display: flex; gap: 16px;
-             align-items: baseline; }
-    header a { color: #7aa2f7; text-decoration: none; }
-    #status { color: #9aa5ce; margin-left: auto; }
-    /* The app window fills the page (SDL's fill-document mode hides the header once it runs). */
+           font: 14px/1.4 system-ui, sans-serif; }
+    #status { padding: 10px 16px; color: #9aa5ce; }
+    /* The app window fills the page (SDL's fill-document mode hides the status once it runs). */
     canvas { display: block; margin: 0; outline: none; }
+    #back { position: fixed; top: 6px; right: 8px; z-index: 10; padding: 3px 10px;
+            border-radius: 6px; background: rgba(22, 22, 30, 0.8); color: #7aa2f7;
+            font: 13px/1.4 system-ui, sans-serif; text-decoration: none; opacity: 0.75; }
+    #back:hover { opacity: 1; }
   </style>
 </head>
 <body>
-  <header><a href="./">← PRISM examples</a><span id="status">Loading…</span></header>
+  <a id="back" href="./">← PRISM examples</a>
+  <div id="status">Loading…</div>
   <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
   <script>
     var statusEl = document.getElementById('status');
+    var backEl = document.getElementById('back');
+    // SDL's fill-document mode moves every other element of <body> into a hidden div when the
+    // window opens; put the back link straight back so it floats over the app.
+    new MutationObserver(function () {
+      if (backEl.parentNode !== document.body) document.body.appendChild(backEl);
+    }).observe(document.body, { childList: true });
     var Module = {
       canvas: document.getElementById('canvas'),
       setStatus: function (text) { statusEl.textContent = text; },
