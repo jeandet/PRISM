@@ -1,11 +1,20 @@
 # simplify: doctest 2.4.12 (latest on wrapdb) trips two clang-only warnings in every test TU:
-# TEST_CASE expands __COUNTER__ (-Wc2y-extensions under -Wpedantic) and it always includes the
-# removed <ciso646> header (-W#warnings). Upstream 2.5.x fixes the header; drop the -W#warnings
-# silencing once wrapdb ships it.
-doctest_clang_args = cpp.get_id() == 'clang' ? ['-Wno-c2y-extensions', '-Wno-#warnings'] : []
+# TEST_CASE expands __COUNTER__ (-Wc2y-extensions, renamed -Wcounter-extension in newer clang)
+# and it always includes the removed <ciso646> header (-W#warnings). Upstream 2.5.x fixes the
+# header; drop the -W#warnings silencing once wrapdb ships it. get_supported_arguments drops
+# whichever flags the compiler doesn't know (all of them on GCC).
+doctest_clang_args = ['-Wno-c2y-extensions', '-Wno-counter-extension', '-Wno-#warnings']
+# Under emscripten the tests run in node: main() on a worker so it may block (join, wait),
+# direct host filesystem for tests that touch files, and the process exits with main's code.
+test_node_link_args = host_machine.system() == 'emscripten' ? ['-sPROXY_TO_PTHREAD', '-sEXIT_RUNTIME', '-sNODERAWFS'] : []
+# Tests that open a real SDL window: node has no DOM/canvas, so under emscripten they are
+# built (compile/link coverage) but not run.
+can_open_window = host_machine.system() != 'emscripten'
+
 doctest_dep = declare_dependency(
   dependencies : dependency('doctest', fallback : ['doctest', 'doctest_dep']),
   compile_args : cpp.get_supported_arguments(doctest_clang_args),
+  link_args : test_node_link_args,
 )
 
 # Headless tests — no SDL, no backend
@@ -112,13 +121,17 @@ test_sdl_window = executable('test_sdl_window',
   files('test_sdl_window.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
-test('sdl_window', test_sdl_window)
+if can_open_window
+  test('sdl_window', test_sdl_window)
+endif
 
 test_software_backend_chrome_cursor = executable('test_software_backend_chrome_cursor',
   files('test_software_backend_chrome_cursor.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
-test('software_backend_chrome_cursor', test_software_backend_chrome_cursor)
+if can_open_window
+  test('software_backend_chrome_cursor', test_software_backend_chrome_cursor)
+endif
 
 test_software_backend_concurrent = executable('test_software_backend_concurrent',
   files('test_software_backend_concurrent.cpp'),
@@ -136,7 +149,9 @@ test_model_app_chrome_cursor = executable('test_model_app_chrome_cursor',
   files('test_model_app_chrome_cursor.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
-test('model_app_chrome_cursor', test_model_app_chrome_cursor)
+if can_open_window
+  test('model_app_chrome_cursor', test_model_app_chrome_cursor)
+endif
 
 # Tests that need a backend (SDL)
 backend_tests = {
@@ -147,5 +162,7 @@ foreach name, src : backend_tests
   exe = executable('test_' + name, src,
     dependencies : [prism_dep, doctest_dep],
   )
-  test(name, exe)
+  if can_open_window
+    test(name, exe)
+  endif
 endforeach

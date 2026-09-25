@@ -2,16 +2,6 @@
 stdexec_dep = dependency('stdexec', fallback : ['stdexec', 'stdexec_dep'])
 fmt_dep = dependency('fmt', fallback : ['fmt', 'fmt_dep'])
 
-cpp = meson.get_compiler('cpp')
-has_reflection = cpp.compiles('''
-  #if __cpp_impl_reflection
-  int main() { return 0; }
-  #else
-  #error no reflection
-  #endif
-''', args : ['-freflection'],
-   name : '__cpp_impl_reflection check')
-
 if not has_reflection
   magic_enum_dep = dependency('magic_enum', fallback : ['magic_enum', 'magic_enum_dep'])
 else
@@ -24,8 +14,14 @@ prism_core_dep = declare_dependency(
 )
 
 # Software backend: links SDL3 + SDL3_ttf
-sdl3_dep = dependency('sdl3', fallback : ['sdl3', 'sdl3_dep'])
-sdl3_ttf_dep = dependency('sdl3_ttf', fallback : ['sdl3_ttf', 'sdl3_ttf_dep'])
+if host_machine.system() == 'emscripten'
+  # The wrapdb SDL3 port has no emscripten support; emscripten ships its own ports.
+  sdl3_dep = declare_dependency(compile_args : ['--use-port=sdl3'], link_args : ['--use-port=sdl3'])
+  sdl3_ttf_dep = declare_dependency(compile_args : ['--use-port=sdl3_ttf'], link_args : ['--use-port=sdl3_ttf'])
+else
+  sdl3_dep = dependency('sdl3', fallback : ['sdl3', 'sdl3_dep'])
+  sdl3_ttf_dep = dependency('sdl3_ttf', fallback : ['sdl3_ttf', 'sdl3_ttf_dep'])
+endif
 
 font_path = meson.project_source_root() / 'assets' / 'fonts' / 'JetBrainsMonoNerdFont-Regular.ttf'
 font_install_path = get_option('datadir') / 'prism' / 'fonts' / 'JetBrainsMonoNerdFont-Regular.ttf'

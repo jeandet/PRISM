@@ -22,7 +22,16 @@ project('prism', 'cpp',
 )
 
 cpp = meson.get_compiler('cpp')
-if cpp.compiles('int main() {}', args : ['-freflection'], name : '-freflection support')
+# Probe the feature macro, not just the flag: emscripten's clang accepts -freflection
+# (with an unused-argument warning) but doesn't implement it.
+has_reflection = cpp.compiles('''
+  #if __cpp_impl_reflection
+  int main() { return 0; }
+  #else
+  #error no reflection
+  #endif
+''', args : ['-freflection'], name : '__cpp_impl_reflection check')
+if has_reflection
   add_project_arguments('-freflection', language : 'cpp')
 endif
 
@@ -39,7 +48,9 @@ endif
 prism_inc = include_directories('include')
 
 subdir('src')
-subdir('python')
+if host_machine.system() != 'emscripten'
+  subdir('python')
+endif
 if not get_option('tests').disabled()
   subdir('tests')
 endif
