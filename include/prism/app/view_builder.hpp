@@ -645,7 +645,10 @@ public:
                 // right here, and begin_split_drag(container_id, ...) would
                 // silently fail to find it.
                 target_.id = target_.children[0].id;
-                target_.children = std::move(target_.children[0].children);
+                // Detach first: move-assigning a vector from a member of its own element is UB
+                // (libc++ frees the old buffer, which holds the source, before reading it).
+                auto grandchildren = std::move(target_.children[0].children);
+                target_.children = std::move(grandchildren);
             }
         }
     }
