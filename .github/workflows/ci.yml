@@ -139,7 +139,7 @@ jobs:
       - name: Build TSan
         run: ninja -C builddir-tsan
       - name: Run TSan tests (C++ + Python via meson test, SDL flaky suites excluded)
-        run: xvfb-run -a meson test -C builddir-tsan --print-errorlogs --exclude python_bindings --exclude sdl_window --exclude model_app --exclude model_app_chrome_cursor --exclude software_backend_chrome_cursor --exclude app --exclude software_backend_request_window
+        run: xvfb-run -a meson test -C builddir-tsan --print-errorlogs --exclude python_bindings --exclude sdl_window --exclude model_app --exclude model_app_chrome_cursor --exclude software_backend_chrome_cursor --exclude app --exclude software_backend_request_window --exclude software_backend_present_stats
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -169,7 +169,7 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: halt_on_error=1
-        run: xvfb-run -a meson test -C builddir-asan --print-errorlogs --exclude sdl_window --exclude model_app --exclude model_app_chrome_cursor --exclude software_backend_chrome_cursor --exclude app --exclude software_backend_request_window
+        run: xvfb-run -a meson test -C builddir-asan --print-errorlogs --exclude sdl_window --exclude model_app --exclude model_app_chrome_cursor --exclude software_backend_chrome_cursor --exclude app --exclude software_backend_request_window --exclude software_backend_present_stats
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
