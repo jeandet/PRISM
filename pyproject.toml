@@ -20,10 +20,21 @@ addopts = "--import-mode=importlib"
 setup = [
   '-Doptimization=3', '-Dcpp_std=c++26',
   '-Dtests=disabled', '-Dexamples=disabled', '-Dbenchmarks=disabled', '-Dmagic_enum:test=false',
-  # vendored deps are linked statically so the wheel only needs system freetype/harfbuzz
-  '--force-fallback-for=fmt,sdl3,sdl3_ttf',
+  # Vendored deps are built from wraps and linked statically, freetype and harfbuzz included: system
+  # copies (Homebrew on macOS) are built for the build machine's OS, not the wheel's target.
+  '--force-fallback-for=fmt,sdl3,sdl3_ttf,freetype2,harfbuzz',
   '-Dfmt:default_library=static', '-Dsdl3:default_library=static', '-Dsdl3_ttf:default_library=static',
   '-Dsdl3:werror=false', '-Dsdl3:warning_level=0', '-Dsdl3_ttf:werror=false', '-Dsdl3_ttf:warning_level=0',
+  # Optional features off, so neither picks up other libraries from the build machine.
+  '-Dfreetype2:default_library=static', '-Dfreetype2:werror=false', '-Dfreetype2:warning_level=0',
+  '-Dfreetype2:zlib=internal', '-Dfreetype2:png=disabled', '-Dfreetype2:bzip2=disabled',
+  '-Dfreetype2:brotli=disabled', '-Dfreetype2:harfbuzz=disabled', '-Dfreetype2:tests=disabled',
+  '-Dharfbuzz:default_library=static', '-Dharfbuzz:werror=false', '-Dharfbuzz:warning_level=0',
+  '-Dharfbuzz:freetype=enabled', '-Dharfbuzz:glib=disabled', '-Dharfbuzz:gobject=disabled',
+  '-Dharfbuzz:cairo=disabled', '-Dharfbuzz:chafa=disabled', '-Dharfbuzz:icu=disabled',
+  '-Dharfbuzz:raster=disabled', '-Dharfbuzz:vector=disabled', '-Dharfbuzz:subset=disabled',
+  '-Dharfbuzz:tests=disabled', '-Dharfbuzz:docs=disabled', '-Dharfbuzz:utilities=disabled',
+  '-Dharfbuzz:introspection=disabled',
   '--vsenv',
 ]
 install = ['--tags=runtime,python-runtime']
@@ -47,7 +58,7 @@ manylinux-aarch64-image = "manylinux_2_34"
 before-all = """
 dnf install -y gcc-toolset-14 systemd-devel dbus-devel pipewire-devel wayland-devel libxkbcommon-devel \
   mesa-libEGL-devel mesa-libGL-devel libdrm-devel libX11-devel libXext-devel libXrandr-devel libXcursor-devel \
-  libXi-devel libXfixes-devel libXScrnSaver-devel alsa-lib-devel pulseaudio-libs-devel freetype-devel harfbuzz-devel \
+  libXi-devel libXfixes-devel libXScrnSaver-devel alsa-lib-devel pulseaudio-libs-devel \
   xorg-x11-proto-devel xz make
 curl -fsSL https://www.x.org/releases/individual/lib/libXi-1.8.2.tar.xz | tar xJ -C /tmp
 cd /tmp/libXi-1.8.2 && ./configure --prefix=/usr --libdir=/usr/lib64 && make -j"$(nproc)" && make install
@@ -60,5 +71,5 @@ environment = { PATH = "/opt/rh/gcc-toolset-14/root/usr/bin:$PATH", CC = "gcc", 
 # Objective-C @available checks need clang's compiler-rt (___isPlatformVersionAtLeast), which a
 # g++-driven link of a static libSDL3.a cannot provide; delocate bundles libSDL3.dylib. SDL3_ttf
 # (plain C, not installed by its subproject) stays static.
-before-all = "brew install gcc pkg-config freetype harfbuzz"
+before-all = "brew install gcc pkg-config"
 config-settings = { "setup-args" = ["-Dsdl3:default_library=shared"] }
