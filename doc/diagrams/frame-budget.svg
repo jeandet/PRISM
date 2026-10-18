@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 372" width="900" height="372" role="img"
+     aria-label="Timeline: a slow callback freezes a single-threaded toolkit for two frames, while in PRISM the render thread keeps serving the window from the last snapshot">
+  <style>
+    .card { fill: #f6f8fa; stroke: #d0d7de; }
+    .t { fill: #1f2328; font: 600 15px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .h { fill: #1f2328; font: 600 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .s { fill: #59636e; font: 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .b { fill: #1f2328; font: 600 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .tick { stroke: #8c959f; stroke-dasharray: 3 4; }
+    .lane { fill: none; stroke: #d0d7de; stroke-dasharray: 2 4; }
+    .input { fill: #eaeef2; stroke: #6e7781; }
+    .logic { fill: #ddf4ff; stroke: #0969da; }
+    .layout { fill: #fbefff; stroke: #8250df; }
+    .paint { fill: #fff1e5; stroke: #bc4c00; }
+    .present { fill: #dafbe1; stroke: #1a7f37; }
+    .bad { fill: #cf222e; font: 600 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .badl { stroke: #cf222e; stroke-width: 2; }
+    .good { fill: #1a7f37; font: 600 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .arrow { stroke: #59636e; stroke-width: 1.5; fill: none; }
+    .ah { fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #161b22; stroke: #30363d; }
+      .t, .h, .b { fill: #e6edf3; }
+      .s { fill: #9198a1; }
+      .tick { stroke: #6e7681; }
+      .lane { stroke: #30363d; }
+      .input { fill: #21262d; stroke: #8c959f; }
+      .logic { fill: #0c2d6b; stroke: #4493f8; }
+      .layout { fill: #2e1a4a; stroke: #ab7df8; }
+      .paint { fill: #3d1d00; stroke: #f0883e; }
+      .present { fill: #0f3d1f; stroke: #3fb950; }
+      .bad { fill: #f85149; }
+      .badl { stroke: #f85149; }
+      .good { fill: #3fb950; }
+      .arrow { stroke: #9198a1; }
+      .ah { fill: #9198a1; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="card" x="0.5" y="0.5" width="899" height="371" rx="10"/>
+  <text class="t" x="24" y="32">Same slow 40 ms callback, two architectures</text>
+
+  <!-- 16 ms frame ticks, 10 px per ms -->
+  <g>
+    <line class="tick" x1="150" y1="50" x2="150" y2="306"/>
+    <line class="tick" x1="310" y1="50" x2="310" y2="306"/>
+    <line class="tick" x1="470" y1="50" x2="470" y2="306"/>
+    <line class="tick" x1="630" y1="50" x2="630" y2="306"/>
+    <line class="tick" x1="790" y1="50" x2="790" y2="306"/>
+    <text class="s" x="230" y="60" text-anchor="middle">frame 1 · 16 ms</text>
+    <text class="s" x="390" y="60" text-anchor="middle">frame 2</text>
+    <text class="s" x="550" y="60" text-anchor="middle">frame 3</text>
+    <text class="s" x="710" y="60" text-anchor="middle">frame 4</text>
+  </g>
+
+  <!-- Traditional toolkit: one thread does everything -->
+  <text class="h" x="24" y="94">Qt / GTK / wx</text>
+  <text class="s" x="24" y="110">one thread</text>
+  <line class="lane" x1="150" y1="96" x2="876" y2="96"/>
+  <rect class="input" x="150" y="80" width="20" height="32" rx="3"/>
+  <rect class="logic" x="170" y="80" width="40" height="32" rx="3"/>
+  <rect class="layout" x="210" y="80" width="30" height="32" rx="3"/>
+  <rect class="paint" x="240" y="80" width="40" height="32" rx="3"/>
+  <rect class="present" x="280" y="80" width="12" height="32" rx="3"/>
+
+  <rect class="input" x="310" y="80" width="20" height="32" rx="3"/>
+  <rect class="logic" x="330" y="80" width="400" height="32" rx="3"/>
+  <text class="b" x="530" y="100" text-anchor="middle">slow callback · 40 ms</text>
+  <rect class="layout" x="730" y="80" width="30" height="32" rx="3"/>
+  <rect class="paint" x="760" y="80" width="40" height="32" rx="3"/>
+  <rect class="present" x="800" y="80" width="12" height="32" rx="3"/>
+
+  <line class="badl" x1="464" y1="118" x2="476" y2="130"/>
+  <line class="badl" x1="476" y1="118" x2="464" y2="130"/>
+  <line class="badl" x1="624" y1="118" x2="636" y2="130"/>
+  <line class="badl" x1="636" y1="118" x2="624" y2="130"/>
+  <text class="bad" x="550" y="146" text-anchor="middle">window frozen: no resize, no repaint, 2 frames missed</text>
+
+  <!-- PRISM: app thread and render thread -->
+  <text class="h" x="24" y="200">PRISM</text>
+  <text class="s" x="24" y="216">app thread</text>
+  <line class="lane" x1="150" y1="200" x2="876" y2="200"/>
+  <rect class="logic" x="170" y="184" width="40" height="32" rx="3"/>
+  <rect class="layout" x="210" y="184" width="40" height="32" rx="3"/>
+  <rect class="logic" x="330" y="184" width="400" height="32" rx="3"/>
+  <text class="b" x="530" y="204" text-anchor="middle">slow callback · 40 ms</text>
+  <rect class="layout" x="730" y="184" width="30" height="32" rx="3"/>
+
+  <text class="s" x="24" y="282">render thread</text>
+  <line class="lane" x1="150" y1="276" x2="876" y2="276"/>
+  <rect class="input" x="150" y="260" width="20" height="32" rx="3"/>
+  <rect class="paint" x="256" y="260" width="30" height="32" rx="3"/>
+  <rect class="present" x="286" y="260" width="10" height="32" rx="3"/>
+  <rect class="input" x="310" y="260" width="20" height="32" rx="3"/>
+  <rect class="paint" x="490" y="260" width="30" height="32" rx="3"/>
+  <rect class="present" x="520" y="260" width="10" height="32" rx="3"/>
+  <rect class="paint" x="650" y="260" width="30" height="32" rx="3"/>
+  <rect class="present" x="680" y="260" width="10" height="32" rx="3"/>
+  <rect class="paint" x="770" y="260" width="30" height="32" rx="3"/>
+  <rect class="present" x="800" y="260" width="10" height="32" rx="3"/>
+
+  <!-- input handed to the app thread, snapshots handed back -->
+  <path class="arrow" d="M160,258 V220" marker-end="url(#a)"/>
+  <path class="arrow" d="M320,258 V220" marker-end="url(#a)"/>
+  <path class="arrow" d="M250,218 Q256,240 262,258" marker-end="url(#a)"/>
+  <path class="arrow" d="M760,218 Q768,240 778,258" marker-end="url(#a)"/>
+  <text class="s" x="505" y="310" text-anchor="middle">resize</text>
+  <text class="s" x="665" y="310" text-anchor="middle">resize</text>
+  <text class="good" x="555" y="244" text-anchor="middle">window stays live: OS events repaint the last snapshot</text>
+
+  <!-- legend -->
+  <g transform="translate(110,334)">
+    <rect class="input" x="0" y="0" width="14" height="14" rx="2"/><text class="s" x="20" y="12">input</text>
+    <rect class="logic" x="80" y="0" width="14" height="14" rx="2"/><text class="s" x="100" y="12">your logic</text>
+    <rect class="layout" x="190" y="0" width="14" height="14" rx="2"/><text class="s" x="210" y="12">layout / record DrawLists</text>
+    <rect class="paint" x="384" y="0" width="14" height="14" rx="2"/><text class="s" x="404" y="12">rasterise</text>
+    <rect class="present" x="474" y="0" width="14" height="14" rx="2"/><text class="s" x="494" y="12">present</text>
+    <path class="arrow" d="M564,7 H600" marker-end="url(#a)"/><text class="s" x="608" y="12">input event / new snapshot</text>
+  </g>
+</svg>

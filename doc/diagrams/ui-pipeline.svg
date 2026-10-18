@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 236" width="900" height="236" role="img"
+     aria-label="Two ways to describe a UI, reflection or a view() method, converge on the same Node tree, then a persistent WidgetNode tree and per-widget DrawLists">
+  <style>
+    .card { fill: #f6f8fa; stroke: #d0d7de; }
+    .h { fill: #1f2328; font: 600 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .s { fill: #59636e; font: 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .tag { fill: #59636e; font: 600 11px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .04em; }
+    .c { fill: #1f2328; font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .src { fill: #ffffff; stroke: #8c959f; }
+    .r26 { fill: #ddf4ff; stroke: #0969da; }
+    .r23 { fill: #dafbe1; stroke: #1a7f37; }
+    .core { fill: #fbefff; stroke: #8250df; stroke-width: 1.5; }
+    .out { fill: #fff1e5; stroke: #bc4c00; }
+    .arrow { stroke: #59636e; stroke-width: 1.5; fill: none; }
+    .ah { fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #161b22; stroke: #30363d; }
+      .h, .c { fill: #e6edf3; }
+      .s, .tag { fill: #9198a1; }
+      .src { fill: #0d1117; stroke: #6e7681; }
+      .r26 { fill: #0c2d6b; stroke: #4493f8; }
+      .r23 { fill: #0f3d1f; stroke: #3fb950; }
+      .core { fill: #2e1a4a; stroke: #ab7df8; }
+      .out { fill: #3d1d00; stroke: #f0883e; }
+      .arrow { stroke: #9198a1; }
+      .ah { fill: #9198a1; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="card" x="0.5" y="0.5" width="899" height="235" rx="10"/>
+
+  <text class="tag" x="24" y="30">C++26 · GCC 16 -freflection</text>
+  <rect class="src" x="24" y="40" width="190" height="56" rx="8"/>
+  <text class="c" x="40" y="64">struct { Field&lt;T&gt; … }</text>
+  <text class="s" x="40" y="84">nothing else to write</text>
+  <rect class="r26" x="246" y="40" width="160" height="56" rx="8"/>
+  <text class="h" x="326" y="64" text-anchor="middle">P2996 reflection</text>
+  <text class="s" x="326" y="84" text-anchor="middle">walks the members</text>
+
+  <text class="tag" x="24" y="136">C++23 · Clang · WebAssembly</text>
+  <rect class="src" x="24" y="146" width="190" height="56" rx="8"/>
+  <text class="c" x="40" y="170">void view(ViewBuilder&amp;)</text>
+  <text class="s" x="40" y="190">one method per model</text>
+  <rect class="r23" x="246" y="146" width="160" height="56" rx="8"/>
+  <text class="h" x="326" y="170" text-anchor="middle">ViewBuilder calls</text>
+  <text class="s" x="326" y="190" text-anchor="middle">vstack, hstack, tabs…</text>
+
+  <path class="arrow" d="M216,68 H244" marker-end="url(#a)"/>
+  <path class="arrow" d="M216,174 H244" marker-end="url(#a)"/>
+  <path class="arrow" d="M408,68 H424 V110 H446" marker-end="url(#a)"/>
+  <path class="arrow" d="M408,174 H424 V132 H446" marker-end="url(#a)"/>
+
+  <rect class="core" x="448" y="88" width="128" height="66" rx="8"/>
+  <text class="h" x="512" y="114" text-anchor="middle">Node tree</text>
+  <text class="s" x="512" y="134" text-anchor="middle">same for both paths</text>
+
+  <path class="arrow" d="M578,121 H606" marker-end="url(#a)"/>
+  <rect class="out" x="608" y="88" width="134" height="66" rx="8"/>
+  <text class="h" x="675" y="114" text-anchor="middle">WidgetNode tree</text>
+  <text class="s" x="675" y="134" text-anchor="middle">persistent, built once</text>
+
+  <path class="arrow" d="M744,121 H772" marker-end="url(#a)"/>
+  <rect class="out" x="774" y="88" width="102" height="66" rx="8"/>
+  <text class="h" x="825" y="114" text-anchor="middle">DrawLists</text>
+  <text class="s" x="825" y="134" text-anchor="middle">dirty ones only</text>
+</svg>

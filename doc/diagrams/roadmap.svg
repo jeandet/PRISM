@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 150" width="900" height="150" role="img"
+     aria-label="Roadmap: phases 1 to 4 done, phase 4.5 in progress, phase 5 GPU backend planned">
+  <style>
+    .card { fill: #f6f8fa; stroke: #d0d7de; }
+    .h { fill: #1f2328; font: 600 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .s { fill: #59636e; font: 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .line { stroke: #d0d7de; stroke-width: 4; }
+    .doneline { stroke: #1a7f37; stroke-width: 4; }
+    .done { fill: #1a7f37; }
+    .now { fill: #f6f8fa; stroke: #bf8700; stroke-width: 4; }
+    .nowdot { fill: #bf8700; }
+    .next { fill: #f6f8fa; stroke: #8c959f; stroke-width: 3; }
+    .check { stroke: #ffffff; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .nowl { fill: #9a6700; font: 600 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #161b22; stroke: #30363d; }
+      .h { fill: #e6edf3; }
+      .s { fill: #9198a1; }
+      .line { stroke: #30363d; }
+      .doneline { stroke: #3fb950; }
+      .done { fill: #3fb950; }
+      .now { fill: #161b22; stroke: #d29922; }
+      .nowdot { fill: #d29922; }
+      .next { fill: #161b22; stroke: #6e7681; }
+      .check { stroke: #0d1117; }
+      .nowl { fill: #d29922; }
+    }
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="899" height="149" rx="10"/>
+
+  <line class="line" x1="60" y1="50" x2="840" y2="50"/>
+  <line class="doneline" x1="60" y1="50" x2="700" y2="50"/>
+
+  <g>
+    <circle class="done" cx="60" cy="50" r="13"/><path class="check" d="M54,50 l4,4 l8,-8"/>
+    <circle class="done" cx="171" cy="50" r="13"/><path class="check" d="M165,50 l4,4 l8,-8"/>
+    <circle class="done" cx="283" cy="50" r="13"/><path class="check" d="M277,50 l4,4 l8,-8"/>
+    <circle class="done" cx="394" cy="50" r="13"/><path class="check" d="M388,50 l4,4 l8,-8"/>
+    <circle class="done" cx="506" cy="50" r="13"/><path class="check" d="M500,50 l4,4 l8,-8"/>
+    <circle class="done" cx="617" cy="50" r="13"/><path class="check" d="M611,50 l4,4 l8,-8"/>
+    <circle class="now" cx="729" cy="50" r="12"/><circle class="nowdot" cx="729" cy="50" r="5"/>
+    <circle class="next" cx="840" cy="50" r="12"/>
+  </g>
+
+  <g text-anchor="middle">
+    <text class="h" x="60" y="88">Phase 1</text><text class="s" x="60" y="106">core</text><text class="s" x="60" y="122">infrastructure</text>
+    <text class="h" x="171" y="88">Phase 2</text><text class="s" x="171" y="106">layout +</text><text class="s" x="171" y="122">observers</text>
+    <text class="h" x="283" y="88">Phase 3</text><text class="s" x="283" y="106">widgets +</text><text class="s" x="283" y="122">rendering</text>
+    <text class="h" x="394" y="88">Phase 3.5</text><text class="s" x="394" y="106">stdexec</text><text class="s" x="394" y="122">event loops</text>
+    <text class="h" x="506" y="88">Phase 3.6</text><text class="s" x="506" y="106">Node tree,</text><text class="s" x="506" y="122">C++23 support</text>
+    <text class="h" x="617" y="88">Phase 4</text><text class="s" x="617" y="106">advanced</text><text class="s" x="617" y="122">widgets</text>
+    <text class="h" x="729" y="88">Phase 4.5</text><text class="s" x="729" y="106">inspector, tree,</text><text class="s" x="729" y="122">Python, web</text>
+    <text class="nowl" x="729" y="24">in progress</text>
+    <text class="h" x="840" y="88">Phase 5</text><text class="s" x="840" y="106">GPU backend,</text><text class="s" x="840" y="122">SDF text</text>
+  </g>
+</svg>
