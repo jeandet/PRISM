@@ -91,7 +91,7 @@ curves.
 
 ## Key concepts
 
-- `canvas()` + `.depends_on(...)` — the escape hatch for drawing an object that isn't itself a `Widget<T>`, repainting only when its declared dependencies change. See the root README's [Composition by Nesting](../../README.md#composition-by-nesting) section.
+- `canvas()` + `.depends_on(...)` — the escape hatch for drawing an object that isn't itself a `Widget<T>`, repainting only when its declared dependencies change. See the root README's [Canvas escape hatch](../../README.md#canvas-escape-hatch) section.
 - `Field<T>::observe()` — fire-and-forget reactive callback; no `Connection` to store or disconnect, unlike `.on_change() | prism::on(sched) | prism::then(...)`.
 - `PlotModel` — per-axis zoom/pan/crosshair state, driven entirely through `Field<T>` members.
 

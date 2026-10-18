@@ -86,7 +86,7 @@ captured frame to SVG. This is what the screenshot above was generated from, and
 
 ## Key concepts
 
-- **Entry point 2 of 3** — see the root [README's "Three Entry Points"](../../README.md#three-entry-points) for how this compares to `model_app` (entry point 1, used by every other example) and raw `App`+`Frame` (entry point 3).
+- **Entry point 2 of 3** — see the root [README.s "Three ways in"](../../README.md#three-ways-in) for how this compares to `model_app` (entry point 1, used by every other example) and raw `App`+`Frame` (entry point 3).
 - `Ui<State>::row()`/`column()`/`spacer()` — retained layout containers, measured and arranged by PRISM's layout engine each rebuild.
 - `Ui<State>::frame()` — the raw-draw escape hatch inside retained layout, analogous to `canvas()` in the model-driven API.
 

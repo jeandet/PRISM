@@ -109,7 +109,7 @@ if (argc >= 2) {
 
 ## Key concepts
 
-- `Shared<T>` — the lock-free cross-thread cell; `.get()`/`.set()` from any thread, `.observe()`/`drain_notifications()` on the owning thread. See the root README's [Threading Model](../../README.md#threading-model).
+- `Shared<T>` — the lock-free cross-thread cell; `.get()`/`.set()` from any thread, `.observe()`/`drain_notifications()` on the owning thread. See the root README's [Reactive core](../../README.md#reactive-core).
 - `void drain()` — the model-level opt-in that makes PRISM's app loop flush `Shared<T>` notifications every tick.
 - `List<ProcessInfo>::replace_all` + the reflected-struct table tier — a plain-struct row type drives the table with no manual column/diff code.
 - Variadic `.depends_on(a, b, c, ...)` — one call instead of chained `.depends_on()`s.
