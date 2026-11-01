@@ -19,6 +19,9 @@ using render::FontRole;
 struct TextMeasurer {
     virtual ~TextMeasurer() = default;
     virtual float width(std::string_view utf8, float size, FontRole role) const = 0;
+    // Distance between two baselines. Default: the estimate below, so a measurer that only
+    // knows widths still lays out lines.
+    virtual float line_height(float size, FontRole) const { return 1.4f * size; }
 };
 
 // Without a measurer (headless tests, backends without fonts): the bundled font is monospace
@@ -27,6 +30,10 @@ inline float text_width(const TextMeasurer* m, std::string_view utf8, float size
                         FontRole role = FontRole::Ui) {
     if (m) return m->width(utf8, size, role);
     return 0.6f * size * static_cast<float>(core::utf8::count(utf8));
+}
+
+inline float line_height(const TextMeasurer* m, float size, FontRole role = FontRole::Ui) {
+    return m ? m->line_height(size, role) : 1.4f * size;
 }
 
 // x of a caret at byte offset `byte` (snapped to a character start).

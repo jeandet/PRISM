@@ -67,3 +67,13 @@ TEST_CASE("measuring before TTF_Init does not disable real measurement later") {
     CHECK(m.width("abc", 14.f, FontRole::Mono) == std::round(m.width("abc", 14.f, FontRole::Mono)));
     CHECK(m.width("abc", 14.f, FontRole::Mono) != 25.2f);
 }
+
+TEST_CASE("line height comes from the font's own line spacing") {
+    TtfSession ttf;
+    auto m = bundled();
+    float mono = m.line_height(14.f, FontRole::Mono);
+    CHECK(mono == std::round(mono));                  // SDL_ttf reports whole pixels
+    CHECK(mono > 14.f);
+    CHECK(mono != doctest::Approx(14.f * 1.4f));      // not the estimate
+    CHECK(m.line_height(28.f, FontRole::Ui) > m.line_height(14.f, FontRole::Ui));
+}

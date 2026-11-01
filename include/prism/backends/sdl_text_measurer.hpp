@@ -18,8 +18,11 @@ public:
     SdlTextMeasurer(SdlTextMeasurer&&) = delete;
 
     float width(std::string_view utf8, float size, ui::FontRole role) const override;
+    float line_height(float size, ui::FontRole role) const override;
 
 private:
+    TTF_Font* font(float size, ui::FontRole role) const;   // null before TTF_Init or if none opened
+
     std::string ui_path_, mono_path_;
     mutable SdlFontSet fonts_;
     mutable bool opened_ = false;

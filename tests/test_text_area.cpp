@@ -817,3 +817,49 @@ TEST_CASE("TextArea draws and measures its text in the mono font") {
     CHECK(mono_text);
     CHECK(caret_x == doctest::Approx(4.f + 20.f));   // padding + mono width("ab")
 }
+
+namespace {
+struct TallLines final : prism::TextMeasurer {   // 10 px per char, 30 px lines
+    float width(std::string_view s, float, prism::FontRole) const override { return 10.f * static_cast<float>(s.size()); }
+    float line_height(float, prism::FontRole) const override { return 30.f; }
+};
+}
+
+TEST_CASE("TextArea lays lines out with the measured line height") {
+    TallLines m;
+    prism::Theme theme;
+    theme.measurer = &m;
+    prism::Field<prism::TextArea<>> field{{.value = "ab\ncd", .rows = 3}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.visual_state.focused = true;
+    prism::Widget<prism::TextArea<>>::ensure_edit_state(node).cursor = 4;   // line 1, after "c"
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+
+    float cd_y = -1.f, caret_y = -1.f, bg_h = -1.f;
+    for (auto& cmd : dl.commands) {
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd); t && t->text == "cd") cd_y = t->origin.y.raw();
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd)) {
+            if (r->rect.extent.w.raw() <= 3.f) caret_y = r->rect.origin.y.raw();
+            else if (bg_h < 0.f) bg_h = r->rect.extent.h.raw();
+        }
+    }
+    CHECK(cd_y == doctest::Approx(4.f + 30.f + 2.f));    // padding + one line + baseline offset
+    CHECK(caret_y == doctest::Approx(4.f + 30.f));
+    CHECK(bg_h == doctest::Approx(2.f * 4.f + 3.f * 30.f));
+}
+
+TEST_CASE("TextArea click picks the line using the measured line height") {
+    TallLines m;
+    prism::Theme theme;
+    theme.measurer = &m;
+    prism::Field<prism::TextArea<>> field{{.value = "ab\ncd", .rows = 3}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.visual_state.focused = true;
+    prism::Widget<prism::TextArea<>>::handle_input(
+        field, prism::MouseButton{prism::Point{prism::X{4.f + 10.f}, prism::Y{4.f + 25.f}}, 1, true}, node);
+    // y = 25 is line 0 with 30 px lines, but line 1 with the 19.6 px estimate.
+    CHECK(std::any_cast<prism::TextAreaEditState>(node.edit_state).cursor == 1);
+}

@@ -250,7 +250,9 @@ inline size_t line_col_to_cursor(std::string_view text, size_t line, size_t col,
 constexpr Width ta_padding_x{4.f};
 constexpr Height ta_padding_y{4.f};
 constexpr float ta_font_size = 14.f;
-constexpr Height ta_line_height{ta_font_size * 1.4f};
+inline Height ta_line_h(const TextMeasurer* m) {
+    return Height{line_height(m, ta_font_size, ta_font_role)};
+}
 constexpr Width ta_cursor_w{2.f};
 
 template <typename Sentinel>
@@ -261,7 +263,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
-    Height text_area_h{static_cast<float>(sf.rows) * ta_line_height.raw()};
+    Height text_area_h{static_cast<float>(sf.rows) * ta_line_h(m).raw()};
     Height widget_h = ta_padding_y * 2.f + text_area_h;
 
     auto& t = *node.theme;
@@ -283,8 +285,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
                 0.f, TextAnchor::TopLeft, ta_font_role);
     } else {
         for (size_t i = 0; i < wrapped.size(); ++i) {
-            Y y{static_cast<float>(i) * ta_line_height.raw() - es.scroll_y.raw()};
-            if (y.raw() + ta_line_height.raw() < 0) continue;
+            Y y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()};
+            if (y.raw() + ta_line_h(m).raw() < 0) continue;
             if (y.raw() > text_area_h.raw()) break;
             if (wrapped[i].length > 0) {
                 std::string line_text(sf.value.data() + wrapped[i].start, wrapped[i].length);
@@ -299,8 +301,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
                                               es.cursor, wrapped);
         auto text = line_text(value, wrapped[line]);
         X cx{prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role)};
-        Y cy{static_cast<float>(line) * ta_line_height.raw() - es.scroll_y.raw()};
-        dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_height), t.cursor);
+        Y cy{static_cast<float>(line) * ta_line_h(m).raw() - es.scroll_y.raw()};
+        dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_h(m)), t.cursor);
     }
 
     dl.clip_pop();
@@ -316,7 +318,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
-    Height text_area_h{static_cast<float>(sf.rows) * ta_line_height.raw()};
+    Height text_area_h{static_cast<float>(sf.rows) * ta_line_h(m).raw()};
 
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
@@ -379,7 +381,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     } else if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed) {
         float rel_y = mb->position.y.raw() - ta_padding_y.raw() + es.scroll_y.raw();
         size_t click_line = static_cast<size_t>(
-            std::clamp(rel_y / ta_line_height.raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
+            std::clamp(rel_y / ta_line_h(m).raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
         float rel_x = mb->position.x.raw() - ta_padding_x.raw();
         auto text = line_text(value, wrapped[click_line]);
         size_t click_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, rel_x, ta_font_role));
@@ -393,10 +395,10 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
     auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);
     auto [cur_line, cur_col] = cursor_to_line_col(new_value, es.cursor, new_wrapped);
-    Y cursor_y{static_cast<float>(cur_line) * ta_line_height.raw()};
+    Y cursor_y{static_cast<float>(cur_line) * ta_line_h(m).raw()};
 
-    if (cursor_y.raw() - es.scroll_y.raw() > text_area_h.raw() - ta_line_height.raw())
-        es.scroll_y = DY{cursor_y.raw() - text_area_h.raw() + ta_line_height.raw()};
+    if (cursor_y.raw() - es.scroll_y.raw() > text_area_h.raw() - ta_line_h(m).raw())
+        es.scroll_y = DY{cursor_y.raw() - text_area_h.raw() + ta_line_h(m).raw()};
     if (cursor_y.raw() < es.scroll_y.raw())
         es.scroll_y = DY{cursor_y.raw()};
 }

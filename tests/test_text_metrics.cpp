@@ -63,3 +63,12 @@ TEST_CASE("measurement helpers pass the font role through, UI by default") {
     CHECK(m.roles.front() == prism::render::FontRole::Ui);
     for (size_t i = 1; i < m.roles.size(); ++i) CHECK(m.roles[i] == prism::render::FontRole::Mono);
 }
+
+TEST_CASE("line height: estimate without a measurer, the measurer's own value with one") {
+    CHECK(prism::ui::line_height(nullptr, 10.f) == doctest::Approx(14.f));
+    struct Tall final : prism::ui::TextMeasurer {
+        float width(std::string_view, float, prism::render::FontRole) const override { return 0.f; }
+        float line_height(float size, prism::render::FontRole) const override { return 3.f * size; }
+    } m;
+    CHECK(prism::ui::line_height(&m, 10.f, prism::render::FontRole::Mono) == doctest::Approx(30.f));
+}
