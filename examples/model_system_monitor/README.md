@@ -40,6 +40,19 @@ app loop calls it on every tick, exactly the same as it would call a `view()` me
 "harmless not-placed-by-view() debug warning" for these two fields is expected: they're
 deliberately never given a `Widget<T>` of their own.
 
+Because the tree never sees these members, it cannot wire them to wake the app. The setup does
+it by hand, so a sample arriving from a worker thread is drained right away, not on the next
+input event or tick:
+
+```cpp
+app.sys_sample.set_waker(ctx.waker());
+app.proc_list.set_waker(ctx.waker());
+app.process_events.set_waker(ctx.waker());
+```
+
+`Shared<T>`/`Channel<T>` members the tree does see (reflected members, `vb.widget(shared)`) are
+wired automatically.
+
 **Ingest → derived state**, run from `.observe()` callbacks registered in `main()`'s setup:
 
 ```cpp
@@ -82,7 +95,7 @@ because a clock ticked" just as well as "redraw because a field changed":
 ctx.clock().add([&app](prism::AnimationClock::time_point now) {
     double phase = std::fmod(t * 4.0, 2.0 * std::numbers::pi); // ~4 rad/s
     app.heartbeat_phase.set(static_cast<float>(phase));
-    return true; // never remove -- keeps the tick perpetually re-scheduling
+    return true; // the heartbeat runs forever by design
 });
 ```
 

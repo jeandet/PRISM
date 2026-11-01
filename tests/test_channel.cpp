@@ -112,3 +112,26 @@ TEST_CASE("Channel has no get() -- it is a stream, not a latest-value slot") {
     c.drain_notifications();
     CHECK(true);
 }
+
+TEST_CASE("Channel waker fires once per batch, again after drain") {
+    prism::core::Channel<int> c;
+    int wakes = 0;
+    c.set_waker([&] { ++wakes; });
+
+    c.send(1);
+    c.send(2);
+    CHECK(wakes == 1);
+
+    c.drain_notifications();
+    c.send(3);
+    CHECK(wakes == 2);
+}
+
+TEST_CASE("Channel without a waker still delivers") {
+    prism::core::Channel<int> c;
+    int got = 0;
+    auto conn = c.on_receive().connect([&](const int& v) { got = v; });
+    c.send(4);
+    c.drain_notifications();
+    CHECK(got == 4);
+}

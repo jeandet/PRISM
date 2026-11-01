@@ -75,6 +75,13 @@ public:
             fn();
     }
 
+    // Hands `waker` to every Shared<T>/Channel<T> this tree drains, so a set()/send() from any
+    // thread wakes the logic thread instead of waiting for the next input or tick.
+    void bind_waker(const std::function<void()>& waker) {
+        for (auto& bind : waker_binders_)
+            bind(waker);
+    }
+
     const Theme& theme() const { return theme_; }
 
     void close_overlays() { close_overlays_impl(root_); }
@@ -447,10 +454,13 @@ private:
     std::unordered_map<WidgetId, WidgetNode*> index_;
     std::unordered_map<WidgetId, WidgetId> parent_map_;
     std::vector<std::function<void()>> drain_callbacks_;
+    std::vector<std::function<void(std::function<void()>)>> waker_binders_;
 
     void collect_drains(const Node& node) {
         if (node.drain_fn)
             drain_callbacks_.push_back(node.drain_fn);
+        if (node.bind_waker_fn)
+            waker_binders_.push_back(node.bind_waker_fn);
         for (const auto& child : node.children)
             collect_drains(child);
     }
@@ -681,6 +691,8 @@ private:
                     // invisible observable — no widget, but still drained every tick since
                     // (unlike State<T>) it delivers cross-thread, not synchronously on send()
                     drain_callbacks_.push_back([&member] { member.drain_notifications(); });
+                    waker_binders_.push_back(
+                        [&member](std::function<void()> w) { member.set_waker(std::move(w)); });
                 } else if constexpr (is_field_v<M>) {
                     auto leaf = node_leaf(member, next_id_);
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
@@ -694,6 +706,7 @@ private:
                     using Inner = std::remove_cvref_t<decltype(member.get())>;
                     auto node = node_readonly_leaf<Inner>(member, next_id_);
                     node.drain_fn = [&member] { member.drain_notifications(); };
+                    node.bind_waker_fn = [&member](std::function<void()> w) { member.set_waker(std::move(w)); };
                     root.children.push_back(std::move(node));
                 } else if constexpr (is_component_v<M>) {
                     root.children.push_back(build_node_tree(member));

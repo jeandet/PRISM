@@ -4,6 +4,7 @@
 #include <prism/app/widget_tree.hpp>
 #include <prism/ui/window_chrome.hpp>
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 
@@ -27,6 +28,7 @@ public:
         Entry e;
         e.window = &window;
         e.tree = std::make_unique<WidgetTree>(model);
+        if (waker_) e.tree->bind_waker(waker_);
         auto [w, h] = window.size();
         if (window.decoration_mode() == DecorationMode::Custom)
             h -= static_cast<int>(WindowChrome::title_bar_h.raw());
@@ -37,6 +39,12 @@ public:
     }
 
     void remove(WindowId id) { entries_.erase(id); }
+
+    // Binds `waker` into every tree, present and future (see WidgetTree::bind_waker).
+    void set_waker(std::function<void()> waker) {
+        waker_ = std::move(waker);
+        for (auto& [id, entry] : entries_) entry.tree->bind_waker(waker_);
+    }
 
     // unordered_map guarantees pointer/reference stability across insertion --
     // the dispatch loop relies on this to hold an Entry* across a re-entrant add().
@@ -58,6 +66,7 @@ public:
 
 private:
     std::unordered_map<WindowId, Entry> entries_;
+    std::function<void()> waker_;
 };
 
 } // namespace prism::app

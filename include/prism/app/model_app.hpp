@@ -19,6 +19,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <prism/core/error_hub.hpp>
 #include <prism/core/mpsc_queue.hpp>
 
@@ -58,6 +59,10 @@ public:
                      std::make_shared<std::atomic<bool>>(false),
                      std::make_shared<std::atomic<bool>>(false),
                      std::make_shared<std::function<void()>>()) {}
+
+    AppContext(const AppContext&) = delete;              // wake_gate_ points at this object
+    AppContext& operator=(const AppContext&) = delete;
+    ~AppContext() { wake_gate_->close(); }
 
     scheduler_type scheduler() const { return sched_; }
     AnimationClock& clock() { return *clock_; }
@@ -111,6 +116,49 @@ public:
             });
             return;
         }
+        post_deferred(std::move(fn));
+    }
+
+    // Queue fn for a later run_loop turn, then drain all Shared/Channel and publish -- never
+    // runs inline, even on the logic thread, so it is safe to call from inside a drain.
+    // Goes through the wake gate, so once close_waker() ran it is a no-op -- no enqueue can
+    // reach a finished run_loop, whichever thread calls it.
+    void post_deferred(std::function<void()> fn) { wake_gate_->post(std::move(fn)); }
+
+    // A callable any thread may invoke to wake the logic thread for a drain + publish; hand it
+    // to Shared<T>/Channel<T>::set_waker(). Becomes a no-op once close_waker() ran, so it may
+    // safely outlive the app (worker threads often do).
+    std::function<void()> waker() const {
+        return [gate = wake_gate_] { gate->wake(); };
+    }
+
+    // After this returns no wake or cross-thread post() is in flight and none will start:
+    // the run_loop may finish.
+    void close_waker() { wake_gate_->close(); }
+
+private:
+    // Every cross-thread enqueue goes through here. The mutex makes close() wait for an
+    // in-flight post(), so nothing ever reaches a finished or destroyed run_loop.
+    // Holding the mutex across enqueue() cannot self-deadlock: run_loop never runs the
+    // scheduled drain inline, so a set() inside that drain re-enters post() unlocked.
+    class WakeGate {
+        std::mutex mutex_;
+        AppContext* ctx_;
+    public:
+        explicit WakeGate(AppContext& ctx) : ctx_(&ctx) {}
+        void post(std::function<void()> fn) {
+            std::lock_guard lock{mutex_};
+            if (ctx_) ctx_->enqueue(std::move(fn));
+        }
+        void wake() { post([] {}); }
+        void close() {
+            std::lock_guard lock{mutex_};
+            ctx_ = nullptr;
+        }
+    };
+
+    void enqueue(std::function<void()> fn) {
+        if (closed_ && closed_->load(std::memory_order_acquire)) return;
         queue_->push(std::move(fn));
         bool expected = false;
         if (scheduled_->compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
@@ -119,7 +167,6 @@ public:
         }
     }
 
-private:
     // CAS-reschedule drain: pop every queued mutation, run the publish tail,
     // then either exit or re-arm if a producer pushed between the last pop
     // and the flag reset.
@@ -162,6 +209,7 @@ private:
     std::shared_ptr<std::atomic<bool>> closed_;
     std::shared_ptr<std::function<void()>> drain_publish_;
     std::shared_ptr<std::function<void(std::function<void()>)>> logic_wrapper_;
+    std::shared_ptr<WakeGate> wake_gate_ = std::make_shared<WakeGate>(*this);
 };
 
 template <typename Model>
@@ -279,6 +327,7 @@ void model_app(Backend& backend, Window& window, Model& model,
                                                    mutation_queue, mutation_scheduled,
                                                    mutation_closed, mutation_drain_publish,
                                                    logic_wrapper_holder);
+    registry.set_waker(ctx_holder->waker());
     std::thread logic_thread([&, ctx_holder, mutation_queue, mutation_scheduled, mutation_closed, mutation_drain_publish] {
         detail_is_logic_thread = true;
         backend.wait_ready();
@@ -383,8 +432,10 @@ void model_app(Backend& backend, Window& window, Model& model,
         });
 
     // Finish only after the pump returned: it keeps dispatching already-queued OS events
-    // after quit(), and each one schedules onto this loop (see app.hpp). Cross-thread
-    // post() still races this by design; its closed-flag check is best effort.
+    // after quit(), and each one schedules onto this loop (see app.hpp). Close the gate
+    // first: after this, no cross-thread post() or wake can reach the finishing run_loop.
+    // (Python's PostHandle path does not go through the gate -- see prism_ext.cpp.)
+    ctx_holder->close_waker();
     loop.finish();
     logic_thread.join();
 }

@@ -167,6 +167,7 @@ public:
         auto node = node_readonly_leaf<T>(shared, tree_.next_id_);
         apply_field_name(node, shared);
         node.drain_fn = [&shared] { shared.drain_notifications(); };
+        node.bind_waker_fn = [&shared](std::function<void()> w) { shared.set_waker(std::move(w)); };
         current_parent().children.push_back(std::move(node));
     }
 

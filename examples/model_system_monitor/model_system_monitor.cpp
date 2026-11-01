@@ -188,10 +188,13 @@ int main(int argc, char* argv[]) {
             // making the heartbeat visibly stutter.
             double phase = std::fmod(t * 4.0, 2.0 * std::numbers::pi); // ~4 rad/s
             app.heartbeat_phase.set(static_cast<float>(phase));
-            return true; // never remove -- keeps schedule_tick perpetually re-scheduling,
-                         // which is what lets Task 1's fix keep draining Shared<T> with
-                         // zero mouse/keyboard input.
+            return true; // the heartbeat runs forever by design
         });
+        // Wake the logic thread when a sampler thread delivers, instead of relying on the
+        // next input event or animation tick to drain these.
+        app.sys_sample.set_waker(ctx.waker());
+        app.proc_list.set_waker(ctx.waker());
+        app.process_events.set_waker(ctx.waker());
         app.sys_sample.observe([&app](const SystemSample& s) { app.ingest_system(s); });
         app.proc_list.observe([&app](const std::vector<ProcessInfo>& p) {
             app.ingest_processes(p);

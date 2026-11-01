@@ -4,6 +4,8 @@
 #include <prism/app/model_app.hpp>
 #include <prism/app/headless_window.hpp>
 #include <prism/core/field.hpp>
+#include <prism/core/shared.hpp>
+#include <prism/core/channel.hpp>
 #include <prism/core/error_hub.hpp>
 
 #include <atomic>
@@ -430,4 +432,85 @@ TEST_CASE("set_unhandled_error_handler(nullptr) restores the default handler") {
 
     CHECK(done.load() == 1);
     CHECK(counting_handler_calls.load() == 0);
+}
+
+// Backend that, once the app is up, runs `worker` on a fresh thread (no input events at all),
+// waits until `done` holds or 2 s pass, then closes the window.
+struct WorkerOnlyBackend final : public prism::BackendBase {
+    std::function<void()> worker;
+    std::function<bool()> done;
+    std::atomic<bool>& app_ready;
+    prism::HeadlessWindow window_{0, {}};
+    WorkerOnlyBackend(std::function<void()> w, std::function<bool()> d, std::atomic<bool>& r)
+        : worker(std::move(w)), done(std::move(d)), app_ready(r) {}
+    prism::Window& create_window(prism::WindowConfig cfg) override {
+        window_ = prism::HeadlessWindow{1, cfg};
+        return window_;
+    }
+    void run(std::function<void(const prism::WindowEvent&)> cb) override {
+        while (!app_ready.load(std::memory_order_acquire))
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::thread(worker).join();
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (!done() && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
+    }
+    void submit(prism::WindowId, std::shared_ptr<const prism::SceneSnapshot>) override {}
+    void wake() override {}
+    void quit() override {}
+};
+
+struct SharedModel {
+    prism::Shared<int> reading{0};
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(reading); }
+};
+
+TEST_CASE("Shared::set from a worker reaches observers with zero input (tree-bound waker)") {
+    SharedModel model;
+    std::atomic<bool> ready{false};
+    std::atomic<int> seen{0};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [&] { model.reading.set(7); }, [&] { return seen.load() == 7; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext&) {
+        model.reading.observe([&](const int& v) { seen.store(v); });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(seen.load() == 7);
+}
+
+struct ChannelModel {
+    prism::Field<int> label{0};
+    prism::Channel<int> events;   // not placed in the view: wired by hand via ctx.waker()
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(label); }
+    void drain() { events.drain_notifications(); }
+};
+
+TEST_CASE("Channel::send from a worker reaches observers with zero input (ctx.waker())") {
+    ChannelModel model;
+    std::atomic<bool> ready{false};
+    std::atomic<int> seen{0};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [&] { model.events.send(3); }, [&] { return seen.load() == 3; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
+        model.events.set_waker(ctx.waker());
+        model.events.observe([&](const int& v) { seen.store(v); });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(seen.load() == 3);
+}
+
+TEST_CASE("waker outliving the app is a harmless no-op") {
+    SharedModel model;
+    std::atomic<bool> ready{false};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [] {}, [] { return true; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext&) {
+        ready.store(true, std::memory_order_release);
+    });
+    model.reading.set(1);   // app is gone; the tree-bound waker must not touch it
+    CHECK(model.reading.get() == 1);
 }

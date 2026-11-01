@@ -37,12 +37,13 @@ Logic (app) thread                    Render thread
 | Any thread → App | `AppContext::post(fn)` (schedules onto the `run_loop`) | Worker results, Python mutations |
 | Shutdown | Both mechanisms + `running_ = false` | On `quit()` or `WindowClose` |
 
-**Known gap:** `Shared<T>::set()` and `Channel<T>::send()` only store the value — they do **not**
-wake the logic thread. Their observers run when the model's `drain()` is called during the next
-frame, which only happens if something else (input, an animation tick, a `post()`) triggers one.
-`examples/model_system_monitor` keeps a perpetual animation callback alive for exactly this reason.
-Until this is fixed, an app fed by worker threads either posts a no-op through `AppContext::post()`
-after `set()`/`send()`, or keeps an animation running (and so is not idle).
+**Worker-thread state.** `Shared<T>::set()` and `Channel<T>::send()` call a *waker* when a value
+becomes pending (once per drain cycle, not per call). `model_app` binds `AppContext::waker()` into
+every `Shared`/`Channel` the widget tree drains; anything else is wired with
+`member.set_waker(ctx.waker())`. The waker queues an empty task on the logic thread, whose drain
+runs `drain_shared()` and publishes — so an idle app wakes for worker data and otherwise sleeps.
+All cross-thread enqueues go through one gate that `model_app` closes before `run_loop::finish()`,
+so a waker or `post()` that outlives the app is a no-op.
 
 ## Startup Handshake
 
@@ -82,7 +83,7 @@ After the app loop exits, it pushes an `SDL_EVENT_USER` to ensure the render thr
 - No mutex is held across a frame boundary.
 - All data crossing the thread boundary is immutable once published.
 - The render thread never calls into application code.
-- Both threads sleep at OS level when idle — zero CPU usage (see the `Shared<T>`/`Channel<T>` gap above).
+- Both threads sleep at OS level when idle — zero CPU usage.
 
 ## Open Questions
 

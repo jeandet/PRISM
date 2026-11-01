@@ -100,3 +100,24 @@ TEST_CASE("Shared has no implicit conversion operator") {
     int x = s.get();
     CHECK(x == 5);
 }
+
+TEST_CASE("Shared waker fires once per pending transition, not per set") {
+    prism::core::Shared<int> s{0};
+    int wakes = 0;
+    s.set_waker([&] { ++wakes; });
+
+    s.set(1);
+    s.set(2);
+    CHECK(wakes == 1);   // second set coalesces into the already-pending drain
+
+    s.drain_notifications();
+    s.set(3);
+    CHECK(wakes == 2);   // drained, so the next set must wake again
+}
+
+TEST_CASE("Shared without a waker still sets and drains") {
+    prism::core::Shared<int> s{0};
+    s.set(5);
+    s.drain_notifications();
+    CHECK(s.get() == 5);
+}

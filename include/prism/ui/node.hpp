@@ -58,6 +58,7 @@ struct Node {
 
     // Shared<T> drain callback (set for Shared<T> leaf nodes)
     std::function<void()> drain_fn;
+    std::function<void(std::function<void()>)> bind_waker_fn;  // set with drain_fn for cross-thread state
 
     // Opt-in fixed main-axis size for a Canvas node (only meaningful when
     // layout_kind == Canvas); unset means the canvas keeps the default expand behavior.

@@ -363,8 +363,8 @@ A few rules worth knowing:
 - `Field<T>` holds only a value, never a label. The label comes from the member name.
 - One logic thread owns the widget tree and every `Field<T>`. They are not thread-safe.
 - Other threads talk to it through `Shared<T>::set()`, `Channel<T>::send()` or a posted closure.
-- `Shared<T>` and `Channel<T>` do not wake an idle app yet: their values show up on the next frame.
-  Follow a `set()`/`send()` with `ctx.post([]{})`, or keep an animation running.
+- A `Shared<T>::set()` or `Channel<T>::send()` wakes an idle app. Members the widget tree sees are
+  wired automatically; for others, call `member.set_waker(ctx.waker())` in the setup.
 - An exception in a callback goes to `prism::core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
 
