@@ -549,6 +549,27 @@ prism::model_app({.title = "My App", .width = 900, .height = 600,
 - `Native`: the OS window manager draws it.
 - `None`: a borderless window.
 
+### WebGPU renderer (experimental)
+
+By default PRISM draws with SDL's renderer. Build with `-Dwebgpu=enabled` to add a WebGPU
+renderer (a prebuilt [wgpu-native](https://github.com/gfx-rs/wgpu-native), Linux and macOS),
+then pick it per app or per run:
+
+```bash
+meson setup builddir -Dwebgpu=enabled
+PRISM_RENDERER=webgpu ./builddir/examples/model_notes/model_notes
+```
+
+```cpp
+auto backend = prism::Backend::software({.renderer = prism::Renderer::WebGpu});
+auto& window = backend.create_window({.title = "Notes"});
+prism::model_app(backend, window, notes);
+```
+
+Windows, input and the clipboard stay SDL's; only the drawing changes. Without a GPU, Mesa's
+software Vulkan (lavapipe) works too. A window that cannot get a WebGPU surface falls back to
+SDL's renderer with a warning. Status and plan: [`doc/design/second-backend.md`](doc/design/second-backend.md).
+
 ### In the browser
 
 The same code builds for the web with [Emscripten](https://emscripten.org) 6.0.10+.
@@ -586,7 +607,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
 - **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus and modal dialogs, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes and progress bars; pixel tests through SDL. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).
-- **Phase 5**: Vulkan/WebGPU backend, SDF text, tile compositing.
+- **Phase 5**: WebGPU renderer (started: shapes, text, images and windows on desktop; browser next), GPU text (Slug), tile compositing.
 
 </details>
 
