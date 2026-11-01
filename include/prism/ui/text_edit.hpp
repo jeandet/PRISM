@@ -62,6 +62,7 @@ inline TextEdit insert(TextEdit e, std::string_view s, std::size_t max_length) {
     if (max_length > 0) {
         std::size_t kept = core::utf8::count(e.text) - core::utf8::count(selected(e));
         std::size_t room = kept < max_length ? max_length - kept : 0;
+        if (room == 0 && !s.empty()) return e;   // no room: keep the selection, insert nothing
         s = s.substr(0, core::utf8::offset(s, room));
     }
     return replace_selection(std::move(e), s);

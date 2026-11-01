@@ -97,6 +97,9 @@ void SdlWindow::create_sdl_window() {
 
     sdl_window_ = SDL_CreateWindow(title_.c_str(), config_.width, config_.height, flags);
     renderer_ = SDL_CreateRenderer(sdl_window_, nullptr);
+    // Without this SDL ignores the alpha of draw colours (blend mode NONE): the translucent
+    // theme colours (text selection, scrollbar thumb, split dividers) were painted opaque.
+    if (renderer_) SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
     // device_scale_ itself is (re-)read from SDL every frame in render_snapshot().
 
     if (decoration_ == DecorationMode::Custom)

@@ -413,6 +413,8 @@ void model_app(Backend& backend, Window& window, Model& model,
                             needs_publish = true;
                         }
                         if (auto* kp = std::get_if<KeyPress>(&ev)) {
+                            // Sees every key, shortcuts included (e.g. Ctrl+V, which the focused
+                            // text widget also gets as a Paste event) -- not a consuming handler.
                             if (global_key_handler) global_key_handler(*kp);
                             // global_key_handler may have destroyed entry (e.g. debug inspector hotkey toggles window)
                             entry = registry.find(wid);

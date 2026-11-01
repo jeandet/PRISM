@@ -10,7 +10,7 @@ namespace prism::input {
 using namespace prism::core;
 
 
-struct MouseMove   { Point position; };
+struct MouseMove   { Point position; uint32_t buttons = 0; };   // buttons: held, as a bitmask
 struct MouseButton { Point position; uint8_t button; bool pressed; uint16_t mods = 0; uint8_t clicks = 1; };
 struct MouseScroll { Point position; DX dx; DY dy; };
 struct KeyPress    { int32_t key; uint16_t mods; };
@@ -54,15 +54,18 @@ namespace keys {
 namespace mods {
     inline constexpr uint16_t shift = 0x0003;  // matches SDL_KMOD_SHIFT
     inline constexpr uint16_t ctrl  = 0x00C0;  // matches SDL_KMOD_CTRL
+    inline constexpr uint16_t alt   = 0x0300;  // matches SDL_KMOD_ALT
     inline constexpr uint16_t gui   = 0x0C00;  // matches SDL_KMOD_GUI (Cmd on macOS)
-    // Shortcut modifier: Ctrl, or Cmd on macOS -- accept either everywhere.
-    inline constexpr bool shortcut(uint16_t m) { return (m & (ctrl | gui)) != 0; }
+    // Shortcut modifier: Ctrl, or Cmd on macOS. Not with Alt: AltGr arrives as Ctrl+Alt, and
+    // AltGr+X is a character (e.g. Polish 'ź'), not cut.
+    inline constexpr bool shortcut(uint16_t m) { return (m & (ctrl | gui)) != 0 && (m & alt) == 0; }
 }
 
 namespace buttons {
     inline constexpr uint8_t left   = 1;  // matches SDL_BUTTON_LEFT
     inline constexpr uint8_t middle = 2;  // matches SDL_BUTTON_MIDDLE
     inline constexpr uint8_t right  = 3;  // matches SDL_BUTTON_RIGHT
+    inline constexpr uint32_t left_mask = 1u << (left - 1);   // matches SDL_BUTTON_LMASK
 }
 
 inline InputEvent localize_mouse(const InputEvent& ev, Rect widget_rect) {

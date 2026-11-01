@@ -74,7 +74,9 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     Width text_area_w = w - tf_padding_x * 2.f;
     dl.clip_push(delegate_detail::make_point(X{tf_padding_x.raw()}, Y{0}), Size{text_area_w, tf_widget_h});
 
-    if (vs.focused && es.anchor && *es.anchor != es.cursor) {
+    // Drawn focused or not: a selection that is invisible but still replaced by the next
+    // keystroke would lose text.
+    if (es.anchor && *es.anchor != es.cursor) {
         auto value = std::string_view(sf.value.data(), sf.value.size());
         auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
         float x0 = caret_x(t.measurer, value, lo, display_fn) - es.scroll_offset.raw();
@@ -194,13 +196,16 @@ TextEdit current_edit(const Field<Sentinel>& field, EditState& es) {
 // Mouse: press places the caret (shift extends) and starts a drag; moves extend while dragging.
 template <typename EditState, typename HitFn>
 std::optional<TextEdit> mouse_edit(const TextEdit& e, EditState& es, const InputEvent& ev, HitFn hit) {
-    if (auto* mb = std::get_if<MouseButton>(&ev)) {
+    if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->button == buttons::left) {
         if (!mb->pressed) { es.dragging = false; return std::nullopt; }
         es.dragging = true;
         return text_edit::move_to(e, hit(mb->position), (mb->mods & mods::shift) != 0);
     }
-    if (auto* mm = std::get_if<MouseMove>(&ev); mm && es.dragging)
+    if (auto* mm = std::get_if<MouseMove>(&ev); mm && es.dragging) {
+        // The release can be lost (scrollbar drag, window manager); the held buttons can't.
+        if (!(mm->buttons & buttons::left_mask)) { es.dragging = false; return std::nullopt; }
         return text_edit::move_to(e, hit(mm->position), true);
+    }
     return std::nullopt;
 }
 
@@ -362,7 +367,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     auto value = std::string_view(sf.value.data(), sf.value.size());
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
-    if (vs.focused && es.anchor && *es.anchor != es.cursor) {
+    if (es.anchor && *es.anchor != es.cursor) {   // focused or not, as in TextField
         auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
         for (size_t i = 0; i < wrapped.size(); ++i) {
             size_t a = std::max(lo, wrapped[i].start), b = std::min(hi, wrapped[i].start + wrapped[i].length);

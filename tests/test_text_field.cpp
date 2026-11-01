@@ -592,7 +592,7 @@ TEST_CASE("dragging the mouse selects") {
     auto node = make_node({.focused = true});
     float cw = prism::char_width(14.f).raw();
     TF::handle_input(field, prism::MouseButton{P(4.f, 10.f), 1, true}, node);
-    TF::handle_input(field, prism::MouseMove{P(4.f + 3.f * cw, 10.f)}, node);
+    TF::handle_input(field, prism::MouseMove{P(4.f + 3.f * cw, 10.f), prism::buttons::left_mask}, node);
     TF::handle_input(field, prism::MouseButton{P(4.f + 3.f * cw, 10.f), 1, false}, node);
     CHECK(state(node).anchor == std::optional<size_t>{0});
     CHECK(state(node).cursor == 3);
@@ -684,4 +684,58 @@ TEST_CASE("a value changed by the program drops the undo history") {
     field.set({.value = "from the model"});
     key(field, node, prism::keys::z, prism::mods::ctrl);
     CHECK(field.get().value == "from the model");
+}
+
+// --- review fixes: AltGr, buttons, stuck drags, full-field paste ---
+
+TEST_CASE("AltGr (reported as ctrl+alt) is typing, not a shortcut") {
+    RecordingClipboard cb;
+    prism::Theme theme;
+    theme.clipboard = &cb;
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 0;
+    es.cursor = 5;
+    key(field, node, prism::keys::x, prism::mods::ctrl | prism::mods::alt);   // AltGr+X = 'ź' in Polish
+    CHECK(cb.copied.empty());
+    CHECK(field.get().value == "hello");
+}
+
+TEST_CASE("only the left button places the caret or starts a selection") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 4;
+    TF::handle_input(field, prism::MouseButton{P(4.f, 10.f), prism::buttons::right, true}, node);
+    CHECK(state(node).anchor == std::optional<size_t>{1});
+    CHECK(state(node).cursor == 4);
+}
+
+TEST_CASE("a move without the left button held ends a drag that lost its release") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    float cw = prism::char_width(14.f).raw();
+    TF::handle_input(field, prism::MouseButton{P(4.f, 10.f), 1, true}, node);
+    // the release went elsewhere; a later hover move (no button held) must not select
+    TF::handle_input(field, prism::MouseMove{P(4.f + 3.f * cw, 10.f), 0}, node);
+    CHECK_FALSE(state(node).anchor.has_value());
+    CHECK(state(node).cursor == 0);
+}
+
+TEST_CASE("the selection stays visible when the field is not focused") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node();   // not focused
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 3;
+    prism::DrawList dl;
+    TF::record(dl, field, node);
+    bool found = false;
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->color == test_theme.text_selection)
+            found = true;
+    CHECK(found);
 }

@@ -2,14 +2,16 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <string>
 #include <string_view>
 
 // Byte-offset <-> code point helpers for text editing. Offsets are byte indices into UTF-8;
 // every function clamps out-of-range input and never reads past the end, even on malformed text.
 //
 // simplify: steps are code points, not grapheme clusters -- "e" + combining accent, or an emoji
-// ZWJ sequence, takes several steps. Upgrade to grapheme segmentation (UAX #29) when selection
-// and clipboard land.
+// ZWJ sequence, takes several steps. Upgrade to grapheme segmentation (UAX #29) when users edit
+// such text (accents typed as combining marks, emoji).
 namespace prism::core::utf8 {
 
 inline bool is_continuation(char c) { return (static_cast<unsigned char>(c) & 0xC0) == 0x80; }
@@ -50,6 +52,30 @@ inline std::size_t offset(std::string_view s, std::size_t cp) {
     std::size_t i = 0;
     for (; cp > 0 && i < s.size(); --cp) i = next(s, i);
     return i;
+}
+
+// Valid UTF-8 without NUL bytes: NULs are dropped, invalid or overlong sequences become U+FFFD.
+// For text from outside (the clipboard); SDL's own text input is already valid.
+inline std::string sanitize(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    auto byte = [&](std::size_t i) { return static_cast<unsigned char>(s[i]); };
+    for (std::size_t i = 0; i < s.size();) {
+        unsigned char c = byte(i);
+        if (c == 0) { ++i; continue; }
+        std::size_t len = c < 0x80 ? 1 : (c & 0xE0) == 0xC0 ? 2 : (c & 0xF0) == 0xE0 ? 3 : (c & 0xF8) == 0xF0 ? 4 : 0;
+        bool ok = len > 0 && i + len <= s.size();
+        for (std::size_t k = 1; ok && k < len; ++k) ok = (byte(i + k) & 0xC0) == 0x80;
+        if (ok && len > 1) {   // reject overlong forms, surrogates and code points above U+10FFFF
+            std::uint32_t cp = c & (0xFF >> (len + 1));
+            for (std::size_t k = 1; k < len; ++k) cp = (cp << 6) | (byte(i + k) & 0x3F);
+            static constexpr std::uint32_t min_cp[] = {0, 0, 0x80, 0x800, 0x10000};
+            ok = cp >= min_cp[len] && cp <= 0x10FFFF && !(cp >= 0xD800 && cp <= 0xDFFF);
+        }
+        if (ok) { out.append(s.substr(i, len)); i += len; }
+        else { out += "\xEF\xBF\xBD"; ++i; }
+    }
+    return out;
 }
 
 } // namespace prism::core::utf8

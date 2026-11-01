@@ -1,5 +1,6 @@
 #include <prism/backends/software_backend.hpp>
 #include <prism/backends/font_lookup.hpp>
+#include <prism/core/utf8.hpp>
 #include <prism/ui/window_chrome.hpp>
 
 #include <cassert>
@@ -291,7 +292,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                             }
                         }
                         pending_motion = WindowEvent{wid, MouseMove{
-                            Point{X{ev.motion.x}, Y{client_y(wid, ev.motion.y)}}}};
+                            Point{X{ev.motion.x}, Y{client_y(wid, ev.motion.y)}}, ev.motion.state}};
                     }
                     break;
                 }
@@ -360,7 +361,9 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                     // widgets on the logic thread never wait for it.
                     if (mods::shortcut(ev.key.mod) && static_cast<int32_t>(ev.key.key) == keys::v) {
                         if (char* text = SDL_GetClipboardText()) {
-                            if (*text) event_cb(WindowEvent{wid, Paste{text}});
+                            // Clipboard text comes from other apps: may hold NULs or invalid UTF-8.
+                            if (auto clean = core::utf8::sanitize(text); !clean.empty())
+                                event_cb(WindowEvent{wid, Paste{std::move(clean)}});
                             SDL_free(text);
                         }
                     }
@@ -369,6 +372,9 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                     event_cb(WindowEvent{wid, KeyRelease{static_cast<int32_t>(ev.key.key), ev.key.mod}});
                     break;
                 case SDL_EVENT_TEXT_INPUT:
+                    // X11/Wayland still emit text for Super+letter (SDL filters only Ctrl/Alt);
+                    // with Super as a shortcut modifier that would copy *and* type.
+                    if (SDL_GetModState() & SDL_KMOD_GUI) break;
                     event_cb(WindowEvent{wid, TextInput{ev.text.text}});
                     break;
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
@@ -470,6 +476,7 @@ std::optional<PresentStats> SoftwareBackend::present_stats(WindowId id) const {
 }
 
 void SoftwareBackend::wake() {
+    if (!SDL_WasInit(SDL_INIT_EVENTS)) return;   // before run() or after quit: nothing to wake
     SDL_Event wake_ev{};
     wake_ev.type = SDL_EVENT_USER;
     SDL_PushEvent(&wake_ev);

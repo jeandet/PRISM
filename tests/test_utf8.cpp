@@ -53,3 +53,12 @@ TEST_CASE("utf8 helpers on empty and malformed input do not run past the end") {
     CHECK(utf8::snap(truncated, 2) == 2);
     CHECK(utf8::count(truncated) == 2);
 }
+
+TEST_CASE("utf8::sanitize drops NULs and replaces invalid sequences") {
+    using namespace std::string_literals;
+    CHECK(utf8::sanitize("a\0b"s) == "ab");
+    CHECK(utf8::sanitize("ok \xC3\xA9 \xE2\x82\xAC") == "ok \xC3\xA9 \xE2\x82\xAC");   // valid text unchanged
+    CHECK(utf8::sanitize("a\xC3") == "a\xEF\xBF\xBD");             // truncated sequence -> U+FFFD
+    CHECK(utf8::sanitize("\x80x") == "\xEF\xBF\xBDx");              // stray continuation byte
+    CHECK(utf8::sanitize("\xC0\xAF") == "\xEF\xBF\xBD\xEF\xBF\xBD"); // overlong encoding
+}

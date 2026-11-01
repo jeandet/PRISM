@@ -125,3 +125,13 @@ TEST_CASE("a new edit clears redo; the history is capped") {
     while (auto u = h.undo(b)) { b = *u; ++steps; }
     CHECK(steps == static_cast<int>(EditHistory::capacity));
 }
+
+TEST_CASE("inserting into a full field keeps the selection instead of deleting it") {
+    // "abcd" is over its limit of 3 (set by the program); with "a" selected, 3 characters are
+    // kept, so there is no room: typing must not just delete the selection.
+    auto e = te::insert(TextEdit{"abcd", 1, 0}, "x", 3);
+    CHECK(e.text == "abcd");
+    CHECK(e.anchor == 0);   // selection kept
+    auto replace_all = te::insert(TextEdit{"abc", 3, 0}, "xyz", 2);
+    CHECK(replace_all.text == "xy");
+}
