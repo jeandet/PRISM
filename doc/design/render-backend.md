@@ -60,12 +60,38 @@ Known limitations (tracked in `doc/review-2026-11-01.md`):
 - Text: two bundled fonts by role — Noto Sans (`FontRole::Ui`) and JetBrains Mono
   (`FontRole::Mono`), each the other's fallback (`SdlFontSet`). Rasterised text is cached per
   window across frames (`render::FrameCache`); widgets measure through `SdlTextMeasurer`.
-- `RoundedRect` is drawn as a plain rect (SDL_Renderer has no rounded primitive); `Circle` is aliased.
+- `RoundedRect` and `Circle` are tessellated into anti-aliased meshes (`render/shape_mesh.hpp`,
+  backend-neutral) and drawn with `SDL_RenderGeometry`.
 - Full repaint of the window on every present (no damage tracking).
 
 **Headless test types (header-only, no SDL):** `PixelBuffer` and `SoftwareRenderer`
 (`include/prism/render/`) are a tiny CPU rasteriser kept only for unit tests — `FilledRect` only,
 everything else is a no-op. They are not on the production path.
+
+## Backend Contract
+
+What any backend must honour, beyond the `BackendBase` signatures. The SDL backend is the
+reference; `tests/test_pixels.cpp` checks some of it on real pixels.
+
+- **Commands**: `FilledRect`, `RectOutline`, `RoundedRect`, `Circle`, `Line`, `Polyline`,
+  `FilledPolygon` (triangle-strip order), `TextCmd`, `ImageCmd`, `ClipPush`/`ClipPop`
+  (`render/draw_list.hpp`). Colors are straight RGBA8 with alpha blending. Anti-aliasing of
+  shapes may come from `render/shape_mesh.hpp` (meshes with an alpha fringe) or be native.
+- **Clips arrive pre-intersected** (`resolve_clips` in `scene_snapshot.hpp`): apply each as is.
+- **Order**: `z_order` back to front, then `overlay`, which is never clipped.
+- **Units**: every coordinate and `TextCmd::size` is in points. Rasterise at points × the
+  window's pixel density, or text and carets drift (the HiDPI selection bug of 2026-11-01).
+- **Text**: draw with the font `FontRole` names (`Ui` = Noto Sans, `Mono` = JetBrains Mono, each
+  the other's fallback), and provide a `TextMeasurer` whose widths match what is drawn, at every
+  density. Measurement runs on the logic thread, drawing on the render thread.
+- **Snapshots** are immutable and their `DrawList`s may be shared with earlier snapshots.
+- **Cadence**: present only when a window's snapshot changed or the platform asks for a redraw;
+  input events are delivered as they arrive, never paced.
+- **Threads**: `run()` owns the platform's main thread; `submit()`, `wake()` and
+  `present_stats()` are the only calls from other threads. The GPU context lives on the render
+  thread.
+- **Input**: key codes and modifiers are SDL's values (`input/input_event.hpp`); a non-SDL
+  backend translates its native codes into them.
 
 ## Present Cadence
 
@@ -115,4 +141,4 @@ Tile strategy differs: CPU wants spatial tiles for parallelism, GPU wants draw-c
 - Glyph atlas vs. per-string texture cache — the first step for text performance.
 - Damage tracking: worth it on a GPU-backed renderer, or is full repaint fine?
 - Tile splitting for parallel CPU rasterisation — deferred until a CPU rasteriser is real.
-- Commit to SDL3 as the only platform layer, or make `Backend::load()` real for a Vulkan/WebGPU backend?
+- Which second backend: see `second-backend.md`.

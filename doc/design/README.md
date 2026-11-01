@@ -54,7 +54,8 @@ graph TB
 | [threading-model.md](threading-model.md) | Event-driven snapshot handoff, thread roles, input flow | **Implemented** |
 | [scene-snapshot.md](scene-snapshot.md) | SceneSnapshot structure, versioning, dirty repaint model | **Implemented** |
 | [draw-list.md](draw-list.md) | DrawList format, command set, strong coordinate types, local coordinate system, serialisation | **Implemented** |
-| [render-backend.md](render-backend.md) | BackendBase vtable, SoftwareBackend, Backend wrapper | **Implemented** |
+| [render-backend.md](render-backend.md) | BackendBase vtable, SoftwareBackend, Backend wrapper, the backend contract | **Implemented** |
+| [second-backend.md](second-backend.md) | Options for a second rendering backend (WebGPU, SDL_GPU, ThorVG, non-SDL) and a recommendation | **Investigation** |
 | [SDL_Renderer migration](../../docs/superpowers/specs/2026-03-28-sdl-renderer-migration-design.md) | SDL_Renderer + SDL3_ttf replaces PixelBuffer surface-blit | **Implemented** |
 | [input-events.md](input-events.md) | Input queue, event forwarding, hit testing | **Implemented** |
 | [layout engine](../../docs/superpowers/specs/2026-03-27-layout-hit-regions-design.md) | row/column/spacer, two-pass layout solver, hit testing | **Implemented** |
