@@ -5,11 +5,15 @@
 #include <prism/backends/wgpu_renderer.hpp>
 
 #include <array>
+#include <cmath>
+#include <optional>
 
 using namespace prism::render;
 using namespace prism::core;
 using prism::backends::WgpuContext;
 using prism::backends::render_to_pixels;
+using prism::render::FontRole;
+using prism::render::TextAnchor;
 
 namespace {
 Rect R(float x, float y, float w, float h) { return {Point{X{x}, Y{y}}, Size{Width{w}, Height{h}}}; }
@@ -107,4 +111,94 @@ TEST_CASE("a rounded rect leaves its corners empty and softens its edge") {
         partial |= r > 10 && r < 245;
     }
     CHECK(partial);
+}
+
+// ---- Images and text ----
+
+namespace {
+// A stand-in for a font: every string is a solid white box, 2 em wide and 1 em tall.
+struct BoxFont {
+    int calls = 0;
+    std::vector<float> sizes;
+    prism::backends::TextRasterizer fn() {
+        return [this](std::string_view, float px, FontRole) {
+            ++calls;
+            sizes.push_back(px);
+            int w = static_cast<int>(std::lround(2 * px)), h = static_cast<int>(std::lround(px));
+            return std::optional{prism::backends::TextBitmap{w, h, std::vector<std::uint8_t>(static_cast<size_t>(w) * h * 4, 255)}};
+        };
+    }
+};
+
+Image draw_text(DrawList dl, int w, int h, float scale, BoxFont& font) {
+    return {w, h, render_to_pixels(*context(), scene(std::move(dl)), w, h, scale, black, font.fn())};
+}
+const Color green = Color::rgba(0, 255, 0);
+}
+
+TEST_CASE("an image is drawn scaled into its rect") {
+    if (skip_without_gpu()) return;
+    auto img = prism::render::Image::from_rgba(2, 2, {255, 0, 0, 255,   0, 255, 0, 255,
+                                                      0, 0, 255, 255,   255, 255, 255, 255});
+    REQUIRE(img);
+    DrawList dl;
+    dl.image(*img, R(8, 8, 32, 32));
+    auto out = draw(std::move(dl), 48, 48);
+    // Each texel fills a 16 x 16 quarter. Scaling filters linearly (as SDL does), so a pixel
+    // near a texel's centre carries a few percent of its neighbours.
+    auto near = [](std::array<int, 4> got, std::array<int, 4> want) {
+        for (int i = 0; i < 4; ++i)
+            if (std::abs(got[i] - want[i]) > 24) return false;
+        return true;
+    };
+    CHECK(near(out.at(16, 16), {255, 0, 0, 255}));
+    CHECK(near(out.at(31, 16), {0, 255, 0, 255}));
+    CHECK(near(out.at(16, 31), {0, 0, 255, 255}));
+    CHECK(near(out.at(31, 31), {255, 255, 255, 255}));
+    CHECK(out.at(4, 4) == std::array{0, 0, 0, 255});
+}
+
+TEST_CASE("text is rasterized at size x scale, placed at its origin and tinted") {
+    if (skip_without_gpu()) return;
+    for (float scale : {1.f, 2.f}) {
+        BoxFont font;
+        DrawList dl;
+        dl.text("hi", Point{X{5}, Y{5}}, 10.f, green);   // a 20 x 10 point box
+        int s = static_cast<int>(scale);
+        auto out = draw_text(std::move(dl), 40 * s, 30 * s, scale, font);
+        INFO("scale " << scale);
+        REQUIRE(font.sizes.size() == 1);
+        CHECK(font.sizes[0] == doctest::Approx(10.f * scale));
+        CHECK(out.at(6 * s, 6 * s) == std::array{0, 255, 0, 255});
+        CHECK(out.at(24 * s, 14 * s) == std::array{0, 255, 0, 255});
+        CHECK(out.at(26 * s, 6 * s) == std::array{0, 0, 0, 255});
+        CHECK(out.at(6 * s, 16 * s) == std::array{0, 0, 0, 255});
+    }
+}
+
+TEST_CASE("centred text turned 90 degrees stands upright around its centre") {
+    if (skip_without_gpu()) return;
+    BoxFont font;
+    DrawList dl;
+    dl.text("axis", Point{X{30}, Y{30}}, 10.f, green, 90.f, TextAnchor::Center);   // 20 x 10, turned
+    auto out = draw_text(std::move(dl), 60, 60, 1.f, font);
+    CHECK(out.at(30, 22) == std::array{0, 255, 0, 255});   // 10 wide, 20 tall now
+    CHECK(out.at(30, 38) == std::array{0, 255, 0, 255});
+    CHECK(out.at(38, 30) == std::array{0, 0, 0, 255});
+    CHECK(out.at(22, 30) == std::array{0, 0, 0, 255});
+}
+
+TEST_CASE("text is cut by its clip, and the same string is rasterized once per frame") {
+    if (skip_without_gpu()) return;
+    BoxFont font;
+    DrawList dl;
+    dl.clip_push(Point{X{0}, Y{0}}, Size{Width{12}, Height{40}});
+    dl.text("same", Point{X{0}, Y{0}}, 10.f, green);
+    dl.clip_pop();
+    dl.text("same", Point{X{0}, Y{20}}, 10.f, green);
+    auto out = draw_text(std::move(dl), 40, 40, 1.f, font);
+    CHECK(font.calls == 1);
+    CHECK(out.at(6, 5) == std::array{0, 255, 0, 255});
+    CHECK(out.at(16, 5) == std::array{0, 0, 0, 255});    // past the clip
+    CHECK(out.at(16, 25) == std::array{0, 255, 0, 255});  // the second one is not clipped
 }

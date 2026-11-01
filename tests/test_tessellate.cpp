@@ -3,6 +3,8 @@
 
 #include <prism/render/tessellate.hpp>
 
+#include <variant>
+
 using namespace prism::render;
 using namespace prism::core;
 
@@ -95,10 +97,52 @@ TEST_CASE("a line is as thick as asked, centred on its path") {
     CHECK(hi == doctest::Approx(12.f));
 }
 
-TEST_CASE("text and images are counted, not drawn, in this pass") {
+TEST_CASE("text and images get batches of their own, in drawing order") {
     DrawList dl;
-    dl.text("hello", P(0, 0), 14.f, red);
+    dl.filled_rect(R(0, 0, 10, 10), red);
+    dl.text("hello", P(5, 5), 14.f, red);
+    dl.image(*Image::from_rgba(1, 1, {255, 255, 255, 255}), R(0, 0, 4, 4));
+    dl.filled_rect(R(20, 0, 10, 10), red);
+    dl.text("", P(0, 0), 14.f, red);   // nothing to draw
     auto t = tessellate(one_list(std::move(dl)));
-    CHECK(t.skipped == 1);
-    CHECK(t.vertices.empty());
+    REQUIRE(t.batches.size() == 4);
+    CHECK(std::holds_alternative<std::monostate>(t.batches[0].source));
+    REQUIRE(std::holds_alternative<const TextCmd*>(t.batches[1].source));
+    CHECK(std::get<const TextCmd*>(t.batches[1].source)->text == "hello");
+    CHECK(std::holds_alternative<const ImageCmd*>(t.batches[2].source));
+    CHECK(std::holds_alternative<std::monostate>(t.batches[3].source));
+    CHECK(t.batches[3].first == 6);
+    CHECK(t.batches[3].count == 6);
+}
+
+TEST_CASE("a text batch carries the clip it was drawn under") {
+    DrawList dl;
+    dl.clip_push(P(0, 0), Size{Width{30}, Height{30}});
+    dl.text("clipped", P(0, 0), 14.f, red);
+    dl.clip_pop();
+    auto t = tessellate(one_list(std::move(dl)));
+    REQUIRE(t.batches.size() == 1);
+    REQUIRE(t.batches[0].clip);
+    CHECK(t.batches[0].clip->extent.w.raw() == 30.f);
+}
+
+TEST_CASE("text_quad: from the origin, centred, and turned counter-clockwise") {
+    TextCmd t{.text = "x", .origin = P(100, 50), .size = 14.f, .color = red};
+    auto q = text_quad(t, 10.f, 4.f);
+    CHECK(q[0].x == 100.f);
+    CHECK(q[0].y == 50.f);
+    CHECK(q[2].x == 110.f);
+    CHECK(q[2].y == 54.f);
+
+    t.anchor = TextAnchor::Center;
+    q = text_quad(t, 10.f, 4.f);
+    CHECK(q[0].x == 95.f);
+    CHECK(q[2].y == 52.f);
+
+    t.anchor = TextAnchor::TopLeft;
+    t.angle = 90.f;   // reads bottom to top, like a vertical axis label
+    q = text_quad(t, 10.f, 4.f);
+    CHECK(q[0].x == doctest::Approx(100.f));
+    CHECK(q[1].x == doctest::Approx(100.f));
+    CHECK(q[1].y == doctest::Approx(40.f));   // the end of the text is above the origin
 }

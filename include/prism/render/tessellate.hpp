@@ -3,37 +3,62 @@
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/render/shape_mesh.hpp>
 
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <optional>
 #include <type_traits>
 #include <variant>
 #include <vector>
 
-// A snapshot as one list of coloured triangles, split into batches wherever the clip changes:
-// what a GPU backend uploads and draws (one vertex buffer, a scissor rect per batch).
-// Backend-neutral and pure, so it is tested without a GPU. Coordinates stay in points; the
-// backend scales by the device pixel density.
+// A snapshot as triangles, split into batches wherever the clip or the texture changes: what a
+// GPU backend uploads and draws (one vertex buffer, a scissor rect and a texture per batch).
+// Shapes are tessellated here; a text or image batch only says where its quad goes, because
+// its size comes from the bitmap the backend rasterizes. Backend-neutral and pure, so it is
+// tested without a GPU. Coordinates stay in points; the backend scales by the pixel density.
 namespace prism::render {
 
-struct ColorVertex {
+struct Vertex {
     float x, y;
-    float r, g, b, a;   // straight (not premultiplied) alpha, 0..1
+    float u, v;         // texture coordinates; shapes sample a white texel
+    float r, g, b, a;   // straight (not premultiplied) alpha, 0..1; multiplies the texture
 };
 // GPU vertex layouts read these offsets: a reordered or padded field would shift colours.
-static_assert(std::is_standard_layout_v<ColorVertex> && sizeof(ColorVertex) == 6 * sizeof(float));
+static_assert(std::is_standard_layout_v<Vertex> && sizeof(Vertex) == 8 * sizeof(float));
 
 struct Batch {
     std::optional<core::Rect> clip;   // none: the whole target
-    std::uint32_t first = 0;          // first vertex
-    std::uint32_t count = 0;          // vertices (a multiple of 3)
+    std::uint32_t first = 0;          // first vertex (shapes)
+    std::uint32_t count = 0;          // vertices, a multiple of 3 (shapes)
+    // What the batch draws: shapes (its vertices), or one text or image quad the backend builds.
+    // Pointers into the snapshot being drawn.
+    std::variant<std::monostate, const TextCmd*, const ImageCmd*> source;
 };
 
 struct Tessellation {
-    std::vector<ColorVertex> vertices;
+    std::vector<Vertex> vertices;
     std::vector<Batch> batches;
-    std::size_t skipped = 0;   // commands this pass does not draw yet (text, images)
 };
+
+// The four corners (top-left, top-right, bottom-right, bottom-left) of a w x h point text box,
+// as the SDL backend places it: from the origin, or centred on it for TextAnchor::Center; a
+// non-zero angle turns it counter-clockwise (on screen) about the origin or the centre.
+inline std::array<Vec2, 4> text_quad(const TextCmd& t, float w, float h) {
+    float ox = t.origin.x.raw(), oy = t.origin.y.raw();
+    bool centred = t.anchor == TextAnchor::Center;
+    if (centred) { ox -= w / 2.f; oy -= h / 2.f; }
+    std::array<Vec2, 4> q{{{ox, oy}, {ox + w, oy}, {ox + w, oy + h}, {ox, oy + h}}};
+    if (t.angle == 0.f) return q;
+    Vec2 pivot = centred ? Vec2{ox + w / 2.f, oy + h / 2.f} : Vec2{ox, oy};
+    float rad = -t.angle * std::numbers::pi_v<float> / 180.f;   // y points down: CCW is negative
+    float c = std::cos(rad), s = std::sin(rad);
+    for (auto& p : q) {
+        float dx = p.x - pivot.x, dy = p.y - pivot.y;
+        p = {pivot.x + dx * c - dy * s, pivot.y + dx * s + dy * c};
+    }
+    return q;
+}
 
 namespace tess_detail {
 
@@ -41,17 +66,29 @@ struct Builder {
     Tessellation out;
     std::vector<core::Rect> clips;
 
+    std::optional<core::Rect> clip() const { return clips.empty() ? std::nullopt : std::optional{clips.back()}; }
+
+    // A new shapes batch, unless the last one is still an empty shapes batch (then it takes the clip).
     void begin_batch() {
-        std::optional<core::Rect> clip = clips.empty() ? std::nullopt : std::optional{clips.back()};
-        if (!out.batches.empty() && out.batches.back().count == 0) {
-            out.batches.back().clip = clip;
+        auto& bs = out.batches;
+        if (!bs.empty() && bs.back().count == 0 && std::holds_alternative<std::monostate>(bs.back().source)) {
+            bs.back().clip = clip();
             return;
         }
-        out.batches.push_back(Batch{clip, static_cast<std::uint32_t>(out.vertices.size()), 0});
+        bs.push_back(Batch{clip(), static_cast<std::uint32_t>(out.vertices.size()), 0, {}});
+    }
+
+    template <typename Cmd>
+    void textured(const Cmd& c) {
+        auto& bs = out.batches;
+        if (!bs.empty() && bs.back().count == 0 && std::holds_alternative<std::monostate>(bs.back().source))
+            bs.pop_back();
+        bs.push_back(Batch{clip(), 0, 0, &c});
+        begin_batch();
     }
 
     void vertex(float x, float y, Color c, float alpha = 1.f) {
-        out.vertices.push_back({x, y, c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f * alpha});
+        out.vertices.push_back({x, y, 0.f, 0.f, c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f * alpha});
         ++out.batches.back().count;
     }
 
@@ -89,7 +126,7 @@ struct Builder {
     void add(const FilledRect& c) {
         rect(c.rect.origin.x.raw(), c.rect.origin.y.raw(), c.rect.extent.w.raw(), c.rect.extent.h.raw(), c.color);
     }
-    void add(const RectOutline& c) {
+    void add(const RectOutline& c) {   // a box thinner than two strokes keeps its top and bottom only
         float x = c.rect.origin.x.raw(), y = c.rect.origin.y.raw();
         float w = c.rect.extent.w.raw(), h = c.rect.extent.h.raw(), t = std::max(c.thickness, 1.f);
         rect(x, y, w, t, c.color);
@@ -126,9 +163,8 @@ struct Builder {
         if (!clips.empty()) clips.pop_back();
         begin_batch();
     }
-    // simplify: text and images are not tessellated yet; they need textured quads (next step).
-    void add(const TextCmd&) { ++out.skipped; }
-    void add(const ImageCmd&) { ++out.skipped; }
+    void add(const TextCmd& c) { if (!c.text.empty()) textured(c); }
+    void add(const ImageCmd& c) { if (c.image) textured(c); }
 
     void draw_list(const DrawList& dl) {
         for (const auto& cmd : dl.commands) std::visit([&](const auto& c) { add(c); }, cmd);
@@ -146,7 +182,8 @@ inline Tessellation tessellate(const SceneSnapshot& snap) {
     b.clips.clear();
     b.begin_batch();
     b.draw_list(snap.overlay);
-    if (!b.out.batches.empty() && b.out.batches.back().count == 0) b.out.batches.pop_back();
+    auto& bs = b.out.batches;
+    if (!bs.empty() && bs.back().count == 0 && std::holds_alternative<std::monostate>(bs.back().source)) bs.pop_back();
     return std::move(b.out);
 }
 

@@ -8,7 +8,8 @@ Emscripten's Dawn port (browser), code against the standard `webgpu.h` only. In 
 - [x] Shapes: `render/tessellate.hpp` (snapshot to coloured triangles and clip batches, pure,
   `tests/test_tessellate.cpp`) and `backends/wgpu_renderer.hpp` (draws them; offscreen pixel tests
   in `tests/test_wgpu_renderer.cpp`, run in CI on Mesa's software Vulkan).
-- [ ] Text and images (textured quads).
+- [x] Text and images: one pipeline samples a texture (shapes a white texel); text comes from a
+  `TextRasterizer` the backend supplies (white glyphs, tinted), cached per frame like the SDL path.
 - [ ] Windows: SDL window surface, the SDL backend's drawing behind an internal renderer
   interface, chosen by `RenderConfig`.
 - [ ] The snapshot mailbox, shared by both renderers; pixel tests against both.
