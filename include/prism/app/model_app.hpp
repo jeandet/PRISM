@@ -328,6 +328,7 @@ void model_app(Backend& backend, Window& window, Model& model,
                                                    mutation_closed, mutation_drain_publish,
                                                    logic_wrapper_holder);
     registry.set_waker(ctx_holder->waker());
+    registry.set_text_measurer(backend.text_measurer());
     std::thread logic_thread([&, ctx_holder, mutation_queue, mutation_scheduled, mutation_closed, mutation_drain_publish] {
         detail_is_logic_thread = true;
         backend.wait_ready();

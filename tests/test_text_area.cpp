@@ -25,27 +25,24 @@ prism::WidgetNode make_node(prism::WidgetVisualState vs = {}) {
 // --- wrap_lines tests ---
 
 TEST_CASE("wrap_lines: empty string produces one empty span") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};  // widget_w - 2*padding
-    auto lines = prism::text_detail::wrap_lines("", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 1);
     CHECK(lines[0].start == 0);
     CHECK(lines[0].length == 0);
 }
 
 TEST_CASE("wrap_lines: short string fits in one line") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("hello", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("hello", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 1);
     CHECK(lines[0].start == 0);
     CHECK(lines[0].length == 5);
 }
 
 TEST_CASE("wrap_lines: newline splits into two lines") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("ab\ncd", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("ab\ncd", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 2);
     CHECK(lines[0].start == 0);
     CHECK(lines[0].length == 2);
@@ -54,9 +51,8 @@ TEST_CASE("wrap_lines: newline splits into two lines") {
 }
 
 TEST_CASE("wrap_lines: trailing newline produces empty last line") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("ab\n", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("ab\n", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 2);
     CHECK(lines[0].length == 2);
     CHECK(lines[1].start == 3);
@@ -64,9 +60,8 @@ TEST_CASE("wrap_lines: trailing newline produces empty last line") {
 }
 
 TEST_CASE("wrap_lines: consecutive newlines produce empty lines") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("a\n\nb", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("a\n\nb", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 3);
     CHECK(lines[0].length == 1);  // "a"
     CHECK(lines[1].length == 0);  // empty
@@ -77,7 +72,7 @@ TEST_CASE("wrap_lines: long line wraps at max_chars") {
     prism::Width cw = prism::char_width(14.f);
     // Force wrap at 5 chars: text_w = 5 * cw
     prism::Width text_w = cw * 5.f;
-    auto lines = prism::text_detail::wrap_lines("abcdefghij", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("abcdefghij", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 2);
     CHECK(lines[0].start == 0);
     CHECK(lines[0].length == 5);
@@ -88,15 +83,14 @@ TEST_CASE("wrap_lines: long line wraps at max_chars") {
 TEST_CASE("wrap_lines: exact fit does not wrap") {
     prism::Width cw = prism::char_width(14.f);
     prism::Width text_w = cw * 5.f;
-    auto lines = prism::text_detail::wrap_lines("abcde", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("abcde", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 1);
     CHECK(lines[0].length == 5);
 }
 
 TEST_CASE("wrap_lines: bare newline produces two empty spans") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("\n", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("\n", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 2);
     CHECK(lines[0].start == 0);
     CHECK(lines[0].length == 0);
@@ -105,9 +99,8 @@ TEST_CASE("wrap_lines: bare newline produces two empty spans") {
 }
 
 TEST_CASE("wrap_lines: two bare newlines produce three empty spans") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("\n\n", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("\n\n", text_w, nullptr, 14.f);
     REQUIRE(lines.size() == 3);
     CHECK(lines[0].length == 0);
     CHECK(lines[1].length == 0);
@@ -117,7 +110,7 @@ TEST_CASE("wrap_lines: two bare newlines produce three empty spans") {
 TEST_CASE("wrap_lines: mixed newlines and wrapping") {
     prism::Width cw = prism::char_width(14.f);
     prism::Width text_w = cw * 3.f;  // wrap at 3 chars
-    auto lines = prism::text_detail::wrap_lines("abcde\nfg", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("abcde\nfg", text_w, nullptr, 14.f);
     // "abcde" wraps to "abc" + "de", then "fg"
     REQUIRE(lines.size() == 3);
     CHECK(lines[0].length == 3);  // "abc"
@@ -128,27 +121,24 @@ TEST_CASE("wrap_lines: mixed newlines and wrapping") {
 // --- cursor helper tests ---
 
 TEST_CASE("cursor_to_line_col: cursor at start") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, nullptr, 14.f);
     auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 0, lines);
     CHECK(line == 0);
     CHECK(col == 0);
 }
 
 TEST_CASE("cursor_to_line_col: cursor mid first line") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, nullptr, 14.f);
     auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 3, lines);
     CHECK(line == 0);
     CHECK(col == 3);
 }
 
 TEST_CASE("cursor_to_line_col: cursor at start of second line (after newline)") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, nullptr, 14.f);
     // cursor=6 is after "hello\n" -> start of "world"
     auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 6, lines);
     CHECK(line == 1);
@@ -156,9 +146,8 @@ TEST_CASE("cursor_to_line_col: cursor at start of second line (after newline)") 
 }
 
 TEST_CASE("cursor_to_line_col: cursor at end of text") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, nullptr, 14.f);
     // cursor=11 is at end of "world"
     auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 11, lines);
     CHECK(line == 1);
@@ -168,7 +157,7 @@ TEST_CASE("cursor_to_line_col: cursor at end of text") {
 TEST_CASE("cursor_to_line_col: cursor on wrapped line") {
     prism::Width cw = prism::char_width(14.f);
     prism::Width text_w = cw * 3.f;  // wrap at 3
-    auto lines = prism::text_detail::wrap_lines("abcde", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("abcde", text_w, nullptr, 14.f);
     // lines: "abc"(0,3) "de"(3,2)
     auto [line, col] = prism::text_detail::cursor_to_line_col("abcde", 4, lines);
     CHECK(line == 1);
@@ -176,9 +165,8 @@ TEST_CASE("cursor_to_line_col: cursor on wrapped line") {
 }
 
 TEST_CASE("line_col_to_cursor: round-trip") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, nullptr, 14.f);
 
     for (size_t cursor = 0; cursor <= 11; ++cursor) {
         auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", cursor, lines);
@@ -188,18 +176,16 @@ TEST_CASE("line_col_to_cursor: round-trip") {
 }
 
 TEST_CASE("line_col_to_cursor: clamps col to line length") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("ab\ncd", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("ab\ncd", text_w, nullptr, 14.f);
     // Line 0 has length 2; asking col=10 should clamp to 2
     size_t cursor = prism::text_detail::line_col_to_cursor("ab\ncd", 0, 10, lines);
     CHECK(cursor == 2);
 }
 
 TEST_CASE("line_col_to_cursor: empty line returns start") {
-    prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines("a\n\nb", text_w, cw);
+    auto lines = prism::text_detail::wrap_lines("a\n\nb", text_w, nullptr, 14.f);
     // Line 1 is empty (start=2, length=0)
     size_t cursor = prism::text_detail::line_col_to_cursor("a\n\nb", 1, 0, lines);
     CHECK(cursor == 2);
@@ -613,7 +599,8 @@ TEST_CASE("TextArea: mouse click positions cursor") {
     constexpr float padding = 4.f;
     constexpr float line_h = 14.f * 1.4f;
 
-    float click_x = padding + 1.5f * cw.raw();
+    // 1.6, not 1.5: an exact halfway click is decided by float rounding, not by the code.
+    float click_x = padding + 1.6f * cw.raw();
     float click_y = padding + 1.0f * line_h + line_h * 0.5f;
     prism::InputEvent ev = prism::MouseButton{
         .position = prism::Point{prism::X{click_x}, prism::Y{click_y}}, .button = 1, .pressed = true};
@@ -766,7 +753,7 @@ TEST_CASE("TextArea: cursor clamped when value shortened externally") {
 
 TEST_CASE("wrap_lines never splits a multi-byte character") {
     prism::Width cw = prism::char_width(14.f);
-    auto lines = prism::text_detail::wrap_lines("\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9", cw * 2.f, cw);
+    auto lines = prism::text_detail::wrap_lines("\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9", cw * 2.f, nullptr, 14.f);
     REQUIRE(lines.size() == 3);
     CHECK(lines[0].length == 4);   // 2 chars x 2 bytes
     CHECK(lines[1].length == 4);
@@ -790,4 +777,16 @@ TEST_CASE("TextArea down keeps the character column across multi-byte text") {
     prism::Widget<prism::TextArea<>>::handle_input(
         field, prism::KeyPress{prism::keys::down, 0}, node);
     CHECK(std::any_cast<prism::TextAreaEditState>(node.edit_state).cursor == 7);   // byte 5 + 2
+}
+
+TEST_CASE("wrap_lines breaks at the measured width") {
+    struct M final : prism::TextMeasurer {   // 'm' = 10, others 2
+        float width(std::string_view s, float) const override {
+            float w = 0; for (char c : s) w += c == 'm' ? 10.f : 2.f; return w;
+        }
+    } m;
+    auto lines = prism::text_detail::wrap_lines("mmiiii", prism::Width{20.f}, &m, 14.f);
+    REQUIRE(lines.size() == 2);
+    CHECK(lines[0].length == 2);   // "mm" = 20
+    CHECK(lines[1].length == 4);   // "iiii" = 8
 }

@@ -3,6 +3,7 @@
 #include <prism/app/backend.hpp>
 #include <prism/backends/frame_pacer.hpp>
 #include <prism/backends/sdl_window.hpp>
+#include <prism/backends/sdl_text_measurer.hpp>
 #include <prism/core/atomic_cell.hpp>
 #include <prism/core/mpsc_queue.hpp>
 
@@ -45,6 +46,7 @@ public:
     void quit() override;
     void wait_ready() override;
     std::optional<PresentStats> present_stats(WindowId id) const override;
+    const ui::TextMeasurer* text_measurer() const override { return measurer_.get(); }
 
 private:
     RenderConfig render_config_;
@@ -52,6 +54,7 @@ private:
     std::unordered_map<WindowId, std::unique_ptr<SdlWindow>> windows_;
     uint32_t next_id_ = 0;
     TTF_Font* font_ = nullptr;
+    std::unique_ptr<SdlTextMeasurer> measurer_;   // logic thread's own font; see the class
     std::atomic<bool> running_{true};
     std::atomic<bool> ready_{false};
     WindowId pressed_window_ = 0;

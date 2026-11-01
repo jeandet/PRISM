@@ -3,6 +3,7 @@
 #include <prism/input/input_event.hpp>
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/app/window.hpp>
+#include <prism/ui/text_metrics.hpp>
 
 #include <chrono>
 #include <cstdint>
@@ -37,6 +38,8 @@ public:
     virtual void quit() = 0;
     virtual void wait_ready() {}
     virtual std::optional<PresentStats> present_stats(WindowId) const { return std::nullopt; }
+    // Measures text for the logic thread; owned by the backend. Null = monospace estimate.
+    virtual const ui::TextMeasurer* text_measurer() const { return nullptr; }
 };
 
 class Backend {
@@ -57,6 +60,7 @@ public:
     void quit() { impl_->quit(); }
     void wait_ready() { impl_->wait_ready(); }
     std::optional<PresentStats> present_stats(WindowId w) const { return impl_->present_stats(w); }
+    const ui::TextMeasurer* text_measurer() const { return impl_->text_measurer(); }
 
     Backend(Backend&&) noexcept = default;
     Backend& operator=(Backend&&) noexcept = default;

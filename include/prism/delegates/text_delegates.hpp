@@ -1,9 +1,11 @@
 #pragma once
 
 #include <prism/core/utf8.hpp>
+#include <prism/ui/text_metrics.hpp>
 #include <prism/ui/widget_node.hpp>
 
 #include <algorithm>
+#include <cassert>
 #include <span>
 #include <string>
 #include <string_view>
@@ -40,12 +42,32 @@ void set_erased(Field<Sentinel>& field, Sentinel sf, std::string_view value, siz
 }
 
 constexpr Height tf_widget_h{30.f};
+constexpr float tf_font_size = 14.f;
+
+// Caret x for a byte offset, measured on the text as displayed (the Password mask draws dots).
+template <typename DisplayFn>
+float caret_x(const TextMeasurer* m, std::string_view value, size_t cursor, DisplayFn display_fn) {
+    std::string prefix(value.substr(0, core::utf8::snap(value, cursor)));
+    return text_width(m, display_fn(prefix), tf_font_size);
+}
+
+// Byte offset in `value` nearest to x, hit-tested on the displayed text. Display and value have
+// the same number of characters, so the boundary maps across by character count.
+template <typename DisplayFn>
+size_t cursor_at(const TextMeasurer* m, std::string_view value, float x, DisplayFn display_fn) {
+    std::string shown = display_fn(std::string(value));
+    assert(core::utf8::count(shown) == core::utf8::count(value) && "display_fn must keep length");
+    size_t byte = index_at(m, shown, tf_font_size, x);
+    return core::utf8::offset(value, core::utf8::count_upto(shown, byte));
+}
 // tf_padding is used in both a horizontal (inset from left edge) and vertical
 // (inset from top edge) role below — split rather than force one tag.
 constexpr Width tf_padding_x{4.f};
 constexpr Height tf_padding_y{4.f};
-constexpr float tf_font_size = 14.f;
 constexpr Width tf_cursor_w{2.f};
+
+inline std::string plain_display(const std::string& v) { return v; }
+inline std::string masked_display(const std::string& v) { return mask_string(core::utf8::count(v)); }
 
 template <typename Sentinel, typename DisplayFn>
 void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNode& node,
@@ -53,7 +75,6 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     auto& vs = node_vs(node);
     auto& sf = field.get();
     const auto& es = node.peek<TextEditState>();
-    Width cw = char_width(tf_font_size);
     Width w = delegate_detail::widget_w(node);
 
     auto& t = *node.theme;
@@ -80,8 +101,7 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
 
     if (vs.focused) {
         auto value = std::string_view(sf.value.data(), sf.value.size());
-        X cursor_x{static_cast<float>(core::utf8::count_upto(value, es.cursor)) * cw.raw()
-                   - es.scroll_offset.raw()};
+        X cursor_x{caret_x(t.measurer, value, es.cursor, display_fn) - es.scroll_offset.raw()};
         dl.filled_rect(delegate_detail::make_rect(cursor_x, Y{tf_padding_y.raw()}, tf_cursor_w,
                                  tf_widget_h - tf_padding_y * 2.f),
                        t.cursor);
@@ -90,8 +110,10 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     dl.clip_pop();
 }
 
-template <typename Sentinel>
-void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node) {
+template <typename Sentinel, typename DisplayFn>
+void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node,
+                             DisplayFn display_fn) {
+    const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     auto& es = node.get_or_create<TextEditState>();
     auto sf = field.get();
     auto value = std::string_view(sf.value.data(), sf.value.size());
@@ -127,21 +149,18 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
             node.dirty = true;
         }
     } else if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed) {
-        Width cw = char_width(tf_font_size);
         float rel_x = mb->position.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw();
-        size_t pos = core::utf8::offset(value, static_cast<size_t>(std::clamp(
-            rel_x / cw.raw() + 0.5f, 0.f, static_cast<float>(core::utf8::count(value)))));
+        size_t pos = cursor_at(m, value, rel_x, display_fn);
         if (pos != es.cursor) {
             es.cursor = pos;
             node.dirty = true;
         }
     }
 
-    Width cw = char_width(tf_font_size);
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - tf_padding_x * 2.f;
-    auto shown = std::string_view(field.get().value.data(), field.get().value.size());
-    Width cursor_px{static_cast<float>(core::utf8::count_upto(shown, es.cursor)) * cw.raw()};
+    auto now = std::string_view(field.get().value.data(), field.get().value.size());
+    Width cursor_px{caret_x(m, now, es.cursor, display_fn)};
     if (cursor_px.raw() - es.scroll_offset.raw() > text_area_w.raw())
         es.scroll_offset = DX{cursor_px.raw() - text_area_w.raw()};
     if (cursor_px.raw() < es.scroll_offset.raw())
@@ -160,10 +179,13 @@ struct LineCol {
     size_t col;
 };
 
-inline std::vector<LineSpan> wrap_lines(std::string_view text, Width text_area_w, Width char_w) {
+// Greedy wrap: each visual line takes the longest prefix that fits text_area_w.
+// simplify: breaks anywhere, not at word boundaries (UAX #14); per code point, not grapheme.
+// Cost: O(log n) measured prefixes per visual line, each a distinct string, so very large
+// documents churn the measurer's cache. Upgrade: per-character advances (one linear scan).
+inline std::vector<LineSpan> wrap_lines(std::string_view text, Width text_area_w,
+                                        const TextMeasurer* m, float size) {
     std::vector<LineSpan> result;
-    size_t max_chars = static_cast<size_t>(text_area_w.raw() / char_w.raw());
-    if (max_chars == 0) max_chars = 1;
 
     size_t pos = 0;
     while (pos <= text.size()) {
@@ -177,7 +199,7 @@ inline std::vector<LineSpan> wrap_lines(std::string_view text, Width text_area_w
             size_t offset = 0;
             while (offset < logical_len) {
                 auto rest = text.substr(pos + offset, logical_len - offset);
-                size_t chunk = core::utf8::offset(rest, max_chars);
+                size_t chunk = fit_bytes(m, rest, size, text_area_w.raw());
                 result.push_back({pos + offset, chunk});
                 offset += chunk;
             }
@@ -233,7 +255,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     auto& vs = node_vs(node);
     auto& sf = field.get();
     const auto& es = node.peek<TextAreaEditState>();
-    Width cw = char_width(ta_font_size);
+    const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
     Height text_area_h{static_cast<float>(sf.rows) * ta_line_height.raw()};
@@ -250,8 +272,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
 
     dl.clip_push(delegate_detail::make_point(X{ta_padding_x.raw()}, Y{ta_padding_y.raw()}), Size{text_area_w, text_area_h});
 
-    auto wrapped = wrap_lines(std::string_view(sf.value.data(), sf.value.size()),
-                              text_area_w, cw);
+    auto value = std::string_view(sf.value.data(), sf.value.size());
+    auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
     if (sf.value.empty() && !vs.focused) {
         dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{2}), ta_font_size, t.text_placeholder);
@@ -270,7 +292,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     if (vs.focused) {
         auto [line, col] = cursor_to_line_col(std::string_view(sf.value.data(), sf.value.size()),
                                               es.cursor, wrapped);
-        X cx{static_cast<float>(col) * cw.raw()};
+        auto text = line_text(value, wrapped[line]);
+        X cx{prefix_width(m, text, core::utf8::offset(text, col), ta_font_size)};
         Y cy{static_cast<float>(line) * ta_line_height.raw() - es.scroll_y.raw()};
         dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_height), t.cursor);
     }
@@ -285,13 +308,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto value = std::string_view(sf.value.data(), sf.value.size());
     auto len = value.size();
     es.cursor = core::utf8::snap(value, es.cursor);
-    Width cw = char_width(ta_font_size);
+    const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
     Height text_area_h{static_cast<float>(sf.rows) * ta_line_height.raw()};
 
-    auto wrapped = wrap_lines(std::string_view(sf.value.data(), sf.value.size()),
-                              text_area_w, cw);
+    auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
         std::string to_insert = clamp_to_max_length(ti->text, value, sf.max_length);
@@ -354,8 +376,8 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         size_t click_line = static_cast<size_t>(
             std::clamp(rel_y / ta_line_height.raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
         float rel_x = mb->position.x.raw() - ta_padding_x.raw();
-        size_t click_col = static_cast<size_t>(std::clamp(rel_x / cw.raw() + 0.5f, 0.f,
-            static_cast<float>(core::utf8::count(line_text(value, wrapped[click_line])))));
+        auto text = line_text(value, wrapped[click_line]);
+        size_t click_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, rel_x));
         size_t new_cursor = line_col_to_cursor(value, click_line, click_col, wrapped);
         if (new_cursor != es.cursor) {
             es.cursor = new_cursor;
@@ -364,7 +386,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     }
 
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
-    auto new_wrapped = wrap_lines(new_value, text_area_w, cw);
+    auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);
     auto [cur_line, cur_col] = cursor_to_line_col(new_value, es.cursor, new_wrapped);
     Y cursor_y{static_cast<float>(cur_line) * ta_line_height.raw()};
 
@@ -393,13 +415,13 @@ void Widget<TextField<T>>::record(DrawList& dl, const Field<TextField<T>>& field
                                     WidgetNode& node) {
     node.visual_state.cursor = CursorShape::Text;
     text_detail::text_field_record(dl, field, node,
-        [](const std::string& v) { return v; });
+        text_detail::plain_display);
 }
 
 template <StringLike T>
 void Widget<TextField<T>>::handle_input(Field<TextField<T>>& field, const InputEvent& ev,
                                           WidgetNode& node) {
-    text_detail::text_field_handle_input(field, ev, node);
+    text_detail::text_field_handle_input(field, ev, node, text_detail::plain_display);
 }
 
 // --- Widget<Password<T>> method bodies ---
@@ -419,13 +441,13 @@ void Widget<Password<T>>::record(DrawList& dl, const Field<Password<T>>& field,
                                     WidgetNode& node) {
     node.visual_state.cursor = CursorShape::Text;
     text_detail::text_field_record(dl, field, node,
-        [](const std::string& v) { return text_detail::mask_string(core::utf8::count(v)); });
+        text_detail::masked_display);
 }
 
 template <StringLike T>
 void Widget<Password<T>>::handle_input(Field<Password<T>>& field, const InputEvent& ev,
                                           WidgetNode& node) {
-    text_detail::text_field_handle_input(field, ev, node);
+    text_detail::text_field_handle_input(field, ev, node, text_detail::masked_display);
 }
 
 // --- Widget<TextArea<T>> method bodies ---

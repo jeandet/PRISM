@@ -3,6 +3,8 @@
 
 #include <prism/app/widget_tree.hpp>
 #include <prism/app/event_routing.hpp>
+#include <prism/app/window_registry.hpp>
+#include <prism/app/headless_window.hpp>
 #include <prism/core/field.hpp>
 #include <prism/input/input_event.hpp>
 
@@ -734,4 +736,35 @@ TEST_CASE("releasing tab does not move focus a second time") {
     prism::app::widget_detail::route_event(tree, nullptr, prism::KeyRelease{prism::keys::tab, 0});
     CHECK(tree.focused_id() == first);
     CHECK(key_sink_events.size() == 1);
+}
+
+// --- text measurer plumbing ---
+
+namespace {
+struct ZeroMeasurer final : prism::TextMeasurer {
+    float width(std::string_view, float) const override { return 0.f; }
+};
+}
+
+TEST_CASE("set_text_measurer reaches every widget through its theme") {
+    KeySinkModel model;
+    prism::WidgetTree tree(model);
+    CHECK(tree.theme().measurer == nullptr);
+    ZeroMeasurer m;
+    tree.clear_dirty();
+    tree.set_text_measurer(&m);
+    CHECK(tree.theme().measurer == &m);
+    CHECK(tree.dirty_count() >= tree.leaf_count());   // everything re-records with real metrics
+}
+
+TEST_CASE("WindowRegistry hands the measurer to trees added before and after") {
+    ZeroMeasurer m;
+    prism::WindowRegistry registry;
+    prism::HeadlessWindow w1{1, {}}, w2{2, {}};
+    KeySinkModel a, b;
+    auto id1 = registry.add(w1, a);
+    registry.set_text_measurer(&m);
+    auto id2 = registry.add(w2, b);
+    CHECK(registry.find(id1)->tree->theme().measurer == &m);
+    CHECK(registry.find(id2)->tree->theme().measurer == &m);
 }

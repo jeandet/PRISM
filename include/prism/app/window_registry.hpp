@@ -29,6 +29,7 @@ public:
         e.window = &window;
         e.tree = std::make_unique<WidgetTree>(model);
         if (waker_) e.tree->bind_waker(waker_);
+        e.tree->set_text_measurer(measurer_);
         auto [w, h] = window.size();
         if (window.decoration_mode() == DecorationMode::Custom)
             h -= static_cast<int>(WindowChrome::title_bar_h.raw());
@@ -39,6 +40,11 @@ public:
     }
 
     void remove(WindowId id) { entries_.erase(id); }
+
+    void set_text_measurer(const TextMeasurer* m) {
+        measurer_ = m;
+        for (auto& [id, entry] : entries_) entry.tree->set_text_measurer(m);
+    }
 
     // Binds `waker` into every tree, present and future (see WidgetTree::bind_waker).
     void set_waker(std::function<void()> waker) {
@@ -67,6 +73,7 @@ public:
 private:
     std::unordered_map<WindowId, Entry> entries_;
     std::function<void()> waker_;
+    const TextMeasurer* measurer_ = nullptr;
 };
 
 } // namespace prism::app

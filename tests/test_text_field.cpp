@@ -483,3 +483,46 @@ TEST_CASE("TextField caret x follows the character column, not the byte offset")
     float expected = 4.f + 2.f * prism::char_width(14.f).raw();   // padding + 2 columns
     CHECK(caret_x == doctest::Approx(expected));
 }
+
+// --- measured text (TextMeasurer in the theme) ---
+
+namespace {
+struct StubMeasurer final : prism::TextMeasurer {   // 'i' = 2, 'm' = 10, others 6
+    float width(std::string_view s, float) const override {
+        float w = 0;
+        for (char c : s) w += c == 'i' ? 2.f : c == 'm' ? 10.f : 6.f;
+        return w;
+    }
+};
+}
+
+TEST_CASE("TextField caret x uses the theme's text measurer") {
+    StubMeasurer m;
+    prism::Theme theme;
+    theme.measurer = &m;
+    prism::Field<prism::TextField<>> field{{.value = "mi"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.visual_state.focused = true;
+    prism::Widget<prism::TextField<>>::ensure_edit_state(node).cursor = 2;
+    prism::DrawList dl;
+    prism::Widget<prism::TextField<>>::record(dl, field, node);
+    float caret_x = -1.f;
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->rect.extent.w.raw() <= 3.f)
+            caret_x = r->rect.origin.x.raw();
+    CHECK(caret_x == doctest::Approx(4.f + 12.f));   // padding + width("mi")
+}
+
+TEST_CASE("TextField click maps x to the nearest measured character boundary") {
+    StubMeasurer m;
+    prism::Theme theme;
+    theme.measurer = &m;
+    prism::Field<prism::TextField<>> field{{.value = "mim"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.visual_state.focused = true;
+    prism::Widget<prism::TextField<>>::handle_input(
+        field, prism::MouseButton{P(4.f + 11.5f, 10.f), 1, true}, node);   // between "mi" (12) and "m" (10)
+    CHECK(std::any_cast<prism::TextEditState>(node.edit_state).cursor == 2);
+}

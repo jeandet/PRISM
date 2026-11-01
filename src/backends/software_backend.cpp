@@ -50,9 +50,13 @@ const char* SoftwareBackend::resolve_font_path(const RenderConfig& cfg) {
 
 SoftwareBackend::SoftwareBackend(RenderConfig cfg)
     : render_config_(cfg)
-{}
+{
+    if (const char* path = resolve_font_path(render_config_))
+        measurer_ = std::make_unique<SdlTextMeasurer>(path);
+}
 
 SoftwareBackend::~SoftwareBackend() {
+    measurer_.reset();   // closes its font: must run before TTF_Quit()
     if (font_) TTF_CloseFont(font_);
     TTF_Quit();
     windows_.clear();

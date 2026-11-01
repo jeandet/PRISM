@@ -95,7 +95,8 @@ struct TextArea {
     bool operator==(const TextArea&) const = default;
 };
 
-// Monospace text measurement -- single replacement point for future TextMetrics
+// Monospace width estimate. Text widgets now use TextMeasurer (ui/text_metrics.hpp); tabs and
+// plot labels still use this until they are moved over.
 inline Width char_width(float font_size) { return Width{0.6f * font_size}; }
 
 // Ephemeral cursor state for text editing delegates

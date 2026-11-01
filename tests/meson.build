@@ -62,6 +62,7 @@ headless_tests = {
   'derived' : files('test_derived.cpp'),
   'shared' : files('test_shared.cpp'),
   'utf8' : files('test_utf8.cpp'),
+  'text_metrics' : files('test_text_metrics.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),
   'inspector' : files('test_inspector.cpp'),
@@ -139,6 +140,13 @@ test_software_backend_concurrent = executable('test_software_backend_concurrent'
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
 test('software_backend_concurrent', test_software_backend_concurrent)
+
+test_sdl_text_measurer = executable('test_sdl_text_measurer',
+  files('test_sdl_text_measurer.cpp'),
+  dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
+  cpp_args : ['-DPRISM_TEST_FONT_PATH="' + font_path + '"'],
+)
+test('sdl_text_measurer', test_sdl_text_measurer)
 
 test_software_backend_present_stats = executable('test_software_backend_present_stats',
   files('test_software_backend_present_stats.cpp'),

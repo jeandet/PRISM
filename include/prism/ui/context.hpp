@@ -28,6 +28,8 @@ enum class WidgetState : uint8_t {
     return (static_cast<uint8_t>(mask) & static_cast<uint8_t>(flag)) != 0;
 }
 
+struct TextMeasurer;
+
 struct Theme {
     // Surface backgrounds (widget fill)
     Color surface         = Color::rgba(45, 45, 55);
@@ -100,6 +102,11 @@ struct Theme {
 
     // Canvas clear color
     Color canvas_bg       = Color::rgba(30, 30, 30);
+
+    // How text is measured; set by the widget tree from the backend. Null = monospace estimate.
+    // Points at a backend-owned object: do not copy a Theme holding it beyond the backend's
+    // lifetime. Set before the logic thread starts recording; read only on the logic thread.
+    const TextMeasurer* measurer = nullptr;
 };
 
 inline Theme default_theme() { return {}; }

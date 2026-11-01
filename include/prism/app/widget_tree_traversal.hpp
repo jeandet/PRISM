@@ -67,6 +67,11 @@ inline void clear_dirty_impl(WidgetNode& node) {
     for (auto& c : node.children) clear_dirty_impl(c);
 }
 
+inline void mark_all_dirty_impl(WidgetNode& node) {
+    node.dirty = true;
+    for (auto& c : node.children) mark_all_dirty_impl(c);
+}
+
 inline void close_overlays_impl(WidgetNode& node) {
     // Table/Tabs nodes use overlay_draws for their header, not for dropdown overlays
     if (!node.overlay_draws.empty()
