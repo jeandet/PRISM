@@ -2,12 +2,19 @@
 
 #include <prism/render/tessellate.hpp>
 
+#ifndef __EMSCRIPTEN__
 #include <webgpu/wgpu.h>   // wgpuDevicePoll: wgpu-native's blocking wait (desktop only)
+#endif
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
+#include <stdexcept>
+#include <string>
 #include <string_view>
+#include <thread>
 
 namespace prism::backends {
 
@@ -15,10 +22,19 @@ namespace {
 
 WGPUStringView sv(std::string_view s) { return WGPUStringView{s.data(), s.size()}; }
 
-// Waits for an async request by processing instance events (desktop: returns promptly).
+// Waits for an async request by processing instance events, for at most `limit`: a software
+// rasterizer on a loaded CI machine can take seconds. false on time out.
+// simplify: polls with a short sleep; wgpuInstanceWaitAny with a timeout needs the instance's
+// TimedWaitAny feature -- switch to it once wgpu-native and Dawn both support it.
 template <typename Done>
-void process_until(WGPUInstance inst, Done done) {
-    for (int i = 0; i < 100000 && !done(); ++i) wgpuInstanceProcessEvents(inst);
+bool process_until(WGPUInstance inst, Done done, std::chrono::seconds limit = std::chrono::seconds{20}) {
+    auto end = std::chrono::steady_clock::now() + limit;
+    while (!done()) {
+        if (std::chrono::steady_clock::now() > end) return false;
+        wgpuInstanceProcessEvents(inst);
+        if (!done()) std::this_thread::sleep_for(std::chrono::milliseconds{1});
+    }
+    return true;
 }
 
 constexpr std::string_view shader = R"(
@@ -89,7 +105,17 @@ std::unique_ptr<WgpuContext> WgpuContext::create() {
     };
     dcb.userdata1 = ctx.get();
     dcb.userdata2 = &device_done;
-    wgpuAdapterRequestDevice(ctx->adapter_, nullptr, dcb);
+    // Errors nobody captured (a bad draw, a lost device) go to stderr rather than vanish.
+    WGPUDeviceDescriptor dd{};
+    dd.uncapturedErrorCallbackInfo.callback = [](WGPUDevice const*, WGPUErrorType, WGPUStringView msg, void*, void*) {
+        std::fprintf(stderr, "prism webgpu: %.*s\n", static_cast<int>(msg.length), msg.data);
+    };
+    dd.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+    dd.deviceLostCallbackInfo.callback = [](WGPUDevice const*, WGPUDeviceLostReason reason, WGPUStringView msg, void*, void*) {
+        if (reason != WGPUDeviceLostReason_Destroyed && reason != WGPUDeviceLostReason_CallbackCancelled)
+            std::fprintf(stderr, "prism webgpu: device lost: %.*s\n", static_cast<int>(msg.length), msg.data);
+    };
+    wgpuAdapterRequestDevice(ctx->adapter_, &dd, dcb);
     process_until(ctx->instance_, [&] { return device_done; });
     if (!ctx->device_) return nullptr;
     ctx->queue_ = wgpuDeviceGetQueue(ctx->device_);
@@ -103,11 +129,18 @@ WgpuContext::~WgpuContext() {
     if (instance_) wgpuInstanceRelease(instance_);
 }
 
-void WgpuContext::wait_idle() const { wgpuDevicePoll(device_, true, nullptr); }
+void WgpuContext::wait_idle() const {
+#ifndef __EMSCRIPTEN__
+    wgpuDevicePoll(device_, true, nullptr);
+#endif
+}
 
 // ---- Renderer ----
 
 WgpuRenderer::WgpuRenderer(const WgpuContext& ctx, WGPUTextureFormat target_format) : ctx_(ctx) {
+    // WebGPU reports a rejected shader or pipeline asynchronously, with an invalid (not null)
+    // object: catch it in an error scope and throw with the reason.
+    wgpuDevicePushErrorScope(ctx.device(), WGPUErrorFilter_Validation);
     WGPUShaderSourceWGSL src{};
     src.chain.sType = WGPUSType_ShaderSourceWGSL;
     src.code = sv(shader);
@@ -169,6 +202,19 @@ WgpuRenderer::WgpuRenderer(const WgpuContext& ctx, WGPUTextureFormat target_form
     bgd.entries = &entry;
     bind_group_ = wgpuDeviceCreateBindGroup(ctx.device(), &bgd);
     wgpuBindGroupLayoutRelease(bgd.layout);
+
+    struct Verdict { bool done = false; std::string error; } verdict;
+    WGPUPopErrorScopeCallbackInfo pcb{};
+    pcb.mode = WGPUCallbackMode_AllowProcessEvents;
+    pcb.callback = [](WGPUPopErrorScopeStatus, WGPUErrorType type, WGPUStringView msg, void* v, void*) {
+        auto& out = *static_cast<Verdict*>(v);
+        if (type != WGPUErrorType_NoError) out.error.assign(msg.data ? msg.data : "", msg.length);
+        out.done = true;
+    };
+    pcb.userdata1 = &verdict;
+    wgpuDevicePopErrorScope(ctx.device(), pcb);
+    process_until(ctx.instance(), [&] { return verdict.done; });
+    if (!verdict.error.empty()) throw std::runtime_error("prism webgpu: renderer setup failed: " + verdict.error);
 }
 
 WgpuRenderer::~WgpuRenderer() {
@@ -182,7 +228,9 @@ void WgpuRenderer::render(const render::SceneSnapshot& snap, WGPUTextureView tar
                           float scale, core::Color clear) {
     auto tess = render::tessellate(snap);
     std::uint64_t bytes = tess.vertices.size() * sizeof(render::ColorVertex);
-    if (bytes > vertex_capacity_) {   // grow by doubling: shapes change size frame to frame
+    // Grows by doubling and never shrinks: shapes change size frame to frame, and one large
+    // frame keeps its buffer for the session (bounded by the largest frame drawn).
+    if (bytes > vertex_capacity_) {
         if (vertices_) wgpuBufferRelease(vertices_);
         vertex_capacity_ = std::max<std::uint64_t>(bytes, 2 * vertex_capacity_);
         WGPUBufferDescriptor vbd{};
@@ -238,7 +286,7 @@ std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, const render:
     td.sampleCount = 1;
     WGPUTexture tex = wgpuDeviceCreateTexture(ctx.device(), &td);
     WGPUTextureView view = wgpuTextureCreateView(tex, nullptr);
-    {
+    {   // a renderer per call: fine for tests and one-off exports; windows keep theirs
         WgpuRenderer renderer{ctx, td.format};
         renderer.render(snap, view, width_px, height_px, scale, clear);
     }
@@ -268,10 +316,8 @@ std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, const render:
     };
     mcb.userdata1 = &mapped;
     wgpuBufferMapAsync(buf, WGPUMapMode_Read, 0, bd.size, mcb);
-    for (int i = 0; i < 1000 && !mapped; ++i) {   // a software rasterizer can take a while
-        ctx.wait_idle();
-        wgpuInstanceProcessEvents(ctx.instance());
-    }
+    ctx.wait_idle();
+    process_until(ctx.instance(), [&] { return mapped; });
 
     std::vector<std::uint8_t> pixels;
     if (mapped) {

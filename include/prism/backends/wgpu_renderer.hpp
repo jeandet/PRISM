@@ -15,7 +15,8 @@
 
 namespace prism::backends {
 
-// Instance, adapter, device and queue. One per process is enough; windows share it.
+// Instance, adapter, device and queue. One per process is enough; windows share it. Like the
+// renderers, used from the render thread only.
 class WgpuContext {
 public:
     // Blocks until the device is ready. nullptr when the system offers no adapter.

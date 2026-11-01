@@ -40,10 +40,11 @@ Image draw(DrawList dl, int w, int h, float scale = 1.f, Color clear = black) {
     return {w, h, render_to_pixels(*context(), scene(std::move(dl)), w, h, scale, clear)};
 }
 
+// This test exists only in -Dwebgpu=enabled builds: no adapter is a failure, not a skip, so a
+// CI lane cannot pass without drawing anything. (Mesa's lavapipe gives one without a GPU.)
 bool skip_without_gpu() {
-    if (context()) return false;
-    MESSAGE("no WebGPU adapter on this machine: skipped");
-    return true;
+    REQUIRE_MESSAGE(context(), "no WebGPU adapter: install a Vulkan driver (mesa-vulkan-drivers gives lavapipe)");
+    return false;
 }
 }
 

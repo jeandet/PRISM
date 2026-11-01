@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -19,6 +20,8 @@ struct ColorVertex {
     float x, y;
     float r, g, b, a;   // straight (not premultiplied) alpha, 0..1
 };
+// GPU vertex layouts read these offsets: a reordered or padded field would shift colours.
+static_assert(std::is_standard_layout_v<ColorVertex> && sizeof(ColorVertex) == 6 * sizeof(float));
 
 struct Batch {
     std::optional<core::Rect> clip;   // none: the whole target
