@@ -1,5 +1,6 @@
 #include <cstring>
 #include <prism/backends/sdl_window.hpp>
+#include "sdl_webgpu.hpp"
 #include <prism/render/shape_mesh.hpp>
 #include "sdl_platform.hpp"
 
@@ -63,10 +64,12 @@ SdlWindow::~SdlWindow() {
 SdlWindow::SdlWindow(SdlWindow&& other) noexcept
     : id_(other.id_), sdl_window_(other.sdl_window_), renderer_(other.renderer_),
       decoration_(other.decoration_), title_(std::move(other.title_)),
-      config_(other.config_), clip_stack_(std::move(other.clip_stack_))
+      config_(other.config_), clip_stack_(std::move(other.clip_stack_)),
+      wgpu_ctx_(other.wgpu_ctx_), gpu_(other.gpu_)
 {
     other.sdl_window_ = nullptr;
     other.renderer_ = nullptr;
+    other.gpu_ = nullptr;
 }
 
 SdlWindow& SdlWindow::operator=(SdlWindow&& other) noexcept {
@@ -79,8 +82,11 @@ SdlWindow& SdlWindow::operator=(SdlWindow&& other) noexcept {
         title_ = std::move(other.title_);
         config_ = other.config_;
         clip_stack_ = std::move(other.clip_stack_);
+        wgpu_ctx_ = other.wgpu_ctx_;
+        gpu_ = other.gpu_;
         other.sdl_window_ = nullptr;
         other.renderer_ = nullptr;
+        other.gpu_ = nullptr;
     }
     return *this;
 }
@@ -95,9 +101,13 @@ void SdlWindow::create_sdl_window() {
     if (config_.fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
     if (decoration_ == DecorationMode::Custom || decoration_ == DecorationMode::None)
         flags |= SDL_WINDOW_BORDERLESS;
+#ifdef __APPLE__
+    if (wgpu_ctx_) flags |= SDL_WINDOW_METAL;   // a CAMetalLayer for the WebGPU surface
+#endif
 
     sdl_window_ = SDL_CreateWindow(title_.c_str(), config_.width, config_.height, flags);
-    renderer_ = SDL_CreateRenderer(sdl_window_, nullptr);
+    if (wgpu_ctx_ && sdl_window_) gpu_ = make_webgpu_target(*wgpu_ctx_, sdl_window_);
+    if (!gpu_) renderer_ = SDL_CreateRenderer(sdl_window_, nullptr);
     // Without this SDL ignores the alpha of draw colours (blend mode NONE): the translucent
     // theme colours (text selection, scrollbar thumb, split dividers) were painted opaque.
     if (renderer_) SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
@@ -113,7 +123,11 @@ void SdlWindow::enable_vsync() {
     if (renderer_) SDL_SetRenderVSync(renderer_, 1);
 }
 
+int SdlWindow::webgpu_frames() const { return gpu_ ? prism::backends::webgpu_frames(*gpu_) : 0; }
+
 void SdlWindow::destroy_sdl_window() {
+    destroy_webgpu_target(gpu_);   // before the window its surface belongs to
+    gpu_ = nullptr;
     text_cache_.clear([](const CachedText& t) { SDL_DestroyTexture(t.texture); });   // before the renderer
     image_cache_.clear([](SDL_Texture* t) { SDL_DestroyTexture(t); });
     if (renderer_) { SDL_DestroyRenderer(renderer_); renderer_ = nullptr; }
@@ -233,6 +247,12 @@ void SdlWindow::set_cursor(CursorShape shape) {
 }
 
 void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme, bool present) {
+    if (gpu_) {
+        float density = forced_scale_ > 0.f ? forced_scale_ : SDL_GetWindowPixelDensity(sdl_window_);
+        device_scale_ = density > 0.f ? density : 1.0f;
+        render_webgpu(*gpu_, snap, fonts, theme, decoration_, title_, device_scale_, present);
+        return;
+    }
     if (!renderer_) return;
 
     // Re-read every frame rather than caching at creation time -- dragging the window to a

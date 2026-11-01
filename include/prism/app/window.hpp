@@ -29,6 +29,11 @@ struct WindowConfig {
     DecorationMode decoration = DecorationMode::Custom;
 };
 
+// How a backend draws. Sdl is SDL_Renderer; WebGpu needs a build with -Dwebgpu=enabled and a
+// GPU (or Mesa's lavapipe), and falls back to Sdl with a warning otherwise. The environment
+// variable PRISM_RENDERER=webgpu (or sdl) overrides the choice, to try it on any app.
+enum class Renderer { Sdl, WebGpu };
+
 struct RenderConfig {
     const char* font_path = nullptr;        // UI font (proportional); null = bundled Noto Sans
     const char* mono_font_path = nullptr;   // code/TextArea font; null = bundled JetBrains Mono
@@ -37,6 +42,7 @@ struct RenderConfig {
     bool frame_pacing = true;
     // 0 = follow the display's refresh rate; >0 = fixed cap in frames per second.
     float target_fps = 0;
+    Renderer renderer = Renderer::Sdl;
 };
 
 class Window {

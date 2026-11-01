@@ -1,6 +1,10 @@
 #pragma once
 
 #include <prism/render/draw_list.hpp>
+#include <prism/render/text_bitmap.hpp>
+
+#include <optional>
+#include <string_view>
 
 typedef struct TTF_Font TTF_Font;
 
@@ -27,6 +31,9 @@ public:
     // The font for `role` at `px_size` (falls back to the other role's font if one failed to open);
     // nullptr if none opened.
     TTF_Font* get(render::FontRole role, float px_size);
+
+    // `text` in white at `px_size`, coverage in alpha (what a GPU renderer uploads and tints).
+    std::optional<render::TextBitmap> rasterize(std::string_view text, float px_size, render::FontRole role);
 
 private:
     TTF_Font* ui_ = nullptr;

@@ -11,6 +11,7 @@
 
 #include <webgpu/webgpu.h>
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -33,6 +34,9 @@ public:
     WgpuContext& operator=(const WgpuContext&) = delete;
 
     WGPUInstance instance() const { return instance_; }
+    WGPUAdapter adapter() const { return adapter_; }
+    // Errors the device reported that nobody captured (also printed to stderr).
+    int error_count() const { return errors_.load(); }
     WGPUDevice device() const { return device_; }
     WGPUQueue queue() const { return queue_; }
     // Blocks until the queue's submitted work is done (desktop only).
@@ -44,6 +48,7 @@ private:
     WGPUAdapter adapter_ = nullptr;
     WGPUDevice device_ = nullptr;
     WGPUQueue queue_ = nullptr;
+    std::atomic<int> errors_{0};
 };
 
 using render::TextBitmap;

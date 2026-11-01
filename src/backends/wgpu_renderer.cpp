@@ -114,9 +114,11 @@ std::unique_ptr<WgpuContext> WgpuContext::create() {
     dcb.userdata2 = &device_done;
     // Errors nobody captured (a bad draw, a lost device) go to stderr rather than vanish.
     WGPUDeviceDescriptor dd{};
-    dd.uncapturedErrorCallbackInfo.callback = [](WGPUDevice const*, WGPUErrorType, WGPUStringView msg, void*, void*) {
+    dd.uncapturedErrorCallbackInfo.callback = [](WGPUDevice const*, WGPUErrorType, WGPUStringView msg, void* self, void*) {
         std::fprintf(stderr, "prism webgpu: %.*s\n", static_cast<int>(msg.length), msg.data);
+        ++static_cast<WgpuContext*>(self)->errors_;
     };
+    dd.uncapturedErrorCallbackInfo.userdata1 = ctx.get();
     dd.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
     dd.deviceLostCallbackInfo.callback = [](WGPUDevice const*, WGPUDeviceLostReason reason, WGPUStringView msg, void*, void*) {
         if (reason != WGPUDeviceLostReason_Destroyed && reason != WGPUDeviceLostReason_CallbackCancelled)

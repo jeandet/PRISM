@@ -17,6 +17,8 @@
 #include <vector>
 
 namespace prism::backends {
+class WgpuContext;
+struct WebGpuTarget;   // src/backends/sdl_webgpu.cpp
 using namespace prism::render;
 using namespace prism::ui;
 using namespace prism::app;
@@ -72,6 +74,12 @@ public:
     // that would also need layout sizes and pointer coordinates scaled.
     void force_device_scale(float scale) { forced_scale_ = scale; }
 
+    // Draw with WebGPU instead of SDL_Renderer. Call before ensure_created(); the window falls
+    // back to SDL_Renderer if this build has no WebGPU or no surface can be made for it.
+    void use_webgpu(WgpuContext* ctx) { wgpu_ctx_ = ctx; }
+    bool drawing_with_webgpu() const { return gpu_ != nullptr; }
+    int webgpu_frames() const;   // frames presented through WebGPU
+
     // Best-effort vsync (tear guard on top of the backend's frame clock).
     void enable_vsync();
 
@@ -102,6 +110,8 @@ private:
     // instead of upscaling a low-res framebuffer.
     float device_scale_ = 1.0f;
     float forced_scale_ = 0.f;
+    WgpuContext* wgpu_ctx_ = nullptr;
+    WebGpuTarget* gpu_ = nullptr;   // owned; set when drawing with WebGPU
 
     // Rasterized text, reused across frames (see FrameCache); render thread only.
     struct CachedText {

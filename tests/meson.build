@@ -188,6 +188,16 @@ if prism_webgpu_dep.found()
     dependencies : [prism_webgpu_dep, doctest_dep],
   )
   test('wgpu_renderer', test_wgpu_renderer)
+
+  test_wgpu_window = executable('test_wgpu_window',
+    files('test_wgpu_window.cpp'),
+    dependencies : [prism_software_backend_dep, prism_webgpu_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
+    cpp_args : ['-DPRISM_TEST_UI_FONT_PATH="' + ui_font_path + '"',
+                '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"'],
+  )
+  if can_open_window
+    test('wgpu_window', test_wgpu_window)
+  endif
 endif
 
 test_pixels = executable('test_pixels',

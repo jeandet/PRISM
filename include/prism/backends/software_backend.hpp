@@ -62,6 +62,11 @@ private:
     std::atomic<bool> running_{true};
     std::atomic<bool> ready_{false};
     WindowId pressed_window_ = 0;
+    // Shared by every window drawing with WebGPU (RenderConfig::renderer); render thread only.
+    // Owned: released after the windows, whose surfaces belong to it.
+    WgpuContext* wgpu_ = nullptr;
+    bool wants_webgpu() const;
+    void prepare_window(SdlWindow& win);   // before ensure_created()
 
     // Frame pacing — see doc/design/render-backend.md "Present Cadence".
     // nullopt pacer_ = unpaced (RenderConfig::frame_pacing == false).

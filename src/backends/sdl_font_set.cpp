@@ -1,5 +1,9 @@
 #include <prism/backends/sdl_font_set.hpp>
 
+#include <SDL3/SDL.h>
+#include <cstdint>
+#include <cstring>
+
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <cmath>
@@ -43,6 +47,24 @@ TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
         size_ = px_size;
     }
     return font;
+}
+
+std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, float px_size, render::FontRole role) {
+    TTF_Font* font = get(role, px_size);
+    if (!font || text.empty()) return std::nullopt;
+    SDL_Surface* raw = TTF_RenderText_Blended(font, text.data(), text.size(), SDL_Color{255, 255, 255, 255});
+    if (!raw) return std::nullopt;
+    SDL_Surface* rgba = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(raw);
+    if (!rgba) return std::nullopt;
+    render::TextBitmap out{rgba->w, rgba->h, {}};
+    out.rgba.resize(static_cast<size_t>(rgba->w) * rgba->h * 4);
+    for (int y = 0; y < rgba->h; ++y)
+        std::memcpy(&out.rgba[static_cast<size_t>(y) * rgba->w * 4],
+                    static_cast<const std::uint8_t*>(rgba->pixels) + static_cast<size_t>(y) * rgba->pitch,
+                    static_cast<size_t>(rgba->w) * 4);
+    SDL_DestroySurface(rgba);
+    return out;
 }
 
 } // namespace prism::backends

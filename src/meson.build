@@ -33,35 +33,6 @@ fonts_install_dir = get_option('datadir') / 'prism' / 'fonts'
 ui_font_path = fonts_dir / 'NotoSans-Regular.ttf'
 mono_font_path = fonts_dir / 'JetBrainsMonoNerdFont-Regular.ttf'
 
-prism_software_backend_lib = library('prism-software-backend',
-  'backend.cpp',
-  'backends/software_backend.cpp',
-  'backends/sdl_window.cpp',
-  'backends/sdl_text_measurer.cpp',
-  'backends/sdl_font_set.cpp',
-  'backends/font_lookup.cpp',
-  sdl_platform_src,
-  # dl: dladdr() lives in libdl before glibc 2.34; empty dependency elsewhere.
-  dependencies : [prism_core_dep, sdl3_dep, sdl3_ttf_dep,
-                  meson.get_compiler('cpp').find_library('dl', required : false)],
-  cpp_args : ['-DPRISM_UI_FONT_PATH="' + ui_font_path + '"',
-              '-DPRISM_UI_FONT_INSTALL_PATH="' + fonts_install_dir / 'NotoSans-Regular.ttf' + '"',
-              '-DPRISM_MONO_FONT_PATH="' + mono_font_path + '"',
-              '-DPRISM_MONO_FONT_INSTALL_PATH="' + fonts_install_dir / 'JetBrainsMonoNerdFont-Regular.ttf' + '"'],
-  install : true,
-)
-
-# OFL: the licence texts travel with the fonts. Own install tag, so wheels (tags runtime,
-# python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
-bundled_font_files = [ui_font_path, mono_font_path,
-                      fonts_dir / 'NotoSans-OFL.txt', fonts_dir / 'JetBrainsMono-OFL.txt']
-install_data(bundled_font_files, install_dir : fonts_install_dir, install_tag : 'fonts')
-
-prism_software_backend_dep = declare_dependency(
-  link_with : prism_software_backend_lib,
-  dependencies : [prism_core_dep],
-)
-
 # WebGPU renderer (opt-in, -Dwebgpu=enabled): prebuilt wgpu-native, one wrap per platform.
 wgpu_wraps = {
   'linux-x86_64' : 'wgpu-native-linux-x86_64',
@@ -85,6 +56,40 @@ if get_option('webgpu').allowed() and wgpu_platform in wgpu_wraps
 elif get_option('webgpu').enabled()
   error('webgpu: no prebuilt wgpu-native for ' + wgpu_platform)
 endif
+
+# The SDL backend draws with WebGPU when asked (RenderConfig::renderer) if it was built with it.
+sdl_webgpu_src = prism_webgpu_dep.found() ? 'backends/sdl_webgpu.cpp' : 'backends/sdl_webgpu_stub.cpp'
+
+prism_software_backend_lib = library('prism-software-backend',
+  'backend.cpp',
+  'backends/software_backend.cpp',
+  'backends/sdl_window.cpp',
+  'backends/sdl_text_measurer.cpp',
+  'backends/sdl_font_set.cpp',
+  'backends/font_lookup.cpp',
+  sdl_platform_src,
+  sdl_webgpu_src,
+  # dl: dladdr() lives in libdl before glibc 2.34; empty dependency elsewhere.
+  dependencies : [prism_core_dep, sdl3_dep, sdl3_ttf_dep, prism_webgpu_dep,
+                  meson.get_compiler('cpp').find_library('dl', required : false)],
+  cpp_args : ['-DPRISM_UI_FONT_PATH="' + ui_font_path + '"',
+              '-DPRISM_UI_FONT_INSTALL_PATH="' + fonts_install_dir / 'NotoSans-Regular.ttf' + '"',
+              '-DPRISM_MONO_FONT_PATH="' + mono_font_path + '"',
+              '-DPRISM_MONO_FONT_INSTALL_PATH="' + fonts_install_dir / 'JetBrainsMonoNerdFont-Regular.ttf' + '"'],
+  install : true,
+)
+
+# OFL: the licence texts travel with the fonts. Own install tag, so wheels (tags runtime,
+# python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
+bundled_font_files = [ui_font_path, mono_font_path,
+                      fonts_dir / 'NotoSans-OFL.txt', fonts_dir / 'JetBrainsMono-OFL.txt']
+install_data(bundled_font_files, install_dir : fonts_install_dir, install_tag : 'fonts')
+
+prism_software_backend_dep = declare_dependency(
+  link_with : prism_software_backend_lib,
+  dependencies : [prism_core_dep],
+)
+
 
 # In a browser the main thread must keep returning to the page's event loop, but the backend's
 # loop blocks in SDL_WaitEvent. Under JSPI, SDL's wait sleeps via emscripten_sleep, which

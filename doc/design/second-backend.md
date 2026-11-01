@@ -10,8 +10,11 @@ Emscripten's Dawn port (browser), code against the standard `webgpu.h` only. In 
   in `tests/test_wgpu_renderer.cpp`, run in CI on Mesa's software Vulkan).
 - [x] Text and images: one pipeline samples a texture (shapes a white texel); text comes from a
   `TextRasterizer` the backend supplies (white glyphs, tinted), cached per frame like the SDL path.
-- [ ] Windows: SDL window surface, the SDL backend's drawing behind an internal renderer
-  interface, chosen by `RenderConfig`.
+- [x] Windows: `RenderConfig::renderer = Renderer::WebGpu` (or `PRISM_RENDERER=webgpu`). The SDL
+  backend keeps its windows, input and event loop; a window asked for WebGPU makes a surface from
+  its native handles (X11, Wayland, Metal) and draws through the renderer, content below a custom
+  title bar as layers; it falls back to SDL_Renderer when there is no surface or no adapter.
+  `tests/test_wgpu_window.cpp` (CI under Xvfb on lavapipe); the notes app runs on it unchanged.
 - [ ] The snapshot mailbox, shared by both renderers; pixel tests against both.
 - [ ] Browser build through emdawnwebgpu.
 

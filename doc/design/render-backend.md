@@ -68,6 +68,13 @@ Known limitations (tracked in `doc/review-2026-11-01.md`):
 (`include/prism/render/`) are a tiny CPU rasteriser kept only for unit tests — `FilledRect` only,
 everything else is a no-op. They are not on the production path.
 
+## Renderers
+
+`SoftwareBackend` draws with `SDL_Renderer` by default, or with the WebGPU renderer
+(`backends/wgpu_renderer.hpp`) when `RenderConfig::renderer` is `Renderer::WebGpu` or the
+environment has `PRISM_RENDERER=webgpu`, in builds with `-Dwebgpu=enabled`. Windows, input,
+clipboard and pacing are the same either way; see `second-backend.md`.
+
 ## Backend Contract
 
 What any backend must honour, beyond the `BackendBase` signatures. The SDL backend is the

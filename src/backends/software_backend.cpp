@@ -1,9 +1,12 @@
 #include <prism/backends/software_backend.hpp>
+#include "sdl_webgpu.hpp"
 #include <prism/backends/font_lookup.hpp>
 #include <prism/core/utf8.hpp>
 #include <prism/ui/window_chrome.hpp>
 
 #include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <cstdio>
 #include <chrono>
 #include <cmath>
@@ -49,10 +52,24 @@ SoftwareBackend::SoftwareBackend(RenderConfig cfg)
 
 SoftwareBackend::~SoftwareBackend() {
     measurer_.reset();   // closes its fonts: must run before TTF_Quit()
+    windows_.clear();    // before the fonts their WebGPU text caches were drawn with, and the context
+    destroy_webgpu_context(wgpu_);
     fonts_.close();
     TTF_Quit();
-    windows_.clear();
     SDL_Quit();
+}
+
+// RenderConfig::renderer, unless PRISM_RENDERER=webgpu|sdl says otherwise.
+bool SoftwareBackend::wants_webgpu() const {
+    if (const char* env = std::getenv("PRISM_RENDERER")) {
+        if (std::strcmp(env, "webgpu") == 0) return true;
+        if (std::strcmp(env, "sdl") == 0) return false;
+    }
+    return render_config_.renderer == Renderer::WebGpu;
+}
+
+void SoftwareBackend::prepare_window(SdlWindow& win) {
+    if (wgpu_) win.use_webgpu(wgpu_);
 }
 
 Window& SoftwareBackend::create_window(WindowConfig cfg) {
@@ -89,6 +106,7 @@ void SoftwareBackend::drain_window_requests() {
                 id = ++next_id_;
             }
             auto win = std::make_unique<SdlWindow>(id, req->cfg);
+            prepare_window(*win);
             win->ensure_created();
             if (pacer_) win->enable_vsync();
             SDL_StartTextInput(win->sdl_window());
@@ -141,10 +159,13 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
         fonts_.open(ui.empty() ? nullptr : ui.c_str(), mono.empty() ? nullptr : mono.c_str(), 16.f);
     }
 
+    if (wants_webgpu()) wgpu_ = create_webgpu_context();
+
     // Create SDL windows (deferred from create_window()) and start text input
     {
         std::lock_guard<std::mutex> lk(windows_mutex_);
         for (auto& [id, win] : windows_) {
+            prepare_window(*win);
             win->ensure_created();
             SDL_StartTextInput(win->sdl_window());
         }
