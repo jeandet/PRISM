@@ -25,22 +25,30 @@ else
   sdl_platform_src = 'backends/sdl_platform_desktop.cpp'
 endif
 
-font_path = meson.project_source_root() / 'assets' / 'fonts' / 'JetBrainsMonoNerdFont-Regular.ttf'
-font_install_path = get_option('datadir') / 'prism' / 'fonts' / 'JetBrainsMonoNerdFont-Regular.ttf'
+fonts_dir = meson.project_source_root() / 'assets' / 'fonts'
+fonts_install_dir = get_option('datadir') / 'prism' / 'fonts'
+ui_font_path = fonts_dir / 'NotoSans-Regular.ttf'
+mono_font_path = fonts_dir / 'JetBrainsMonoNerdFont-Regular.ttf'
 
 prism_software_backend_lib = library('prism-software-backend',
   'backend.cpp',
   'backends/software_backend.cpp',
   'backends/sdl_window.cpp',
   'backends/sdl_text_measurer.cpp',
+  'backends/sdl_font_set.cpp',
   sdl_platform_src,
   dependencies : [prism_core_dep, sdl3_dep, sdl3_ttf_dep],
-  cpp_args : ['-DPRISM_FONT_PATH="' + font_path + '"',
-              '-DPRISM_FONT_INSTALL_PATH="' + font_install_path + '"'],
+  cpp_args : ['-DPRISM_UI_FONT_PATH="' + ui_font_path + '"',
+              '-DPRISM_UI_FONT_INSTALL_PATH="' + fonts_install_dir / 'NotoSans-Regular.ttf' + '"',
+              '-DPRISM_MONO_FONT_PATH="' + mono_font_path + '"',
+              '-DPRISM_MONO_FONT_INSTALL_PATH="' + fonts_install_dir / 'JetBrainsMonoNerdFont-Regular.ttf' + '"'],
   install : true,
 )
 
-install_data(font_path, install_dir : get_option('datadir') / 'prism' / 'fonts', install_tag : 'runtime')
+# OFL: the licence texts travel with the fonts (wheels include the 'runtime' tag).
+install_data(ui_font_path, mono_font_path,
+             fonts_dir / 'NotoSans-OFL.txt', fonts_dir / 'JetBrainsMono-OFL.txt',
+             install_dir : fonts_install_dir, install_tag : 'runtime')
 
 prism_software_backend_dep = declare_dependency(
   link_with : prism_software_backend_lib,
@@ -56,17 +64,26 @@ prism_software_backend_dep = declare_dependency(
 app_link_args = []
 app_sources = []
 if host_machine.system() == 'emscripten'
-  # 10k of the Nerd Font's 11.7k characters are icons PRISM never draws. The page ships a subset
+  # 10k of the Nerd Font's 11.7k characters are icons PRISM never draws. The page ships subsets
   # with only the text ranges (Latin, IPA, Greek, Cyrillic, punctuation, arrows, maths, box
-  # drawing, shapes): ~100 KB compressed instead of ~1.3 MB. pyftsubset comes from fonttools.
-  web_font = custom_target('web_font',
-    input : font_path,
-    output : 'web_font.ttf',
-    command : [find_program('pyftsubset'), '@INPUT@', '--output-file=@OUTPUT@', '--layout-features=*',
-               '--unicodes=U+0000-02FF,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-2BFF,U+FB00-FB06,U+FFFD'],
-  )
-  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1', '--preload-file', web_font.full_path() + '@' + font_path]
-  app_sources = [web_font]
+  # drawing, shapes) -- plus, for mono, the two file-tree icons -- instead of ~1.9 MB of fonts.
+  # Each subset is preloaded at its desktop path, so font lookup is unchanged. pyftsubset comes
+  # from fonttools.
+  text_ranges = 'U+0000-02FF,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-2BFF,U+FB00-FB06,U+FFFD'
+  web_fonts = []
+  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1']
+  foreach f : [[ui_font_path, 'web_ui_font.ttf', text_ranges],
+               [mono_font_path, 'web_mono_font.ttf', text_ranges + ',U+F07B,U+F15B']]
+    t = custom_target(f[1],
+      input : f[0],
+      output : f[1],
+      command : [find_program('pyftsubset'), '@INPUT@', '--output-file=@OUTPUT@', '--layout-features=*',
+                 '--unicodes=' + f[2]],
+    )
+    web_fonts += t
+    app_link_args += ['--preload-file', t.full_path() + '@' + f[0]]
+  endforeach
+  app_sources = web_fonts
 endif
 
 # Convenience: core + default software backend (SDL3 headers exposed for keycodes etc.)

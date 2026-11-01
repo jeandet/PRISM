@@ -30,7 +30,8 @@ struct WindowConfig {
 };
 
 struct RenderConfig {
-    const char* font_path = nullptr;
+    const char* font_path = nullptr;        // UI font (proportional); null = bundled Noto Sans
+    const char* mono_font_path = nullptr;   // code/TextArea font; null = bundled JetBrains Mono
     // Present pacing (SoftwareBackend): presents happen on frame boundaries instead
     // of after every event batch. false = legacy event-rate-bound behavior.
     bool frame_pacing = true;

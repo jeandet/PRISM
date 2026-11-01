@@ -5,6 +5,7 @@
 #include <prism/render/draw_list.hpp>
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/render/frame_cache.hpp>
+#include <prism/backends/sdl_font_set.hpp>
 #include <prism/ui/context.hpp>
 
 #include <SDL3/SDL.h>
@@ -60,7 +61,7 @@ public:
     SDL_Renderer* renderer() { return renderer_; }
     void ensure_created();
 
-    void render_snapshot(const SceneSnapshot& snap, TTF_Font* font, const Theme& theme = Theme{});
+    void render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme = Theme{});
 
     // Best-effort vsync (tear guard on top of the backend's frame clock).
     void enable_vsync();
@@ -99,15 +100,15 @@ private:
     };
     render::FrameCache<CachedText> text_cache_;
     std::string text_key_;
-    const CachedText* text_texture(TTF_Font* font, const std::string& text, float px_size);
+    const CachedText* text_texture(SdlFontSet& fonts, FontRole role, const std::string& text, float px_size);
 
     void create_sdl_window();
     void destroy_sdl_window();
 
-    void render_draw_list(const DrawList& dl, TTF_Font* font);
+    void render_draw_list(const DrawList& dl, SdlFontSet& fonts);
     void render_cmd(const FilledRect& cmd);
     void render_cmd(const RectOutline& cmd);
-    void render_cmd(const TextCmd& cmd, TTF_Font* font);
+    void render_cmd(const TextCmd& cmd, SdlFontSet& fonts);
     void render_cmd(const ClipPush& cmd);
     void render_cmd(const ClipPop& cmd);
     void render_cmd(const RoundedRect& cmd);

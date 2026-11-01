@@ -227,7 +227,7 @@ void SdlWindow::set_cursor(CursorShape shape) {
     if (auto* c = sdl_cursor_for(shape)) SDL_SetCursor(c);
 }
 
-void SdlWindow::render_snapshot(const SceneSnapshot& snap, TTF_Font* font, const Theme& theme) {
+void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme) {
     if (!renderer_) return;
 
     // Re-read every frame rather than caching at creation time -- dragging the window to a
@@ -251,11 +251,11 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, TTF_Font* font, const
     }
 
     for (uint32_t idx : snap.z_order) {
-        render_draw_list(*snap.draw_lists[idx], font);
+        render_draw_list(*snap.draw_lists[idx], fonts);
     }
     if (!snap.overlay.empty()) {
         SDL_SetRenderClipRect(renderer_, nullptr);
-        render_draw_list(snap.overlay, font);
+        render_draw_list(snap.overlay, fonts);
     }
 
     if (decoration_ == DecorationMode::Custom) {
@@ -266,7 +266,7 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, TTF_Font* font, const
         SDL_GetWindowSize(sdl_window_, &w, &h);
         DrawList chrome_dl;
         WindowChrome::render(chrome_dl, w, title_, theme);
-        render_draw_list(chrome_dl, font);
+        render_draw_list(chrome_dl, fonts);
     }
 
     // Text shown in neither this frame nor the previous one is released.
@@ -274,11 +274,11 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, TTF_Font* font, const
     SDL_RenderPresent(renderer_);
 }
 
-void SdlWindow::render_draw_list(const DrawList& dl, TTF_Font* font) {
+void SdlWindow::render_draw_list(const DrawList& dl, SdlFontSet& fonts) {
     for (const auto& cmd : dl.commands) {
-        std::visit([this, font](const auto& c) {
+        std::visit([this, &fonts](const auto& c) {
             if constexpr (std::is_same_v<std::decay_t<decltype(c)>, TextCmd>)
-                render_cmd(c, font);
+                render_cmd(c, fonts);
             else
                 render_cmd(c);
         }, cmd);
@@ -306,15 +306,15 @@ void SdlWindow::render_cmd(const RectOutline& cmd) {
     SDL_RenderRect(renderer_, &r);
 }
 
-void SdlWindow::render_cmd(const TextCmd& cmd, TTF_Font* font) {
-    if (!font || cmd.text.empty()) return;
+void SdlWindow::render_cmd(const TextCmd& cmd, SdlFontSet& fonts) {
+    if (cmd.text.empty()) return;
 
     // Rasterize at the true backing resolution (cmd.size is in points) and shrink the
     // destination rect back down by the same factor below -- SDL_SetRenderScale then
     // stretches it back to exactly the glyph bitmap's native size, instead of upscaling a
     // low-res texture and blurring it.
     float target_px_size = cmd.size * device_scale_;
-    const CachedText* cached = text_texture(font, cmd.text, target_px_size);
+    const CachedText* cached = text_texture(fonts, cmd.role, cmd.text, target_px_size);
     if (!cached) return;
     SDL_Texture* texture = cached->texture;
     // Rasterized in white: the colour is applied per draw, so one texture serves every colour.
@@ -346,17 +346,19 @@ void SdlWindow::render_cmd(const TextCmd& cmd, TTF_Font* font) {
     }
 }
 
-const SdlWindow::CachedText* SdlWindow::text_texture(TTF_Font* font, const std::string& text, float px_size) {
+const SdlWindow::CachedText* SdlWindow::text_texture(SdlFontSet& fonts, FontRole role,
+                                                     const std::string& text, float px_size) {
+    // Keyed by role, not font: valid because a window's fonts never change while it lives.
     // Reused buffer: building the key must not allocate on every text draw of every frame.
     std::string& key = text_key_;
-    key.assign(sizeof font + sizeof px_size, '\0');
-    std::memcpy(key.data(), &font, sizeof font);
-    std::memcpy(key.data() + sizeof font, &px_size, sizeof px_size);
+    key.assign(1 + sizeof px_size, '\0');
+    key[0] = static_cast<char>(role);
+    std::memcpy(key.data() + 1, &px_size, sizeof px_size);
     key += text;
     if (auto* hit = text_cache_.find(key)) return hit;
 
-    if (std::abs(TTF_GetFontSize(font) - px_size) > 0.5f)
-        TTF_SetFontSize(font, px_size);
+    TTF_Font* font = fonts.get(role, px_size);
+    if (!font) return nullptr;
     SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), 0, SDL_Color{255, 255, 255, 255});
     if (!surface) return nullptr;
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);

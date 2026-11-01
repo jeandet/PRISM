@@ -142,10 +142,19 @@ test_software_backend_concurrent = executable('test_software_backend_concurrent'
 )
 test('software_backend_concurrent', test_software_backend_concurrent)
 
+test_sdl_font_set = executable('test_sdl_font_set',
+  files('test_sdl_font_set.cpp'),
+  dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
+  cpp_args : ['-DPRISM_TEST_UI_FONT_PATH="' + ui_font_path + '"',
+              '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"'],
+)
+test('sdl_font_set', test_sdl_font_set)
+
 test_sdl_text_measurer = executable('test_sdl_text_measurer',
   files('test_sdl_text_measurer.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
-  cpp_args : ['-DPRISM_TEST_FONT_PATH="' + font_path + '"'],
+  cpp_args : ['-DPRISM_TEST_UI_FONT_PATH="' + ui_font_path + '"',
+              '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"'],
 )
 test('sdl_text_measurer', test_sdl_text_measurer)
 

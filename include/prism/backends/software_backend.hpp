@@ -53,7 +53,7 @@ private:
     mutable std::mutex windows_mutex_;
     std::unordered_map<WindowId, std::unique_ptr<SdlWindow>> windows_;
     uint32_t next_id_ = 0;
-    TTF_Font* font_ = nullptr;   // render thread; its size is whatever the last text-cache miss set
+    SdlFontSet fonts_;   // render thread only; their size is whatever the last text-cache miss set
     std::unique_ptr<SdlTextMeasurer> measurer_;   // logic thread's own font; see the class
     std::atomic<bool> running_{true};
     std::atomic<bool> ready_{false};
@@ -87,7 +87,10 @@ private:
 
     WindowId sdl_id_to_prism_id(uint32_t sdl_window_id) const;
 
-    static const char* resolve_font_path(const RenderConfig& cfg);
+    static std::string resolve_font_path(const char* override_path, const char* baked,
+                                         const char* install_rel);
+    std::string ui_font_path() const;
+    std::string mono_font_path() const;
 };
 
 } // namespace prism::backends

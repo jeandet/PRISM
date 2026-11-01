@@ -7,57 +7,61 @@
 #include <filesystem>
 #include <optional>
 
+// Set by src/meson.build; defaulted so this file still builds elsewhere (then only
+// RenderConfig paths are used).
+#ifndef PRISM_UI_FONT_PATH
+#define PRISM_UI_FONT_PATH nullptr
+#define PRISM_UI_FONT_INSTALL_PATH nullptr
+#endif
+#ifndef PRISM_MONO_FONT_PATH
+#define PRISM_MONO_FONT_PATH nullptr
+#define PRISM_MONO_FONT_INSTALL_PATH nullptr
+#endif
+
 namespace prism::backends {
 using namespace prism::core;
 using namespace prism::render;
 using namespace prism::ui;
 using namespace prism::app;
 
-const char* SoftwareBackend::resolve_font_path(const RenderConfig& cfg) {
-    if (cfg.font_path) return cfg.font_path;
-#ifdef PRISM_FONT_PATH
-    {
-        // Build-machine absolute path is valid in builddir but not in installed wheels.
-        // Check existence first; fall back to installed datadir.
-        std::error_code ec;
-        if (std::filesystem::exists(PRISM_FONT_PATH, ec)) return PRISM_FONT_PATH;
-    }
-#endif
-#ifdef PRISM_FONT_INSTALL_PATH
-    {
-        std::error_code ec;
-        if (std::filesystem::exists(PRISM_FONT_INSTALL_PATH, ec)) return PRISM_FONT_INSTALL_PATH;
-        // Resolve relative to executable prefix, not CWD (wheel installs).
-        // PRISM_FONT_INSTALL_PATH is datadir-relative (e.g. share/prism/fonts/...),
-        // try <exe_dir>/../share/... and <exe_dir>/share/...
-        try {
-            auto exe = std::filesystem::read_symlink("/proc/self/exe");
-            auto exe_dir = exe.parent_path();
-            for (auto cand : {exe_dir / ("../" PRISM_FONT_INSTALL_PATH), exe_dir / PRISM_FONT_INSTALL_PATH}) {
-                std::error_code ec2;
-                auto norm = cand.lexically_normal();
-                if (std::filesystem::exists(norm, ec2)) {
-                    static std::string cached;
-                    cached = norm.string();
-                    return cached.c_str();
-                }
-            }
-        } catch (...) {}
-    }
-#endif
-    return nullptr;
+// override (RenderConfig) -> path baked at build time, if it exists (builddir) -> install path
+// (datadir-relative) next to the executable (wheels, installed apps). Empty = not found.
+// simplify: the executable is found via /proc/self/exe, so installed lookup is Linux-only;
+// macOS/Windows wheels need dladdr()/_NSGetExecutablePath or package data.
+std::string SoftwareBackend::resolve_font_path(const char* override_path, const char* baked,
+                                               const char* install_rel) {
+    if (override_path) return override_path;
+    std::error_code ec;
+    if (baked && std::filesystem::exists(baked, ec)) return baked;
+    if (!install_rel) return {};
+    if (std::filesystem::exists(install_rel, ec)) return install_rel;
+    try {
+        auto exe_dir = std::filesystem::read_symlink("/proc/self/exe").parent_path();
+        for (auto cand : {exe_dir / ".." / install_rel, exe_dir / install_rel}) {
+            auto norm = cand.lexically_normal();
+            if (std::filesystem::exists(norm, ec)) return norm.string();
+        }
+    } catch (...) {}
+    return {};
+}
+
+std::string SoftwareBackend::ui_font_path() const {
+    return resolve_font_path(render_config_.font_path, PRISM_UI_FONT_PATH, PRISM_UI_FONT_INSTALL_PATH);
+}
+
+std::string SoftwareBackend::mono_font_path() const {
+    return resolve_font_path(render_config_.mono_font_path, PRISM_MONO_FONT_PATH, PRISM_MONO_FONT_INSTALL_PATH);
 }
 
 SoftwareBackend::SoftwareBackend(RenderConfig cfg)
     : render_config_(cfg)
 {
-    if (const char* path = resolve_font_path(render_config_))
-        measurer_ = std::make_unique<SdlTextMeasurer>(path);
+    measurer_ = std::make_unique<SdlTextMeasurer>(ui_font_path(), mono_font_path());
 }
 
 SoftwareBackend::~SoftwareBackend() {
-    measurer_.reset();   // closes its font: must run before TTF_Quit()
-    if (font_) TTF_CloseFont(font_);
+    measurer_.reset();   // closes its fonts: must run before TTF_Quit()
+    fonts_.close();
     TTF_Quit();
     windows_.clear();
     SDL_Quit();
@@ -144,9 +148,9 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
     SDL_Init(SDL_INIT_VIDEO);
 
     TTF_Init();
-    const char* fpath = resolve_font_path(render_config_);
-    if (fpath) {
-        font_ = TTF_OpenFont(fpath, 16.0f);
+    {
+        auto ui = ui_font_path(), mono = mono_font_path();
+        fonts_.open(ui.empty() ? nullptr : ui.c_str(), mono.empty() ? nullptr : mono.c_str(), 16.f);
     }
 
     // Create SDL windows (deferred from create_window()) and start text input
@@ -421,7 +425,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                 }
                 if (win) {
                     const auto t0 = FramePacer::clock::now();
-                    win->render_snapshot(*snap, font_);
+                    win->render_snapshot(*snap, fonts_);
                     const auto t1 = FramePacer::clock::now();
                     {
                         std::lock_guard<std::mutex> lk(windows_mutex_);
