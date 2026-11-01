@@ -62,10 +62,14 @@ public:
     SDL_Renderer* renderer() { return renderer_; }
     void ensure_created();
 
-    void render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme = Theme{});
+    // present = false leaves the frame in the back buffer, e.g. to read its pixels back.
+    void render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme = Theme{},
+                         bool present = true);
 
-    // Renders at this device scale instead of the display's (0 = follow the display). For
-    // HiDPI pixel tests on displays that have none, and as a user zoom (cf. QT_SCALE_FACTOR).
+    // Test hook: renders at this device scale instead of the display's (0 = follow the display),
+    // for HiDPI pixel tests on displays without HiDPI. Only the render scale changes: create the
+    // window at scale x the logical size and lay out at the logical size. Not a user zoom --
+    // that would also need layout sizes and pointer coordinates scaled.
     void force_device_scale(float scale) { forced_scale_ = scale; }
 
     // Best-effort vsync (tear guard on top of the backend's frame clock).

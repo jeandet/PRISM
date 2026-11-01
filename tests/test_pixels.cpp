@@ -76,7 +76,7 @@ struct Rig {
         win.force_device_scale(scale);
         tree.set_text_measurer(&measurer);
         auto snap = tree.build_snapshot(w, h, ++version);
-        win.render_snapshot(*snap, fonts, tree.theme());
+        win.render_snapshot(*snap, fonts, tree.theme(), /*present=*/false);
         SDL_Surface* raw = SDL_RenderReadPixels(win.renderer(), nullptr);
         REQUIRE(raw);
         SDL_Surface* px = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
@@ -97,6 +97,9 @@ struct Rig {
     backends::SdlTextMeasurer measurer{PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH};
     std::uint64_t version = 0;
 };
+
+// Frame pixels per logical pixel: the forced scale, times the display's on a HiDPI desktop.
+int device_scale(const Frame& f) { return std::max(1, f.w / Rig::w); }
 
 WidgetNode& first_leaf(WidgetTree& tree) {
     WidgetNode* n = &tree.root();
@@ -142,7 +145,6 @@ Frame field_frame(Rig& rig, std::string value, float scale, std::optional<std::p
 
 void check_selection_covers_its_word(float scale) {
     Rig rig;
-    int s = static_cast<int>(scale);
     // The selected word sits far along the line: measurement drift grows with distance.
     std::string before = "The quick brown fox jumps over the";
     std::string word = " lazy";
@@ -151,6 +153,7 @@ void check_selection_covers_its_word(float scale) {
     Frame the_quick = field_frame(rig, before + word, scale);
     Frame plain = field_frame(rig, full, scale);
     Frame selected = field_frame(rig, full, scale, std::pair<size_t, size_t>{before.size() + 1, before.size() + word.size()});
+    int s = device_scale(plain);
 
     // Glyph rows, from the plain frame.
     Ink ink{plain};
@@ -209,9 +212,9 @@ Frame row_frame(Rig& rig, std::string label, float scale) {
 
 void check_icon_clear_of_label(float scale) {
     Rig rig;
-    int s = static_cast<int>(scale);
     Frame icon_only = row_frame(rig, "", scale);
     Frame with_label = row_frame(rig, "examples", scale);
+    int s = device_scale(icon_only);
     Ink ink{icon_only};
     int band = 24 * s;
     int icon_end = -1;

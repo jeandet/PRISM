@@ -232,7 +232,7 @@ void SdlWindow::set_cursor(CursorShape shape) {
     if (auto* c = sdl_cursor_for(shape)) SDL_SetCursor(c);
 }
 
-void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme) {
+void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme, bool present) {
     if (!renderer_) return;
 
     // Re-read every frame rather than caching at creation time -- dragging the window to a
@@ -277,7 +277,7 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, co
     // Text shown in neither this frame nor the previous one is released.
     text_cache_.end_frame(2, [](const CachedText& t) { SDL_DestroyTexture(t.texture); });
     image_cache_.end_frame(2, [](SDL_Texture* t) { SDL_DestroyTexture(t); });
-    SDL_RenderPresent(renderer_);
+    if (present) SDL_RenderPresent(renderer_);
 }
 
 void SdlWindow::render_draw_list(const DrawList& dl, SdlFontSet& fonts) {
