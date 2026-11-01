@@ -4,917 +4,937 @@
 <g clip-path="url(#clip-0)">
 <rect x="0" y="0" width="640" height="24" fill="rgba(42,42,74,1)"/>
 <rect x="0" y="22" width="640" height="2" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-1"><rect x="0" y="0" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-1)">
 <text xml:space="preserve" x="4" y="4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">id</text>
+</g>
+<rect x="128" y="4" width="1" height="16" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-2"><rect x="128" y="0" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-2)">
 <text xml:space="preserve" x="132" y="4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">name</text>
+</g>
+<rect x="256" y="4" width="1" height="16" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-3"><rect x="256" y="0" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-3)">
 <text xml:space="preserve" x="260" y="4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">value</text>
+</g>
+<rect x="384" y="4" width="1" height="16" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-4"><rect x="384" y="0" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-4)">
 <text xml:space="preserve" x="388" y="4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">rate</text>
+</g>
+<rect x="512" y="4" width="1" height="16" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-5"><rect x="512" y="0" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-5)">
 <text xml:space="preserve" x="516" y="4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">status</text>
 </g>
-<clipPath id="clip-1"><rect x="0" y="24" width="640" height="714"/></clipPath>
-<g clip-path="url(#clip-1)">
-<clipPath id="clip-2"><rect x="0" y="24" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-2)">
+<rect x="640" y="4" width="1" height="16" fill="rgba(74,74,106,1)"/>
+</g>
+<clipPath id="clip-6"><rect x="0" y="24" width="640" height="714"/></clipPath>
+<g clip-path="url(#clip-6)">
+<clipPath id="clip-7"><rect x="0" y="24" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-7)">
 <rect x="0" y="24" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-3"><rect x="0" y="24" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-3)">
+<clipPath id="clip-8"><rect x="0" y="24" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-8)">
 <text xml:space="preserve" x="4" y="28" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0</text>
 </g>
-<clipPath id="clip-4"><rect x="128" y="24" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-4)">
+<clipPath id="clip-9"><rect x="128" y="24" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-9)">
 <text xml:space="preserve" x="132" y="28" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_0</text>
 </g>
 <rect x="128" y="24" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-5"><rect x="256" y="24" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-5)">
+<clipPath id="clip-10"><rect x="256" y="24" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-10)">
 <text xml:space="preserve" x="260" y="28" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="24" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-6"><rect x="384" y="24" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-6)">
+<clipPath id="clip-11"><rect x="384" y="24" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-11)">
 <text xml:space="preserve" x="388" y="28" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="24" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-7"><rect x="512" y="24" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-7)">
+<clipPath id="clip-12"><rect x="512" y="24" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-12)">
 <text xml:space="preserve" x="516" y="28" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="24" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-8"><rect x="0" y="48" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-8)">
+<clipPath id="clip-13"><rect x="0" y="48" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-13)">
 <rect x="0" y="48" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-9"><rect x="0" y="48" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-9)">
+<clipPath id="clip-14"><rect x="0" y="48" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-14)">
 <text xml:space="preserve" x="4" y="52" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">1</text>
 </g>
-<clipPath id="clip-10"><rect x="128" y="48" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-10)">
+<clipPath id="clip-15"><rect x="128" y="48" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-15)">
 <text xml:space="preserve" x="132" y="52" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_1</text>
 </g>
 <rect x="128" y="48" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-11"><rect x="256" y="48" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-11)">
+<clipPath id="clip-16"><rect x="256" y="48" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-16)">
 <text xml:space="preserve" x="260" y="52" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="48" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-12"><rect x="384" y="48" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-12)">
+<clipPath id="clip-17"><rect x="384" y="48" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-17)">
 <text xml:space="preserve" x="388" y="52" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="48" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-13"><rect x="512" y="48" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-13)">
+<clipPath id="clip-18"><rect x="512" y="48" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-18)">
 <text xml:space="preserve" x="516" y="52" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="48" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-14"><rect x="0" y="72" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-14)">
+<clipPath id="clip-19"><rect x="0" y="72" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-19)">
 <rect x="0" y="72" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-15"><rect x="0" y="72" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-15)">
+<clipPath id="clip-20"><rect x="0" y="72" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-20)">
 <text xml:space="preserve" x="4" y="76" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2</text>
 </g>
-<clipPath id="clip-16"><rect x="128" y="72" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-16)">
+<clipPath id="clip-21"><rect x="128" y="72" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-21)">
 <text xml:space="preserve" x="132" y="76" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_2</text>
 </g>
 <rect x="128" y="72" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-17"><rect x="256" y="72" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-17)">
+<clipPath id="clip-22"><rect x="256" y="72" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-22)">
 <text xml:space="preserve" x="260" y="76" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="72" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-18"><rect x="384" y="72" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-18)">
+<clipPath id="clip-23"><rect x="384" y="72" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-23)">
 <text xml:space="preserve" x="388" y="76" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="72" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-19"><rect x="512" y="72" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-19)">
+<clipPath id="clip-24"><rect x="512" y="72" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-24)">
 <text xml:space="preserve" x="516" y="76" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="72" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-20"><rect x="0" y="96" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-20)">
+<clipPath id="clip-25"><rect x="0" y="96" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-25)">
 <rect x="0" y="96" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-21"><rect x="0" y="96" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-21)">
+<clipPath id="clip-26"><rect x="0" y="96" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-26)">
 <text xml:space="preserve" x="4" y="100" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">3</text>
 </g>
-<clipPath id="clip-22"><rect x="128" y="96" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-22)">
+<clipPath id="clip-27"><rect x="128" y="96" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-27)">
 <text xml:space="preserve" x="132" y="100" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_3</text>
 </g>
 <rect x="128" y="96" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-23"><rect x="256" y="96" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-23)">
+<clipPath id="clip-28"><rect x="256" y="96" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-28)">
 <text xml:space="preserve" x="260" y="100" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="96" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-24"><rect x="384" y="96" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-24)">
+<clipPath id="clip-29"><rect x="384" y="96" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-29)">
 <text xml:space="preserve" x="388" y="100" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="96" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-25"><rect x="512" y="96" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-25)">
+<clipPath id="clip-30"><rect x="512" y="96" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-30)">
 <text xml:space="preserve" x="516" y="100" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="96" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-26"><rect x="0" y="120" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-26)">
+<clipPath id="clip-31"><rect x="0" y="120" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-31)">
 <rect x="0" y="120" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-27"><rect x="0" y="120" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-27)">
+<clipPath id="clip-32"><rect x="0" y="120" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-32)">
 <text xml:space="preserve" x="4" y="124" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">4</text>
 </g>
-<clipPath id="clip-28"><rect x="128" y="120" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-28)">
+<clipPath id="clip-33"><rect x="128" y="120" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-33)">
 <text xml:space="preserve" x="132" y="124" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_4</text>
 </g>
 <rect x="128" y="120" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-29"><rect x="256" y="120" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-29)">
+<clipPath id="clip-34"><rect x="256" y="120" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-34)">
 <text xml:space="preserve" x="260" y="124" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="120" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-30"><rect x="384" y="120" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-30)">
+<clipPath id="clip-35"><rect x="384" y="120" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-35)">
 <text xml:space="preserve" x="388" y="124" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="120" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-31"><rect x="512" y="120" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-31)">
+<clipPath id="clip-36"><rect x="512" y="120" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-36)">
 <text xml:space="preserve" x="516" y="124" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="120" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-32"><rect x="0" y="144" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-32)">
+<clipPath id="clip-37"><rect x="0" y="144" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-37)">
 <rect x="0" y="144" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-33"><rect x="0" y="144" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-33)">
+<clipPath id="clip-38"><rect x="0" y="144" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-38)">
 <text xml:space="preserve" x="4" y="148" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">5</text>
 </g>
-<clipPath id="clip-34"><rect x="128" y="144" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-34)">
+<clipPath id="clip-39"><rect x="128" y="144" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-39)">
 <text xml:space="preserve" x="132" y="148" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_5</text>
 </g>
 <rect x="128" y="144" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-35"><rect x="256" y="144" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-35)">
+<clipPath id="clip-40"><rect x="256" y="144" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-40)">
 <text xml:space="preserve" x="260" y="148" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="144" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-36"><rect x="384" y="144" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-36)">
+<clipPath id="clip-41"><rect x="384" y="144" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-41)">
 <text xml:space="preserve" x="388" y="148" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="144" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-37"><rect x="512" y="144" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-37)">
+<clipPath id="clip-42"><rect x="512" y="144" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-42)">
 <text xml:space="preserve" x="516" y="148" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="144" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-38"><rect x="0" y="168" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-38)">
+<clipPath id="clip-43"><rect x="0" y="168" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-43)">
 <rect x="0" y="168" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-39"><rect x="0" y="168" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-39)">
+<clipPath id="clip-44"><rect x="0" y="168" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-44)">
 <text xml:space="preserve" x="4" y="172" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">6</text>
 </g>
-<clipPath id="clip-40"><rect x="128" y="168" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-40)">
+<clipPath id="clip-45"><rect x="128" y="168" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-45)">
 <text xml:space="preserve" x="132" y="172" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_6</text>
 </g>
 <rect x="128" y="168" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-41"><rect x="256" y="168" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-41)">
+<clipPath id="clip-46"><rect x="256" y="168" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-46)">
 <text xml:space="preserve" x="260" y="172" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="168" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-42"><rect x="384" y="168" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-42)">
+<clipPath id="clip-47"><rect x="384" y="168" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-47)">
 <text xml:space="preserve" x="388" y="172" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="168" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-43"><rect x="512" y="168" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-43)">
+<clipPath id="clip-48"><rect x="512" y="168" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-48)">
 <text xml:space="preserve" x="516" y="172" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="168" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-44"><rect x="0" y="192" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-44)">
+<clipPath id="clip-49"><rect x="0" y="192" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-49)">
 <rect x="0" y="192" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-45"><rect x="0" y="192" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-45)">
+<clipPath id="clip-50"><rect x="0" y="192" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-50)">
 <text xml:space="preserve" x="4" y="196" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">7</text>
 </g>
-<clipPath id="clip-46"><rect x="128" y="192" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-46)">
+<clipPath id="clip-51"><rect x="128" y="192" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-51)">
 <text xml:space="preserve" x="132" y="196" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_7</text>
 </g>
 <rect x="128" y="192" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-47"><rect x="256" y="192" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-47)">
+<clipPath id="clip-52"><rect x="256" y="192" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-52)">
 <text xml:space="preserve" x="260" y="196" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="192" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-48"><rect x="384" y="192" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-48)">
+<clipPath id="clip-53"><rect x="384" y="192" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-53)">
 <text xml:space="preserve" x="388" y="196" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="192" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-49"><rect x="512" y="192" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-49)">
+<clipPath id="clip-54"><rect x="512" y="192" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-54)">
 <text xml:space="preserve" x="516" y="196" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="192" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-50"><rect x="0" y="216" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-50)">
+<clipPath id="clip-55"><rect x="0" y="216" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-55)">
 <rect x="0" y="216" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-51"><rect x="0" y="216" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-51)">
+<clipPath id="clip-56"><rect x="0" y="216" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-56)">
 <text xml:space="preserve" x="4" y="220" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">8</text>
 </g>
-<clipPath id="clip-52"><rect x="128" y="216" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-52)">
+<clipPath id="clip-57"><rect x="128" y="216" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-57)">
 <text xml:space="preserve" x="132" y="220" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_8</text>
 </g>
 <rect x="128" y="216" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-53"><rect x="256" y="216" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-53)">
+<clipPath id="clip-58"><rect x="256" y="216" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-58)">
 <text xml:space="preserve" x="260" y="220" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="216" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-54"><rect x="384" y="216" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-54)">
+<clipPath id="clip-59"><rect x="384" y="216" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-59)">
 <text xml:space="preserve" x="388" y="220" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="216" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-55"><rect x="512" y="216" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-55)">
+<clipPath id="clip-60"><rect x="512" y="216" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-60)">
 <text xml:space="preserve" x="516" y="220" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="216" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-56"><rect x="0" y="240" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-56)">
+<clipPath id="clip-61"><rect x="0" y="240" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-61)">
 <rect x="0" y="240" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-57"><rect x="0" y="240" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-57)">
+<clipPath id="clip-62"><rect x="0" y="240" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-62)">
 <text xml:space="preserve" x="4" y="244" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">9</text>
 </g>
-<clipPath id="clip-58"><rect x="128" y="240" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-58)">
+<clipPath id="clip-63"><rect x="128" y="240" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-63)">
 <text xml:space="preserve" x="132" y="244" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_9</text>
 </g>
 <rect x="128" y="240" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-59"><rect x="256" y="240" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-59)">
+<clipPath id="clip-64"><rect x="256" y="240" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-64)">
 <text xml:space="preserve" x="260" y="244" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="240" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-60"><rect x="384" y="240" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-60)">
+<clipPath id="clip-65"><rect x="384" y="240" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-65)">
 <text xml:space="preserve" x="388" y="244" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="240" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-61"><rect x="512" y="240" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-61)">
+<clipPath id="clip-66"><rect x="512" y="240" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-66)">
 <text xml:space="preserve" x="516" y="244" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="240" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-62"><rect x="0" y="264" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-62)">
+<clipPath id="clip-67"><rect x="0" y="264" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-67)">
 <rect x="0" y="264" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-63"><rect x="0" y="264" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-63)">
+<clipPath id="clip-68"><rect x="0" y="264" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-68)">
 <text xml:space="preserve" x="4" y="268" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">10</text>
 </g>
-<clipPath id="clip-64"><rect x="128" y="264" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-64)">
+<clipPath id="clip-69"><rect x="128" y="264" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-69)">
 <text xml:space="preserve" x="132" y="268" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_10</text>
 </g>
 <rect x="128" y="264" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-65"><rect x="256" y="264" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-65)">
+<clipPath id="clip-70"><rect x="256" y="264" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-70)">
 <text xml:space="preserve" x="260" y="268" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="264" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-66"><rect x="384" y="264" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-66)">
+<clipPath id="clip-71"><rect x="384" y="264" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-71)">
 <text xml:space="preserve" x="388" y="268" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="264" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-67"><rect x="512" y="264" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-67)">
+<clipPath id="clip-72"><rect x="512" y="264" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-72)">
 <text xml:space="preserve" x="516" y="268" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="264" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-68"><rect x="0" y="288" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-68)">
+<clipPath id="clip-73"><rect x="0" y="288" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-73)">
 <rect x="0" y="288" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-69"><rect x="0" y="288" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-69)">
+<clipPath id="clip-74"><rect x="0" y="288" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-74)">
 <text xml:space="preserve" x="4" y="292" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">11</text>
 </g>
-<clipPath id="clip-70"><rect x="128" y="288" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-70)">
+<clipPath id="clip-75"><rect x="128" y="288" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-75)">
 <text xml:space="preserve" x="132" y="292" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_11</text>
 </g>
 <rect x="128" y="288" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-71"><rect x="256" y="288" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-71)">
+<clipPath id="clip-76"><rect x="256" y="288" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-76)">
 <text xml:space="preserve" x="260" y="292" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="288" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-72"><rect x="384" y="288" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-72)">
+<clipPath id="clip-77"><rect x="384" y="288" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-77)">
 <text xml:space="preserve" x="388" y="292" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="288" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-73"><rect x="512" y="288" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-73)">
+<clipPath id="clip-78"><rect x="512" y="288" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-78)">
 <text xml:space="preserve" x="516" y="292" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="288" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-74"><rect x="0" y="312" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-74)">
+<clipPath id="clip-79"><rect x="0" y="312" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-79)">
 <rect x="0" y="312" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-75"><rect x="0" y="312" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-75)">
+<clipPath id="clip-80"><rect x="0" y="312" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-80)">
 <text xml:space="preserve" x="4" y="316" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">12</text>
 </g>
-<clipPath id="clip-76"><rect x="128" y="312" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-76)">
+<clipPath id="clip-81"><rect x="128" y="312" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-81)">
 <text xml:space="preserve" x="132" y="316" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_12</text>
 </g>
 <rect x="128" y="312" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-77"><rect x="256" y="312" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-77)">
+<clipPath id="clip-82"><rect x="256" y="312" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-82)">
 <text xml:space="preserve" x="260" y="316" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="312" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-78"><rect x="384" y="312" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-78)">
+<clipPath id="clip-83"><rect x="384" y="312" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-83)">
 <text xml:space="preserve" x="388" y="316" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="312" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-79"><rect x="512" y="312" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-79)">
+<clipPath id="clip-84"><rect x="512" y="312" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-84)">
 <text xml:space="preserve" x="516" y="316" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="312" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-80"><rect x="0" y="336" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-80)">
+<clipPath id="clip-85"><rect x="0" y="336" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-85)">
 <rect x="0" y="336" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-81"><rect x="0" y="336" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-81)">
+<clipPath id="clip-86"><rect x="0" y="336" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-86)">
 <text xml:space="preserve" x="4" y="340" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">13</text>
 </g>
-<clipPath id="clip-82"><rect x="128" y="336" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-82)">
+<clipPath id="clip-87"><rect x="128" y="336" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-87)">
 <text xml:space="preserve" x="132" y="340" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_13</text>
 </g>
 <rect x="128" y="336" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-83"><rect x="256" y="336" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-83)">
+<clipPath id="clip-88"><rect x="256" y="336" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-88)">
 <text xml:space="preserve" x="260" y="340" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="336" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-84"><rect x="384" y="336" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-84)">
+<clipPath id="clip-89"><rect x="384" y="336" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-89)">
 <text xml:space="preserve" x="388" y="340" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="336" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-85"><rect x="512" y="336" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-85)">
+<clipPath id="clip-90"><rect x="512" y="336" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-90)">
 <text xml:space="preserve" x="516" y="340" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="336" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-86"><rect x="0" y="360" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-86)">
+<clipPath id="clip-91"><rect x="0" y="360" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-91)">
 <rect x="0" y="360" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-87"><rect x="0" y="360" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-87)">
+<clipPath id="clip-92"><rect x="0" y="360" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-92)">
 <text xml:space="preserve" x="4" y="364" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">14</text>
 </g>
-<clipPath id="clip-88"><rect x="128" y="360" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-88)">
+<clipPath id="clip-93"><rect x="128" y="360" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-93)">
 <text xml:space="preserve" x="132" y="364" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_14</text>
 </g>
 <rect x="128" y="360" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-89"><rect x="256" y="360" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-89)">
+<clipPath id="clip-94"><rect x="256" y="360" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-94)">
 <text xml:space="preserve" x="260" y="364" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="360" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-90"><rect x="384" y="360" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-90)">
+<clipPath id="clip-95"><rect x="384" y="360" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-95)">
 <text xml:space="preserve" x="388" y="364" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="360" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-91"><rect x="512" y="360" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-91)">
+<clipPath id="clip-96"><rect x="512" y="360" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-96)">
 <text xml:space="preserve" x="516" y="364" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="360" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-92"><rect x="0" y="384" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-92)">
+<clipPath id="clip-97"><rect x="0" y="384" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-97)">
 <rect x="0" y="384" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-93"><rect x="0" y="384" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-93)">
+<clipPath id="clip-98"><rect x="0" y="384" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-98)">
 <text xml:space="preserve" x="4" y="388" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">15</text>
 </g>
-<clipPath id="clip-94"><rect x="128" y="384" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-94)">
+<clipPath id="clip-99"><rect x="128" y="384" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-99)">
 <text xml:space="preserve" x="132" y="388" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_15</text>
 </g>
 <rect x="128" y="384" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-95"><rect x="256" y="384" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-95)">
+<clipPath id="clip-100"><rect x="256" y="384" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-100)">
 <text xml:space="preserve" x="260" y="388" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="384" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-96"><rect x="384" y="384" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-96)">
+<clipPath id="clip-101"><rect x="384" y="384" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-101)">
 <text xml:space="preserve" x="388" y="388" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="384" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-97"><rect x="512" y="384" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-97)">
+<clipPath id="clip-102"><rect x="512" y="384" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-102)">
 <text xml:space="preserve" x="516" y="388" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="384" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-98"><rect x="0" y="408" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-98)">
+<clipPath id="clip-103"><rect x="0" y="408" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-103)">
 <rect x="0" y="408" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-99"><rect x="0" y="408" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-99)">
+<clipPath id="clip-104"><rect x="0" y="408" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-104)">
 <text xml:space="preserve" x="4" y="412" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">16</text>
 </g>
-<clipPath id="clip-100"><rect x="128" y="408" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-100)">
+<clipPath id="clip-105"><rect x="128" y="408" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-105)">
 <text xml:space="preserve" x="132" y="412" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_16</text>
 </g>
 <rect x="128" y="408" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-101"><rect x="256" y="408" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-101)">
+<clipPath id="clip-106"><rect x="256" y="408" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-106)">
 <text xml:space="preserve" x="260" y="412" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="408" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-102"><rect x="384" y="408" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-102)">
+<clipPath id="clip-107"><rect x="384" y="408" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-107)">
 <text xml:space="preserve" x="388" y="412" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="408" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-103"><rect x="512" y="408" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-103)">
+<clipPath id="clip-108"><rect x="512" y="408" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-108)">
 <text xml:space="preserve" x="516" y="412" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="408" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-104"><rect x="0" y="432" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-104)">
+<clipPath id="clip-109"><rect x="0" y="432" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-109)">
 <rect x="0" y="432" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-105"><rect x="0" y="432" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-105)">
+<clipPath id="clip-110"><rect x="0" y="432" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-110)">
 <text xml:space="preserve" x="4" y="436" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">17</text>
 </g>
-<clipPath id="clip-106"><rect x="128" y="432" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-106)">
+<clipPath id="clip-111"><rect x="128" y="432" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-111)">
 <text xml:space="preserve" x="132" y="436" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_17</text>
 </g>
 <rect x="128" y="432" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-107"><rect x="256" y="432" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-107)">
+<clipPath id="clip-112"><rect x="256" y="432" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-112)">
 <text xml:space="preserve" x="260" y="436" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="432" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-108"><rect x="384" y="432" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-108)">
+<clipPath id="clip-113"><rect x="384" y="432" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-113)">
 <text xml:space="preserve" x="388" y="436" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="432" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-109"><rect x="512" y="432" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-109)">
+<clipPath id="clip-114"><rect x="512" y="432" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-114)">
 <text xml:space="preserve" x="516" y="436" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="432" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-110"><rect x="0" y="456" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-110)">
+<clipPath id="clip-115"><rect x="0" y="456" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-115)">
 <rect x="0" y="456" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-111"><rect x="0" y="456" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-111)">
+<clipPath id="clip-116"><rect x="0" y="456" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-116)">
 <text xml:space="preserve" x="4" y="460" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">18</text>
 </g>
-<clipPath id="clip-112"><rect x="128" y="456" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-112)">
+<clipPath id="clip-117"><rect x="128" y="456" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-117)">
 <text xml:space="preserve" x="132" y="460" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_18</text>
 </g>
 <rect x="128" y="456" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-113"><rect x="256" y="456" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-113)">
+<clipPath id="clip-118"><rect x="256" y="456" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-118)">
 <text xml:space="preserve" x="260" y="460" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="456" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-114"><rect x="384" y="456" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-114)">
+<clipPath id="clip-119"><rect x="384" y="456" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-119)">
 <text xml:space="preserve" x="388" y="460" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="456" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-115"><rect x="512" y="456" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-115)">
+<clipPath id="clip-120"><rect x="512" y="456" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-120)">
 <text xml:space="preserve" x="516" y="460" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="456" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-116"><rect x="0" y="480" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-116)">
+<clipPath id="clip-121"><rect x="0" y="480" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-121)">
 <rect x="0" y="480" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-117"><rect x="0" y="480" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-117)">
+<clipPath id="clip-122"><rect x="0" y="480" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-122)">
 <text xml:space="preserve" x="4" y="484" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">19</text>
 </g>
-<clipPath id="clip-118"><rect x="128" y="480" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-118)">
+<clipPath id="clip-123"><rect x="128" y="480" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-123)">
 <text xml:space="preserve" x="132" y="484" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_19</text>
 </g>
 <rect x="128" y="480" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-119"><rect x="256" y="480" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-119)">
+<clipPath id="clip-124"><rect x="256" y="480" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-124)">
 <text xml:space="preserve" x="260" y="484" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="480" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-120"><rect x="384" y="480" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-120)">
+<clipPath id="clip-125"><rect x="384" y="480" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-125)">
 <text xml:space="preserve" x="388" y="484" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="480" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-121"><rect x="512" y="480" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-121)">
+<clipPath id="clip-126"><rect x="512" y="480" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-126)">
 <text xml:space="preserve" x="516" y="484" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="480" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-122"><rect x="0" y="504" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-122)">
+<clipPath id="clip-127"><rect x="0" y="504" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-127)">
 <rect x="0" y="504" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-123"><rect x="0" y="504" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-123)">
+<clipPath id="clip-128"><rect x="0" y="504" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-128)">
 <text xml:space="preserve" x="4" y="508" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">20</text>
 </g>
-<clipPath id="clip-124"><rect x="128" y="504" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-124)">
+<clipPath id="clip-129"><rect x="128" y="504" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-129)">
 <text xml:space="preserve" x="132" y="508" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_20</text>
 </g>
 <rect x="128" y="504" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-125"><rect x="256" y="504" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-125)">
+<clipPath id="clip-130"><rect x="256" y="504" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-130)">
 <text xml:space="preserve" x="260" y="508" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="504" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-126"><rect x="384" y="504" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-126)">
+<clipPath id="clip-131"><rect x="384" y="504" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-131)">
 <text xml:space="preserve" x="388" y="508" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="504" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-127"><rect x="512" y="504" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-127)">
+<clipPath id="clip-132"><rect x="512" y="504" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-132)">
 <text xml:space="preserve" x="516" y="508" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="504" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-128"><rect x="0" y="528" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-128)">
+<clipPath id="clip-133"><rect x="0" y="528" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-133)">
 <rect x="0" y="528" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-129"><rect x="0" y="528" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-129)">
+<clipPath id="clip-134"><rect x="0" y="528" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-134)">
 <text xml:space="preserve" x="4" y="532" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">21</text>
 </g>
-<clipPath id="clip-130"><rect x="128" y="528" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-130)">
+<clipPath id="clip-135"><rect x="128" y="528" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-135)">
 <text xml:space="preserve" x="132" y="532" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_21</text>
 </g>
 <rect x="128" y="528" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-131"><rect x="256" y="528" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-131)">
+<clipPath id="clip-136"><rect x="256" y="528" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-136)">
 <text xml:space="preserve" x="260" y="532" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="528" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-132"><rect x="384" y="528" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-132)">
+<clipPath id="clip-137"><rect x="384" y="528" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-137)">
 <text xml:space="preserve" x="388" y="532" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="528" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-133"><rect x="512" y="528" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-133)">
+<clipPath id="clip-138"><rect x="512" y="528" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-138)">
 <text xml:space="preserve" x="516" y="532" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="528" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-134"><rect x="0" y="552" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-134)">
+<clipPath id="clip-139"><rect x="0" y="552" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-139)">
 <rect x="0" y="552" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-135"><rect x="0" y="552" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-135)">
+<clipPath id="clip-140"><rect x="0" y="552" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-140)">
 <text xml:space="preserve" x="4" y="556" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">22</text>
 </g>
-<clipPath id="clip-136"><rect x="128" y="552" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-136)">
+<clipPath id="clip-141"><rect x="128" y="552" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-141)">
 <text xml:space="preserve" x="132" y="556" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_22</text>
 </g>
 <rect x="128" y="552" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-137"><rect x="256" y="552" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-137)">
+<clipPath id="clip-142"><rect x="256" y="552" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-142)">
 <text xml:space="preserve" x="260" y="556" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="552" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-138"><rect x="384" y="552" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-138)">
+<clipPath id="clip-143"><rect x="384" y="552" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-143)">
 <text xml:space="preserve" x="388" y="556" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="552" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-139"><rect x="512" y="552" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-139)">
+<clipPath id="clip-144"><rect x="512" y="552" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-144)">
 <text xml:space="preserve" x="516" y="556" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="552" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-140"><rect x="0" y="576" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-140)">
+<clipPath id="clip-145"><rect x="0" y="576" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-145)">
 <rect x="0" y="576" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-141"><rect x="0" y="576" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-141)">
+<clipPath id="clip-146"><rect x="0" y="576" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-146)">
 <text xml:space="preserve" x="4" y="580" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">23</text>
 </g>
-<clipPath id="clip-142"><rect x="128" y="576" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-142)">
+<clipPath id="clip-147"><rect x="128" y="576" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-147)">
 <text xml:space="preserve" x="132" y="580" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_23</text>
 </g>
 <rect x="128" y="576" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-143"><rect x="256" y="576" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-143)">
+<clipPath id="clip-148"><rect x="256" y="576" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-148)">
 <text xml:space="preserve" x="260" y="580" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="576" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-144"><rect x="384" y="576" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-144)">
+<clipPath id="clip-149"><rect x="384" y="576" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-149)">
 <text xml:space="preserve" x="388" y="580" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="576" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-145"><rect x="512" y="576" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-145)">
+<clipPath id="clip-150"><rect x="512" y="576" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-150)">
 <text xml:space="preserve" x="516" y="580" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="576" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-146"><rect x="0" y="600" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-146)">
+<clipPath id="clip-151"><rect x="0" y="600" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-151)">
 <rect x="0" y="600" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-147"><rect x="0" y="600" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-147)">
+<clipPath id="clip-152"><rect x="0" y="600" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-152)">
 <text xml:space="preserve" x="4" y="604" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">24</text>
 </g>
-<clipPath id="clip-148"><rect x="128" y="600" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-148)">
+<clipPath id="clip-153"><rect x="128" y="600" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-153)">
 <text xml:space="preserve" x="132" y="604" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_24</text>
 </g>
 <rect x="128" y="600" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-149"><rect x="256" y="600" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-149)">
+<clipPath id="clip-154"><rect x="256" y="600" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-154)">
 <text xml:space="preserve" x="260" y="604" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="600" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-150"><rect x="384" y="600" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-150)">
+<clipPath id="clip-155"><rect x="384" y="600" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-155)">
 <text xml:space="preserve" x="388" y="604" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="600" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-151"><rect x="512" y="600" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-151)">
+<clipPath id="clip-156"><rect x="512" y="600" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-156)">
 <text xml:space="preserve" x="516" y="604" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="600" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-152"><rect x="0" y="624" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-152)">
+<clipPath id="clip-157"><rect x="0" y="624" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-157)">
 <rect x="0" y="624" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-153"><rect x="0" y="624" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-153)">
+<clipPath id="clip-158"><rect x="0" y="624" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-158)">
 <text xml:space="preserve" x="4" y="628" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">25</text>
 </g>
-<clipPath id="clip-154"><rect x="128" y="624" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-154)">
+<clipPath id="clip-159"><rect x="128" y="624" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-159)">
 <text xml:space="preserve" x="132" y="628" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_25</text>
 </g>
 <rect x="128" y="624" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-155"><rect x="256" y="624" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-155)">
+<clipPath id="clip-160"><rect x="256" y="624" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-160)">
 <text xml:space="preserve" x="260" y="628" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="624" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-156"><rect x="384" y="624" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-156)">
+<clipPath id="clip-161"><rect x="384" y="624" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-161)">
 <text xml:space="preserve" x="388" y="628" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="624" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-157"><rect x="512" y="624" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-157)">
+<clipPath id="clip-162"><rect x="512" y="624" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-162)">
 <text xml:space="preserve" x="516" y="628" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="624" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-158"><rect x="0" y="648" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-158)">
+<clipPath id="clip-163"><rect x="0" y="648" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-163)">
 <rect x="0" y="648" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-159"><rect x="0" y="648" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-159)">
+<clipPath id="clip-164"><rect x="0" y="648" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-164)">
 <text xml:space="preserve" x="4" y="652" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">26</text>
 </g>
-<clipPath id="clip-160"><rect x="128" y="648" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-160)">
+<clipPath id="clip-165"><rect x="128" y="648" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-165)">
 <text xml:space="preserve" x="132" y="652" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_26</text>
 </g>
 <rect x="128" y="648" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-161"><rect x="256" y="648" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-161)">
+<clipPath id="clip-166"><rect x="256" y="648" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-166)">
 <text xml:space="preserve" x="260" y="652" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="648" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-162"><rect x="384" y="648" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-162)">
+<clipPath id="clip-167"><rect x="384" y="648" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-167)">
 <text xml:space="preserve" x="388" y="652" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="648" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-163"><rect x="512" y="648" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-163)">
+<clipPath id="clip-168"><rect x="512" y="648" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-168)">
 <text xml:space="preserve" x="516" y="652" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="648" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-164"><rect x="0" y="672" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-164)">
+<clipPath id="clip-169"><rect x="0" y="672" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-169)">
 <rect x="0" y="672" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-165"><rect x="0" y="672" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-165)">
+<clipPath id="clip-170"><rect x="0" y="672" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-170)">
 <text xml:space="preserve" x="4" y="676" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">27</text>
 </g>
-<clipPath id="clip-166"><rect x="128" y="672" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-166)">
+<clipPath id="clip-171"><rect x="128" y="672" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-171)">
 <text xml:space="preserve" x="132" y="676" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_27</text>
 </g>
 <rect x="128" y="672" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-167"><rect x="256" y="672" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-167)">
+<clipPath id="clip-172"><rect x="256" y="672" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-172)">
 <text xml:space="preserve" x="260" y="676" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="672" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-168"><rect x="384" y="672" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-168)">
+<clipPath id="clip-173"><rect x="384" y="672" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-173)">
 <text xml:space="preserve" x="388" y="676" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="672" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-169"><rect x="512" y="672" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-169)">
+<clipPath id="clip-174"><rect x="512" y="672" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-174)">
 <text xml:space="preserve" x="516" y="676" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="672" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-170"><rect x="0" y="696" width="640" height="24"/></clipPath>
-<g clip-path="url(#clip-170)">
+<clipPath id="clip-175"><rect x="0" y="696" width="640" height="24"/></clipPath>
+<g clip-path="url(#clip-175)">
 <rect x="0" y="696" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-171"><rect x="0" y="696" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-171)">
+<clipPath id="clip-176"><rect x="0" y="696" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-176)">
 <text xml:space="preserve" x="4" y="700" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">28</text>
 </g>
-<clipPath id="clip-172"><rect x="128" y="696" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-172)">
+<clipPath id="clip-177"><rect x="128" y="696" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-177)">
 <text xml:space="preserve" x="132" y="700" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_28</text>
 </g>
 <rect x="128" y="696" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-173"><rect x="256" y="696" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-173)">
+<clipPath id="clip-178"><rect x="256" y="696" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-178)">
 <text xml:space="preserve" x="260" y="700" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="696" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-174"><rect x="384" y="696" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-174)">
+<clipPath id="clip-179"><rect x="384" y="696" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-179)">
 <text xml:space="preserve" x="388" y="700" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="696" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-175"><rect x="512" y="696" width="128" height="24"/></clipPath>
-<g clip-path="url(#clip-175)">
+<clipPath id="clip-180"><rect x="512" y="696" width="128" height="24"/></clipPath>
+<g clip-path="url(#clip-180)">
 <text xml:space="preserve" x="516" y="700" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="696" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-176"><rect x="0" y="720" width="640" height="18"/></clipPath>
-<g clip-path="url(#clip-176)">
+<clipPath id="clip-181"><rect x="0" y="720" width="640" height="18"/></clipPath>
+<g clip-path="url(#clip-181)">
 <rect x="0" y="720" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-177"><rect x="0" y="720" width="128" height="18"/></clipPath>
-<g clip-path="url(#clip-177)">
+<clipPath id="clip-182"><rect x="0" y="720" width="128" height="18"/></clipPath>
+<g clip-path="url(#clip-182)">
 <text xml:space="preserve" x="4" y="724" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">29</text>
 </g>
-<clipPath id="clip-178"><rect x="128" y="720" width="128" height="18"/></clipPath>
-<g clip-path="url(#clip-178)">
+<clipPath id="clip-183"><rect x="128" y="720" width="128" height="18"/></clipPath>
+<g clip-path="url(#clip-183)">
 <text xml:space="preserve" x="132" y="724" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_29</text>
 </g>
 <rect x="128" y="720" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-179"><rect x="256" y="720" width="128" height="18"/></clipPath>
-<g clip-path="url(#clip-179)">
+<clipPath id="clip-184"><rect x="256" y="720" width="128" height="18"/></clipPath>
+<g clip-path="url(#clip-184)">
 <text xml:space="preserve" x="260" y="724" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="720" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-180"><rect x="384" y="720" width="128" height="18"/></clipPath>
-<g clip-path="url(#clip-180)">
+<clipPath id="clip-185"><rect x="384" y="720" width="128" height="18"/></clipPath>
+<g clip-path="url(#clip-185)">
 <text xml:space="preserve" x="388" y="724" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="720" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-181"><rect x="512" y="720" width="128" height="18"/></clipPath>
-<g clip-path="url(#clip-181)">
+<clipPath id="clip-186"><rect x="512" y="720" width="128" height="18"/></clipPath>
+<g clip-path="url(#clip-186)">
 <text xml:space="preserve" x="516" y="724" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="720" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-182"><rect x="0" y="744" width="640" height="0"/></clipPath>
-<g clip-path="url(#clip-182)">
+<clipPath id="clip-187"><rect x="0" y="744" width="640" height="0"/></clipPath>
+<g clip-path="url(#clip-187)">
 <rect x="0" y="744" width="640" height="24" fill="rgba(30,30,50,1)"/>
-<clipPath id="clip-183"><rect x="0" y="744" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-183)">
+<clipPath id="clip-188"><rect x="0" y="744" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-188)">
 <text xml:space="preserve" x="4" y="748" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">30</text>
 </g>
-<clipPath id="clip-184"><rect x="128" y="744" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-184)">
+<clipPath id="clip-189"><rect x="128" y="744" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-189)">
 <text xml:space="preserve" x="132" y="748" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_30</text>
 </g>
 <rect x="128" y="744" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-185"><rect x="256" y="744" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-185)">
+<clipPath id="clip-190"><rect x="256" y="744" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-190)">
 <text xml:space="preserve" x="260" y="748" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="744" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-186"><rect x="384" y="744" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-186)">
+<clipPath id="clip-191"><rect x="384" y="744" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-191)">
 <text xml:space="preserve" x="388" y="748" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="744" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-187"><rect x="512" y="744" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-187)">
+<clipPath id="clip-192"><rect x="512" y="744" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-192)">
 <text xml:space="preserve" x="516" y="748" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="744" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
-<clipPath id="clip-188"><rect x="0" y="768" width="640" height="0"/></clipPath>
-<g clip-path="url(#clip-188)">
+<clipPath id="clip-193"><rect x="0" y="768" width="640" height="0"/></clipPath>
+<g clip-path="url(#clip-193)">
 <rect x="0" y="768" width="640" height="24" fill="rgba(26,26,46,1)"/>
-<clipPath id="clip-189"><rect x="0" y="768" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-189)">
+<clipPath id="clip-194"><rect x="0" y="768" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-194)">
 <text xml:space="preserve" x="4" y="772" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">31</text>
 </g>
-<clipPath id="clip-190"><rect x="128" y="768" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-190)">
+<clipPath id="clip-195"><rect x="128" y="768" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-195)">
 <text xml:space="preserve" x="132" y="772" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensor_31</text>
 </g>
 <rect x="128" y="768" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-191"><rect x="256" y="768" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-191)">
+<clipPath id="clip-196"><rect x="256" y="768" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-196)">
 <text xml:space="preserve" x="260" y="772" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.50</text>
 </g>
 <rect x="256" y="768" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-192"><rect x="384" y="768" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-192)">
+<clipPath id="clip-197"><rect x="384" y="768" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-197)">
 <text xml:space="preserve" x="388" y="772" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.25</text>
 </g>
 <rect x="384" y="768" width="1" height="24" fill="rgba(50,50,70,1)"/>
-<clipPath id="clip-193"><rect x="512" y="768" width="128" height="0"/></clipPath>
-<g clip-path="url(#clip-193)">
+<clipPath id="clip-198"><rect x="512" y="768" width="128" height="0"/></clipPath>
+<g clip-path="url(#clip-198)">
 <text xml:space="preserve" x="516" y="772" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">WARN</text>
 </g>
 <rect x="512" y="768" width="1" height="24" fill="rgba(50,50,70,1)"/>
 </g>
 </g>
-<clipPath id="clip-194"><rect x="640" y="0" width="640" height="738"/></clipPath>
-<g clip-path="url(#clip-194)">
+<clipPath id="clip-199"><rect x="640" y="0" width="640" height="738"/></clipPath>
+<g clip-path="url(#clip-199)">
 <rect x="700" y="10" width="570" height="683" fill="rgba(30,30,30,1)"/>
 <rect x="700" y="10" width="570" height="683" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
-<clipPath id="clip-195"><rect x="700" y="10" width="570" height="683"/></clipPath>
-<g clip-path="url(#clip-195)">
+<clipPath id="clip-200"><rect x="700" y="10" width="570" height="683"/></clipPath>
+<g clip-path="url(#clip-200)">
 <line x1="725.909" y1="10" x2="725.909" y2="693" stroke="rgba(60,60,70,1)" stroke-width="1"/>
 <line x1="829.546" y1="10" x2="829.546" y2="693" stroke="rgba(60,60,70,1)" stroke-width="1"/>
 <line x1="933.182" y1="10" x2="933.182" y2="693" stroke="rgba(60,60,70,1)" stroke-width="1"/>
@@ -955,8 +975,8 @@
 <text xml:space="preserve" x="955" y="711" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sample</text>
 <text xml:space="preserve" x="650" y="351.5" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 650 351.5)">value</text>
 </g>
-<clipPath id="clip-196"><rect x="0" y="738" width="1280" height="30"/></clipPath>
-<g clip-path="url(#clip-196)">
+<clipPath id="clip-201"><rect x="0" y="738" width="1280" height="30"/></clipPath>
+<g clip-path="url(#clip-201)">
 <rect x="0" y="738" width="1280" height="30" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="4" y="742" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">perf lab — static capture</text>
 </g>

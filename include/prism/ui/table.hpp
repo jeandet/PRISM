@@ -240,6 +240,17 @@ TableSource wrap_soa_columns(T& data) {
 
 #endif // __cpp_impl_reflection
 
+struct SortSpec {
+    size_t column = 0;
+    bool descending = false;
+    bool operator==(const SortSpec&) const = default;
+};
+
+struct ColumnResize {
+    size_t column;
+    float grab_dx;  // pointer offset from the column's right edge when grabbed
+};
+
 struct TableState {
     size_t column_count = 0;
 
@@ -257,7 +268,22 @@ struct TableState {
     Width viewport_w{0};
     Width total_columns_w{0};
 
+    // Selection is in data rows (source indices), so it survives re-sorting.
+    // selected_row is the current row; selected_rows every selected row, ascending.
     Field<std::optional<size_t>> selected_row{std::nullopt};
+    Field<std::vector<size_t>> selected_rows{};
+    std::optional<size_t> anchor_row;  // where shift-click / shift+arrow ranges start
+
+    Field<std::optional<SortSpec>> sort{std::nullopt};
+    // View position -> data row, and its inverse; both empty when unsorted.
+    std::vector<size_t> order;
+    std::vector<size_t> rank;
+    std::optional<SortSpec> order_spec;  // the spec `order` was built with
+    bool order_stale = true;             // set when the data changes
+
+    std::vector<float> column_widths;  // user-resized widths; 0 or missing = auto
+    float auto_column_w = 120.f;
+    std::optional<ColumnResize> resizing;
 
     TableSource source;
 

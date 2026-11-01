@@ -90,8 +90,6 @@ struct ProcessInfo {
     PRISM_SKIP_MEMBER long total_jiffies = 0;
 };
 
-enum class SortKey { CpuPercent, MemPercent, Pid, Name };
-
 struct ProcessEvent {
     int pid = 0;
     std::string name;
@@ -167,19 +165,6 @@ inline ProcessInfo parse_process_entry(std::string_view stat_text, std::string_v
         info.cpu_percent = pct < 0.f ? 0.f : pct;
     }
     return info;
-}
-
-inline std::vector<ProcessInfo> sort_by(std::vector<ProcessInfo> list, SortKey key) {
-    std::sort(list.begin(), list.end(), [key](const ProcessInfo& a, const ProcessInfo& b) {
-        switch (key) {
-            case SortKey::CpuPercent: return a.cpu_percent > b.cpu_percent;
-            case SortKey::MemPercent: return a.mem_percent > b.mem_percent;
-            case SortKey::Pid:        return a.pid < b.pid;
-            case SortKey::Name:       return a.name < b.name;
-        }
-        return false;
-    });
-    return list;
 }
 
 inline StatTotals parse_stat_totals(std::string_view stat_text) {

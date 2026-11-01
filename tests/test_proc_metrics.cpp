@@ -125,26 +125,6 @@ TEST_CASE("parse_process_entry computes mem_percent and cpu_percent from prev ji
     CHECK(second.cpu_percent == doctest::Approx(300.0f)); // (300/100)/1.0*100
 }
 
-TEST_CASE("sort_by orders by each key without mutating the input") {
-    std::vector<ProcessInfo> input;
-    input.push_back(ProcessInfo{.pid = 3, .name = "c", .cpu_percent = 10.f, .mem_percent = 5.f});
-    input.push_back(ProcessInfo{.pid = 1, .name = "a", .cpu_percent = 30.f, .mem_percent = 1.f});
-    input.push_back(ProcessInfo{.pid = 2, .name = "b", .cpu_percent = 20.f, .mem_percent = 9.f});
-
-    auto by_cpu = sort_by(input, SortKey::CpuPercent);
-    CHECK(by_cpu[0].pid == 1);
-    CHECK(by_cpu[1].pid == 2);
-    CHECK(by_cpu[2].pid == 3);
-
-    auto by_pid = sort_by(input, SortKey::Pid);
-    CHECK(by_pid[0].pid == 1);
-    CHECK(by_pid[1].pid == 2);
-    CHECK(by_pid[2].pid == 3);
-
-    // Original vector must be untouched -- sort_by takes and returns by value.
-    CHECK(input[0].pid == 3);
-}
-
 TEST_CASE("diff_process_events reports newly-appeared pids as started") {
     std::vector<ProcessInfo> prev = {{.pid = 1, .name = "init"}};
     std::vector<ProcessInfo> current = {{.pid = 1, .name = "init"}, {.pid = 42, .name = "sh"}};

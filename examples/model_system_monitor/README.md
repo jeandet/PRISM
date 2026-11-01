@@ -66,7 +66,7 @@ data:
 
 ```cpp
 void ingest_processes(const std::vector<ProcessInfo>& processes) {
-    table_rows.replace_all(sort_by(processes, sort_key.get()));
+    table_rows.replace_all(processes);
     tree_source.update(processes);
     tree_ctrl.refresh();
 }

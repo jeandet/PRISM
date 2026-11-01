@@ -5,13 +5,14 @@
 #include <prism/delegates/tabs_delegates.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/core/list.hpp>
-#include <prism/ui/table.hpp>
+#include <prism/ui/table_ops.hpp>
 #include <prism/ui/tree.hpp>
 #include <prism/delegates/text_delegates.hpp>
 #include <prism/core/traits.hpp>
 #include <prism/ui/widget_node.hpp>
 #include <prism/app/widget_tree_layout.hpp>
 #include <prism/app/widget_tree_traversal.hpp>
+#include <prism/app/table_input.hpp>
 #if __cpp_impl_reflection
 #include <prism/core/reflect.hpp>
 #endif
@@ -583,15 +584,17 @@ private:
             // Table: connect List<T> signals (RowStorage) and depends_on (ColumnStorage)
             if (node.layout_kind == LayoutKind::Table) {
                 auto id = wn.id;
+                auto data_changed = [this, id, ts = node.table_state.get()]() {
+                    if (ts) ts->order_stale = true;
+                    set_dirty(id);
+                };
                 for (auto sig : {&Node::vlist_on_insert, &Node::vlist_on_remove,
                                  &Node::vlist_on_update}) {
-                    if (node.*sig) {
-                        wn.connections.push_back(
-                            (node.*sig)(0, [this, id]() { set_dirty(id); })
-                        );
-                    }
+                    if (node.*sig)
+                        wn.connections.push_back((node.*sig)(0, data_changed));
                 }
-                connect_deps_dirty(node, wn);
+                for (auto& dep : node.dependencies)
+                    wn.connections.push_back(dep(data_changed));
                 return;
             }
 
@@ -1052,7 +1055,7 @@ private:
 
     // Paints one row (recycled from the pool when possible): zebra/selection
     // background, per-cell clipped text, and column dividers.
-    WidgetNode paint_table_row(TableState& ts, size_t row_idx, Width col_w) {
+    WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::vector<float>& edges) {
         WidgetNode wn;
         if (!ts.pool.empty()) {
             wn = std::move(ts.pool.back());
@@ -1063,54 +1066,59 @@ private:
         wn.draws.clear();
         wn.theme = &theme_;
 
-        bool selected = ts.selected_row.get().has_value() &&
-                        ts.selected_row.get().value() == row_idx;
-        auto bg = (row_idx % 2 == 0)
-            ? wn.theme->table_row_even
-            : wn.theme->table_row_odd;
-        if (selected)
-            bg = wn.theme->table_selected;
-
-        Width total_w = col_w * static_cast<float>(ts.column_count);
-        wn.draws.filled_rect(
-            Rect{Point{X{0}, Y{0}},
-                 Size{total_w, ts.row_height}},
-            bg);
+        size_t row = source_row(ts, view_pos);
+        auto bg = is_selected(ts, row) ? theme_.table_selected
+                : view_pos % 2 == 0    ? theme_.table_row_even
+                                       : theme_.table_row_odd;
+        float dx = -ts.scroll_x.raw();
+        Width total_w{std::max(edges.back() + dx, ts.viewport_w.raw())};
+        wn.draws.filled_rect(Rect{Point{X{0}, Y{0}}, Size{total_w, ts.row_height}}, bg);
 
         for (size_t c = 0; c < ts.column_count; ++c) {
-            std::string txt = ts.source.cell_text(row_idx, c);
-            X cx{static_cast<float>(c) * col_w.raw()};
-            wn.draws.clip_push(
-                Point{cx, Y{0}},
-                Size{col_w, ts.row_height});
-            wn.draws.text(std::move(txt),
-                Point{X{4.f}, Y{4.f}},
-                14.f, wn.theme->text);
+            X cx{edges[c] + dx};
+            Width cw{edges[c + 1] - edges[c]};
+            wn.draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});
+            wn.draws.text(ts.source.cell_text(row, c), Point{X{4.f}, Y{4.f}}, 14.f, theme_.text);  // clip-relative
             wn.draws.clip_pop();
-
-            if (c > 0) {
-                wn.draws.filled_rect(
-                    Rect{Point{cx, Y{0}},
-                         Size{Width{1.f}, ts.row_height}},
-                    wn.theme->table_divider);
-            }
+            if (c > 0)
+                wn.draws.filled_rect(Rect{Point{cx, Y{0}}, Size{Width{1.f}, ts.row_height}},
+                                     theme_.table_divider);
         }
         return wn;
     }
 
-    // Renders header text into overlay_draws (picked up by table flatten).
-    void render_table_header(WidgetNode& node, const TableState& ts, Width col_w) {
+    static void draw_sort_arrow(DrawList& dl, X right, bool descending, Color c) {
+        float x = right.raw() - 14.f, y = 12.f, w = 8.f, h = 5.f;
+        if (descending)
+            dl.filled_polygon({Point{X{x}, Y{y - h / 2}}, Point{X{x + w}, Y{y - h / 2}},
+                               Point{X{x + w / 2}, Y{y + h / 2}}}, c);
+        else
+            dl.filled_polygon({Point{X{x + w / 2}, Y{y - h / 2}}, Point{X{x + w}, Y{y + h / 2}},
+                               Point{X{x}, Y{y + h / 2}}}, c);
+    }
+
+    // Renders header cells into overlay_draws (picked up by table flatten).
+    void render_table_header(WidgetNode& node, const TableState& ts, const std::vector<float>& edges) {
         node.overlay_draws.clear();
+        auto sort = ts.sort.get();
+        float dx = -ts.scroll_x.raw();
         for (size_t c = 0; c < ts.column_count; ++c) {
-            X cx{static_cast<float>(c) * col_w.raw()};
-            auto hdr = ts.column_header(c);
-            node.overlay_draws.text(std::string(hdr),
-                Point{cx + DX{4.f}, Y{4.f}},
-                14.f, node.theme->table_header_text);
+            X cx{edges[c] + dx};
+            X right{edges[c + 1] + dx};
+            Width cw{edges[c + 1] - edges[c]};
+            node.overlay_draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});  // origin moves to cx
+            node.overlay_draws.text(std::string(ts.column_header(c)), Point{X{4.f}, Y{4.f}},
+                                    14.f, theme_.table_header_text);
+            if (sort && sort->column == c)
+                draw_sort_arrow(node.overlay_draws, X{cw.raw()}, sort->descending, theme_.table_header_text);
+            node.overlay_draws.clip_pop();
+            node.overlay_draws.filled_rect(Rect{Point{right, Y{4.f}},
+                                                Size{Width{1.f}, ts.row_height - Height{8.f}}},
+                                           theme_.table_header_divider);
         }
     }
 
-    // Wires the input handler for selection/scrolling (only once per node).
+    // Wires the input handler for selection, sorting, resizing and scrolling (once per node).
     void wire_table_input(WidgetNode& node, TableState* ts) {
         if (node.table_input_wired) return;
         node.table_input_wired = true;
@@ -1119,64 +1127,9 @@ private:
             node.on_input.connect([ts, node_id, this](const InputEvent& ev) {
                 auto it = index_.find(node_id);
                 if (it == index_.end()) return;
-                auto& n = *it->second;
-                auto& t = *ts;
-                auto table_max_scroll = [&t] {
-                    return DY{std::max(0.f,
-                        t.row_height.raw() * static_cast<float>(t.row_count()) - t.viewport_h.raw())};
-                };
-                if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == 1) {
-                    Height header_h = t.row_height;
-                    Y local_y = mb->position.y;
-                    if (local_y.raw() < header_h.raw()) return;
-                    DY body_y{local_y.raw() - header_h.raw() + t.scroll_y.raw()};
-                    size_t row = static_cast<size_t>(body_y.raw() / t.row_height.raw());
-                    if (row < t.row_count()) {
-                        auto current = t.selected_row.get();
-                        if (current.has_value() && current.value() == row)
-                            t.selected_row.set(std::nullopt);
-                        else
-                            t.selected_row.set(row);
-                        n.dirty = true;
-                    }
-                }
-                if (auto* ms = std::get_if<MouseScroll>(&ev)) {
-                    DY max_scroll = table_max_scroll();
-                    if (ms->dy.raw() != 0.f) {
-                        DY scroll_amount{ms->dy.raw() * t.row_height.raw() * 3.f};
-                        t.scroll_y = DY{std::clamp(t.scroll_y.raw() + scroll_amount.raw(), 0.f, max_scroll.raw())};
-                        n.dirty = true;
-                    }
-                }
-                if (auto* kp = std::get_if<KeyPress>(&ev)) {
-                    auto current = t.selected_row.get();
-                    if (kp->key == keys::down) {
-                        size_t next = current.has_value() ? current.value() + 1 : 0;
-                        if (next < t.row_count()) {
-                            t.selected_row.set(next);
-                            n.dirty = true;
-                        }
-                    } else if (kp->key == keys::up) {
-                        if (current.has_value() && current.value() > 0) {
-                            t.selected_row.set(current.value() - 1);
-                            n.dirty = true;
-                        }
-                    } else if (kp->key == keys::page_down) {
-                        DY max_scroll = table_max_scroll();
-                        t.scroll_y = DY{std::clamp(t.scroll_y.raw() + t.viewport_h.raw(), 0.f, max_scroll.raw())};
-                        n.dirty = true;
-                    } else if (kp->key == keys::page_up) {
-                        DY max_scroll = table_max_scroll();
-                        t.scroll_y = DY{std::clamp(t.scroll_y.raw() - t.viewport_h.raw(), 0.f, max_scroll.raw())};
-                        n.dirty = true;
-                    }
-                    // Scroll selected row into view
-                    if (auto sel = t.selected_row.get(); sel.has_value()) {
-                        DY row_top{static_cast<float>(sel.value()) * t.row_height.raw()};
-                        t.scroll_y = reveal_row_offset(row_top, t.row_height, t.scroll_y,
-                                                       t.viewport_h, table_max_scroll());
-                    }
-                }
+                auto result = handle_table_input(*ts, ev);
+                if (result.cursor) it->second->visual_state.cursor = *result.cursor;
+                if (result.repaint) it->second->dirty = true;
             })
         );
     }
@@ -1188,6 +1141,13 @@ private:
         if (ts->row_height.raw() <= 0.f)
             ts->row_height = Height{24.f};
 
+        refresh_order(*ts);
+        ts->auto_column_w = ts->column_count > 0
+            ? std::max(120.f, ts->viewport_w.raw() / static_cast<float>(ts->column_count))
+            : 120.f;
+        ts->scroll_x = DX{std::min(ts->scroll_x.raw(), max_scroll_x(*ts))};
+        auto edges = column_edges(*ts);
+
         size_t total_rows = ts->row_count();
         auto [new_start, new_end] = compute_visible_range(
             ItemCount{total_rows}, ts->row_height, ts->scroll_y,
@@ -1195,26 +1155,18 @@ private:
 
         recycle_table_rows(node, *ts);
 
-        Width col_w = ts->column_count > 0
-            ? Width{std::max(120.f, ts->viewport_w.raw() / static_cast<float>(ts->column_count))}
-            : Width{120.f};
-
-        size_t range_size = new_end.raw() - new_start.raw();
-        node.children.reserve(range_size);
+        node.children.reserve(new_end.raw() - new_start.raw());
         for (size_t i = new_start.raw(); i < new_end.raw(); ++i) {
             // id=0 is shared by every row (hit-test transparent, see paint_table_row);
             // registering it in index_/parent_map_ would alias to whichever
             // row was inserted last, so it's deliberately skipped here.
-            node.children.push_back(paint_table_row(*ts, i, col_w));
+            node.children.push_back(paint_table_row(*ts, i, edges));
         }
-
-        for (auto& c : node.children)
-            if (c.id != 0) index_[c.id] = &c;
 
         ts->visible_start = new_start;
         ts->visible_end = new_end;
 
-        render_table_header(node, *ts, col_w);
+        render_table_header(node, *ts, edges);
         wire_table_input(node, ts);
     }
 

@@ -18,7 +18,7 @@ struct TableShowcase {
     }
 
     void view(prism::WidgetTree::ViewBuilder& vb) {
-        vb.table(readings).headers({"Sensor", "Value"});
+        vb.table(readings).headers({"Sensor", "Value"}).sort(1, /*descending=*/true);
     }
 };
 

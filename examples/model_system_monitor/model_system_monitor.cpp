@@ -56,7 +56,6 @@ struct SystemMonitor {
     prism::plot::PlotPanel* mem_plot = &plot_group.add_plot("Mem (MB)");
     prism::plot::PlotPanel* net_plot = &plot_group.add_plot("Net (KB/s)");
 
-    prism::Field<SortKey> sort_key{SortKey::CpuPercent};
     prism::List<ProcessInfo> table_rows;
     FlatProcessTreeSource tree_source;
     prism::TreeController tree_ctrl{prism::wrap_tree_storage(tree_source)};
@@ -92,7 +91,7 @@ struct SystemMonitor {
     }
 
     void ingest_processes(const std::vector<ProcessInfo>& processes) {
-        table_rows.replace_all(sort_by(processes, sort_key.get()));
+        table_rows.replace_all(processes);
         tree_source.update(processes);
         tree_ctrl.refresh();
     }
@@ -141,14 +140,12 @@ struct SystemMonitor {
         vb.vstack([&] {
             plot_group.view(vb);
             vb.handle();
-            // sort_key + tabs + heartbeat nested together so the handle above trades
-            // space with the whole process view as one pane -- otherwise it would only
-            // ever grab sort_key (the first flat sibling after it), never reaching tabs.
+            // tabs + heartbeat nested together so the handle above trades space with the
+            // whole process view as one pane, not just with its first flat sibling.
             vb.vstack([&] {
-                vb.widget(sort_key);
                 vb.tabs(tabs, [&] {
                     vb.tab("Table", [&](prism::WidgetTree::ViewBuilder& tvb) {
-                        tvb.table(table_rows);
+                        tvb.table(table_rows).sort(2, /*descending=*/true);  // CPU %
                     });
                     vb.tab("Tree", [&](prism::WidgetTree::ViewBuilder& tvb) {
                         tvb.tree(tree_ctrl);
@@ -200,11 +197,6 @@ int main(int argc, char* argv[]) {
             app.ingest_processes(p);
         });
         app.process_events.observe([&app](const ProcessEvent& e) { app.ingest_process_event(e); });
-        // Re-sort immediately on a Dropdown change using the last known snapshot, rather
-        // than waiting up to 1.5s for the next background poll to land.
-        app.sort_key.observe([&app](const SortKey&) {
-            app.ingest_processes(app.proc_list.get());
-        });
 
         sys_thread = std::jthread(poll_system_loop, std::ref(app.sys_sample));
         proc_thread = std::jthread(poll_processes_loop, std::ref(app.proc_list),

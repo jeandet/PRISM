@@ -127,6 +127,12 @@ public:
                 node_ref.table_state->header_overrides = std::move(hdrs);
             return *this;
         }
+        // Initial sort; the user changes it by clicking a header.
+        TableBuilder& sort(size_t column, bool descending = false) {
+            if (node_ref.table_state)
+                node_ref.table_state->sort.set(SortSpec{column, descending});
+            return *this;
+        }
     };
 
     struct CanvasHandle : DependsOnMixin<CanvasHandle> {

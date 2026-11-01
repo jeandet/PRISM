@@ -239,7 +239,7 @@ struct TableShowcase {
     prism::List<Reading> readings;
 
     void view(prism::WidgetTree::ViewBuilder& vb) {
-        vb.table(readings).headers({"Sensor", "Value"});
+        vb.table(readings).headers({"Sensor", "Value"}).sort(1, /*descending=*/true);
     }
 };
 ```
@@ -288,6 +288,8 @@ void view(prism::WidgetTree::ViewBuilder& vb) {
 </table>
 
 Tables and trees are virtualized, so only visible rows cost anything.
+Click a table header to sort (numbers sort by value), drag a header edge to resize a column,
+and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
 Both bind to data of any shape through three adapter tiers:
 
 | Tier | Tree | Table | Needs reflection |
@@ -554,7 +556,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `prism::then`/`prism::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer and `Menu`, accessibility metadata, images, anti-aliased shapes. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer and `Menu`, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).
 - **Phase 5**: Vulkan/WebGPU backend, SDF text, tile compositing.
 
 </details>
