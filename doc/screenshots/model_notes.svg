@@ -97,10 +97,10 @@
 <rect x="515.4" y="369.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
 <rect x="515.4" y="388.8" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
 <text xml:space="preserve" x="507" y="38" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#pragma once</text>
-<text xml:space="preserve" x="507" y="77.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, stat</text>
-<text xml:space="preserve" x="507" y="96.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">istics and search. Tested in</text>
-<text xml:space="preserve" x="507" y="116.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// tests/test_notes_logic.cpp; the app (model_notes.cpp) o</text>
-<text xml:space="preserve" x="507" y="136" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">nly wires these to widgets.</text>
+<text xml:space="preserve" x="507" y="77.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, </text>
+<text xml:space="preserve" x="507" y="96.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">statistics and search. Tested in</text>
+<text xml:space="preserve" x="507" y="116.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// tests/test_notes_logic.cpp; the app (model_notes.cpp) </text>
+<text xml:space="preserve" x="507" y="136" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">only wires these to widgets.</text>
 <text xml:space="preserve" x="507" y="175.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;prism/core/utf8.hpp&gt;</text>
 <text xml:space="preserve" x="507" y="214.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;algorithm&gt;</text>
 <text xml:space="preserve" x="507" y="234" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;cstddef&gt;</text>
@@ -113,10 +113,10 @@
 <text xml:space="preserve" x="507" y="371.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;string_view&gt;</text>
 <text xml:space="preserve" x="507" y="390.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;vector&gt;</text>
 <text xml:space="preserve" x="507" y="430" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">namespace notes {</text>
-<text xml:space="preserve" x="507" y="469.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">inline std::expected&lt;std::string, std::string&gt; load_text(c</text>
-<text xml:space="preserve" x="507" y="488.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">onst std::filesystem::path&amp; path,</text>
-<text xml:space="preserve" x="507" y="508.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">                                                         s</text>
-<text xml:space="preserve" x="507" y="528" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">td::size_t max_bytes = 1 &lt;&lt; 20) {</text>
+<text xml:space="preserve" x="507" y="469.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">inline std::expected&lt;std::string, std::string&gt; </text>
+<text xml:space="preserve" x="507" y="488.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">load_text(const std::filesystem::path&amp; path,</text>
+<text xml:space="preserve" x="507" y="508.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">                                                         </text>
+<text xml:space="preserve" x="507" y="528" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">std::size_t max_bytes = 1 &lt;&lt; 20) {</text>
 <text xml:space="preserve" x="507" y="547.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">    std::error_code ec;</text>
 </g>
 </g>

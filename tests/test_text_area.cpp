@@ -118,6 +118,44 @@ TEST_CASE("wrap_lines: mixed newlines and wrapping") {
     CHECK(lines[2].length == 2);  // "fg"
 }
 
+namespace {
+std::vector<std::string> wrapped_text(std::string_view text, float chars) {
+    auto lines = prism::text_detail::wrap_lines(text, prism::char_width(14.f) * chars, nullptr, 14.f);
+    std::vector<std::string> out;
+    for (auto l : lines) out.emplace_back(prism::text_detail::line_text(text, l));
+    return out;
+}
+}
+
+TEST_CASE("wrap_lines: breaks between words, spaces stay at the end of the line") {
+    CHECK(wrapped_text("hello world again", 8) == std::vector<std::string>{"hello ", "world ", "again"});
+}
+
+TEST_CASE("wrap_lines: a run of spaces at the break hangs off the line instead of starting the next") {
+    CHECK(wrapped_text("ab     cd", 4) == std::vector<std::string>{"ab     ", "cd"});
+    CHECK(wrapped_text("        std::size_t", 10) == std::vector<std::string>{"        ", "std::size_", "t"});
+}
+
+TEST_CASE("wrap_lines: a word longer than the line still breaks inside it") {
+    CHECK(wrapped_text("abcdefghij xy", 4) == std::vector<std::string>{"abcd", "efgh", "ij ", "xy"});
+}
+
+TEST_CASE("wrap_lines: tabs are break opportunities too") {
+    CHECK(wrapped_text("one\ttwo", 5) == std::vector<std::string>{"one\t", "two"});
+}
+
+TEST_CASE("wrap_lines: spans stay contiguous, so every byte is on exactly one line") {
+    std::string_view text = "the quick  brown fox\njumps over   the lazy dog";
+    auto lines = prism::text_detail::wrap_lines(text, prism::char_width(14.f) * 7.f, nullptr, 14.f);
+    size_t next = 0;
+    for (auto l : lines) {
+        CHECK(l.start == next);
+        next = l.start + l.length;
+        if (next < text.size() && text[next] == '\n') ++next;
+    }
+    CHECK(next == text.size());
+}
+
 // --- cursor helper tests ---
 
 TEST_CASE("cursor_to_line_col: cursor at start") {

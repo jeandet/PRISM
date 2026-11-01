@@ -12,7 +12,7 @@ undo/redo, input-method composition and real text measurement on whole files. Al
 text logic is in `notes_logic.hpp`, tested by `tests/test_notes_logic.cpp`; `model_notes.cpp`
 only wires it to widgets.
 
-Known gaps it shows (tracked in `doc/review-2026-11-01.md`): `TextArea` wraps anywhere, not at
-word boundaries; there is no file dialog yet. It has a File/Search menu bar, a right-click menu
+Known gaps it shows (tracked in `doc/review-2026-11-01.md`): `TextArea` wraps at spaces and
+tabs only, not after hyphens or between CJK characters; there is no file dialog yet. It has a File/Search menu bar, a right-click menu
 on the editor, and Reload asks before discarding unsaved edits. (Its first capture also showed buttons
 as wide as the search field -- fixed by content-sized widgets.)
