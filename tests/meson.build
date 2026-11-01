@@ -80,6 +80,7 @@ headless_tests = {
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),
   'form_widgets' : files('test_form_widgets.cpp'),
+  'tessellate' : files('test_tessellate.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),
   'inspector' : files('test_inspector.cpp'),
@@ -180,6 +181,14 @@ test_sdl_text_measurer = executable('test_sdl_text_measurer',
               '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"'],
 )
 test('sdl_text_measurer', test_sdl_text_measurer)
+
+if prism_webgpu_dep.found()
+  test_wgpu_renderer = executable('test_wgpu_renderer',
+    files('test_wgpu_renderer.cpp'),
+    dependencies : [prism_webgpu_dep, doctest_dep],
+  )
+  test('wgpu_renderer', test_wgpu_renderer)
+endif
 
 test_pixels = executable('test_pixels',
   files('test_pixels.cpp'),

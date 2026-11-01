@@ -7,3 +7,5 @@ option('examples', type : 'feature', value : 'auto',
        description : 'Build the C++ example apps')
 option('benchmarks', type : 'feature', value : 'auto',
        description : 'Build the benchmarks')
+option('webgpu', type : 'feature', value : 'disabled',
+       description : 'Build the WebGPU renderer (prebuilt wgpu-native; see doc/design/second-backend.md)')

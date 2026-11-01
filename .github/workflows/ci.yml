@@ -28,10 +28,12 @@ jobs:
           sudo apt-get install -y g++-14 pkg-config libfreetype-dev libharfbuzz-dev \
             libudev-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev \
             libxss-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl-dev libdrm-dev libgbm-dev \
-            libdbus-1-dev libasound2-dev libpulse-dev libibus-1.0-dev libpipewire-0.3-dev libwayland-bin xvfb
+            libdbus-1-dev libasound2-dev libpulse-dev libibus-1.0-dev libpipewire-0.3-dev libwayland-bin xvfb \
+            mesa-vulkan-drivers
           pip install 'meson>=1.5' ninja meson-python nanobind pytest pydantic
+      # -Dwebgpu=enabled: the WebGPU renderer's tests run on Mesa's software Vulkan (lavapipe).
       - name: Setup builddir
-        run: meson setup builddir -Dmagic_enum:test=false -Dsdl3:werror=false -Dsdl3:warning_level=0
+        run: meson setup builddir -Dmagic_enum:test=false -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dwebgpu=enabled
       - name: Build
         run: ninja -C builddir
       - name: Run tests (C++ + Python via meson test)

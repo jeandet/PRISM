@@ -1,6 +1,21 @@
 # A second rendering backend
 
-**Status:** investigation (2026-11-01). Nothing built yet; a decision is needed first.
+**Status:** decided 2026-11-01: option A, WebGPU through prebuilt wgpu-native (desktop) and
+Emscripten's Dawn port (browser), code against the standard `webgpu.h` only. In progress:
+
+- [x] Dependency: `subprojects/wgpu-native-<platform>.wrap` (pinned release, static library),
+  `-Dwebgpu=enabled` (off by default). Linux and macOS; no Windows lane yet.
+- [x] Shapes: `render/tessellate.hpp` (snapshot to coloured triangles and clip batches, pure,
+  `tests/test_tessellate.cpp`) and `backends/wgpu_renderer.hpp` (draws them; offscreen pixel tests
+  in `tests/test_wgpu_renderer.cpp`, run in CI on Mesa's software Vulkan).
+- [ ] Text and images (textured quads).
+- [ ] Windows: SDL window surface, the SDL backend's drawing behind an internal renderer
+  interface, chosen by `RenderConfig`.
+- [ ] The snapshot mailbox, shared by both renderers; pixel tests against both.
+- [ ] Browser build through emdawnwebgpu.
+
+Desktop-only call so far: `wgpuDevicePoll` (wgpu-native) to wait for the GPU in `wait_idle()`;
+browsers cannot block, so read-back there will be asynchronous.
 
 ## Why
 

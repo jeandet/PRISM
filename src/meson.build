@@ -62,6 +62,30 @@ prism_software_backend_dep = declare_dependency(
   dependencies : [prism_core_dep],
 )
 
+# WebGPU renderer (opt-in, -Dwebgpu=enabled): prebuilt wgpu-native, one wrap per platform.
+wgpu_wraps = {
+  'linux-x86_64' : 'wgpu-native-linux-x86_64',
+  'linux-aarch64' : 'wgpu-native-linux-aarch64',
+  'darwin-x86_64' : 'wgpu-native-macos-x86_64',
+  'darwin-aarch64' : 'wgpu-native-macos-aarch64',
+}
+wgpu_platform = host_machine.system() + '-' + host_machine.cpu_family()
+prism_webgpu_dep = dependency('', required : false)
+if get_option('webgpu').allowed() and wgpu_platform in wgpu_wraps
+  wgpu_native_dep = subproject(wgpu_wraps[wgpu_platform]).get_variable('wgpu_native_dep')
+  prism_webgpu_lib = library('prism-webgpu',
+    'backends/wgpu_renderer.cpp',
+    dependencies : [prism_core_dep, wgpu_native_dep],
+    install : true,
+  )
+  prism_webgpu_dep = declare_dependency(
+    link_with : prism_webgpu_lib,
+    dependencies : [prism_core_dep, wgpu_native_dep],
+  )
+elif get_option('webgpu').enabled()
+  error('webgpu: no prebuilt wgpu-native for ' + wgpu_platform)
+endif
+
 # In a browser the main thread must keep returning to the page's event loop, but the backend's
 # loop blocks in SDL_WaitEvent. Under JSPI, SDL's wait sleeps via emscripten_sleep, which
 # suspends the wasm stack and resumes it later -- so the desktop loop runs unchanged. The font is
