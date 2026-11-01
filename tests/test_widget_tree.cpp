@@ -759,9 +759,9 @@ TEST_CASE("set_text_measurer reaches every widget through its theme") {
 
 TEST_CASE("WindowRegistry hands the measurer to trees added before and after") {
     ZeroMeasurer m;
+    KeySinkModel a, b;   // before the registry: models must outlive the trees built from them
     prism::WindowRegistry registry;
     prism::HeadlessWindow w1{1, {}}, w2{2, {}};
-    KeySinkModel a, b;
     auto id1 = registry.add(w1, a);
     registry.set_text_measurer(&m);
     auto id2 = registry.add(w2, b);

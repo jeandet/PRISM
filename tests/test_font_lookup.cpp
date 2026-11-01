@@ -45,8 +45,12 @@ TEST_CASE("nothing found gives an empty path") {
     CHECK(find_font(nullptr, nullptr, {}, "share/prism/fonts/Ui.ttf").empty());
 }
 
-TEST_CASE("the library directory of this process's PRISM backend is known") {
+TEST_CASE("the library directory of this process's PRISM backend is known (where dladdr exists)") {
+#if defined(_WIN32) || defined(__EMSCRIPTEN__)
+    CHECK(prism::backends::backend_library_dir().empty());   // no dladdr: lookup falls back
+#else
     CHECK(fs::is_directory(prism::backends::backend_library_dir()));
+#endif
 }
 
 TEST_CASE("a multiarch library directory (lib/<triplet>) is two levels below the prefix") {
