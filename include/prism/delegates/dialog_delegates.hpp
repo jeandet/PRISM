@@ -3,6 +3,7 @@
 #include <prism/ui/widget_node.hpp>
 
 #include <algorithm>
+#include <string_view>
 #include <vector>
 
 namespace prism::ui {
@@ -16,7 +17,22 @@ constexpr float button_h = 30.f;
 constexpr float button_pad = 16.f;
 constexpr float button_gap = 8.f;
 constexpr float min_w = 320.f;
-constexpr float card_h = pad + 24.f + 30.f + button_h + pad;   // title, message, buttons
+constexpr float title_h = 30.f;
+constexpr float line_h = 20.f;
+
+inline std::vector<std::string_view> message_lines(std::string_view message) {
+    std::vector<std::string_view> lines;
+    for (size_t start = 0;;) {
+        size_t nl = message.find('\n', start);
+        lines.push_back(message.substr(start, nl == std::string_view::npos ? nl : nl - start));
+        if (nl == std::string_view::npos) return lines;
+        start = nl + 1;
+    }
+}
+
+inline float card_h(const Dialog& d) {
+    return pad + title_h + line_h * static_cast<float>(message_lines(d.message).size()) + 10.f + button_h + pad;
+}
 
 // The window in the anchor's own coordinates.
 inline Rect window_rect(const WidgetNode& node) {
@@ -32,13 +48,15 @@ inline Rect card_rect(const Dialog& d, const WidgetNode& node) {
     const auto* m = node_theme(node).measurer;
     float buttons = 0.f;
     for (std::size_t i = 0; i < d.buttons.size(); ++i) buttons += button_w(d, node, i) + button_gap;
-    float w = std::max({min_w, buttons + 2.f * pad,
-                        text_width(m, d.title, title_size) + 2.f * pad,
-                        text_width(m, d.message, text_size) + 2.f * pad});
+    float w = std::max({min_w, buttons + 2.f * pad, text_width(m, d.title, title_size) + 2.f * pad});
+    for (auto line : message_lines(d.message)) w = std::max(w, text_width(m, line, text_size) + 2.f * pad);
+    float h = card_h(d);
+    // Centered, but never past the top-left corner when the window is smaller than the card:
+    // the same place the popup layer would slide it to, so the two never fight.
     Rect win = window_rect(node);
-    return Rect{Point{X{win.origin.x.raw() + (win.extent.w.raw() - w) / 2.f},
-                      Y{win.origin.y.raw() + (win.extent.h.raw() - card_h) / 2.f}},
-                Size{Width{w}, Height{card_h}}};
+    float x = win.origin.x.raw() + std::max(0.f, (win.extent.w.raw() - w) / 2.f);
+    float y = win.origin.y.raw() + std::max(0.f, (win.extent.h.raw() - h) / 2.f);
+    return Rect{Point{X{x}, Y{y}}, Size{Width{w}, Height{h}}};
 }
 
 // Button rects in the anchor's coordinates, right-aligned along the card's bottom.
@@ -70,12 +88,18 @@ inline void close(Field<Dialog>& field, WidgetNode& node, std::optional<std::siz
 inline void draw(const Dialog& d, WidgetNode& node, const Rect& card) {
     const auto& t = *node.theme;
     auto& dl = node.overlay_draws;
-    std::size_t hl = node.get_or_create<DialogEditState>().highlighted;
+    auto& es = node.get_or_create<DialogEditState>();
+    es.highlighted = std::min(es.highlighted, d.buttons.empty() ? 0 : d.buttons.size() - 1);
+    std::size_t hl = es.highlighted;
     dl.filled_rect(window_rect(node), t.scrim);
     dl.rounded_rect(card, t.popup_bg, 8.f);
     dl.rounded_rect(card, t.popup_border, 8.f, 1.f);
     dl.text(d.title, Point{card.origin.x + DX{pad}, card.origin.y + DY{pad}}, title_size, t.text);
-    dl.text(d.message, Point{card.origin.x + DX{pad}, card.origin.y + DY{pad + 30.f}}, text_size, t.text);
+    float y = card.origin.y.raw() + pad + title_h;
+    for (auto line : message_lines(d.message)) {
+        dl.text(std::string(line), Point{card.origin.x + DX{pad}, Y{y}}, text_size, t.text);
+        y += line_h;
+    }
     auto rects = button_rects(d, node, card);
     for (std::size_t i = 0; i < rects.size(); ++i) {
         dl.rounded_rect(rects[i], i == hl ? t.primary : t.surface, 4.f);
@@ -108,6 +132,7 @@ inline void Widget<Dialog>::handle_input(Field<Dialog>& field, const InputEvent&
     if (!d.open || !node.popup_area) return;
     auto& es = node.get_or_create<DialogEditState>();
     std::size_t n = d.buttons.size();
+    es.highlighted = std::min(es.highlighted, n > 0 ? n - 1 : 0);   // buttons may have shrunk
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
         auto rects = button_rects(d, node, *node.popup_area);
         for (std::size_t i = 0; i < rects.size(); ++i)

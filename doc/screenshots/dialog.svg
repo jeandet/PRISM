@@ -14,12 +14,12 @@
 <g clip-path="url(#clip-2)">
 </g>
 <rect x="0" y="0" width="480" height="228" fill="rgba(0,0,0,0.54902)"/>
-<rect x="80" y="52" width="320" height="124" rx="8" fill="rgba(50,50,62,1)"/>
-<rect x="80" y="52" width="320" height="124" rx="8" stroke="rgba(80,80,95,1)" fill="none" stroke-width="1"/>
-<text xml:space="preserve" x="100" y="72" font-family="Noto Sans, sans-serif" font-size="16" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Unsaved changes</text>
-<text xml:space="preserve" x="100" y="102" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reloading discards your edits.</text>
-<rect x="198.8" y="126" width="90.8" height="30" rx="4" fill="rgba(40,105,180,1)"/>
-<text xml:space="preserve" x="214.8" y="133" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Discard</text>
-<rect x="297.6" y="126" width="82.4" height="30" rx="4" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="313.6" y="133" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cancel</text>
+<rect x="80" y="49" width="320" height="130" rx="8" fill="rgba(50,50,62,1)"/>
+<rect x="80" y="49" width="320" height="130" rx="8" stroke="rgba(80,80,95,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="100" y="69" font-family="Noto Sans, sans-serif" font-size="16" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Unsaved changes</text>
+<text xml:space="preserve" x="100" y="99" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reloading discards your edits.</text>
+<rect x="198.8" y="129" width="90.8" height="30" rx="4" fill="rgba(40,105,180,1)"/>
+<text xml:space="preserve" x="214.8" y="136" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Discard</text>
+<rect x="297.6" y="129" width="82.4" height="30" rx="4" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="313.6" y="136" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cancel</text>
 </svg>

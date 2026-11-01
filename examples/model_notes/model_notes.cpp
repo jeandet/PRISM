@@ -33,6 +33,7 @@ struct NotesApp {
     prism::Field<prism::Label<>> status{{"No file open"}};
 
     fs::path current;
+    fs::path pending_reload;   // the file the "Unsaved changes" dialog is about
     std::string saved;   // the file as last loaded or saved: tells whether `body` was modified
     std::string error;   // last load/save problem, shown in the status line
     std::vector<prism::Connection> wiring;   // captures `this`: NotesApp is never moved
@@ -51,7 +52,7 @@ struct NotesApp {
         wiring.push_back(editor_menu.on_change().connect(on_choice));
         wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
         wiring.push_back(discard.on_change().connect([this](const prism::Dialog& d) {
-            if (!d.open && d.chosen == 0) open(current);
+            if (!d.open && d.chosen == 0 && !pending_reload.empty()) open(pending_reload);
         }));
     }
 
@@ -92,8 +93,10 @@ struct NotesApp {
 
     void confirm_reload() {
         if (body.get().value == saved) return open(current);
+        pending_reload = current;
         auto d = discard.get();
         d.open = true;
+        d.chosen.reset();
         discard.set(d);
     }
 

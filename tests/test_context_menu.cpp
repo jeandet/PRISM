@@ -152,3 +152,21 @@ TEST_CASE("empty space in a nested container opens that container's menu, not a 
     route_event(tree, snap.get(), MouseButton{Point{X{390}, Y{250}}, buttons::right, true});
     CHECK(tree.popup_owner() == 0);   // the right pane has no context menu
 }
+
+TEST_CASE("a menu away from the window corner is clamped in window coordinates") {
+    struct Bar {
+        Field<Label<>> pad{{"a long label that pushes the menu to the right edge......."}};
+        Field<Menu> help{{.title = "Help", .items = {"About this application and its many options"}}};
+        void view(WidgetTree::ViewBuilder& vb) { vb.hstack(pad, help); }
+    } m;
+    WidgetTree tree{m};
+    (void)tree.build_snapshot(400, 300, 1);
+    auto snap = tree.build_snapshot(400, 300, 2);
+    auto title = find_widget_rect(*snap, tree.leaf_ids()[1]);
+    REQUIRE(title);
+    REQUIRE(title->origin.x.raw() > 100.f);
+    route_event(tree, snap.get(), MouseButton{Point{title->origin.x + DX{5}, Y{10}}, buttons::left, true});
+    auto a = widget_detail::popup_area(tree, *snap);
+    REQUIRE(a);
+    CHECK(a->origin.x.raw() + a->extent.w.raw() <= 400.f + 0.01f);
+}

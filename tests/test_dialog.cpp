@@ -134,3 +134,76 @@ TEST_CASE("an open dialog re-centres when the window is resized") {
     CHECK(c->origin.x.raw() + c->extent.w.raw() / 2 == doctest::Approx(500.f).epsilon(0.01));
     CHECK(c->origin.y.raw() + c->extent.h.raw() / 2 == doctest::Approx(400.f).epsilon(0.01));
 }
+
+// ---- Findings from the opencode review of 9184924 ----
+
+TEST_CASE("the app closing the dialog frees input immediately, before the next frame") {
+    Fixture f;
+    f.show();
+    auto d = f.model.ask.get();
+    d.open = false;
+    f.model.ask.set(d);
+    f.click(20, 10);   // no frame() in between
+    // Routing no longer treats it as modal. The click itself still meets last frame's
+    // picture, where the dialog covers the window, like any change shown one frame late.
+    CHECK(f.tree.popup_owner() == 0);
+    f.frame();
+    f.click(20, 10);
+    CHECK(f.model.below_clicks == 1);
+}
+
+TEST_CASE("a dialog opened while a menu is open takes over") {
+    struct WithMenu {
+        Field<Menu> file{{.title = "File", .items = {"A", "B"}}};
+        Field<Dialog> ask{{.title = "T", .message = "M", .buttons = {"OK", "No"}}};
+        void view(WidgetTree::ViewBuilder& vb) { vb.vstack([&] { vb.widget(file); vb.dialog(ask); }); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{10}}, buttons::left, true});
+    REQUIRE(tree.popup_owner() != 0);
+    auto d = m.ask.get();
+    d.open = true;
+    m.ask.set(d);
+    snap = tree.build_snapshot(600, 400, 2);
+    REQUIRE(tree.popup_node());
+    CHECK(tree.popup_node()->popup_modal);
+    route_event(tree, snap.get(), KeyPress{keys::enter, 0});
+    CHECK(m.ask.get().chosen == std::optional<size_t>{0});
+    CHECK_FALSE(m.file.get().chosen.has_value());
+}
+
+TEST_CASE("a card larger than the window stays put across events") {
+    Fixture f;
+    f.show();
+    f.snap = f.tree.build_snapshot(200, 80, 20);
+    auto before = *f.card();
+    route_event(f.tree, f.snap.get(), MouseMove{Point{X{5}, Y{5}}});
+    f.snap = f.tree.build_snapshot(200, 80, 21);
+    CHECK(f.card()->origin == before.origin);
+    CHECK(before.origin.x.raw() >= 0.f);
+    CHECK(before.origin.y.raw() >= 0.f);
+}
+
+TEST_CASE("a multi-line message makes the card taller") {
+    Fixture f;
+    f.show();
+    float one = f.card()->extent.h.raw();
+    auto d = f.model.ask.get();
+    d.message = "line one\nline two\nline three";
+    f.model.ask.set(d);
+    f.frame();
+    CHECK(f.card()->extent.h.raw() > one + 30.f);
+}
+
+TEST_CASE("the highlighted button is clamped when the buttons shrink") {
+    Fixture f;
+    f.show();
+    f.key(keys::tab);   // highlight "Cancel"
+    auto d = f.model.ask.get();
+    d.buttons = {"OK"};
+    f.model.ask.set(d);
+    f.frame();
+    f.key(keys::enter);
+    CHECK(f.model.ask.get().chosen == std::optional<size_t>{0});
+}

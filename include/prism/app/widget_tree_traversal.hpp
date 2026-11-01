@@ -79,6 +79,7 @@ inline void close_overlays_impl(WidgetNode& node) {
         && node.layout_kind != LayoutKind::Tabs) {
         node.overlay_draws.clear();
         node.edit_state.reset();
+        node.popup_area.reset();   // or the tree would adopt it again as the open popup
         node.dirty = true;
     }
     for (auto& c : node.children) close_overlays_impl(c);

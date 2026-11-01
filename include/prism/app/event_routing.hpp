@@ -40,6 +40,10 @@ inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const
     if (auto* b = std::get_if<MouseButton>(&ev); b && !b->pressed && tree.captured_id() != 0)
         tree.set_pressed(tree.captured_id(), false);
     auto area = popup_area(tree, snap);
+    if (!area && tree.popup_node() && !tree.popup_node()->popup_area) {   // closed by the app since the last frame
+        tree.close_popup();
+        return false;
+    }
     bool inside = area && area->contains(pos);
     // The dismissing press is swallowed: a right click outside an open menu only closes it.
     if (is_press && !inside) {
@@ -171,6 +175,10 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
         auto bar_step = kp.key == keys::right ? 1 : kp.key == keys::left ? -1 : 0;
         auto neighbour = bar_step ? tree.menu_neighbour(tree.popup_owner(), bar_step) : std::nullopt;
         auto* owner = tree.popup_node();
+        if (owner && !owner->popup_area) {   // closed by the app since the last frame
+            tree.close_popup();
+            return route_key_press(tree, ev, kp);
+        }
         if (kp.key == keys::escape && (!owner || !owner->popup_modal)) tree.close_popup();
         else if (neighbour) tree.switch_menu(*neighbour);
         else if (!bar_step || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
@@ -205,6 +213,7 @@ inline void route_key_release(WidgetTree& tree, const InputEvent& ev) {
 // against a snapshot; key/text routing doesn't need one.
 inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
                         const InputEvent& ev) {
+    tree.refresh_popup_owner();
     if (snap) {
         if (auto* mm = std::get_if<MouseMove>(&ev))
             route_mouse_move(tree, *snap, *mm);

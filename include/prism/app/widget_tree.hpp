@@ -226,6 +226,14 @@ public:
         }
     }
 
+    // Re-records the popup owner if the app changed it since the last frame (e.g. closed a
+    // dialog), so routing acts on the popup as it is now, not as last drawn.
+    void refresh_popup_owner() {
+        auto it = index_.find(popup_owner_);
+        if (popup_owner_ == 0 || it == index_.end()) return;
+        if (it->second->dirty && it->second->record) it->second->record(*it->second);
+    }
+
     // Moves the open popup (owner coordinates), e.g. to keep it inside the window.
     void move_popup(Rect area) {
         if (auto it = index_.find(popup_owner_); it != index_.end() && it->second->popup_area) {
@@ -245,20 +253,22 @@ public:
     // its field. Picks the first open one when none is tracked; drops one that closed.
     // simplify: walks the tree each frame while no popup is open; keep a list of popup
     // anchors if trees grow large enough for this to show in profiles.
+    // A modal popup takes over from a plain one (a dialog opening over an open menu).
     void adopt_popup(WidgetNode& node) {
-        if (popup_owner_ != 0) {
-            if (auto it = index_.find(popup_owner_); it == index_.end() || !it->second->popup_area)
-                popup_owner_ = 0;
-            return;
-        }
-        if (node.popup_area && node.id != 0) {
+        if (auto it = index_.find(popup_owner_); popup_owner_ != 0 && (it == index_.end() || !it->second->popup_area))
+            popup_owner_ = 0;
+        adopt_popup_in(node);
+    }
+
+    void adopt_popup_in(WidgetNode& node) {
+        const WidgetNode* owner = popup_node();
+        if (owner && owner->popup_modal) return;
+        if (node.popup_area && node.id != 0 && node.id != popup_owner_ && (!owner || node.popup_modal)) {
+            if (owner) close_popup();
             popup_owner_ = node.id;
-            return;
+            if (node.popup_modal) return;
         }
-        for (auto& c : node.children) {
-            adopt_popup(c);
-            if (popup_owner_ != 0) return;
-        }
+        for (auto& c : node.children) adopt_popup_in(c);
     }
 
     // id == 0 ("no widget") is a no-op, letting callers skip their own zero checks.
