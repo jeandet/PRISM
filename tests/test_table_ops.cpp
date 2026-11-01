@@ -4,6 +4,7 @@
 #include <prism/ui/table_ops.hpp>
 #include <prism/app/table_input.hpp>
 #include <prism/app/widget_tree.hpp>
+#include <prism/app/event_routing.hpp>
 
 #include <array>
 #include <string>
@@ -216,4 +217,92 @@ TEST_CASE("WidgetTree: data change re-sorts a sorted table") {
     p.mem.push_back("1");
     (void)tree.build_snapshot(800, 600, 4);
     CHECK(source_row(ts, 0) == 4u);
+}
+
+// ---- Findings from the opencode review of 04b03e3 ----
+
+TEST_CASE("a resize ends when a move arrives with the button already up") {
+    Procs p;
+    auto ts = make_state(p);
+    handle_table_input(ts, press(99.f, 10.f));
+    REQUIRE(ts.resizing);
+    // The release was lost (pointer left the window): plain hover must not keep resizing.
+    auto hover = MouseMove{.position = Point{X{180.f}, Y{100.f}}, .buttons = 0};
+    auto r = handle_table_input(ts, hover);
+    CHECK_FALSE(ts.resizing);
+    CHECK(column_width(ts, 0) == doctest::Approx(100.f));
+    CHECK(r.cursor == CursorShape::Default);
+}
+
+TEST_CASE("ctrl-clicking a row off unselects it, and a plain click then selects") {
+    Procs p;
+    auto ts = make_state(p);
+    handle_table_input(ts, press(10.f, row_y(0)));
+    handle_table_input(ts, press(10.f, row_y(1), mods::ctrl));
+    handle_table_input(ts, press(10.f, row_y(1), mods::ctrl));
+    CHECK_FALSE(is_selected(ts, 1));
+    CHECK(is_selected(ts, 0));
+
+    handle_table_input(ts, press(10.f, row_y(0), mods::ctrl));  // nothing left
+    CHECK_FALSE(is_selected(ts, 0));
+    handle_table_input(ts, press(10.f, row_y(0)));
+    CHECK(is_selected(ts, 0));
+}
+
+TEST_CASE("selection drops rows that no longer exist") {
+    Procs p;
+    auto ts = make_state(p);
+    handle_table_input(ts, key(keys::a, mods::ctrl));
+    handle_table_input(ts, key(keys::end));
+    handle_table_input(ts, press(10.f, row_y(1), mods::ctrl));
+    p.name.resize(2);
+    p.mem.resize(2);
+    refresh_order(ts);
+    CHECK(ts.selected_rows.get() == std::vector<size_t>{1});
+    CHECK(ts.selected_row.get() == 1u);
+
+    handle_table_input(ts, key(keys::end));  // current = 1 (last row)
+    p.name.resize(1);
+    p.mem.resize(1);
+    refresh_order(ts);
+    CHECK(ts.selected_rows.get().empty());
+    CHECK(ts.selected_row.get() == std::nullopt);
+    CHECK(ts.anchor_row == std::nullopt);
+}
+
+TEST_CASE("ctrl+a sets a current row, so shift+arrows extend from it") {
+    Procs p;
+    auto ts = make_state(p);
+    handle_table_input(ts, key(keys::a, mods::ctrl));
+    CHECK(ts.selected_row.get() == 0u);
+    handle_table_input(ts, key(keys::down, mods::shift));
+    CHECK(ts.selected_rows.get() == std::vector<size_t>{0, 1});
+}
+
+TEST_CASE("leading_number accepts tabs and an explicit plus") {
+    CHECK(leading_number("\t5") == 5.0);
+    CHECK(leading_number("+5") == 5.0);
+    CHECK(leading_number("+") == std::nullopt);
+    CHECK(compare_cells("+5", "-5") > 0);
+}
+
+TEST_CASE("one wheel notch scrolls a table once, through the shared scroll path") {
+    struct Many {
+        size_t column_count() const { return 1; }
+        size_t row_count() const { return 1000; }
+        std::string_view header(size_t) const { return "N"; }
+        std::string cell_text(size_t r, size_t) const { return std::to_string(r); }
+        void view(WidgetTree::ViewBuilder& vb) { vb.table(*this); }
+    } m;
+    WidgetTree tree(m);
+    (void)tree.build_snapshot(800, 600, 1);
+    auto snap = tree.build_snapshot(800, 600, 2);
+    WidgetNode* table = nullptr;
+    for (auto& c : tree.root().children)
+        if (c.layout_kind == LayoutKind::Table) table = &c;
+    REQUIRE(table);
+    auto& ts = **std::any_cast<std::shared_ptr<TableState>>(&table->edit_state);
+
+    widget_detail::route_mouse_scroll(tree, *snap, MouseScroll{.position = Point{X{100.f}, Y{300.f}}, .dx = DX{0}, .dy = DY{1.f}});
+    CHECK(ts.scroll_y.raw() == doctest::Approx(60.f));  // the shared wheel step, not 60 + 3 rows
 }

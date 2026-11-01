@@ -486,7 +486,7 @@ TEST_CASE("Mouse wheel scrolls table vertically") {
     prism::MouseScroll scroll{
         .position = prism::Point{prism::X{10.f}, prism::Y{100.f}},
         .dx = prism::DX{0}, .dy = prism::DY{3.f}};
-    tree.dispatch(table_node->id, prism::InputEvent{scroll});
+    tree.scroll_at(table_node->id, prism::DY{scroll.dy.raw() * 60.f});  // what routing does
 
     CHECK(ts.scroll_y.raw() > 0.f);
 }
@@ -631,7 +631,7 @@ TEST_CASE("Full table workflow: render, scroll, select, observe") {
     prism::MouseScroll scroll{
         .position = prism::Point{prism::X{10.f}, prism::Y{100.f}},
         .dx = prism::DX{0}, .dy = prism::DY{5.f}};
-    tree.dispatch(table_node->id, prism::InputEvent{scroll});
+    tree.scroll_at(table_node->id, prism::DY{scroll.dy.raw() * 60.f});  // what routing does
     CHECK(ts.scroll_y.raw() > 0.f);
 
     // Re-render after scroll — should still produce valid output

@@ -24,8 +24,9 @@ struct SortKey {
 };
 
 inline std::optional<double> leading_number(std::string_view s) {
-    auto first = s.find_first_not_of(' ');
+    auto first = s.find_first_not_of(" \t");
     if (first == std::string_view::npos) return std::nullopt;
+    if (s[first] == '+') ++first;  // from_chars rejects it; "+5" and "-5" must group together
     double v = 0;
     auto [ptr, ec] = std::from_chars(s.data() + first, s.data() + s.size(), v);
     if (ec != std::errc{} || std::isnan(v)) return std::nullopt;
@@ -73,7 +74,18 @@ inline SortSpec next_sort(std::optional<SortSpec> current, size_t column) {
 // simplify: re-sorts the whole table on every data change (keys are rebuilt from
 // cell_text). Fine to ~100k rows at a few updates/s; past that, re-sort only the
 // changed rows (or sort in the model) and merge.
+// Drops selected rows past the end of the data (rows were removed).
+inline void prune_selection(TableState& ts) {
+    size_t n = ts.row_count();
+    auto& rows = ts.selected_rows.get();
+    if (!rows.empty() && rows.back() >= n)
+        ts.selected_rows.set(std::vector<size_t>(rows.begin(), std::ranges::lower_bound(rows, n)));
+    if (ts.selected_row.get() >= n) ts.selected_row.set(std::nullopt);  // nullopt compares less
+    if (ts.anchor_row >= n) ts.anchor_row.reset();
+}
+
 inline void refresh_order(TableState& ts) {
+    prune_selection(ts);
     auto spec = ts.sort.get();
     if (!spec || spec->column >= ts.column_count) {
         ts.order.clear();
@@ -164,12 +176,13 @@ inline void select_range_to(TableState& ts, size_t view_pos) {
 
 inline void toggle_row(TableState& ts, size_t row) {
     auto rows = ts.selected_rows.get();
-    if (auto it = std::ranges::lower_bound(rows, row); it != rows.end() && *it == row)
-        rows.erase(it);
+    bool removing = std::ranges::binary_search(rows, row);
+    if (removing)
+        rows.erase(std::ranges::lower_bound(rows, row));
     else
-        rows.insert(it, row);
+        rows.insert(std::ranges::lower_bound(rows, row), row);
     ts.selected_rows.set(std::move(rows));
-    ts.selected_row.set(row);
+    ts.selected_row.set(removing ? std::nullopt : std::optional{row});
     ts.anchor_row = row;
 }
 
@@ -182,6 +195,10 @@ inline void select_all(TableState& ts) {
     std::vector<size_t> rows(ts.row_count());
     std::iota(rows.begin(), rows.end(), size_t{0});
     ts.selected_rows.set(std::move(rows));
+    if (!ts.selected_row.get() && ts.row_count() > 0) {
+        ts.selected_row.set(source_row(ts, 0));
+        ts.anchor_row = source_row(ts, 0);
+    }
 }
 
 } // namespace prism::ui

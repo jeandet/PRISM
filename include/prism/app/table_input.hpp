@@ -79,6 +79,7 @@ inline TableInputResult on_button(TableState& ts, const MouseButton& mb) {
 }
 
 inline TableInputResult on_move(TableState& ts, const MouseMove& mm) {
+    if (ts.resizing && !(mm.buttons & buttons::left)) ts.resizing.reset();  // release was lost
     if (!ts.resizing) return {false, hover_cursor(ts, mm.position)};
     size_t c = ts.resizing->column;
     float left = column_edges(ts)[c];
@@ -86,11 +87,11 @@ inline TableInputResult on_move(TableState& ts, const MouseMove& mm) {
     return {true, CursorShape::ResizeEW};
 }
 
+// Horizontal only: the vertical wheel goes through WidgetTree::scroll_at, like every
+// scrollable, which also shows the scrollbar and bubbles to the parent at the ends.
 inline TableInputResult on_scroll(TableState& ts, const MouseScroll& ms) {
-    DY y{std::clamp(ts.scroll_y.raw() + ms.dy.raw() * ts.row_height.raw() * 3.f, 0.f, max_scroll_y(ts).raw())};
     DX x{std::clamp(ts.scroll_x.raw() + ms.dx.raw() * 20.f, 0.f, max_scroll_x(ts))};
-    bool moved = y != ts.scroll_y || x != ts.scroll_x;
-    ts.scroll_y = y;
+    bool moved = x != ts.scroll_x;
     ts.scroll_x = x;
     return {moved, std::nullopt};
 }

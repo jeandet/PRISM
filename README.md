@@ -290,6 +290,8 @@ void view(prism::WidgetTree::ViewBuilder& vb) {
 Tables and trees are virtualized, so only visible rows cost anything.
 Click a table header to sort (numbers sort by value), drag a header edge to resize a column,
 and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
+A sorted table re-sorts when it hears about a change: a `List<T>` notifies it, and column
+storage does through `.depends_on(...)`.
 Both bind to data of any shape through three adapter tiers:
 
 | Tier | Tree | Table | Needs reflection |
