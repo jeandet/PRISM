@@ -115,6 +115,7 @@ void SdlWindow::enable_vsync() {
 
 void SdlWindow::destroy_sdl_window() {
     text_cache_.clear([](const CachedText& t) { SDL_DestroyTexture(t.texture); });   // before the renderer
+    image_cache_.clear([](SDL_Texture* t) { SDL_DestroyTexture(t); });
     if (renderer_) { SDL_DestroyRenderer(renderer_); renderer_ = nullptr; }
     if (sdl_window_) { SDL_DestroyWindow(sdl_window_); sdl_window_ = nullptr; }
 }
@@ -275,6 +276,7 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, co
 
     // Text shown in neither this frame nor the previous one is released.
     text_cache_.end_frame(2, [](const CachedText& t) { SDL_DestroyTexture(t.texture); });
+    image_cache_.end_frame(2, [](SDL_Texture* t) { SDL_DestroyTexture(t); });
     SDL_RenderPresent(renderer_);
 }
 
@@ -430,6 +432,26 @@ void SdlWindow::render_cmd(const Polyline& cmd) {
 void SdlWindow::render_cmd(const Circle& cmd) {
     auto outline = circle_outline(cmd.center, cmd.radius, 4 * arc_segments(cmd.radius));
     draw_mesh(cmd.thickness > 0.f ? stroke_closed(outline, cmd.thickness) : fill_convex(outline), cmd.color);
+}
+
+void SdlWindow::render_cmd(const ImageCmd& cmd) {
+    if (!cmd.image) return;
+    const Image& img = *cmd.image;
+    std::string key(sizeof(std::uint64_t), '\0');
+    std::uint64_t id = img.id();
+    std::memcpy(key.data(), &id, sizeof id);
+    SDL_Texture* tex = nullptr;
+    if (auto* hit = image_cache_.find(key)) {
+        tex = *hit;
+    } else {   // first use in this window: upload once
+        tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, img.width(), img.height());
+        if (!tex) return;
+        SDL_UpdateTexture(tex, nullptr, img.pixels().data(), img.width() * 4);
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+        image_cache_.insert(std::move(key), tex);
+    }
+    SDL_FRect dst = to_sdl(cmd.rect);
+    SDL_RenderTexture(renderer_, tex, nullptr, &dst);
 }
 
 void SdlWindow::draw_mesh(const ShapeMesh& mesh, Color c) {

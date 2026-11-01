@@ -43,6 +43,7 @@ private:
     void rasterise(const Polyline&) {}    // POC: skip polylines
     void rasterise(const Circle&) {}      // POC: skip circles
     void rasterise(const FilledPolygon&) {} // POC: skip filled polygons
+    void rasterise(const ImageCmd&) {}   // POC: skip images
 };
 
 } // namespace prism::render

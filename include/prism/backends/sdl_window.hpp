@@ -100,6 +100,7 @@ private:
         int w, h;   // backing pixels
     };
     render::FrameCache<CachedText> text_cache_;
+    render::FrameCache<SDL_Texture*> image_cache_;   // uploaded Images, keyed by Image::id()
     std::string text_key_;
     const CachedText* text_texture(SdlFontSet& fonts, FontRole role, const std::string& text, float px_size);
 
@@ -117,6 +118,7 @@ private:
     void render_cmd(const Polyline& cmd);
     void render_cmd(const Circle& cmd);
     void render_cmd(const FilledPolygon& cmd);
+    void render_cmd(const ImageCmd& cmd);
     void draw_mesh(const ShapeMesh& mesh, Color c);   // anti-aliased via the mesh's alpha fringe
     std::vector<SDL_Vertex> mesh_vertices_;
 };

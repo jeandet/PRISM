@@ -74,6 +74,13 @@ struct SvgEmitter {
         out << "/>\n";
     }
 
+    // simplify: a placeholder rect; embedding pixels would need a PNG encoder.
+    void emit(const ImageCmd& c) {
+        out << "<rect x=\"" << fmt_float(c.rect.origin.x.raw()) << "\" y=\"" << fmt_float(c.rect.origin.y.raw())
+            << "\" width=\"" << fmt_float(c.rect.extent.w.raw()) << "\" height=\"" << fmt_float(c.rect.extent.h.raw())
+            << "\" fill=\"rgba(128,128,128,0.5)\"/>\n";
+    }
+
     void emit(const TextCmd& c) {
         // xml:space="preserve": SVG would otherwise collapse runs of spaces and drop indentation.
         out << "<text xml:space=\"preserve\" x=\"" << fmt_float(c.origin.x.raw())

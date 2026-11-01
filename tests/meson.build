@@ -69,6 +69,7 @@ headless_tests = {
   'shape_mesh' : files('test_shape_mesh.cpp'),
   'access' : files('test_access.cpp'),
   'intrinsic_size' : files('test_intrinsic_size.cpp'),
+  'image' : files('test_image.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),
   'inspector' : files('test_inspector.cpp'),

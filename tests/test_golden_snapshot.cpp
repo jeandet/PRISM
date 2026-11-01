@@ -67,6 +67,11 @@ std::string cmd_text(const prism::DrawCmd& cmd) {
                 c.center.x.raw(), c.center.y.raw(), c.radius, color_hex(c.color), c.thickness);
         else if constexpr (std::is_same_v<T, prism::FilledPolygon>)
             return fmt::format("FilledPolygon points={} color={}", c.points.size(), color_hex(c.color));
+        else if constexpr (std::is_same_v<T, prism::ImageCmd>)
+            return fmt::format("Image {}x{} rect={}", c.image ? c.image->width() : 0,
+                               c.image ? c.image->height() : 0, rect_text(c.rect));
+        else
+            static_assert(sizeof(T) == 0, "golden printer: new draw command type");
     }, cmd);
 }
 

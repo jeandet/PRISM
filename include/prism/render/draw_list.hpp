@@ -4,6 +4,10 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <span>
+#include <memory>
+#include <expected>
+#include <atomic>
 #include <limits>
 #include <string>
 #include <variant>
@@ -80,8 +84,43 @@ struct FilledPolygon {
     Color color;
 };
 
+// Immutable RGBA8 pixels (row-major, 4 bytes per pixel, straight alpha). Shared by pointer: draw
+// lists hand them to the render thread, and each backend uploads an image once, keyed by id().
+// simplify: raw pixels only; decoding PNG/SVG (icons) needs a decoder dependency -- add it
+// behind a separate loader so this type stays format-free.
+class Image {
+public:
+    static std::expected<std::shared_ptr<const Image>, std::string>
+    from_rgba(int width, int height, std::vector<std::uint8_t> rgba) {
+        if (width <= 0 || height <= 0) return std::unexpected("image size must be positive");
+        if (rgba.size() != static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4)
+            return std::unexpected("pixel data does not match width x height x 4");
+        return std::shared_ptr<const Image>(new Image(width, height, std::move(rgba)));
+    }
+
+    int width() const { return width_; }
+    int height() const { return height_; }
+    std::span<const std::uint8_t> pixels() const { return pixels_; }
+    std::uint64_t id() const { return id_; }
+
+private:
+    Image(int w, int h, std::vector<std::uint8_t> px) : width_(w), height_(h), pixels_(std::move(px)) {}
+    static std::uint64_t next_id() {
+        static std::atomic<std::uint64_t> counter{1};
+        return counter.fetch_add(1, std::memory_order_relaxed);
+    }
+    int width_, height_;
+    std::vector<std::uint8_t> pixels_;
+    std::uint64_t id_ = next_id();
+};
+
+struct ImageCmd {
+    std::shared_ptr<const Image> image;
+    Rect rect;   // destination; the image is scaled to fit
+};
+
 using DrawCmd = std::variant<FilledRect, RectOutline, TextCmd, ClipPush, ClipPop,
-                             RoundedRect, Line, Polyline, Circle, FilledPolygon>;
+                             RoundedRect, Line, Polyline, Circle, FilledPolygon, ImageCmd>;
 
 struct DrawList {
     std::vector<DrawCmd> commands;
@@ -131,6 +170,11 @@ struct DrawList {
     {
         commands.emplace_back(
             TextCmd{std::move(s), translated(origin), size, c, angle, anchor, role});
+    }
+
+    void image(std::shared_ptr<const Image> img, Rect r)
+    {
+        commands.emplace_back(ImageCmd{std::move(img), translated(r)});
     }
 
     void clip_push(Point origin, Size extent)
