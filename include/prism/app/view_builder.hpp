@@ -90,10 +90,12 @@ class ViewBuilder {
     // entries recursively) or when this build lacks reflection support.
     template <typename T>
     void apply_field_name([[maybe_unused]] Node& leaf, [[maybe_unused]] T& observable) {
-#ifdef PRISM_DEBUG_TOOLS_ENABLED
 #if __cpp_impl_reflection
         auto it = tree_.field_names_.find(static_cast<const void*>(&observable));
-        if (it != tree_.field_names_.end()) leaf.debug_name = std::string(it->second);
+        if (it == tree_.field_names_.end()) return;
+        leaf.name = std::string(it->second);   // accessible name, in every build
+#ifdef PRISM_DEBUG_TOOLS_ENABLED
+        leaf.debug_name = leaf.name;
 #endif
 #endif
     }

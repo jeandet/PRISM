@@ -87,6 +87,13 @@ struct TreeDetail {
 template <>
 struct Widget<TreeRow> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::TreeItem;
+    static void describe(const Field<TreeRow>& f, AccessInfo& a) {
+        const auto& r = f.get();
+        a.name = r.label;
+        a.selected = r.selected;
+        if (r.has_children) a.expanded = r.expanded;
+    }
     static constexpr Height row_h{22.f};
 
     static void record(DrawList& dl, const Field<TreeRow>& field, WidgetNode& node) {

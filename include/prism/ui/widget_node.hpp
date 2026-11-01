@@ -27,6 +27,8 @@ using namespace prism::input;
 
 struct WidgetNode {
     WidgetId id = 0;
+    std::string name;                     // accessible name: the field's member name, if known
+    std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
@@ -168,6 +170,22 @@ void set_debug_name([[maybe_unused]] Node& n) {
 
 } // namespace widget_node_detail
 
+// --- Accessibility (see ui/access.hpp) ---
+
+template <typename T>
+constexpr Role access_role_of() {
+    if constexpr (requires { Widget<T>::access_role; }) return Widget<T>::access_role;
+    else return Role::GenericContainer;
+}
+
+template <typename T>
+AccessInfo access_info(const Field<T>& field) {
+    AccessInfo info;
+    info.role = access_role_of<T>();
+    if constexpr (requires(AccessInfo& a) { Widget<T>::describe(field, a); }) Widget<T>::describe(field, info);
+    return info;
+}
+
 // --- Node factory functions (need complete WidgetNode) ---
 
 template <typename T>
@@ -180,6 +198,7 @@ Node node_leaf(Field<T>& field, WidgetId& next_id) {
     n.build_widget = [&field](WidgetNode& wn) {
         if constexpr (is_widget_v<T>) {
             wn.focus_policy = Widget<T>::focus_policy;
+            wn.access = [&field] { return access_info(field); };
             if constexpr (requires { Widget<T>::expand; })
                 wn.expand = Widget<T>::expand;
             if constexpr (requires { Widget<T>::expand_axis; })

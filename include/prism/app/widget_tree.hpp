@@ -444,14 +444,12 @@ public:
 private:
     WidgetNode root_;
     Theme theme_;
-#ifdef PRISM_DEBUG_TOOLS_ENABLED
 #if __cpp_impl_reflection
     // Address -> reflected member identifier, accumulated across every build_node_tree() call
     // (the top-level model and every nested component()) -- lives as long as the tree itself, so
     // tab()'s lazily-materialized content builders (which run well after the initial tree build)
     // can still resolve names. See ViewBuilder::apply_field_name.
-    std::unordered_map<const void*, std::string_view> field_names_;
-#endif
+    std::unordered_map<const void*, std::string_view> field_names_;   // also accessible names
 #endif
     WidgetId next_id_ = 1;
     WidgetId hovered_id_ = 0;
@@ -482,6 +480,7 @@ private:
         wn.id = node.id;
         wn.layout_kind = node.layout_kind;
         wn.theme = &theme_;
+        wn.name = node.name;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -648,7 +647,6 @@ private:
 #endif
 
         if constexpr (requires(Model& m, ViewBuilder& vb) { m.view(vb); }) {
-#ifdef PRISM_DEBUG_TOOLS_ENABLED
 #if __cpp_impl_reflection
             // view()-driven placement (vb.widget(field)) only ever sees a Field<T>&, never the
             // member identifier that placed it -- unlike the whole-model reflection branch below,
@@ -666,7 +664,6 @@ private:
                                          std::meta::identifier_of(m));
                 }
             }
-#endif
 #endif
             typename dependent_type<ViewBuilder, Model>::type vb{*this, root};
             model.view(vb);
@@ -705,8 +702,9 @@ private:
                         [&member](std::function<void()> w) { member.set_waker(std::move(w)); });
                 } else if constexpr (is_field_v<M>) {
                     auto leaf = node_leaf(member, next_id_);
+                    leaf.name = std::string(std::meta::identifier_of(m));
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
-                    leaf.debug_name = std::string(std::meta::identifier_of(m));
+                    leaf.debug_name = leaf.name;
 #endif
                     root.children.push_back(std::move(leaf));
                 } else if constexpr (is_derived_v<M>) {

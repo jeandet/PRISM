@@ -4,6 +4,7 @@
 #include <prism/ui/context.hpp>
 #include <prism/ui/text_metrics.hpp>
 #include <prism/ui/text_edit.hpp>
+#include <prism/ui/access.hpp>
 #include <prism/render/draw_list.hpp>
 #include <prism/core/field.hpp>
 #include <prism/input/input_event.hpp>
@@ -352,6 +353,8 @@ concept is_widget_v = requires(DrawList& dl, const Field<T>& cf, Field<T>& f,
 template <Numeric T>
 struct Widget<T> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::Label;
+    static void describe(const Field<T>& f, AccessInfo& a) { a.value = std::to_string(f.get()); }
 
     static void record(DrawList& dl, const Field<T>& field, WidgetNode& node) {
         auto& t = node_theme(node);
@@ -367,6 +370,8 @@ struct Widget<T> {
 template <StringLike T>
 struct Widget<T> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::Label;
+    static void describe(const Field<T>& f, AccessInfo& a) { a.value = std::string(f.get().data(), f.get().size()); }
 
     static void record(DrawList& dl, const Field<T>& field, WidgetNode& node) {
         auto& t = node_theme(node);
@@ -412,6 +417,11 @@ inline void draw_check_box(DrawList& dl, X x, Y y, bool checked,
 template <>
 struct Widget<Checkbox> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::CheckBox;
+    static void describe(const Field<Checkbox>& f, AccessInfo& a) {
+        a.name = f.get().label;
+        a.checked = f.get().checked;
+    }
     static constexpr Height widget_h{30.f};
     static constexpr Height box_size{16.f};
 
@@ -445,6 +455,8 @@ struct Widget<Checkbox> {
 template <>
 struct Widget<bool> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::CheckBox;
+    static void describe(const Field<bool>& f, AccessInfo& a) { a.checked = f.get(); }
 
     static void record(DrawList& dl, const Field<bool>& field, WidgetNode& node) {
         auto& vs = node_vs(node);
@@ -470,6 +482,10 @@ struct Widget<bool> {
 template <StringLike T>
 struct Widget<Label<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::Label;
+    static void describe(const Field<Label<T>>& f, AccessInfo& a) {
+        a.value = std::string(f.get().value.data(), f.get().value.size());
+    }
 
     static void record(DrawList& dl, const Field<Label<T>>& field, WidgetNode& node) {
         auto& t = node_theme(node);
@@ -497,6 +513,14 @@ struct Slider {
 template <Numeric T, Orientation O>
 struct Widget<Slider<T, O>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::Slider;
+    static void describe(const Field<Slider<T, O>>& f, AccessInfo& a) {
+        const auto& s = f.get();
+        a.numeric_value = static_cast<double>(s.value);
+        a.min_value = static_cast<double>(s.min);
+        a.max_value = static_cast<double>(s.max);
+        if (s.step != T{0}) a.step = static_cast<double>(s.step);
+    }
     static constexpr bool vertical = (O == Orientation::Vertical);
     static constexpr bool expand = true;
     static constexpr ExpandAxis expand_axis = vertical ? ExpandAxis::Vertical : ExpandAxis::Horizontal;
@@ -580,6 +604,8 @@ struct Button {
 template <>
 struct Widget<Button> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::Button;
+    static void describe(const Field<Button>& f, AccessInfo& a) { a.name = f.get().text; }
 
     static void record(DrawList& dl, const Field<Button>& field, WidgetNode& node) {
         auto& vs = node_vs(node);
@@ -607,6 +633,10 @@ struct Widget<Button> {
 template <StringLike T>
 struct Widget<TextField<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::TextInput;
+    static void describe(const Field<TextField<T>>& f, AccessInfo& a) {
+        a.value = std::string(f.get().value.data(), f.get().value.size());
+    }
     static constexpr Height widget_h{30.f};
     // padding is used in both a horizontal (inset from left edge) and
     // vertical (inset from top edge) role in text_delegates.hpp — split
@@ -626,6 +656,7 @@ struct Widget<TextField<T>> {
 template <StringLike T>
 struct Widget<Password<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::PasswordInput;   // value deliberately never set
     static constexpr Height widget_h{30.f};
     static constexpr Width padding_x{4.f};
     static constexpr Height padding_y{4.f};
@@ -641,6 +672,10 @@ struct Widget<Password<T>> {
 template <StringLike T>
 struct Widget<TextArea<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::MultilineTextInput;
+    static void describe(const Field<TextArea<T>>& f, AccessInfo& a) {
+        a.value = std::string(f.get().value.data(), f.get().value.size());
+    }
     static constexpr Width padding_x{4.f};
     static constexpr Height padding_y{4.f};
     static constexpr float font_size = 14.f;
@@ -658,6 +693,7 @@ template <ScopedEnum T>
     requires (!TextEditable<T>)
 struct Widget<T> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::ComboBox;
 
     static void record(DrawList& dl, const Field<T>& field, WidgetNode& node);
     static void handle_input(Field<T>& field, const InputEvent& ev, WidgetNode& node);
@@ -666,6 +702,7 @@ struct Widget<T> {
 template <ScopedEnum T>
 struct Widget<Dropdown<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::ComboBox;
 
     static void record(DrawList& dl, const Field<Dropdown<T>>& field, WidgetNode& node);
     static void handle_input(Field<Dropdown<T>>& field, const InputEvent& ev, WidgetNode& node);
@@ -674,6 +711,7 @@ struct Widget<Dropdown<T>> {
 template <>
 struct Widget<TabBar<>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::TabList;
 
     static void record(DrawList& dl, const Field<TabBar<>>& field, WidgetNode& node);
     static void handle_input(Field<TabBar<>>& field, const InputEvent& ev, WidgetNode& node);
