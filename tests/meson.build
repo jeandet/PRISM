@@ -66,6 +66,7 @@ headless_tests = {
   'text_edit' : files('test_text_edit.cpp'),
   'queued_clipboard' : files('test_queued_clipboard.cpp'),
   'frame_cache' : files('test_frame_cache.cpp'),
+  'shape_mesh' : files('test_shape_mesh.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),
   'inspector' : files('test_inspector.cpp'),

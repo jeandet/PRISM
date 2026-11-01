@@ -5,6 +5,7 @@
 #include <prism/render/draw_list.hpp>
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/render/frame_cache.hpp>
+#include <prism/render/shape_mesh.hpp>
 #include <prism/backends/sdl_font_set.hpp>
 #include <prism/ui/context.hpp>
 
@@ -116,6 +117,8 @@ private:
     void render_cmd(const Polyline& cmd);
     void render_cmd(const Circle& cmd);
     void render_cmd(const FilledPolygon& cmd);
+    void draw_mesh(const ShapeMesh& mesh, Color c);   // anti-aliased via the mesh's alpha fringe
+    std::vector<SDL_Vertex> mesh_vertices_;
 };
 
 } // namespace prism::backends

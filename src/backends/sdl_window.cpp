@@ -1,5 +1,6 @@
 #include <cstring>
 #include <prism/backends/sdl_window.hpp>
+#include <prism/render/shape_mesh.hpp>
 #include "sdl_platform.hpp"
 
 #include <array>
@@ -400,13 +401,15 @@ void SdlWindow::render_cmd(const ClipPop&) {
 }
 
 void SdlWindow::render_cmd(const RoundedRect& cmd) {
-    SDL_SetRenderDrawColor(renderer_, cmd.color.r, cmd.color.g, cmd.color.b, cmd.color.a);
-    SDL_FRect r = to_sdl(cmd.rect);
-    // SDL3 has no built-in rounded rect — fall back to regular rect
-    if (cmd.thickness > 0.f)
-        SDL_RenderRect(renderer_, &r);
-    else
-        SDL_RenderFillRect(renderer_, &r);
+    if (cmd.radius <= 0.5f) {   // a square corner needs no mesh
+        SDL_SetRenderDrawColor(renderer_, cmd.color.r, cmd.color.g, cmd.color.b, cmd.color.a);
+        SDL_FRect r = to_sdl(cmd.rect);
+        if (cmd.thickness > 0.f) SDL_RenderRect(renderer_, &r);
+        else SDL_RenderFillRect(renderer_, &r);
+        return;
+    }
+    auto outline = rounded_rect_outline(cmd.rect, cmd.radius);
+    draw_mesh(cmd.thickness > 0.f ? stroke_closed(outline, cmd.thickness) : fill_convex(outline), cmd.color);
 }
 
 void SdlWindow::render_cmd(const Line& cmd) {
@@ -425,34 +428,19 @@ void SdlWindow::render_cmd(const Polyline& cmd) {
 }
 
 void SdlWindow::render_cmd(const Circle& cmd) {
-    SDL_SetRenderDrawColor(renderer_, cmd.color.r, cmd.color.g, cmd.color.b, cmd.color.a);
-    float cx = cmd.center.x.raw(), cy = cmd.center.y.raw();
-    int r = static_cast<int>(cmd.radius);
-    int x = r, y = 0, d = 1 - r;
-    while (x >= y) {
-        if (cmd.thickness > 0.f) {
-            SDL_RenderPoint(renderer_, cx + x, cy + y);
-            SDL_RenderPoint(renderer_, cx - x, cy + y);
-            SDL_RenderPoint(renderer_, cx + x, cy - y);
-            SDL_RenderPoint(renderer_, cx - x, cy - y);
-            SDL_RenderPoint(renderer_, cx + y, cy + x);
-            SDL_RenderPoint(renderer_, cx - y, cy + x);
-            SDL_RenderPoint(renderer_, cx + y, cy - x);
-            SDL_RenderPoint(renderer_, cx - y, cy - x);
-        } else {
-            SDL_RenderLine(renderer_, cx - x, cy + y, cx + x, cy + y);
-            SDL_RenderLine(renderer_, cx - x, cy - y, cx + x, cy - y);
-            SDL_RenderLine(renderer_, cx - y, cy + x, cx + y, cy + x);
-            SDL_RenderLine(renderer_, cx - y, cy - x, cx + y, cy - x);
-        }
-        ++y;
-        if (d < 0) {
-            d += 2 * y + 1;
-        } else {
-            --x;
-            d += 2 * (y - x) + 1;
-        }
-    }
+    auto outline = circle_outline(cmd.center, cmd.radius, 4 * arc_segments(cmd.radius));
+    draw_mesh(cmd.thickness > 0.f ? stroke_closed(outline, cmd.thickness) : fill_convex(outline), cmd.color);
+}
+
+void SdlWindow::draw_mesh(const ShapeMesh& mesh, Color c) {
+    if (mesh.indices.empty()) return;
+    mesh_vertices_.clear();   // reused buffer: shapes are drawn every frame
+    for (auto& v : mesh.vertices)
+        mesh_vertices_.push_back(SDL_Vertex{{v.x, v.y},
+                                            {c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f * v.alpha},
+                                            {0.f, 0.f}});
+    SDL_RenderGeometry(renderer_, nullptr, mesh_vertices_.data(), static_cast<int>(mesh_vertices_.size()),
+                       mesh.indices.data(), static_cast<int>(mesh.indices.size()));
 }
 
 void SdlWindow::render_cmd(const FilledPolygon& cmd) {
