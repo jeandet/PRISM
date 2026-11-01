@@ -371,6 +371,10 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                 case SDL_EVENT_KEY_UP:
                     event_cb(WindowEvent{wid, KeyRelease{static_cast<int32_t>(ev.key.key), ev.key.mod}});
                     break;
+                case SDL_EVENT_TEXT_EDITING:   // input-method composition (preedit)
+                    event_cb(WindowEvent{wid, Composition{ev.edit.text ? ev.edit.text : "",
+                                                          ev.edit.start, ev.edit.length}});
+                    break;
                 case SDL_EVENT_TEXT_INPUT:
                     // X11/Wayland still emit text for Super+letter (SDL filters only Ctrl/Alt);
                     // with Super as a shortcut modifier that would copy *and* type.

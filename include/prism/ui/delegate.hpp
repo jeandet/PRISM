@@ -108,6 +108,8 @@ struct TextEditState {
     std::optional<size_t> anchor;   // selection start; empty when nothing is selected
     bool dragging = false;   // a mouse press started a selection drag
     EditHistory history;
+    std::string preedit;          // input-method composition shown at the caret, not in the value
+    std::size_t preedit_caret = 0;   // byte offset of the IME caret inside preedit
     DX scroll_offset{0};
 };
 
@@ -117,6 +119,8 @@ struct TextAreaEditState {
     std::optional<size_t> anchor;
     bool dragging = false;
     EditHistory history;
+    std::string preedit;
+    std::size_t preedit_caret = 0;
     DY scroll_y{0};
 };
 

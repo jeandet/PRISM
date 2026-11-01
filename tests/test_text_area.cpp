@@ -896,3 +896,17 @@ TEST_CASE("TextArea keeps pasted newlines but drops carriage returns") {
     prism::Widget<prism::TextArea<>>::handle_input(field, prism::Paste{"a\r\nb"}, node);
     CHECK(field.get().value == "a\nb");
 }
+
+TEST_CASE("TextArea shows a composition inline without changing the value") {
+    prism::Field<prism::TextArea<>> field{{.value = "ab"}};
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextArea<>>::ensure_edit_state(node).cursor = 1;
+    prism::Widget<prism::TextArea<>>::handle_input(field, prism::Composition{"ni", -1, -1}, node);
+    CHECK(field.get().value == "ab");
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    bool shown = false;
+    for (auto& cmd : dl.commands)
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd)) shown |= t->text == "anib";
+    CHECK(shown);
+}

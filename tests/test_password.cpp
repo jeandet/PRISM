@@ -292,3 +292,12 @@ TEST_CASE("Password never puts its text on the clipboard") {
     CHECK(cb.calls == 0);
     CHECK(field.get().value == "secret");   // cut refused, not just the copy half
 }
+
+TEST_CASE("Password never shows an input-method composition (it would be plaintext)") {
+    prism::Field<prism::Password<>> field{{.value = ""}};
+    prism::WidgetNode node;
+    prism::Theme theme;
+    node.theme = &theme;
+    prism::Widget<prism::Password<>>::handle_input(field, prism::Composition{"secret", -1, -1}, node);
+    CHECK(node.peek<prism::TextEditState>().preedit.empty());
+}

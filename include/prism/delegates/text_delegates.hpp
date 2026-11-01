@@ -51,6 +51,14 @@ constexpr Width tf_padding_x{4.f};
 constexpr Height tf_padding_y{4.f};
 constexpr Width tf_cursor_w{2.f};
 
+// The text as displayed while composing: the preedit inserted at the caret.
+inline std::string with_preedit(std::string_view value, std::size_t cursor, std::string_view preedit) {
+    std::string out(value.substr(0, cursor));
+    out += preedit;
+    out += value.substr(cursor);
+    return out;
+}
+
 inline std::string plain_display(const std::string& v) { return v; }
 inline std::string masked_display(const std::string& v) { return mask_string(core::utf8::count(v)); }
 
@@ -74,10 +82,14 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     Width text_area_w = w - tf_padding_x * 2.f;
     dl.clip_push(delegate_detail::make_point(X{tf_padding_x.raw()}, Y{0}), Size{text_area_w, tf_widget_h});
 
+    auto value = std::string_view(sf.value.data(), sf.value.size());
+    size_t caret = core::utf8::snap(value, es.cursor);
+    // What is drawn: the value, with an input-method preedit inserted at the caret.
+    std::string shown = es.preedit.empty() ? std::string(value) : with_preedit(value, caret, es.preedit);
+
     // Drawn focused or not: a selection that is invisible but still replaced by the next
-    // keystroke would lose text.
-    if (es.anchor && *es.anchor != es.cursor) {
-        auto value = std::string_view(sf.value.data(), sf.value.size());
+    // keystroke would lose text. (Not while composing: offsets would not match `shown`.)
+    if (es.anchor && *es.anchor != es.cursor && es.preedit.empty()) {
         auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
         float x0 = caret_x(t.measurer, value, lo, display_fn) - es.scroll_offset.raw();
         float x1 = caret_x(t.measurer, value, hi, display_fn) - es.scroll_offset.raw();
@@ -91,14 +103,20 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
                 t.text_placeholder);
     } else {
         X text_x{-es.scroll_offset.raw()};
-        std::string display_text = display_fn(std::string(sf.value.data(), sf.value.size()));
-        dl.text(display_text, delegate_detail::make_point(text_x, Y{tf_padding_y.raw() + 2.f}), tf_font_size,
+        dl.text(display_fn(shown), delegate_detail::make_point(text_x, Y{tf_padding_y.raw() + 2.f}), tf_font_size,
                 t.text);
     }
 
+    if (!es.preedit.empty()) {   // underline the composition
+        float x0 = caret_x(t.measurer, shown, caret, display_fn) - es.scroll_offset.raw();
+        float x1 = caret_x(t.measurer, shown, caret + es.preedit.size(), display_fn) - es.scroll_offset.raw();
+        Y y{tf_widget_h.raw() - tf_padding_y.raw() - 3.f};
+        dl.line(Point{X{x0}, y}, Point{X{x1}, y}, t.text, 1.f);
+    }
+
     if (vs.focused) {
-        auto value = std::string_view(sf.value.data(), sf.value.size());
-        X cursor_x{caret_x(t.measurer, value, es.cursor, display_fn) - es.scroll_offset.raw()};
+        size_t shown_caret = caret + (es.preedit.empty() ? 0 : es.preedit_caret);
+        X cursor_x{caret_x(t.measurer, shown, shown_caret, display_fn) - es.scroll_offset.raw()};
         dl.filled_rect(delegate_detail::make_rect(cursor_x, Y{tf_padding_y.raw()}, tf_cursor_w,
                                  tf_widget_h - tf_padding_y * 2.f),
                        t.cursor);
@@ -167,6 +185,18 @@ inline std::optional<std::optional<TextEdit>> history_key(EditHistory& h, const 
     return std::nullopt;
 }
 
+// Stores an IME composition in the edit state. The IME's caret offset is ambiguous across
+// platforms (characters on X11, bytes on Wayland): used only when it is a valid byte boundary,
+// else the caret goes after the preedit.
+template <typename EditState>
+void set_composition(EditState& es, WidgetNode& node, const Composition& c) {
+    es.preedit = core::utf8::sanitize(c.text);
+    auto start = static_cast<std::size_t>(c.start);
+    bool usable = c.start >= 0 && start <= es.preedit.size() && core::utf8::snap(es.preedit, start) == start;
+    es.preedit_caret = usable ? start : es.preedit.size();
+    node.dirty = true;
+}
+
 // Writes an edit back: the field only if the text changed, the caret and selection always.
 template <typename Sentinel, typename EditState>
 void apply_edit(Field<Sentinel>& field, WidgetNode& node, EditState& es,
@@ -218,6 +248,12 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
     auto& es = node.get_or_create<TextEditState>();
     const TextEdit before = current_edit(field, es);
     std::optional<TextEdit> after;
+
+    if (auto* co = std::get_if<Composition>(&ev)) {
+        if (allow_copy) set_composition(es, node, *co);   // a secret field never shows plaintext
+        return;
+    }
+    if (std::holds_alternative<TextInput>(ev) || std::holds_alternative<Paste>(ev)) es.preedit.clear();
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
         after = text_edit::insert(before, ti->text, field.get().max_length);
@@ -364,20 +400,37 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
 
     dl.clip_push(delegate_detail::make_point(X{ta_padding_x.raw()}, Y{ta_padding_y.raw()}), Size{text_area_w, text_area_h});
 
-    auto value = std::string_view(sf.value.data(), sf.value.size());
+    auto raw = std::string_view(sf.value.data(), sf.value.size());
+    size_t caret = core::utf8::snap(raw, es.cursor);
+    // What is drawn: the value, with an input-method preedit inserted at the caret.
+    std::string shown = es.preedit.empty() ? std::string(raw) : with_preedit(raw, caret, es.preedit);
+    std::string_view value = shown;
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
-    if (es.anchor && *es.anchor != es.cursor) {   // focused or not, as in TextField
-        auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
+    // Calls fn(x0, x1, line_top) for the part of [lo, hi) on each visual line.
+    auto for_each_span = [&](size_t lo, size_t hi, auto fn) {
         for (size_t i = 0; i < wrapped.size(); ++i) {
             size_t a = std::max(lo, wrapped[i].start), b = std::min(hi, wrapped[i].start + wrapped[i].length);
             if (a >= b) continue;
             auto text = line_text(value, wrapped[i]);
-            float x0 = prefix_width(m, text, a - wrapped[i].start, ta_font_size, ta_font_role);
-            float x1 = prefix_width(m, text, b - wrapped[i].start, ta_font_size, ta_font_role);
-            Y y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()};
-            dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_selection);
+            fn(prefix_width(m, text, a - wrapped[i].start, ta_font_size, ta_font_role),
+               prefix_width(m, text, b - wrapped[i].start, ta_font_size, ta_font_role),
+               Y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()});
         }
+    };
+
+    // Focused or not, as in TextField; not while composing (offsets would not match `shown`).
+    if (es.anchor && *es.anchor != es.cursor && es.preedit.empty()) {
+        auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
+        for_each_span(lo, hi, [&](float x0, float x1, Y y) {
+            dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_selection);
+        });
+    }
+    if (!es.preedit.empty()) {   // underline the composition
+        for_each_span(caret, caret + es.preedit.size(), [&](float x0, float x1, Y y) {
+            Y under = y + DY{ta_line_h(m).raw() - 2.f};
+            dl.line(Point{X{x0}, under}, Point{X{x1}, under}, t.text, 1.f);
+        });
     }
 
     if (sf.value.empty() && !vs.focused) {
@@ -389,16 +442,15 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
             if (y.raw() + ta_line_h(m).raw() < 0) continue;
             if (y.raw() > text_area_h.raw()) break;
             if (wrapped[i].length > 0) {
-                std::string line_text(sf.value.data() + wrapped[i].start, wrapped[i].length);
-                dl.text(line_text, delegate_detail::make_point(X{0}, y + DY{2.f}), ta_font_size, t.text,
+                dl.text(std::string(value.substr(wrapped[i].start, wrapped[i].length)), delegate_detail::make_point(X{0}, y + DY{2.f}), ta_font_size, t.text,
                         0.f, TextAnchor::TopLeft, ta_font_role);
             }
         }
     }
 
     if (vs.focused) {
-        auto [line, col] = cursor_to_line_col(std::string_view(sf.value.data(), sf.value.size()),
-                                              es.cursor, wrapped);
+        size_t shown_caret = caret + (es.preedit.empty() ? 0 : es.preedit_caret);
+        auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped);
         auto text = line_text(value, wrapped[line]);
         X cx{prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role)};
         Y cy{static_cast<float>(line) * ta_line_h(m).raw() - es.scroll_y.raw()};
@@ -420,6 +472,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
     auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped);
     std::optional<TextEdit> after;
+
+    if (auto* co = std::get_if<Composition>(&ev)) {
+        set_composition(es, node, *co);
+        return;
+    }
+    if (std::holds_alternative<TextInput>(ev) || std::holds_alternative<Paste>(ev)) es.preedit.clear();
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
         after = text_edit::insert(before, ti->text, field.get().max_length);

@@ -739,3 +739,42 @@ TEST_CASE("the selection stays visible when the field is not focused") {
             found = true;
     CHECK(found);
 }
+
+// --- input method composition ---
+
+TEST_CASE("a composition is shown at the caret, underlined, but not written to the field") {
+    prism::Field<prism::TextField<>> field{{.value = "ab"}};
+    auto node = make_node({.focused = true});
+    TF::ensure_edit_state(node).cursor = 1;
+    TF::handle_input(field, prism::Composition{"ni", -1, -1}, node);
+    CHECK(field.get().value == "ab");
+    prism::DrawList dl;
+    TF::record(dl, field, node);
+    bool shown = false, underlined = false;
+    float cw = prism::char_width(14.f).raw();
+    for (auto& cmd : dl.commands) {
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd)) shown |= t->text == "anib";
+        if (auto* l = std::get_if<prism::Line>(&cmd))
+            underlined |= l->from.x.raw() == doctest::Approx(4.f + cw) && l->to.x.raw() == doctest::Approx(4.f + 3.f * cw);
+    }
+    CHECK(shown);
+    CHECK(underlined);
+}
+
+TEST_CASE("committing the composition inserts the text and clears the preedit") {
+    prism::Field<prism::TextField<>> field{{.value = "ab"}};
+    auto node = make_node({.focused = true});
+    TF::ensure_edit_state(node).cursor = 1;
+    TF::handle_input(field, prism::Composition{"ni", -1, -1}, node);
+    TF::handle_input(field, prism::TextInput{"\xE4\xBD\xA0"}, node);   // 你
+    CHECK(field.get().value == "a\xE4\xBD\xA0" "b");
+    CHECK(state(node).preedit.empty());
+}
+
+TEST_CASE("an empty composition cancels the preedit") {
+    prism::Field<prism::TextField<>> field{{.value = "ab"}};
+    auto node = make_node({.focused = true});
+    TF::handle_input(field, prism::Composition{"ni", -1, -1}, node);
+    TF::handle_input(field, prism::Composition{"", -1, -1}, node);
+    CHECK(state(node).preedit.empty());
+}

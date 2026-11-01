@@ -17,12 +17,15 @@ struct KeyPress    { int32_t key; uint16_t mods; };
 struct KeyRelease  { int32_t key; uint16_t mods; };
 struct TextInput   { std::string text; };
 struct Paste       { std::string text; };   // clipboard contents, read by the backend on Ctrl/Cmd+V
+// Input-method preedit (e.g. pinyin before it becomes 你): shown at the caret, not yet text.
+// start/length locate the IME's caret/selection inside it; -1 when the IME gives none.
+struct Composition { std::string text; int32_t start = -1; int32_t length = -1; };
 struct WindowResize { int width, height; };
 struct WindowClose {};
 
 using InputEvent = std::variant<
     MouseMove, MouseButton, MouseScroll,
-    KeyPress, KeyRelease, TextInput, Paste,
+    KeyPress, KeyRelease, TextInput, Paste, Composition,
     WindowResize, WindowClose
 >;
 

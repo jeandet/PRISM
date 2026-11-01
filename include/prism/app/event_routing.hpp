@@ -118,7 +118,7 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
     }
     if (auto* kp = std::get_if<KeyPress>(&ev))
         route_key_press(tree, ev, *kp);
-    if (std::get_if<TextInput>(&ev) || std::get_if<Paste>(&ev))
+    if (std::get_if<TextInput>(&ev) || std::get_if<Paste>(&ev) || std::get_if<Composition>(&ev))
         route_text_input(tree, ev);
     if (std::get_if<KeyRelease>(&ev))
         route_key_release(tree, ev);

@@ -778,3 +778,13 @@ TEST_CASE("Paste reaches the focused widget") {
     REQUIRE(key_sink_events.size() == 1);
     CHECK(std::get<prism::Paste>(key_sink_events[0]).text == "x");
 }
+
+TEST_CASE("Composition reaches the focused widget") {
+    KeySinkModel model;
+    prism::WidgetTree tree(model);
+    key_sink_events.clear();
+    tree.set_focused(tree.leaf_ids()[0]);
+    prism::app::widget_detail::route_event(tree, nullptr, prism::Composition{"ni", 0, 2});
+    REQUIRE(key_sink_events.size() == 1);
+    CHECK(std::get<prism::Composition>(key_sink_events[0]).text == "ni");
+}
