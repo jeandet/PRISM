@@ -1,6 +1,6 @@
 # Python SDK — Design Spec
 
-**Status:** Design (replaces `doc/design/README.md` python-bindings placeholder).  
+**Status:** Implemented — `python/` (nanobind extension + `prism` package), tested in CI incl. free-threaded 3.14t. §0 below records the pre-implementation ground truth this design was written against.  
 **Date:** 2026-08-31.  
 **Decisions here are fully multi-threaded from Python** — any Python thread may mutate the model. The single-thread rule (option a) is rejected.
 

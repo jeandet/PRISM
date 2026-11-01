@@ -13,25 +13,26 @@ class BackendBase {
 public:
     virtual ~BackendBase();
     virtual Window& create_window(WindowConfig cfg) = 0;
-    virtual Window* request_window(WindowConfig cfg) = 0;
-    virtual void close_window(WindowId id) = 0;
+    virtual Window* request_window(WindowConfig cfg);   // thread-safe; default calls create_window
+    virtual void close_window(WindowId) {}
     virtual void run(std::function<void(const WindowEvent&)> event_cb) = 0;
     virtual void submit(WindowId window, std::shared_ptr<const SceneSnapshot> snap) = 0;
     virtual void wake() = 0;
     virtual void quit() = 0;
     virtual void wait_ready() {}
+    virtual std::optional<PresentStats> present_stats(WindowId) const { return std::nullopt; }
 };
 ```
 
 `Backend` is a move-only RAII wrapper with static factories:
 - `Backend::software(cfg)` — built-in, statically linked
-- `Backend::load(path, cfg)` — dlopen a backend .so (future)
+- `Backend::load(path, cfg)` — dlopen a backend .so (**not implemented**)
 
 The backend owns: window, event loop, rendering, presentation. Communication:
 - App → Backend: `submit()` + `wake()`
 - Backend → App: `event_cb` callback with `InputEvent` values
 
-Each backend .so exports an `extern "C"` factory returning `std::unique_ptr<BackendBase>`. C++ vtable ABI (not C ABI) — same compiler is required for a C++26 project. This matches how Qt, Mesa, and other C++ libraries handle plugins.
+Planned: each backend .so would export an `extern "C"` factory returning `std::unique_ptr<BackendBase>`. C++ vtable ABI (not C ABI) — same compiler is required for a C++26 project. This matches how Qt, Mesa, and other C++ libraries handle plugins.
 
 ## Why Not Split Rasteriser + Presenter?
 
@@ -43,25 +44,27 @@ A split interface (`Rasteriser` + `Presenter` with a `PixelBuffer` in between) f
 
 ## Software Backend (Implemented)
 
-`SoftwareBackend : BackendBase` owns the SDL window, event loop, software rasteriser, and surface blit presentation.
+`SoftwareBackend : BackendBase` owns the SDL windows, the event loop, and presentation. Despite
+the name, it rasterises through **SDL3's `SDL_Renderer`** (GPU-accelerated where the platform
+offers it) and **SDL3_ttf** for text — see `src/backends/sdl_window.cpp`.
 
-**Architecture:**
 ```
 SceneSnapshot
   → iterate z_order back-to-front
-  → rasterise each DrawList command (FilledRect only in POC)
-  → write to PixelBuffer (std::vector<uint32_t>, ARGB8888)
-  → blit to SDL window surface
+  → SdlWindow::render_cmd() per DrawList command (SDL_RenderFillRect, SDL_RenderGeometry, ...)
+  → TextCmd: TTF_RenderText_Blended → texture → draw
+  → SDL_RenderPresent
 ```
 
-**Headless types (header-only, no SDL):**
-- `PixelBuffer` — `std::vector<uint32_t>`, ARGB8888, width × height. Provides `fill_rect(Rect, Color)` with bounds clipping, `clear()`, `resize()`, `pixel(x,y)` accessor.
-- `SoftwareRenderer` — headless rasteriser. `render_frame(snap)` clears buffer then rasterises. Testable by inspecting `buffer()`.
+Known limitations (tracked in `doc/review-2026-11-01.md`):
+- `TextCmd` rasterises a fresh surface + texture on every present — there is no glyph/text cache.
+- One bundled monospace font (JetBrains Mono); widgets estimate text width as `0.6 × size`.
+- `RoundedRect` is drawn as a plain rect (SDL_Renderer has no rounded primitive); `Circle` is aliased.
+- Full repaint of the window on every present (no damage tracking).
 
-**POC limitations:**
-- Only `FilledRect` commands are rasterised. `RectOutline`, `TextCmd`, `ClipPush/Pop` are no-ops.
-- No tile splitting or parallel rasterisation — sequential full-buffer pass.
-- No text rendering.
+**Headless test types (header-only, no SDL):** `PixelBuffer` and `SoftwareRenderer`
+(`include/prism/render/`) are a tiny CPU rasteriser kept only for unit tests — `FilledRect` only,
+everything else is a no-op. They are not on the production path.
 
 ## Present Cadence
 
@@ -71,19 +74,18 @@ Present statistics (`present_count`, last-present timestamp and duration) are ex
 
 ## Build System
 
-The core library is header-only (no SDL dependency). Each backend is a separate shared library:
-
 | Meson dependency | Links | Purpose |
 |---|---|---|
-| `prism_core_dep` | nothing (header-only) | Widgets, DrawList, SceneSnapshot, concurrency primitives |
-| `prism_software_backend_dep` | `libprism-software-backend.so` + SDL3 | Software backend |
+| `prism_core_dep` | headers + stdexec, fmt (+ magic_enum without reflection) | Widgets, DrawList, SceneSnapshot, concurrency primitives — no SDL |
+| `prism_software_backend_dep` | `libprism-software-backend` + SDL3 + SDL3_ttf | The SDL backend |
 | `prism_dep` | core + software backend | Convenience for apps |
 
-Headless tests link only `prism_core_dep` — no SDL required.
+Headless tests link only `prism_core_dep` — no SDL required. There is a single backend library
+today; `Backend::load()` (dlopen a backend `.so`) is not implemented.
 
 ## Window Ownership
 
-The backend creates the SDL window and owns the event pump. `SDL_Init(SDL_INIT_VIDEO)` is called inside `SoftwareBackend::run()` (SDL3 requires event pumping on the init thread). A `wait_ready()` handshake ensures the app thread doesn't call `wake()` before SDL is initialised.
+The backend creates the SDL windows (several per app — see `WindowRegistry`) and owns the event pump. `SDL_Init(SDL_INIT_VIDEO)` is called inside `SoftwareBackend::run()` (SDL3 requires event pumping on the init thread). A `wait_ready()` handshake ensures the app thread doesn't call `wake()` before SDL is initialised.
 
 ## GPU Backend (Phase 5)
 
@@ -97,7 +99,7 @@ SceneSnapshot
 
 Tile strategy differs: CPU wants spatial tiles for parallelism, GPU wants draw-call batching for throughput.
 
-## Packaging
+## Packaging (planned — today everything ships as one `libprism-software-backend`)
 
 | Package | Contents |
 |---|---|
@@ -109,7 +111,7 @@ Tile strategy differs: CPU wants spatial tiles for parallelism, GPU wants draw-c
 
 ## Open Questions
 
-- Should `render_frame` return frame timing / stats for profiling?
-- Multi-window — deferred. One App = one window for now.
-- Tile splitting for parallel CPU rasterisation — deferred until profiling shows need.
-- `request_redraw()` for animation-driven repaints without input events.
+- Glyph atlas vs. per-string texture cache — the first step for text performance.
+- Damage tracking: worth it on a GPU-backed renderer, or is full repaint fine?
+- Tile splitting for parallel CPU rasterisation — deferred until a CPU rasteriser is real.
+- Commit to SDL3 as the only platform layer, or make `Backend::load()` real for a Vulkan/WebGPU backend?

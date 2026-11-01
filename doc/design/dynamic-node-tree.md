@@ -27,7 +27,7 @@ C++23 path:    struct with view() method     →  ViewBuilder calls  →  Node t
 ## Node Structure
 
 ```cpp
-// include/prism/core/node.hpp
+// include/prism/ui/node.hpp
 struct Node {
     WidgetId id = 0;
     bool is_leaf = false;
@@ -115,10 +115,12 @@ Populates the `WidgetId → WidgetNode*` lookup map for hit testing and input ro
 
 | File | Role |
 |------|------|
-| `include/prism/core/node.hpp` | `Node` struct definition |
+| `include/prism/ui/node.hpp` | `Node` struct definition |
 | `include/prism/core/traits.hpp` | `is_field_v`, `is_state_v` (SFINAE, no reflection) |
-| `include/prism/core/widget_tree.hpp` | `node_leaf`, `node_canvas`, `ViewBuilder`, `build_node_tree`, `build_widget_node`, `connect_dirty` |
-| `include/prism/core/widget.hpp` | `LayoutKind` enum, conditional enum helpers |
+| `include/prism/ui/widget_node.hpp` | `node_leaf`, `node_canvas` |
+| `include/prism/app/view_builder.hpp` | `ViewBuilder` (the `view()` DSL) |
+| `include/prism/app/widget_tree.hpp` | `build_node_tree`, `build_widget_node`, `connect_dirty` |
+| `include/prism/ui/delegate.hpp` | `LayoutKind` enum, conditional enum helpers |
 | `include/prism/core/reflect.hpp` | Reflection utilities, guarded behind `#if __cpp_impl_reflection` |
 | `meson.build` | Conditional `-freflection` flag |
 | `src/meson.build` | Conditional magic_enum dependency |

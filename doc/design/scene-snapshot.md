@@ -8,16 +8,25 @@ The `SceneSnapshot` is the central data structure in PRISM's pipeline. It is a c
 
 ```cpp
 struct SceneSnapshot {
-    uint64_t                               version;
-    std::vector<std::pair<WidgetId, Rect>> geometry;    // resolved layout
-    std::vector<DrawList>                  draw_lists;   // parallel to geometry
-    std::vector<uint16_t>                  z_order;      // indices into geometry/draw_lists, back-to-front
+    uint64_t                                       version;
+    std::vector<std::pair<WidgetId, Rect>>         geometry;          // resolved layout
+    std::vector<std::shared_ptr<const DrawList>>   draw_lists;        // parallel to geometry
+    std::vector<uint32_t>                          z_order;           // back-to-front indices
+    DrawList                                       overlay;           // drawn last, unclipped
+    std::vector<std::pair<WidgetId, Rect>>         overlay_geometry;  // hit regions for overlays
+
+    // Instrumentation filled by WidgetTree::build_snapshot() (debug inspector, perf_lab)
+    double build_time_ms; std::size_t dirty_widget_count, draw_command_count,
+                                      approx_bytes, layout_pass_count;
+    std::chrono::steady_clock::time_point built_at;
 };
 ```
 
-All fields are plain data. No pointers to live objects, no callbacks, no vtables. Safe to read from any thread without synchronisation.
-
-`geometry`, `draw_lists`, and `z_order` are parallel vectors — `z_order[i]` is an index into both `geometry` and `draw_lists`.
+`geometry`, `draw_lists`, and `z_order` are parallel — `z_order[i]` indexes both. Draw lists are
+`shared_ptr<const DrawList>`: a widget that did not change shares its draw list with the previous
+snapshot instead of copying it. `const` guarantees no one mutates an entry another snapshot still
+holds. The one exception, `resolve_clips()`, only touches entries built fresh this frame (see the
+comment in `include/prism/render/scene_snapshot.hpp`).
 
 ## Versioning
 
@@ -27,18 +36,19 @@ Each snapshot carries a monotonically increasing `version` number. This serves a
 - Cache key for memoised layout (same version → same geometry → skip re-layout).
 - Debugging aid — log which version is being rendered vs published.
 
-## Full Replacement Model
+## Publication Model
 
-The primary (and currently only) update path is full snapshot replacement via `atomic_cell`. The application builds a complete new snapshot and publishes it. The render thread picks up the latest.
+Each publish builds a new snapshot and hands it over through one `atomic_cell` swap; the render
+thread loads the latest. Unchanged widgets are reused by pointer (structural sharing), so the cost
+of a publish is layout + the dirty widgets' `record()` + one vector of pointers — not a deep copy.
+Layout itself is still recomputed on every publish, and runs twice when a virtual list or table
+viewport changed (`layout_pass_count`).
 
-Incremental diffing may be added later as an optimisation when profiling shows snapshot rebuilds are a bottleneck. For now, full replacement keeps the model simple and the invariants easy to verify.
-
-## POC Status
-
-`SceneSnapshot` is implemented and used end-to-end. In the POC, `Frame::take_snapshot()` builds a single-entry snapshot (one geometry rect covering the full viewport, one draw list, `z_order = {0}`). Per-widget geometry will be used when the layout engine (Phase 2) produces widget-level rects.
+The app thread also keeps the published snapshot to hit-test input against it
+(`include/prism/app/window_registry.hpp`). That is a read-only use; the snapshot is never mutated
+after publication.
 
 ## Open Questions
 
-- Should `SceneSnapshot` own its draw lists by value or by shared_ptr for cheaper copies?
 - Snapshot arena/pool allocator to avoid per-frame heap churn.
-- Clip hierarchy representation — flat list of clip push/pop in DrawList, or a separate clip tree?
+- Incremental layout: skip measure/arrange for subtrees whose size hints did not change.

@@ -118,8 +118,8 @@ void custom_gauge(auto& ui, float value, Rect bounds) {
 | `rect_outline()` | Rectangle stroke |
 | `text()` | Text at a position |
 | `clip_push()` / `clip_pop()` | Clip region stack |
-| `line()` / `polyline()` | Lines (planned) |
-| `rounded_rect()` | Rounded corners (planned) |
+| `line()` / `polyline()` | Lines |
+| `rounded_rect()` / `circle()` / `filled_polygon()` | Shapes |
 | `image()` | Texture blit (planned) |
 
 ## Value Semantics

@@ -7,18 +7,24 @@ A `DrawList` is a flat array of typed draw commands recorded by a widget. It is 
 ## Command Set
 
 ```cpp
-using DrawCmd = std::variant<FilledRect, RectOutline, TextCmd, ClipPush, ClipPop>;
+using DrawCmd = std::variant<FilledRect, RectOutline, TextCmd, ClipPush, ClipPop,
+                             RoundedRect, Line, Polyline, Circle, FilledPolygon>;
 ```
 
-Current commands:
+Current commands (`include/prism/render/draw_list.hpp`):
 
 | Command | Fields | Purpose |
 |---|---|---|
 | `FilledRect` | rect, color | Solid rectangle fill |
 | `RectOutline` | rect, color, thickness | Rectangle stroke |
-| `TextCmd` | text, origin, size, color | Text at a position |
+| `TextCmd` | text, origin, size, color, angle, anchor | Text at a position, optionally rotated / centred |
 | `ClipPush` | rect | Push a clip rectangle onto the clip stack |
 | `ClipPop` | — | Pop the clip stack |
+| `RoundedRect` | rect, color, radius, thickness | Rounded box (SDL backend currently ignores `radius`) |
+| `Line` | from, to, color, thickness | Single segment |
+| `Polyline` | points, color, thickness | Plot series, connected segments |
+| `Circle` | center, radius, color, thickness | Markers, filled or stroked |
+| `FilledPolygon` | points (triangle-strip order), color | Plot fills, arbitrary filled shapes |
 
 ## Strong Coordinate Types
 
@@ -53,9 +59,7 @@ Raw floats are extracted via `.raw()` only at system boundaries (SDL backend).
 
 ## Future Commands
 
-- `ImageBlit` — texture handle, source rect, destination rect.
-- `Line` / `Polyline` — for plot data (critical for scientific visualisation use case).
-- `RoundedRect` — common UI primitive.
+- `ImageBlit` — texture handle, source rect, destination rect. Needed for icons.
 - `Path` — general vector path for complex shapes.
 - `Gradient` — linear/radial gradient fills.
 

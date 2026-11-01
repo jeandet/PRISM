@@ -14,15 +14,14 @@ Both threads are **event-driven** — they block at OS level when idle and wake 
 ## Thread Roles
 
 ```
-Application thread(s)              Render thread
-──────────────────────              ──────────────
-  wait for input (futex)            SDL_Init + create window
-  drain input queue                 SDL_WaitEvent (blocks)
-  react to events                   forward events → mpsc_queue
-  mutate model                      wake app thread (atomic notify)
-  build SceneSnapshot               load latest SceneSnapshot
-  publish via atomic_cell           rasterise
-  wake render (SDL_PushEvent USER)  present
+Logic (app) thread                    Render thread
+──────────────────                    ─────────────
+  stdexec run_loop (blocks)             SDL_Init + create windows
+  ← input scheduled onto run_loop       SDL_WaitEventTimeout (FramePacer clock)
+  route event → widget → field.set()    map SDL event → InputEvent, schedule on app
+  on_change() callbacks                 load latest SceneSnapshot
+  build SceneSnapshot                   render it (SDL_Renderer)
+  publish via atomic_cell + wake()      present, at most once per refresh interval
 ```
 
 - **Application threads**: any number, any cadence. Own all model/business logic. Never touch rendering state.
@@ -33,9 +32,17 @@ Application thread(s)              Render thread
 
 | Direction | Mechanism | When |
 |-----------|-----------|------|
-| Render → App | `input_pending_.store(true) + notify_one()` (C++20 atomic wait/notify, kernel futex) | After pushing any InputEvent |
-| App → Render | `SDL_PushEvent(SDL_EVENT_USER)` | After publishing a new snapshot |
+| Render → App | schedule onto the app's stdexec `run_loop` | After mapping any SDL event to an `InputEvent` |
+| App → Render | `backend.wake()` (`SDL_PushEvent(SDL_EVENT_USER)`) | After publishing a new snapshot |
+| Any thread → App | `AppContext::post(fn)` (schedules onto the `run_loop`) | Worker results, Python mutations |
 | Shutdown | Both mechanisms + `running_ = false` | On `quit()` or `WindowClose` |
+
+**Known gap:** `Shared<T>::set()` and `Channel<T>::send()` only store the value — they do **not**
+wake the logic thread. Their observers run when the model's `drain()` is called during the next
+frame, which only happens if something else (input, an animation tick, a `post()`) triggers one.
+`examples/model_system_monitor` keeps a perpetual animation callback alive for exactly this reason.
+Until this is fixed, an app fed by worker threads either posts a no-op through `AppContext::post()`
+after `set()`/`send()`, or keeps an animation running (and so is not idle).
 
 ## Startup Handshake
 
@@ -75,7 +82,7 @@ After the app loop exits, it pushes an `SDL_EVENT_USER` to ensure the render thr
 - No mutex is held across a frame boundary.
 - All data crossing the thread boundary is immutable once published.
 - The render thread never calls into application code.
-- Both threads sleep at OS level when idle — zero CPU usage.
+- Both threads sleep at OS level when idle — zero CPU usage (see the `Shared<T>`/`Channel<T>` gap above).
 
 ## Open Questions
 

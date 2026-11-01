@@ -30,7 +30,9 @@ Two validated practices worth continuing rather than rediscovering:
   e.g. for `Channel<T>`) has repeatedly surfaced real framework bugs (drain-on-tick ordering,
   shutdown livelocks, cross-thread state races) that unit tests and single-widget dogfooding both
   missed. When a feature needs a forcing function to prove it's real, reach for this app before
-  writing a new demo.
+  writing a new demo. Its performance counterpart is `examples/perf_lab/` (100k-row table,
+  1M-point plot, 1 kHz telemetry, `--headless N` publish-cost report) — use it to measure any
+  change to the publish/render path.
 - **Passing tests + "done" is not sufficient evidence a GUI feature actually works.** Expect real
   bugs to surface only once a feature is used for something, and treat that as normal, not a sign
   something went wrong in planning.
@@ -129,5 +131,6 @@ inspector), `backends` (SDL3, headless software/null backends used by tests).
 
 - `README.md` — architecture tour, quick-start examples, roadmap.
 - `doc/design/` — per-subsystem design rationale (one file per major subsystem).
-- `doc/review-2026-08-28.md` — most recent architecture review, verified findings, and the
-  agreed work order it produced.
+- `doc/review-2026-11-01.md` — most recent review: goals vs. code, docs drift, and the current
+  prioritized plan. Older reviews (`doc/review-2026-0*.md`, `doc/handover-*.md`) are history;
+  their open items were re-checked there.

@@ -59,7 +59,8 @@ Your code still blocks its own thread, but the window stays alive.
 This is an architectural choice, not a tuning trick. It is built in from day one.
 
 The take on Qt in one sentence: keep the persistent widget tree, drop moc and `QObject`, replace
-string-based signals with C++26 senders, and let plain structs generate the UI.
+string-based signals with typed callbacks, drive the event loop with C++26 `std::execution`, and
+let plain structs generate the UI.
 
 ## How it works
 
@@ -362,6 +363,8 @@ A few rules worth knowing:
 - `Field<T>` holds only a value, never a label. The label comes from the member name.
 - One logic thread owns the widget tree and every `Field<T>`. They are not thread-safe.
 - Other threads talk to it through `Shared<T>::set()`, `Channel<T>::send()` or a posted closure.
+- `Shared<T>` and `Channel<T>` do not wake an idle app yet: their values show up on the next frame.
+  Follow a `set()`/`send()` with `ctx.post([]{})`, or keep an animation running.
 - An exception in a callback goes to `prism::core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
 
@@ -392,7 +395,7 @@ prism.run(m, title="Mixer")                     # blocks; releases the GIL aroun
 
 # from any thread:
 m.count.value = 43
-conn = Mixer.count.observe(m, lambda v: print(v))
+conn = m.count.observe(lambda v: print(v))
 with prism.transaction():                       # one publish for both changes
     m.count.value = 1
     m.volume = 0.9
@@ -514,7 +517,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `prism::then`/`prism::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build. Debugging and profiling tools continue.
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation.
 - **Phase 5**: Vulkan/WebGPU backend, SDF text, tile compositing.
 
 </details>

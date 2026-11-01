@@ -61,22 +61,21 @@ graph TB
 | [field/sender/widget](../../docs/superpowers/specs/2026-03-27-field-sender-widget-design.md) | Field<T>, SenderHub, WidgetTree, model_app() | **Implemented** |
 | [input routing](../../docs/superpowers/specs/2026-03-27-input-routing-design.md) | hit_test → dispatch → on_input SenderHub → field mutation | **Implemented** |
 | [app-facade.md](app-facade.md) | `prism::app<State>()` + `Ui<State>` retained entry point | **Implemented** — secondary API |
-| [styling.md](styling.md) | Theme as data, context propagation, per-instance overrides | Draft |
+| [styling.md](styling.md) | Theme as data, context propagation, per-instance overrides | **Partial** — `Theme`/`Context` implemented (`ui/context.hpp`); per-widget style structs and overrides not yet |
 | [widgets-and-sentinels.md](widgets-and-sentinels.md) | Widget<T> + WidgetVisualState, all sentinels (Label/Slider/Button/Checkbox/TextField/Password/TextArea/Dropdown), overlay system | **Implemented** |
 | [stdexec integration](stdexec-integration.md) | run_loop event loops, prism::then/on pipe adaptors, AppContext | **Implemented** |
 | [canvas escape hatch](../../docs/superpowers/specs/2026-03-29-canvas-escape-hatch-design.md) | `vb.canvas(model)` — custom DrawList rendering in expandable area | **Implemented** |
-| [dynamic-node-tree.md](dynamic-node-tree.md) | Node intermediate layer, vstack/hstack variadic API, pre-C++26 support | **Implemented** |
-| widget-tree (`widget_tree.hpp` + `widget_tree_layout.hpp`/`traversal.hpp` + `view_builder.hpp`) | Persistent tree, per-field Widget<T> wiring, layout/traversal split (1198+168+81 lines) | **Implemented** |
-| [python-sdk.md](python-sdk.md) | nanobind wrapping, fully multi-threaded, GIL-free Python 3.14+, posted-mutation queue | **Design** |
+| [dynamic-node-tree.md](dynamic-node-tree.md) | Node intermediate layer, vstack/hstack variadic API, pre-C++26 support | **Implemented** (public API for runtime tree mutation: future) |
+| widget-tree (`widget_tree.hpp` + `widget_tree_layout.hpp`/`widget_tree_traversal.hpp` + `view_builder.hpp`) | Persistent tree, per-field Widget<T> wiring; builder DSL, layout and traversal split out (1189 + 168 + 98 + 657 lines). No dedicated doc | **Implemented** |
+| [python-sdk.md](python-sdk.md) | nanobind wrapping, fully multi-threaded, GIL-free Python 3.14+, posted-mutation queue | **Implemented** (wheels in CI; see `python/`) |
 | [widget-model.md](widget-model.md) | Persistent widgets from Field<T> via reflection | **Superseded** by field/sender/widget spec |
 | [reactivity.md](reactivity.md) | Sender/observer pattern, Field<T> change propagation | **Superseded** by field/sender/widget spec |
 
 ### Planned
 
-| Document | Subsystem |
-|---|---|
+| Document | Subsystem | Status |
+|---|---|---|
 | [components.md](components.md) | `prism::Component` base class — self-wiring reusable UI + logic bundles | **Design only** |
-| [dynamic-node-tree.md](dynamic-node-tree.md) | Runtime `Node` tree — future: public API for dynamic UIs, tree mutation | **Future** |
 | [proxy-widget.md](proxy-widget.md) | Composite foreign renderers (CEF, VTK, mpv, etc.) as regular widgets via shared surfaces | **Concept** |
-| testing-strategy | doctest, synchronous scheduler, headless rendering, visual regression |
-| tracing-profiling | Tracy behind generic macros, trace points at pipeline boundaries |
+| testing-strategy | doctest, synchronous scheduler, headless rendering, golden snapshots (`tests/test_golden_snapshot.cpp`) | **Not written** |
+| tracing-profiling | Tracy behind generic macros — not integrated; today: snapshot stats + `present_stats()` + `examples/perf_lab` | **Not written** |
