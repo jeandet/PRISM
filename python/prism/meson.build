@@ -29,6 +29,10 @@ if python3.found()
     )
 
     python3.install_sources('__init__.py', pure : false, subdir : 'prism')
+    # Fonts as package data: found next to __init__.py whatever the install layout (venv,
+    # --user, conda, any OS) -- see _bundled_fonts() in __init__.py.
+    install_data(bundled_font_files, install_dir : python3.get_install_dir() / 'prism' / 'fonts',
+                 install_tag : 'python-runtime')
 
     # Python binding tests — part of `meson test` so WTF doesn't happen again.
     # Runs pytest against the source test file with PYTHONPATH pointing at

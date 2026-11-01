@@ -19,7 +19,7 @@ addopts = "--import-mode=importlib"
 [tool.meson-python.args]
 setup = [
   '-Doptimization=3', '-Dcpp_std=c++26',
-  '-Dtests=disabled', '-Dexamples=disabled', '-Dbenchmarks=disabled', '-Dmagic_enum:test=false',
+  '-Dtests=disabled', '-Dexamples=disabled', '-Dbenchmarks=disabled',
   # Vendored deps are built from wraps and linked statically, freetype and harfbuzz included: system
   # copies (Homebrew on macOS) are built for the build machine's OS, not the wheel's target.
   '--force-fallback-for=fmt,sdl3,sdl3_ttf,freetype2,harfbuzz',

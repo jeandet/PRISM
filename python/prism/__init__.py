@@ -1114,6 +1114,22 @@ def transaction():
     return _TransactionCtx()
 
 
+def _bundled_fonts(package_dir=None):
+    """(ui, mono) font paths shipped in this package's fonts/ directory, or "" when absent.
+
+    Wheels install the fonts as package data, so they are found the same way in a venv, a
+    --user install or conda. Empty strings leave the lookup to the C++ backend (build tree,
+    or the install prefix of the PRISM library).
+    """
+    import pathlib
+
+    fonts = pathlib.Path(package_dir or pathlib.Path(__file__).parent) / "fonts"
+    return tuple(
+        str(fonts / name) if (fonts / name).is_file() else ""
+        for name in ("NotoSans-Regular.ttf", "JetBrainsMonoNerdFont-Regular.ttf")
+    )
+
+
 def run(model, title="PRISM App", headless_seconds: float | None = None, until=None):
     """Blocks the calling thread until the window closes (or the headless run ends).
 
@@ -1161,7 +1177,7 @@ def run(model, title="PRISM App", headless_seconds: float | None = None, until=N
                     _time_mod.sleep(0.005)
         return
     try:
-        return _run(model, title)
+        return _run(model, title, *_bundled_fonts())
     finally:
         _stop_all_workers()
         _disconnect_model_observers(model)

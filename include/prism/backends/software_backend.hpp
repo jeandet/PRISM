@@ -87,8 +87,6 @@ private:
 
     WindowId sdl_id_to_prism_id(uint32_t sdl_window_id) const;
 
-    static std::string resolve_font_path(const char* override_path, const char* baked,
-                                         const char* install_rel);
     std::string ui_font_path() const;
     std::string mono_font_path() const;
 };

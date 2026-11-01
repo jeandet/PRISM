@@ -2647,7 +2647,7 @@ NB_MODULE(_prism_ext, m) {
         model_app(backend, window, model, setup);
     }, nb::arg("model"), nb::arg("delay_ms")=100);
 
-    m.def("run", [](PyModel& model, std::string title){
+    m.def("run", [](PyModel& model, std::string title, std::string ui_font, std::string mono_font){
         {
             bool expected = false;
             if (!g_run_guard.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
@@ -2659,7 +2659,10 @@ NB_MODULE(_prism_ext, m) {
             throw std::runtime_error("_fail_next_run(): forced failure for testing");
         // Must be called from main thread on macOS
         nb::gil_scoped_release release;
-        auto backend = Backend::software(RenderConfig{});
+        RenderConfig render_cfg;
+        if (!ui_font.empty()) render_cfg.font_path = ui_font.c_str();
+        if (!mono_font.empty()) render_cfg.mono_font_path = mono_font.c_str();
+        auto backend = Backend::software(render_cfg);
         WindowConfig cfg;
         cfg.title = title.c_str();
         auto& window = backend.create_window(cfg);
@@ -2678,5 +2681,5 @@ NB_MODULE(_prism_ext, m) {
             g_app_closed.store(false, std::memory_order_release);
         };
         model_app(backend, window, model, setup);
-    }, nb::arg("model"), nb::arg("title")="PRISM App");
+    }, nb::arg("model"), nb::arg("title")="PRISM App", nb::arg("ui_font")="", nb::arg("mono_font")="");
 }

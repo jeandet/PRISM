@@ -1,7 +1,9 @@
 #include <prism/backends/software_backend.hpp>
+#include <prism/backends/font_lookup.hpp>
 #include <prism/ui/window_chrome.hpp>
 
 #include <cassert>
+#include <cstdio>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -11,11 +13,11 @@
 // RenderConfig paths are used).
 #ifndef PRISM_UI_FONT_PATH
 #define PRISM_UI_FONT_PATH nullptr
-#define PRISM_UI_FONT_INSTALL_PATH nullptr
+#define PRISM_UI_FONT_INSTALL_PATH ""
 #endif
 #ifndef PRISM_MONO_FONT_PATH
 #define PRISM_MONO_FONT_PATH nullptr
-#define PRISM_MONO_FONT_INSTALL_PATH nullptr
+#define PRISM_MONO_FONT_INSTALL_PATH ""
 #endif
 
 namespace prism::backends {
@@ -24,39 +26,24 @@ using namespace prism::render;
 using namespace prism::ui;
 using namespace prism::app;
 
-// override (RenderConfig) -> path baked at build time, if it exists (builddir) -> install path
-// (datadir-relative) next to the executable (wheels, installed apps). Empty = not found.
-// simplify: the executable is found via /proc/self/exe, so installed lookup is Linux-only;
-// macOS/Windows wheels need dladdr()/_NSGetExecutablePath or package data.
-std::string SoftwareBackend::resolve_font_path(const char* override_path, const char* baked,
-                                               const char* install_rel) {
-    if (override_path) return override_path;
-    std::error_code ec;
-    if (baked && std::filesystem::exists(baked, ec)) return baked;
-    if (!install_rel) return {};
-    if (std::filesystem::exists(install_rel, ec)) return install_rel;
-    try {
-        auto exe_dir = std::filesystem::read_symlink("/proc/self/exe").parent_path();
-        for (auto cand : {exe_dir / ".." / install_rel, exe_dir / install_rel}) {
-            auto norm = cand.lexically_normal();
-            if (std::filesystem::exists(norm, ec)) return norm.string();
-        }
-    } catch (...) {}
-    return {};
-}
-
 std::string SoftwareBackend::ui_font_path() const {
-    return resolve_font_path(render_config_.font_path, PRISM_UI_FONT_PATH, PRISM_UI_FONT_INSTALL_PATH);
+    return find_font(render_config_.font_path, PRISM_UI_FONT_PATH, backend_library_dir(),
+                     PRISM_UI_FONT_INSTALL_PATH);
 }
 
 std::string SoftwareBackend::mono_font_path() const {
-    return resolve_font_path(render_config_.mono_font_path, PRISM_MONO_FONT_PATH, PRISM_MONO_FONT_INSTALL_PATH);
+    return find_font(render_config_.mono_font_path, PRISM_MONO_FONT_PATH, backend_library_dir(),
+                     PRISM_MONO_FONT_INSTALL_PATH);
 }
 
 SoftwareBackend::SoftwareBackend(RenderConfig cfg)
     : render_config_(cfg)
 {
-    measurer_ = std::make_unique<SdlTextMeasurer>(ui_font_path(), mono_font_path());
+    auto ui = ui_font_path(), mono = mono_font_path();
+    if (ui.empty() && mono.empty())   // otherwise every label silently disappears
+        std::fprintf(stderr, "[prism] warning: no font found, text will not be drawn "
+                             "(set RenderConfig::font_path / mono_font_path)\n");
+    measurer_ = std::make_unique<SdlTextMeasurer>(std::move(ui), std::move(mono));
 }
 
 SoftwareBackend::~SoftwareBackend() {

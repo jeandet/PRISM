@@ -142,6 +142,12 @@ test_software_backend_concurrent = executable('test_software_backend_concurrent'
 )
 test('software_backend_concurrent', test_software_backend_concurrent)
 
+test_font_lookup = executable('test_font_lookup',
+  files('test_font_lookup.cpp'),
+  dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
+)
+test('font_lookup', test_font_lookup)
+
 test_sdl_font_set = executable('test_sdl_font_set',
   files('test_sdl_font_set.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],

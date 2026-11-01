@@ -3699,3 +3699,18 @@ def test_list_get_out_of_range_raises_index_error():
         m.items.get(3)
     with pytest.raises(IndexError):
         m.items.get(999)
+
+
+def test_bundled_fonts_are_found_next_to_the_package(tmp_path):
+    fonts = tmp_path / "fonts"
+    fonts.mkdir()
+    (fonts / "NotoSans-Regular.ttf").write_bytes(b"x")
+    (fonts / "JetBrainsMonoNerdFont-Regular.ttf").write_bytes(b"x")
+    assert prism._bundled_fonts(tmp_path) == (
+        str(fonts / "NotoSans-Regular.ttf"),
+        str(fonts / "JetBrainsMonoNerdFont-Regular.ttf"),
+    )
+
+
+def test_missing_bundled_fonts_leave_lookup_to_the_backend(tmp_path):
+    assert prism._bundled_fonts(tmp_path) == ("", "")
