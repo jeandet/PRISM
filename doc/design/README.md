@@ -76,6 +76,7 @@ graph TB
 | Document | Subsystem | Status |
 |---|---|---|
 | [components.md](components.md) | `prism::Component` base class — self-wiring reusable UI + logic bundles | **Design only** |
+| [menus-and-dialogs.md](menus-and-dialogs.md) | In-window popup layer and modality for menus, context menus, dialogs | **Design** |
 | [proxy-widget.md](proxy-widget.md) | Composite foreign renderers (CEF, VTK, mpv, etc.) as regular widgets via shared surfaces | **Concept** |
 | testing-strategy | doctest, synchronous scheduler, headless rendering, golden snapshots (`tests/test_golden_snapshot.cpp`) | **Not written** |
 | tracing-profiling | Tracy behind generic macros — not integrated; today: snapshot stats + `present_stats()` + `examples/perf_lab` | **Not written** |
