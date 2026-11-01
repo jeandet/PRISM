@@ -67,6 +67,7 @@ inline void draw(DrawList& dl, const std::vector<std::string>& labels, std::size
 // The index an event selects, if it changes the selection.
 inline std::optional<std::size_t> pick(const InputEvent& ev, std::size_t selected, std::size_t n) {
     if (n == 0) return std::nullopt;
+    selected = std::min(selected, n - 1);   // the options may have shrunk under it
     std::optional<std::size_t> to;
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
         float row = (mb->position.y.raw() - pad) / row_h;
@@ -176,7 +177,8 @@ struct Widget<ProgressBar> {
         Rect track{Point{X{0}, Y{top + (bar_row_h - track_h) / 2}}, Size{Width{w}, Height{track_h}}};
         dl.rounded_rect(track, t.track, track_h / 2);
         if (float filled = fraction(p) * w; filled > 0.f)
-            dl.rounded_rect(Rect{track.origin, Size{Width{filled}, Height{track_h}}}, t.primary, track_h / 2);
+            dl.rounded_rect(Rect{track.origin, Size{Width{filled}, Height{track_h}}}, t.primary,
+                            std::min(track_h, filled) / 2);
     }
     static void handle_input(Field<ProgressBar>&, const InputEvent&, WidgetNode&) {}
 };
@@ -210,35 +212,51 @@ std::string format(T v) {
     else return fmt::to_string(v);
 }
 
-// Into [min, max]. Not snapped to a step grid: like QSpinBox, a step adds `step` to whatever
-// the value is, and a typed value is kept as typed.
+// Into [min, max]; a range with max below min holds everything at min.
 template <typename T>
-T clamped(const SpinBox<T>& s, double v) {
-    v = std::clamp(v, static_cast<double>(s.min), static_cast<double>(s.max));
-    if constexpr (std::is_integral_v<T>) return static_cast<T>(std::llround(v));
-    else return static_cast<T>(v);
+T clamped(const SpinBox<T>& s, T v) {
+    return std::clamp(v, s.min, std::max(s.min, s.max));
+}
+
+// One step (> 0) up (dir > 0) or down, within [min, max]. Not snapped to a step grid: like
+// QSpinBox, a step adds `step` to whatever the value is. Integers step in their own type, so
+// 64-bit values near the limits stay exact: the distance to the limit fits the unsigned type
+// (the value is already inside the range), and a step that would pass it lands on it.
+template <typename T>
+T stepped(const SpinBox<T>& s, int dir) {
+    T lo = s.min, hi = std::max(s.min, s.max), v = clamped(s, s.value);
+    if constexpr (std::is_integral_v<T>) {
+        using U = std::make_unsigned_t<T>;
+        U room = dir > 0 ? U(U(hi) - U(v)) : U(U(v) - U(lo));
+        if (room < U(s.step)) return dir > 0 ? hi : lo;
+        return dir > 0 ? T(v + s.step) : T(v - s.step);
+    } else {
+        return clamped(s, dir > 0 ? v + s.step : v - s.step);
+    }
 }
 
 template <typename T>
 bool accepts(const SpinBox<T>& s, const std::string& typed, char c) {
     if (c >= '0' && c <= '9') return true;
     if (c == '-') return typed.empty() && s.min < T{0};
-    if (c == '.') return std::is_floating_point_v<T> && typed.find('.') == std::string::npos;
+    if (c == '.') return std::is_floating_point_v<T> && typed.find('.') == std::string::npos
+                         && !typed.empty() && typed.back() >= '0' && typed.back() <= '9';
     return false;
 }
 
 template <typename T>
-std::optional<double> parse(const std::string& s) {
+std::optional<T> parse(const std::string& s) {
     T v{};
     auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), v);
     if (ec != std::errc{} || ptr != s.data() + s.size()) return std::nullopt;
-    return static_cast<double>(v);
+    return v;
 }
 
 template <typename T>
-void step_by(Field<SpinBox<T>>& f, double steps) {
+void step_by(Field<SpinBox<T>>& f, int dir) {
     auto s = f.get();
-    T next = clamped(s, static_cast<double>(s.value) + steps * static_cast<double>(s.step));
+    if (s.step <= T{0}) return;
+    T next = stepped(s, dir);
     if (next != s.value) {
         s.value = next;
         f.set(s);
@@ -267,7 +285,7 @@ struct Widget<SpinBox<T>> {
         a.numeric_value = static_cast<double>(s.value);
         a.min_value = static_cast<double>(s.min);
         a.max_value = static_cast<double>(s.max);
-        a.step = static_cast<double>(s.step);
+        if (s.step > T{0}) a.step = static_cast<double>(s.step);
     }
     static float intrinsic_width(const Field<SpinBox<T>>& f, const WidgetNode& n) {
         using namespace spin_detail;

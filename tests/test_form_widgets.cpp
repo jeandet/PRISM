@@ -4,6 +4,9 @@
 #include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/delegates/form_delegates.hpp>
+
+#include <cstdint>
+#include <limits>
 namespace prism::core {} namespace prism::render {} namespace prism::input {}
 namespace prism::ui {} namespace prism::app {}
 namespace prism {
@@ -223,4 +226,58 @@ TEST_CASE("spin box: describes itself with its range") {
     CHECK(info.min_value == 1.0);
     CHECK(info.max_value == 9.0);
     CHECK(info.step == 2.0);
+}
+
+// ---- Findings from the opencode review of 3d1939e ----
+
+TEST_CASE("spin box: a range with max below min holds the value at min") {
+    Window<SpinBox<int>> w{SpinBox<int>{.value = 5, .min = 10, .max = 0, .step = 1}};
+    w.key(keys::up);
+    CHECK(w.value().value == 10);
+}
+
+TEST_CASE("spin box: 64-bit values step exactly at the top of their range") {
+    constexpr auto top = std::numeric_limits<std::int64_t>::max();
+    Window<SpinBox<std::int64_t>> w{SpinBox<std::int64_t>{.value = top - 1, .min = 0, .max = top, .step = 1}};
+    w.key(keys::up);
+    CHECK(w.value().value == top);
+    w.key(keys::up);
+    CHECK(w.value().value == top);
+    w.key(keys::down);
+    CHECK(w.value().value == top - 1);
+}
+
+TEST_CASE("radio group: arrows recover when the selection is past the options") {
+    Window<RadioGroup> w{RadioGroup{.selected = 4, .options = {"a", "b"}}};
+    w.key(keys::up);
+    CHECK(w.value().selected == 0);
+}
+
+TEST_CASE("spin box: a decimal point needs a digit before it") {
+    Window<SpinBox<double>> w{SpinBox<double>{.value = 0.0, .min = -5.0, .max = 5.0, .step = 0.5}};
+    w.type(".");
+    w.type("-");
+    w.type(".");
+    w.type("2");
+    w.type(".");
+    w.type("5");
+    w.key(keys::enter);
+    CHECK(w.value().value == doctest::Approx(-2.5));
+}
+
+TEST_CASE("progress: a short fill's corners are no rounder than it is wide") {
+    WidgetNode n;
+    n.theme = &test_theme;
+    n.canvas_bounds = Rect{Point{X{0}, Y{0}}, Size{Width{200}, Height{30}}};
+    DrawList dl;
+    Field<ProgressBar> f{{.value = 0.01}};
+    Widget<ProgressBar>::record(dl, f, n);
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<RoundedRect>(&cmd); r && r->color == test_theme.primary)
+            CHECK(r->radius <= r->rect.extent.w.raw() / 2 + 1e-4f);
+}
+
+TEST_CASE("spin box: no step is reported when the step is zero") {
+    Field<SpinBox<int>> f{{.value = 1, .min = 0, .max = 9, .step = 0}};
+    CHECK_FALSE(access_info(f).step.has_value());
 }
