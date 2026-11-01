@@ -4,6 +4,7 @@
 #include <prism/backends/frame_pacer.hpp>
 #include <prism/backends/sdl_window.hpp>
 #include <prism/backends/sdl_text_measurer.hpp>
+#include <prism/backends/queued_clipboard.hpp>
 #include <prism/core/atomic_cell.hpp>
 #include <prism/core/mpsc_queue.hpp>
 
@@ -47,6 +48,7 @@ public:
     void wait_ready() override;
     std::optional<PresentStats> present_stats(WindowId id) const override;
     const ui::TextMeasurer* text_measurer() const override { return measurer_.get(); }
+    const ui::Clipboard* clipboard() const override { return &clipboard_; }
 
 private:
     RenderConfig render_config_;
@@ -54,7 +56,9 @@ private:
     std::unordered_map<WindowId, std::unique_ptr<SdlWindow>> windows_;
     uint32_t next_id_ = 0;
     SdlFontSet fonts_;   // render thread only; their size is whatever the last text-cache miss set
-    std::unique_ptr<SdlTextMeasurer> measurer_;   // logic thread's own font; see the class
+    std::unique_ptr<SdlTextMeasurer> measurer_;
+    // SDL's clipboard is main-thread only: copies queue here and are applied in run().
+    QueuedClipboard clipboard_{[this] { wake(); }};   // logic thread's own font; see the class
     std::atomic<bool> running_{true};
     std::atomic<bool> ready_{false};
     WindowId pressed_window_ = 0;

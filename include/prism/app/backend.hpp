@@ -3,6 +3,7 @@
 #include <prism/input/input_event.hpp>
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/app/window.hpp>
+#include <prism/ui/clipboard.hpp>
 #include <prism/ui/text_metrics.hpp>
 
 #include <chrono>
@@ -40,6 +41,8 @@ public:
     virtual std::optional<PresentStats> present_stats(WindowId) const { return std::nullopt; }
     // Measures text for the logic thread; owned by the backend. Null = monospace estimate.
     virtual const ui::TextMeasurer* text_measurer() const { return nullptr; }
+    // Copy/cut target, owned by the backend. Null = no system clipboard.
+    virtual const ui::Clipboard* clipboard() const { return nullptr; }
 };
 
 class Backend {
@@ -61,6 +64,7 @@ public:
     void wait_ready() { impl_->wait_ready(); }
     std::optional<PresentStats> present_stats(WindowId w) const { return impl_->present_stats(w); }
     const ui::TextMeasurer* text_measurer() const { return impl_->text_measurer(); }
+    const ui::Clipboard* clipboard() const { return impl_->clipboard(); }
 
     Backend(Backend&&) noexcept = default;
     Backend& operator=(Backend&&) noexcept = default;

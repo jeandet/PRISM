@@ -609,3 +609,53 @@ TEST_CASE("shift+click extends the selection") {
     CHECK(state(node).anchor == std::optional<size_t>{1});
     CHECK(state(node).cursor == 4);
 }
+
+// --- clipboard ---
+
+namespace {
+struct RecordingClipboard final : prism::Clipboard {
+    mutable std::vector<std::string> copied;
+    void set_text(std::string utf8) const override { copied.push_back(std::move(utf8)); }
+};
+}
+
+TEST_CASE("ctrl+C copies the selection; ctrl+X copies and removes it") {
+    RecordingClipboard cb;
+    prism::Theme theme;
+    theme.clipboard = &cb;
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 4;
+    key(field, node, prism::keys::c, prism::mods::ctrl);
+    REQUIRE(cb.copied.size() == 1);
+    CHECK(cb.copied[0] == "ell");
+    CHECK(field.get().value == "hello");
+    key(field, node, prism::keys::x, prism::mods::gui);   // Cmd works too
+    REQUIRE(cb.copied.size() == 2);
+    CHECK(cb.copied[1] == "ell");
+    CHECK(field.get().value == "ho");
+}
+
+TEST_CASE("copy without a selection does nothing") {
+    RecordingClipboard cb;
+    prism::Theme theme;
+    theme.clipboard = &cb;
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    key(field, node, prism::keys::c, prism::mods::ctrl);
+    CHECK(cb.copied.empty());
+}
+
+TEST_CASE("paste replaces the selection; a TextField flattens newlines to spaces") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 4;
+    TF::handle_input(field, prism::Paste{"a\r\nb\nc"}, node);
+    CHECK(field.get().value == "ha b co");
+}

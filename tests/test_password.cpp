@@ -273,3 +273,22 @@ TEST_CASE("Password masks one glyph per character, not per byte") {
             two_dots |= t->text == "\xe2\x97\x8f\xe2\x97\x8f";
     CHECK(two_dots);
 }
+
+TEST_CASE("Password never puts its text on the clipboard") {
+    struct Recording final : prism::Clipboard {
+        mutable int calls = 0;
+        void set_text(std::string) const override { ++calls; }
+    } cb;
+    prism::Theme theme;
+    theme.clipboard = &cb;
+    prism::Field<prism::Password<>> field{{.value = "secret"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    auto& es = prism::Widget<prism::Password<>>::ensure_edit_state(node);
+    es.anchor = 0;
+    es.cursor = 6;
+    prism::Widget<prism::Password<>>::handle_input(field, prism::KeyPress{prism::keys::c, prism::mods::ctrl}, node);
+    prism::Widget<prism::Password<>>::handle_input(field, prism::KeyPress{prism::keys::x, prism::mods::ctrl}, node);
+    CHECK(cb.calls == 0);
+    CHECK(field.get().value == "secret");   // cut refused, not just the copy half
+}

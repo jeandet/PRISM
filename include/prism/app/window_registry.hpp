@@ -30,6 +30,7 @@ public:
         e.tree = std::make_unique<WidgetTree>(model);
         if (waker_) e.tree->bind_waker(waker_);
         e.tree->set_text_measurer(measurer_);
+        e.tree->set_clipboard(clipboard_);
         auto [w, h] = window.size();
         if (window.decoration_mode() == DecorationMode::Custom)
             h -= static_cast<int>(WindowChrome::title_bar_h.raw());
@@ -40,6 +41,11 @@ public:
     }
 
     void remove(WindowId id) { entries_.erase(id); }
+
+    void set_clipboard(const Clipboard* c) {
+        clipboard_ = c;
+        for (auto& [id, entry] : entries_) entry.tree->set_clipboard(c);
+    }
 
     void set_text_measurer(const TextMeasurer* m) {
         measurer_ = m;
@@ -74,6 +80,7 @@ private:
     std::unordered_map<WindowId, Entry> entries_;
     std::function<void()> waker_;
     const TextMeasurer* measurer_ = nullptr;
+    const Clipboard* clipboard_ = nullptr;
 };
 
 } // namespace prism::app

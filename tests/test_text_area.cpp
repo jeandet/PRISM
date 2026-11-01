@@ -889,3 +889,10 @@ TEST_CASE("TextArea: a selection over two lines is highlighted on both") {
             ++highlights;
     CHECK(highlights == 2);
 }
+
+TEST_CASE("TextArea keeps pasted newlines but drops carriage returns") {
+    prism::Field<prism::TextArea<>> field{{.value = ""}};
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextArea<>>::handle_input(field, prism::Paste{"a\r\nb"}, node);
+    CHECK(field.get().value == "a\nb");
+}

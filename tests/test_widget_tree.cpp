@@ -768,3 +768,13 @@ TEST_CASE("WindowRegistry hands the measurer to trees added before and after") {
     CHECK(registry.find(id1)->tree->theme().measurer == &m);
     CHECK(registry.find(id2)->tree->theme().measurer == &m);
 }
+
+TEST_CASE("Paste reaches the focused widget") {
+    KeySinkModel model;
+    prism::WidgetTree tree(model);
+    key_sink_events.clear();
+    tree.set_focused(tree.leaf_ids()[0]);
+    prism::app::widget_detail::route_event(tree, nullptr, prism::Paste{"x"});
+    REQUIRE(key_sink_events.size() == 1);
+    CHECK(std::get<prism::Paste>(key_sink_events[0]).text == "x");
+}

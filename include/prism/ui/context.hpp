@@ -29,6 +29,7 @@ enum class WidgetState : uint8_t {
 }
 
 struct TextMeasurer;
+struct Clipboard;
 
 struct Theme {
     // Surface backgrounds (widget fill)
@@ -108,6 +109,8 @@ struct Theme {
     // Points at a backend-owned object: do not copy a Theme holding it beyond the backend's
     // lifetime. Set before the logic thread starts recording; read only on the logic thread.
     const TextMeasurer* measurer = nullptr;
+    // Where copy/cut puts text; same ownership rules as measurer. Null = copy does nothing.
+    const Clipboard* clipboard = nullptr;
 };
 
 inline Theme default_theme() { return {}; }

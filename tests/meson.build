@@ -64,6 +64,7 @@ headless_tests = {
   'utf8' : files('test_utf8.cpp'),
   'text_metrics' : files('test_text_metrics.cpp'),
   'text_edit' : files('test_text_edit.cpp'),
+  'queued_clipboard' : files('test_queued_clipboard.cpp'),
   'frame_cache' : files('test_frame_cache.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),

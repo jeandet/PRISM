@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/core/utf8.hpp>
+#include <prism/ui/clipboard.hpp>
 #include <prism/ui/text_edit.hpp>
 #include <prism/ui/text_metrics.hpp>
 #include <prism/ui/widget_node.hpp>
@@ -124,6 +125,37 @@ inline std::optional<TextEdit> common_edit_key(const TextEdit& e, const KeyPress
     return std::nullopt;
 }
 
+// Ctrl/Cmd+C and +X. Returns nullopt for other keys. Without a clipboard, a selection, or
+// permission (secret fields), the key is consumed and nothing happens -- in particular cut never
+// deletes text it could not put on the clipboard.
+inline std::optional<TextEdit> clipboard_key(const TextEdit& e, const KeyPress& kp,
+                                             const Clipboard* cb, bool allow_copy) {
+    if (!mods::shortcut(kp.mods) || (kp.key != keys::c && kp.key != keys::x)) return std::nullopt;
+    if (!cb || !allow_copy || !text_edit::has_selection(e)) return e;
+    cb->set_text(std::string(text_edit::selected(e)));
+    return kp.key == keys::x ? text_edit::erase_back(e) : e;
+}
+
+// Pasted text for a single-line field: line breaks become spaces.
+inline std::string single_line(std::string_view s) {
+    std::string out;
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '\r' && i + 1 < s.size() && s[i + 1] == '\n') continue;   // CRLF -> one space
+        out += (s[i] == '\r' || s[i] == '\n') ? ' ' : s[i];
+    }
+    return out;
+}
+
+// Pasted text for a multi-line area: Windows/old-Mac line ends become '\n'.
+inline std::string normalized_lines(std::string_view s) {
+    std::string out;
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '\r') { if (i + 1 >= s.size() || s[i + 1] != '\n') out += '\n'; }
+        else out += s[i];
+    }
+    return out;
+}
+
 // Writes an edit back: the field only if the text changed, the caret and selection always.
 template <typename Sentinel, typename EditState>
 void apply_edit(Field<Sentinel>& field, WidgetNode& node, EditState& es,
@@ -162,19 +194,24 @@ std::optional<TextEdit> mouse_edit(const TextEdit& e, EditState& es, const Input
     return std::nullopt;
 }
 
+// allow_copy: false for secret fields (Password), which must never reach the clipboard.
 template <typename Sentinel, typename DisplayFn>
 void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node,
-                             DisplayFn display_fn) {
+                             DisplayFn display_fn, bool allow_copy) {
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
+    const Clipboard* cb = node.theme ? node.theme->clipboard : nullptr;
     auto& es = node.get_or_create<TextEditState>();
     const TextEdit before = current_edit(field, es);
     std::optional<TextEdit> after;
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
         after = text_edit::insert(before, ti->text, field.get().max_length);
+    } else if (auto* pa = std::get_if<Paste>(&ev)) {
+        after = text_edit::insert(before, single_line(pa->text), field.get().max_length);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         bool shift = (kp->mods & mods::shift) != 0;
-        if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
+        if (auto c = clipboard_key(before, *kp, cb, allow_copy)) after = c;
+        else if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
         else if (kp->key == keys::end) after = text_edit::move_to(before, before.text.size(), shift);
         else after = common_edit_key(before, *kp);
     } else {
@@ -363,9 +400,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
         after = text_edit::insert(before, ti->text, field.get().max_length);
+    } else if (auto* pa = std::get_if<Paste>(&ev)) {
+        after = text_edit::insert(before, normalized_lines(pa->text), field.get().max_length);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         bool shift = (kp->mods & mods::shift) != 0;
-        switch (kp->key) {
+        if (auto c = clipboard_key(before, *kp, node.theme ? node.theme->clipboard : nullptr, true)) after = c;
+        else switch (kp->key) {
         case keys::enter: after = text_edit::insert(before, "\n", field.get().max_length); break;
         case keys::home: after = text_edit::move_to(before, line_col_to_cursor(value, line, 0, wrapped), shift); break;
         case keys::end:
@@ -429,7 +469,7 @@ void Widget<TextField<T>>::record(DrawList& dl, const Field<TextField<T>>& field
 template <StringLike T>
 void Widget<TextField<T>>::handle_input(Field<TextField<T>>& field, const InputEvent& ev,
                                           WidgetNode& node) {
-    text_detail::text_field_handle_input(field, ev, node, text_detail::plain_display);
+    text_detail::text_field_handle_input(field, ev, node, text_detail::plain_display, true);
 }
 
 // --- Widget<Password<T>> method bodies ---
@@ -455,7 +495,7 @@ void Widget<Password<T>>::record(DrawList& dl, const Field<Password<T>>& field,
 template <StringLike T>
 void Widget<Password<T>>::handle_input(Field<Password<T>>& field, const InputEvent& ev,
                                           WidgetNode& node) {
-    text_detail::text_field_handle_input(field, ev, node, text_detail::masked_display);
+    text_detail::text_field_handle_input(field, ev, node, text_detail::masked_display, false);
 }
 
 // --- Widget<TextArea<T>> method bodies ---

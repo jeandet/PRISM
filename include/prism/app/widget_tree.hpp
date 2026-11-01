@@ -86,6 +86,8 @@ public:
 
     // Every node points at theme_, so this reaches all widgets, including ones built later.
     // Everything re-records: widgets recorded before (with the estimate) must pick up real metrics.
+    void set_clipboard(const Clipboard* c) { theme_.clipboard = c; }
+
     void set_text_measurer(const TextMeasurer* m) {
         if (theme_.measurer == m) return;
         theme_.measurer = m;

@@ -356,6 +356,14 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                 }
                 case SDL_EVENT_KEY_DOWN:
                     event_cb(WindowEvent{wid, KeyPress{static_cast<int32_t>(ev.key.key), ev.key.mod}});
+                    // The clipboard is read here, on the main thread, and delivered as an event:
+                    // widgets on the logic thread never wait for it.
+                    if (mods::shortcut(ev.key.mod) && static_cast<int32_t>(ev.key.key) == keys::v) {
+                        if (char* text = SDL_GetClipboardText()) {
+                            if (*text) event_cb(WindowEvent{wid, Paste{text}});
+                            SDL_free(text);
+                        }
+                    }
                     break;
                 case SDL_EVENT_KEY_UP:
                     event_cb(WindowEvent{wid, KeyRelease{static_cast<int32_t>(ev.key.key), ev.key.mod}});
@@ -369,6 +377,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                 case SDL_EVENT_USER:
                     drain_window_requests();
                     drain_close_requests();
+                    clipboard_.drain([](const std::string& text) { SDL_SetClipboardText(text.c_str()); });
                     break;
                 case SDL_EVENT_WINDOW_EXPOSED:
                     // De-occlusion/un-minimize: SDL needs a redraw even though the

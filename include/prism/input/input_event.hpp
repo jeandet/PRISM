@@ -16,12 +16,13 @@ struct MouseScroll { Point position; DX dx; DY dy; };
 struct KeyPress    { int32_t key; uint16_t mods; };
 struct KeyRelease  { int32_t key; uint16_t mods; };
 struct TextInput   { std::string text; };
+struct Paste       { std::string text; };   // clipboard contents, read by the backend on Ctrl/Cmd+V
 struct WindowResize { int width, height; };
 struct WindowClose {};
 
 using InputEvent = std::variant<
     MouseMove, MouseButton, MouseScroll,
-    KeyPress, KeyRelease, TextInput,
+    KeyPress, KeyRelease, TextInput, Paste,
     WindowResize, WindowClose
 >;
 
