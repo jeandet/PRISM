@@ -79,3 +79,66 @@ TEST_CASE("choosing the same item twice notifies twice") {
     f.click(10, 30 + 14);
     CHECK(notified == 2);
 }
+
+namespace {
+struct MenuBar {
+    prism::Field<prism::Menu> file{{.title = "File", .items = {"Open", "Save"}}};
+    prism::Field<prism::Menu> edit{{.title = "Edit", .items = {"Undo", "Redo", "Cut"}}};
+    prism::Field<prism::Label<>> status{{"ready"}};
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.hstack(file, edit);
+            vb.widget(status);
+        });
+    }
+};
+
+struct BarFixture {
+    MenuBar model;
+    prism::WidgetTree tree{model};
+    std::unique_ptr<prism::SceneSnapshot> snap = tree.build_snapshot(400, 300, 1);
+    prism::WidgetId file_id = tree.leaf_ids()[0];
+    prism::WidgetId edit_id = tree.leaf_ids()[1];
+    float edit_x() const { return prism::find_widget_rect(*snap, edit_id)->origin.x.raw() + 5.f; }
+    void key(int32_t k) { route_event(tree, snap.get(), prism::KeyPress{k, 0}); }
+    void click(float x, float y) {
+        route_event(tree, snap.get(), prism::MouseButton{prism::Point{prism::X{x}, prism::Y{y}}, 1, true});
+        route_event(tree, snap.get(), prism::MouseButton{prism::Point{prism::X{x}, prism::Y{y}}, 1, false});
+    }
+    void hover(float x, float y) { route_event(tree, snap.get(), prism::MouseMove{prism::Point{prism::X{x}, prism::Y{y}}}); }
+};
+}
+
+TEST_CASE("menu bar: right and left move the open menu along the bar, stopping at the ends") {
+    BarFixture f;
+    f.click(10, 10);
+    REQUIRE(f.tree.popup_owner() == f.file_id);
+    f.key(prism::keys::right);
+    CHECK(f.tree.popup_owner() == f.edit_id);
+    CHECK(f.tree.focused_id() == f.edit_id);
+    f.key(prism::keys::right);
+    CHECK(f.tree.popup_owner() == f.edit_id);
+    f.key(prism::keys::left);
+    CHECK(f.tree.popup_owner() == f.file_id);
+    f.key(prism::keys::left);
+    CHECK(f.tree.popup_owner() == f.file_id);
+    f.key(prism::keys::escape);
+    CHECK(f.tree.popup_owner() == 0);
+}
+
+TEST_CASE("menu bar: hovering another title while a menu is open switches to it") {
+    BarFixture f;
+    f.click(10, 10);
+    f.hover(f.edit_x(), 10);
+    CHECK(f.tree.popup_owner() == f.edit_id);
+    // the switched-to menu works: its second item is chosen
+    f.click(f.edit_x(), 30 + 28 + 14);
+    CHECK(f.model.edit.get().chosen == std::optional<size_t>{1});
+    CHECK_FALSE(f.model.file.get().chosen.has_value());
+}
+
+TEST_CASE("menu bar: hovering a title with no menu open does nothing") {
+    BarFixture f;
+    f.hover(f.edit_x(), 10);
+    CHECK(f.tree.popup_owner() == 0);
+}

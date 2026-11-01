@@ -182,6 +182,56 @@ public:
         popup_owner_ = 0;
     }
 
+    // The menu next to `from` in its menu bar (its sibling menus), dir = +1 or -1.
+    [[nodiscard]] std::optional<WidgetId> menu_neighbour(WidgetId from, int dir) const {
+        auto parent = parent_map_.find(from);
+        if (parent == parent_map_.end()) return std::nullopt;
+        auto pit = index_.find(parent->second);
+        if (pit == index_.end()) return std::nullopt;
+        std::vector<WidgetId> bar;
+        for (const auto& c : pit->second->children)
+            if (c.opens_menu) bar.push_back(c.id);
+        auto at = std::ranges::find(bar, from);
+        if (at == bar.end()) return std::nullopt;
+        auto i = (at - bar.begin()) + dir;
+        if (i < 0 || i >= static_cast<std::ptrdiff_t>(bar.size())) return std::nullopt;
+        return bar[static_cast<size_t>(i)];
+    }
+
+    [[nodiscard]] bool opens_menu(WidgetId id) const {
+        auto it = index_.find(id);
+        return it != index_.end() && it->second->opens_menu;
+    }
+
+    // The context menu for a right click on `hit`: declared in the nearest enclosing
+    // container (the root when nothing was hit).
+    [[nodiscard]] std::optional<WidgetId> context_menu_for(std::optional<WidgetId> hit) const {
+        WidgetId current = hit.value_or(root_.id);
+        while (true) {
+            if (auto it = index_.find(current); it != index_.end())
+                for (const auto& c : it->second->children)
+                    if (c.context_menu) return c.id;
+            if (current == root_.id) return std::nullopt;
+            auto parent = parent_map_.find(current);
+            current = parent != parent_map_.end() ? parent->second : root_.id;
+        }
+    }
+
+    // Moves the open popup (owner coordinates), e.g. to keep it inside the window.
+    void move_popup(Rect area) {
+        if (auto it = index_.find(popup_owner_); it != index_.end() && it->second->popup_area) {
+            it->second->popup_area = area;
+            it->second->dirty = true;
+        }
+    }
+
+    // Closes the open menu and opens `to` (menus open on Down), focused.
+    void switch_menu(WidgetId to) {
+        close_popup();
+        set_focused(to);
+        dispatch(to, KeyPress{keys::down, 0});
+    }
+
     // id == 0 ("no widget") is a no-op, letting callers skip their own zero checks.
     void track_popup(const WidgetNode& n) {
         if (n.popup_area) popup_owner_ = n.id;
@@ -441,6 +491,7 @@ public:
 
         auto snap = std::make_unique<SceneSnapshot>();
         snap->version = version;
+        snap->viewport = Size{Width{w}, Height{h}};
         layout_flatten(layout, *snap);
         resolve_clips(*snap);
         if (highlight_id_) {

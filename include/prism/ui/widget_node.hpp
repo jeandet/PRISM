@@ -34,6 +34,8 @@ struct WidgetNode {
     // while set, the popup gets all input first (see doc/design/menus-and-dialogs.md).
     std::optional<Rect> popup_area;
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
+    bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)
+    bool context_menu = false;  // opened by a right click in its parent container
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
@@ -208,6 +210,10 @@ Node node_leaf(Field<T>& field, WidgetId& next_id) {
                 wn.intrinsic_width = [&field](const WidgetNode& n) { return Widget<T>::intrinsic_width(field, n); };
             if constexpr (requires { Widget<T>::expand; })
                 wn.expand = Widget<T>::expand;
+            if constexpr (requires { Widget<T>::opens_menu; })
+                wn.opens_menu = Widget<T>::opens_menu;
+            if constexpr (requires { Widget<T>::context_menu; })
+                wn.context_menu = Widget<T>::context_menu;
             if constexpr (requires { Widget<T>::expand_axis; })
                 wn.expand_axis = Widget<T>::expand_axis;
             wn.record = [&field](WidgetNode& node) {

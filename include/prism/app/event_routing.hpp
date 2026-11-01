@@ -41,6 +41,13 @@ inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const
         if (!tree.popup_node()->popup_modal) tree.close_popup();
         return true;
     }
+    if (!inside && std::holds_alternative<MouseMove>(ev) && tree.opens_menu(tree.popup_owner())) {   // menu bar: hover switches menus
+        auto over = hit_test(snap, pos);
+        if (over && *over != tree.popup_owner() && tree.opens_menu(*over)) {
+            tree.switch_menu(*over);
+            return true;
+        }
+    }
     tree.update_hover(inside ? std::optional<WidgetId>{tree.popup_owner()} : std::nullopt);
     dispatch_to_popup(tree, snap, ev);
     return true;
@@ -66,9 +73,42 @@ inline void route_mouse_move(WidgetTree& tree, const SceneSnapshot& snap,
     }
 }
 
+// A right press opens the context menu of the enclosing container, if one is declared,
+// instead of reaching the widget under the pointer.
+inline bool open_context_menu(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev,
+                              const MouseButton& mb) {
+    if (!mb.pressed || mb.button != buttons::right) return false;
+    auto menu = tree.context_menu_for(hit_test(snap, mb.position));
+    if (!menu) return false;
+    auto rect = find_widget_rect(snap, *menu);
+    tree.dispatch(*menu, rect ? localize_mouse(ev, *rect) : ev);
+    return true;
+}
+
+inline Rect clamp_into(Rect r, Size window) {
+    float x = std::clamp(r.origin.x.raw(), 0.f, std::max(0.f, window.w.raw() - r.extent.w.raw()));
+    float y = std::clamp(r.origin.y.raw(), 0.f, std::max(0.f, window.h.raw() - r.extent.h.raw()));
+    return Rect{Point{X{x}, Y{y}}, r.extent};
+}
+
+// simplify: slides an overflowing popup back inside the window (it may then cover its menu
+// title) rather than flipping it to the other side of its anchor; add flipping when a popup
+// anchored to a widget looks wrong in practice.
+inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
+    auto area = popup_area(tree, snap);
+    if (!area || snap.viewport.w.raw() <= 0.f) return;
+    Rect inside = clamp_into(*area, snap.viewport);
+    if (inside.origin == area->origin) return;
+    DX dx = inside.origin.x - area->origin.x;
+    DY dy = inside.origin.y - area->origin.y;
+    Rect local = *tree.popup_node()->popup_area;
+    tree.move_popup(Rect{Point{local.origin.x + dx, local.origin.y + dy}, local.extent});
+}
+
 inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
                                const InputEvent& ev, const MouseButton& mb) {
     if (route_popup_mouse(tree, snap, ev, mb.position, mb.pressed)) return;
+    if (open_context_menu(tree, snap, ev, mb)) return;
     if (!mb.pressed && tree.in_scrollbar_drag()) {
         tree.end_scrollbar_drag();
         tree.set_pressed(tree.captured_id(), false);
@@ -122,8 +162,11 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
                             const KeyPress& kp) {
     constexpr float page_delta = 200.f;
     if (tree.popup_owner() != 0) {   // keys belong to the popup; escape closes a plain one
+        auto bar_step = kp.key == keys::right ? 1 : kp.key == keys::left ? -1 : 0;
+        auto neighbour = bar_step ? tree.menu_neighbour(tree.popup_owner(), bar_step) : std::nullopt;
         if (kp.key == keys::escape && !tree.popup_node()->popup_modal) tree.close_popup();
-        else tree.dispatch(tree.popup_owner(), ev);
+        else if (neighbour) tree.switch_menu(*neighbour);
+        else if (!bar_step || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
         return;
     }
     if (kp.key == keys::tab) {
@@ -169,6 +212,7 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
         route_text_input(tree, ev);
     if (std::get_if<KeyRelease>(&ev))
         route_key_release(tree, ev);
+    if (snap) keep_popup_in_window(tree, *snap);
 }
 
 } // namespace prism::app::widget_detail

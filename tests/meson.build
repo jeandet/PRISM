@@ -73,6 +73,7 @@ headless_tests = {
   'image' : files('test_image.cpp'),
   'popup' : files('test_popup.cpp'),
   'menu' : files('test_menu.cpp'),
+  'context_menu' : files('test_context_menu.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),
   'inspector' : files('test_inspector.cpp'),

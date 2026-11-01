@@ -16,6 +16,7 @@ using WidgetId = uint64_t;
 // z_order contains indices into geometry/draw_lists, back-to-front.
 struct SceneSnapshot {
     uint64_t version = 0;
+    Size viewport{Width{0}, Height{0}};  // the window, in the same coordinates as geometry
     std::vector<std::pair<WidgetId, Rect>> geometry;
     // Per-widget entries may be shared with a previous snapshot (see layout_flatten's
     // per-widget DrawList cache) -- const so nothing downstream can mutate a shared entry

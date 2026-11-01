@@ -476,7 +476,10 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap) {
 }
 
 inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor) {
-    if (node.draws.empty() && node.kind != LayoutNode::Kind::Canvas) return;
+    // A context menu draws nothing in place, but routing needs its origin: its popup is
+    // stored in its own coordinates. It gets a zero-size rect there, which nothing can hit.
+    bool anchor_only = node.draws.empty() && node.widget && node.widget->context_menu;
+    if (node.draws.empty() && node.kind != LayoutNode::Kind::Canvas && !anchor_only) return;
 
     // Reuse last frame's already-translated+clipped DrawList when this widget's content
     // didn't change (!dirty) AND it's still at the same screen rect -- a widget can be
@@ -503,8 +506,9 @@ inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipp
         DY dy{node.allocated.origin.y.raw()};
         layout_detail::translate_draw_list(node.draws, dx, dy);
         // Canvas nodes fill their allocation; leaf widgets use drawn content bounds
-        hit_rect = (node.kind == LayoutNode::Kind::Canvas)
-            ? node.allocated : node.draws.bounding_box();
+        hit_rect = node.kind == LayoutNode::Kind::Canvas ? node.allocated
+                 : anchor_only ? Rect{node.allocated.origin, Size{Width{0}, Height{0}}}
+                               : node.draws.bounding_box();
 
         auto clipped = std::make_shared<DrawList>();
         clipped->clip_push(node.allocated.origin, node.allocated.extent);

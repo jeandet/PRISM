@@ -21,6 +21,8 @@ struct NotesApp {
     FileTreeSource source;
     prism::TreeController files{prism::wrap_tree_storage(source)};
     prism::Field<prism::Menu> file_menu{{.title = "File", .items = {"Save", "Reload"}}};
+    prism::Field<prism::Menu> search_menu{{.title = "Search", .items = {"Clear search"}}};
+    prism::Field<prism::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
     prism::Field<prism::TextField<>> search{{.placeholder = "Find in file..."}};
     prism::Field<prism::Button> save{{"Save"}};
     prism::Field<prism::Button> reload{{"Reload"}};
@@ -40,11 +42,18 @@ struct NotesApp {
         wiring.push_back(body.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(search.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
-        wiring.push_back(file_menu.on_change().connect([this](const prism::Menu& m) {
-            if (m.chosen == 0) write();
-            else if (m.chosen == 1 && !current.empty()) open(current);
-        }));
-        wiring.push_back(reload.on_change().connect([this](const auto&) { if (!current.empty()) open(current); }));
+        auto on_choice = [this](const auto& m) { if (m.chosen) run(m.items[*m.chosen]); };
+        wiring.push_back(file_menu.on_change().connect(on_choice));
+        wiring.push_back(search_menu.on_change().connect(on_choice));
+        wiring.push_back(editor_menu.on_change().connect(on_choice));
+        wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
+    }
+
+    // Every menu entry, by its label.
+    void run(std::string_view command) {
+        if (command == "Save") write();
+        else if (command == "Reload" && !current.empty()) open(current);
+        else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
     }
 
     void view(prism::WidgetTree::ViewBuilder& vb) {
@@ -52,9 +61,10 @@ struct NotesApp {
             vb.tree(files);
             vb.handle();
             vb.vstack([&] {
-                vb.hstack(file_menu, search, save, reload);
+                vb.hstack(file_menu, search_menu, search, save, reload);
                 vb.widget(body);
                 vb.widget(status);
+                vb.context_menu(editor_menu);
             });
         });
     }

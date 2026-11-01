@@ -13,23 +13,24 @@ constexpr Height item_h{28.f};
 constexpr float pad = 8.f;
 constexpr float font_size = 14.f;
 
-inline float popup_width(const Menu& m, const WidgetNode& n) {
+using Items = std::vector<std::string>;
+
+inline Size popup_size(const Items& items, const WidgetNode& n, float min_w) {
     float w = 0.f;
-    for (const auto& item : m.items) w = std::max(w, text_width(node_theme(n).measurer, item, font_size));
-    return std::max(w + 2.f * pad, delegate_detail::widget_w(n).raw());
+    for (const auto& item : items) w = std::max(w, text_width(node_theme(n).measurer, item, font_size));
+    return Size{Width{std::max(w + 2.f * pad, min_w)}, Height{item_h.raw() * static_cast<float>(items.size())}};
 }
 
-// Row under a point in the menu's own coordinates, if any.
-inline std::optional<std::size_t> item_at(const Menu& m, Point p) {
-    float row = (p.y.raw() - title_h.raw()) / item_h.raw();
-    if (row < 0.f) return std::nullopt;
-    auto i = static_cast<std::size_t>(row);
-    return i < m.items.size() ? std::optional{i} : std::nullopt;
+// Item under a point in the owner's coordinates. The popup may have been moved to stay
+// inside the window, so this reads where it actually is.
+inline std::optional<std::size_t> item_at(const Items& items, const WidgetNode& node, Point p) {
+    if (!node.popup_area || !node.popup_area->contains(p)) return std::nullopt;
+    auto i = static_cast<std::size_t>((p.y.raw() - node.popup_area->origin.y.raw()) / item_h.raw());
+    return i < items.size() ? std::optional{i} : std::nullopt;
 }
 
-inline void open(const Menu& m, WidgetNode& node) {
-    node.popup_area = Rect{Point{X{0}, Y{title_h.raw()}},
-                           Size{Width{popup_width(m, node)}, Height{item_h.raw() * static_cast<float>(m.items.size())}}};
+inline void open_at(const Items& items, WidgetNode& node, Point origin, float min_w) {
+    node.popup_area = Rect{origin, popup_size(items, node, min_w)};
     node.get_or_create<MenuEditState>().highlighted = 0;
     node.dirty = true;
 }
@@ -40,12 +41,56 @@ inline void close(WidgetNode& node) {
     node.dirty = true;
 }
 
-inline void choose(Field<Menu>& field, WidgetNode& node, std::size_t i) {
+template <typename M>
+void choose(Field<M>& field, WidgetNode& node, std::size_t i) {
     close(node);
     auto m = field.get();
     m.chosen = i;
     ++m.activations;
     field.set(m);
+}
+
+inline void draw_popup(const Items& items, WidgetNode& node) {
+    const Rect& area = *node.popup_area;
+    const auto& t = *node.theme;
+    std::size_t hl = node.get_or_create<MenuEditState>().highlighted;
+    node.overlay_draws.filled_rect(area, t.popup_bg);
+    node.overlay_draws.rect_outline(area, t.popup_border, 1.f);
+    for (std::size_t i = 0; i < items.size(); ++i) {
+        Y y{area.origin.y.raw() + static_cast<float>(i) * item_h.raw()};
+        if (i == hl)
+            node.overlay_draws.filled_rect(Rect{Point{area.origin.x, y}, Size{area.extent.w, item_h}}, t.popup_highlight);
+        node.overlay_draws.text(items[i], Point{area.origin.x + DX{pad}, y + DY{6.f}}, font_size,
+                                i == hl ? t.text_on_primary : t.text);
+    }
+}
+
+// Input for an open popup: hover highlights, a left press on an item or Enter/Space chooses,
+// Up/Down move. Returns false when the event is not the popup's.
+template <typename M>
+bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
+    const auto& items = field.get().items;
+    auto& es = node.get_or_create<MenuEditState>();
+    if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
+        auto i = item_at(items, node, mb->position);
+        if (!i) return false;
+        choose(field, node, *i);
+    } else if (auto* mm = std::get_if<MouseMove>(&ev)) {
+        if (auto i = item_at(items, node, mm->position); i && *i != es.highlighted) {
+            es.highlighted = *i;
+            node.dirty = true;
+        }
+    } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
+        if (kp->key == keys::down && es.highlighted + 1 < items.size()) ++es.highlighted;
+        else if (kp->key == keys::up && es.highlighted > 0) --es.highlighted;
+        else if ((kp->key == keys::enter || kp->key == keys::space) && es.highlighted < items.size())
+            choose(field, node, es.highlighted);
+        else return false;
+        node.dirty = true;
+    } else {
+        return false;
+    }
+    return true;
 }
 
 } // namespace menu_detail
@@ -54,8 +99,6 @@ inline float Widget<Menu>::intrinsic_width(const Field<Menu>& f, const WidgetNod
     return 2.f * menu_detail::pad + text_width(node_theme(n).measurer, f.get().title, menu_detail::font_size);
 }
 
-// simplify: the popup opens below the title and is not yet clamped or flipped at the window
-// edges (the dropdown flips up; menus need both axes). Add with context menus.
 inline void Widget<Menu>::record(DrawList& dl, const Field<Menu>& field, WidgetNode& node) {
     using namespace menu_detail;
     const auto& m = field.get();
@@ -67,51 +110,33 @@ inline void Widget<Menu>::record(DrawList& dl, const Field<Menu>& field, WidgetN
                    is_open ? t.surface_active : vs.hovered ? t.surface_hover : t.surface);
     dl.text(m.title, delegate_detail::make_point(X{pad}, Y{7}), font_size, t.text);
     if (vs.focused) delegate_detail::draw_focus_ring(dl, w, title_h, t);
-
     node.overlay_draws.clear();
-    if (!is_open) return;
-    const Rect& area = *node.popup_area;
-    std::size_t hl = node.get_or_create<MenuEditState>().highlighted;
-    node.overlay_draws.filled_rect(area, t.popup_bg);
-    node.overlay_draws.rect_outline(area, t.popup_border, 1.f);
-    for (std::size_t i = 0; i < m.items.size(); ++i) {
-        Y y{area.origin.y.raw() + static_cast<float>(i) * item_h.raw()};
-        if (i == hl)
-            node.overlay_draws.filled_rect(Rect{Point{X{0}, y}, Size{area.extent.w, item_h}}, t.popup_highlight);
-        node.overlay_draws.text(m.items[i], Point{X{pad}, y + DY{6.f}}, font_size,
-                                i == hl ? t.text_on_primary : t.text);
-    }
+    if (is_open) draw_popup(m.items, node);
 }
 
 inline void Widget<Menu>::handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node) {
     using namespace menu_detail;
     const auto& m = field.get();
-    bool is_open = node.popup_area.has_value();
-    auto& es = node.get_or_create<MenuEditState>();
-
+    auto open = [&] { open_at(m.items, node, Point{X{0}, Y{title_h.raw()}}, delegate_detail::widget_w(node).raw()); };
+    if (node.popup_area && open_popup_input(field, ev, node)) return;
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
-        if (!is_open) open(m, node);
-        else if (auto i = item_at(m, mb->position)) choose(field, node, *i);
-        else close(node);   // the title again: toggle closed
-    } else if (auto* mm = std::get_if<MouseMove>(&ev); mm && is_open) {
-        if (auto i = item_at(m, mm->position); i && *i != es.highlighted) {
-            es.highlighted = *i;
-            node.dirty = true;
-        }
-    } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
-        bool activate = kp->key == keys::enter || kp->key == keys::space;
-        if (!is_open) {
-            if (activate || kp->key == keys::down) open(m, node);
-        } else if (kp->key == keys::down && es.highlighted + 1 < m.items.size()) {
-            ++es.highlighted;
-            node.dirty = true;
-        } else if (kp->key == keys::up && es.highlighted > 0) {
-            --es.highlighted;
-            node.dirty = true;
-        } else if (activate && es.highlighted < m.items.size()) {
-            choose(field, node, es.highlighted);
-        }
+        if (node.popup_area) close(node);   // the title again: toggle closed
+        else open();
+    } else if (auto* kp = std::get_if<KeyPress>(&ev); kp && !node.popup_area) {
+        if (kp->key == keys::enter || kp->key == keys::space || kp->key == keys::down) open();
     }
+}
+
+inline void Widget<ContextMenu>::record(DrawList&, const Field<ContextMenu>& field, WidgetNode& node) {
+    node.overlay_draws.clear();
+    if (node.popup_area) menu_detail::draw_popup(field.get().items, node);
+}
+
+inline void Widget<ContextMenu>::handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node) {
+    using namespace menu_detail;
+    if (node.popup_area && open_popup_input(field, ev, node)) return;
+    if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::right)
+        open_at(field.get().items, node, mb->position, 120.f);
 }
 
 } // namespace prism::ui

@@ -250,6 +250,15 @@ struct MenuEditState {
     std::size_t highlighted = 0;
 };
 
+// A popup menu with no title, opened by a right click anywhere in the container it is
+// declared in (vb.context_menu). It takes no layout space.
+struct ContextMenu {
+    std::vector<std::string> items;
+    std::optional<std::size_t> chosen{};
+    std::uint64_t activations = 0;
+    bool operator==(const ContextMenu&) const = default;
+};
+
 template <ScopedEnum T>
 struct Dropdown {
     T value{};
@@ -754,10 +763,20 @@ template <>
 struct Widget<Menu> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
     static constexpr Role access_role = Role::Button;   // AccessKit's Menu roles come with the bridge
+    static constexpr bool opens_menu = true;   // neighbouring menus form a menu bar
     static void describe(const Field<Menu>& f, AccessInfo& a) { a.name = f.get().title; }
     static float intrinsic_width(const Field<Menu>& f, const WidgetNode& n);
     static void record(DrawList& dl, const Field<Menu>& field, WidgetNode& node);
     static void handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+template <>
+struct Widget<ContextMenu> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::Button;
+    static constexpr bool context_menu = true;
+    static void record(DrawList& dl, const Field<ContextMenu>& field, WidgetNode& node);
+    static void handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <>

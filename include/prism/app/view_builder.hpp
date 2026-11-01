@@ -152,6 +152,9 @@ public:
         current_parent().children.push_back(std::move(leaf));
     }
 
+    // A right click anywhere in the current container opens this menu at the pointer.
+    void context_menu(Field<ContextMenu>& menu) { widget(menu); }
+
     // Renders like widget(Field<T>&) but without focus/input wiring --
     // for prism::inspector's [[=prism::inspector::readonly]] annotation.
     template <typename T>
