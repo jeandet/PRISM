@@ -77,3 +77,18 @@ TEST_CASE("line height comes from the font's own line spacing") {
     CHECK(mono != doctest::Approx(14.f * 1.4f));      // not the estimate
     CHECK(m.line_height(28.f, FontRole::Ui) > m.line_height(14.f, FontRole::Ui));
 }
+
+TEST_CASE("measured widths scale linearly, so HiDPI rendering matches the measurement") {
+    // The renderer rasterizes at size x device scale and scales down; the measurer measures at
+    // the point size. Whole-pixel hinted advances made those disagree by ~6% at 2x.
+    TtfSession ttf;
+    auto m = bundled();
+    const char* line = "Each subfolder is a standalone executable built alongside the library, plus";
+    for (FontRole role : {FontRole::Mono, FontRole::Ui}) {
+        float at_1x = m.width(line, 14.f, role);
+        for (float scale : {1.25f, 1.5f, 2.f}) {   // browsers often run at fractional scales
+            CAPTURE(scale);
+            CHECK(m.width(line, 14.f * scale, role) / scale == doctest::Approx(at_1x).epsilon(0.005));
+        }
+    }
+}

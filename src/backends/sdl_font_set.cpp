@@ -12,6 +12,11 @@ bool SdlFontSet::open(const char* ui_path, const char* mono_path, float size) {
     if (ui_path) ui_ = TTF_OpenFont(ui_path, size);
     bool same_file = ui_path && mono_path && std::string_view{ui_path} == mono_path;
     if (mono_path && !same_file) mono_ = TTF_OpenFont(mono_path, size);   // else ui_ serves both
+    // Subpixel positioning: glyph advances keep their fraction instead of being rounded to whole
+    // pixels at each size. The renderer rasterizes at size x device scale while widgets measure
+    // at the point size; with whole-pixel advances the two disagreed by ~6% at 2x.
+    for (TTF_Font* f : {ui_, mono_})
+        if (f) TTF_SetFontHinting(f, TTF_HINTING_LIGHT_SUBPIXEL);
     if (ui_ && mono_) {
         // Mutual fallbacks are fine: SDL_ttf stops the glyph search when it returns to the start.
         TTF_AddFallbackFont(ui_, mono_);
