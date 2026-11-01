@@ -57,8 +57,9 @@ SceneSnapshot
 ```
 
 Known limitations (tracked in `doc/review-2026-11-01.md`):
-- `TextCmd` rasterises a fresh surface + texture on every present — there is no glyph/text cache.
-- One bundled monospace font (JetBrains Mono); widgets estimate text width as `0.6 × size`.
+- Text: two bundled fonts by role — Noto Sans (`FontRole::Ui`) and JetBrains Mono
+  (`FontRole::Mono`), each the other's fallback (`SdlFontSet`). Rasterised text is cached per
+  window across frames (`render::FrameCache`); widgets measure through `SdlTextMeasurer`.
 - `RoundedRect` is drawn as a plain rect (SDL_Renderer has no rounded primitive); `Circle` is aliased.
 - Full repaint of the window on every present (no damage tracking).
 

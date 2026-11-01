@@ -495,7 +495,7 @@ emrun builddir-wasm/examples/model_dashboard/model_dashboard.html
 ```
 
 Anything linking `prism_dep` gets the browser setup for free: SDL3 from Emscripten ports, the
-font bundled in, and JSPI so the event loop can wait without freezing the page.
+fonts bundled in, and JSPI so the event loop can wait without freezing the page.
 Two requirements:
 
 - PRISM uses threads, so the page needs COOP/COEP headers. `emrun` sends them.
