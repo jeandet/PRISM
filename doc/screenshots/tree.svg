@@ -5,12 +5,13 @@
 <clipPath id="clip-1"><rect x="0" y="0" width="154" height="22"/></clipPath>
 <g clip-path="url(#clip-1)">
 <rect x="0" y="0" width="154" height="22" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="8" y="4" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">v Device</text>
+<text xml:space="preserve" x="8" y="4" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">v</text>
+<text xml:space="preserve" x="22" y="4" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Device</text>
 </g>
 <clipPath id="clip-2"><rect x="0" y="22" width="154" height="22"/></clipPath>
 <g clip-path="url(#clip-2)">
 <rect x="0" y="22" width="154" height="22" fill="rgba(55,55,68,1)"/>
-<text xml:space="preserve" x="24" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">  sensors</text>
+<text xml:space="preserve" x="38" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">sensors</text>
 </g>
 </g>
 <clipPath id="clip-3"><rect x="154" y="0" width="6" height="188"/></clipPath>

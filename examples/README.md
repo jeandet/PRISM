@@ -31,6 +31,12 @@ reference app.
 <td>Tree widget over a hand-written <code>TreeStorage</code> filesystem adapter</td>
 </tr>
 <tr>
+<td><a href="model_notes/">model_notes</a></td>
+<td><img src="../doc/screenshots/model_notes.svg" width="180"/></td>
+<td>Model-driven</td>
+<td>Text editor: file tree, <code>TextArea</code> with selection, clipboard, undo and IME, find, a <code>Menu</code></td>
+</tr>
+<tr>
 <td><a href="model_dashboard/">model_dashboard</a></td>
 <td><img src="../doc/screenshots/model_dashboard.svg" width="180"/></td>
 <td>Model-driven</td>

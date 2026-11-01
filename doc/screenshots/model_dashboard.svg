@@ -2,14 +2,14 @@
 <rect width="1024" height="768" fill="rgba(30,30,30,1)"/>
 <clipPath id="clip-0"><rect x="0" y="0" width="1024" height="32"/></clipPath>
 <g clip-path="url(#clip-0)">
-<rect x="0" y="0" width="240" height="32" fill="rgba(42,42,58,1)"/>
-<rect x="0" y="0" width="96" height="32" fill="rgba(30,30,46,1)"/>
-<text x="16" y="8" font-family="monospace" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Waveform</text>
-<rect x="0" y="30" width="96" height="2" fill="rgba(124,111,255,1)"/>
-<rect x="96" y="0" width="64" height="32" fill="rgba(42,42,58,1)"/>
-<text x="112" y="8" font-family="monospace" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
-<rect x="160" y="0" width="80" height="32" fill="rgba(42,42,58,1)"/>
-<text x="176" y="8" font-family="monospace" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Export</text>
+<rect x="0" y="0" width="247.2" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="0" width="99.2" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="16" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Waveform</text>
+<rect x="0" y="30" width="99.2" height="2" fill="rgba(124,111,255,1)"/>
+<rect x="99.2" y="0" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="115.2" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
+<rect x="164.8" y="0" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="180.8" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Export</text>
 </g>
 <clipPath id="clip-1"><rect x="0" y="32" width="30" height="618"/></clipPath>
 <g clip-path="url(#clip-1)">
@@ -38,25 +38,25 @@
 <clipPath id="clip-4"><rect x="0" y="680" width="200" height="32"/></clipPath>
 <g clip-path="url(#clip-4)">
 <rect x="0" y="680" width="200" height="30" fill="rgba(45,45,55,1)"/>
-<text x="8" y="687" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Sine</text>
-<text x="180" y="687" font-family="monospace" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
+<text xml:space="preserve" x="8" y="687" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Sine</text>
+<text xml:space="preserve" x="180" y="687" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
 </g>
-<clipPath id="clip-5"><rect x="200" y="680" width="200" height="32"/></clipPath>
+<clipPath id="clip-5"><rect x="200" y="680" width="157.6" height="32"/></clipPath>
 <g clip-path="url(#clip-5)">
-<rect x="200" y="680" width="200" height="30" fill="rgba(45,45,55,1)"/>
+<rect x="200" y="680" width="157.6" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="208" y="687" width="16" height="16" fill="rgba(45,45,55,1)"/>
 <rect x="208" y="687" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
-<text x="232" y="687" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Show harmonics</text>
+<text xml:space="preserve" x="232" y="687" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Show harmonics</text>
 </g>
-<clipPath id="clip-6"><rect x="400" y="680" width="200" height="32"/></clipPath>
+<clipPath id="clip-6"><rect x="357.6" y="680" width="100" height="32"/></clipPath>
 <g clip-path="url(#clip-6)">
-<rect x="400" y="680" width="200" height="32" fill="rgba(40,105,180,1)"/>
-<rect x="400" y="680" width="200" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
-<text x="408" y="687" font-family="monospace" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Export SVG</text>
+<rect x="357.6" y="680" width="100" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="357.6" y="680" width="100" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="365.6" y="687" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Export SVG</text>
 </g>
 <clipPath id="clip-7"><rect x="0" y="712" width="1024" height="24"/></clipPath>
 <g clip-path="url(#clip-7)">
 <rect x="0" y="712" width="1024" height="24" fill="rgba(45,45,55,1)"/>
-<text x="4" y="716" font-family="monospace" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Pk-Pk: 1.60  RMS: 0.566  f=2.0 Hz</text>
+<text xml:space="preserve" x="4" y="716" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Pk-Pk: 1.60  RMS: 0.566  f=2.0 Hz</text>
 </g>
 </svg>

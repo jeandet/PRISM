@@ -5,7 +5,7 @@ set -euo pipefail
 
 builddir="${1:-builddir-wasm}"
 outdir="${2:-_site}"
-examples=(model_dashboard perf_lab model_plot model_tree_browser)
+examples=(model_notes model_dashboard perf_lab model_plot model_tree_browser)
 
 coi_version=0.1.7
 coi_sha256=03d2f35be3249f5eeb4e214c5daf2be8067e2b24630aaef26a1247b723f2d05d

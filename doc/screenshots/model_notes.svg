@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640">
+<rect width="1000" height="640" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="291" height="608"/></clipPath>
+<g clip-path="url(#clip-0)">
+<clipPath id="clip-1"><rect x="0" y="0" width="291" height="22"/></clipPath>
+<g clip-path="url(#clip-1)">
+<rect x="0" y="0" width="291" height="22" fill="rgba(55,55,68,1)"/>
+<text xml:space="preserve" x="8" y="4" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">v</text>
+<text xml:space="preserve" x="22" y="4" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="42.8" y="4" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes</text>
+</g>
+<clipPath id="clip-2"><rect x="0" y="22" width="291" height="22"/></clipPath>
+<g clip-path="url(#clip-2)">
+<rect x="0" y="22" width="291" height="22" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="38" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="58.8" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">notes_logic.hpp</text>
+</g>
+<clipPath id="clip-3"><rect x="0" y="44" width="291" height="22"/></clipPath>
+<g clip-path="url(#clip-3)">
+<rect x="0" y="44" width="291" height="22" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="38" y="48" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="58.8" y="48" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes.cpp</text>
+</g>
+<clipPath id="clip-4"><rect x="0" y="66" width="291" height="22"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="0" y="66" width="291" height="22" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="38" y="70" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="58.8" y="70" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">meson.build</text>
+</g>
+<clipPath id="clip-5"><rect x="0" y="88" width="291" height="22"/></clipPath>
+<g clip-path="url(#clip-5)">
+<rect x="0" y="88" width="291" height="22" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="38" y="92" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="58.8" y="92" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">README.md</text>
+</g>
+</g>
+<clipPath id="clip-6"><rect x="291" y="0" width="6" height="608"/></clipPath>
+<g clip-path="url(#clip-6)">
+<rect x="291" y="0" width="6" height="608" fill="rgba(90,90,100,0.627451)"/>
+</g>
+<clipPath id="clip-7"><rect x="297" y="0" width="200" height="608"/></clipPath>
+<g clip-path="url(#clip-7)">
+<rect x="297" y="0" width="200" height="608" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="305" y="8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes</text>
+<text xml:space="preserve" x="305" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">type: directory</text>
+<text xml:space="preserve" x="305" y="44" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">entries: 4</text>
+<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-01 15:57:17</text>
+</g>
+<clipPath id="clip-8"><rect x="497" y="0" width="6" height="608"/></clipPath>
+<g clip-path="url(#clip-8)">
+<rect x="497" y="0" width="6" height="608" fill="rgba(90,90,100,0.627451)"/>
+</g>
+<clipPath id="clip-9"><rect x="503" y="0" width="49.6" height="32"/></clipPath>
+<g clip-path="url(#clip-9)">
+<rect x="503" y="0" width="49.6" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="511" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">File</text>
+</g>
+<clipPath id="clip-10"><rect x="552.6" y="0" width="331.4" height="32"/></clipPath>
+<g clip-path="url(#clip-10)">
+<rect x="552.6" y="0" width="331.4" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-11"><rect x="556.6" y="0" width="323.4" height="30"/></clipPath>
+<g clip-path="url(#clip-11)">
+<text xml:space="preserve" x="556.6" y="6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Find in file...</text>
+</g>
+</g>
+<clipPath id="clip-12"><rect x="884" y="0" width="49.6" height="32"/></clipPath>
+<g clip-path="url(#clip-12)">
+<rect x="884" y="0" width="49.6" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="884" y="0" width="49.6" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="892" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Save</text>
+</g>
+<clipPath id="clip-13"><rect x="933.6" y="0" width="66.4" height="32"/></clipPath>
+<g clip-path="url(#clip-13)">
+<rect x="933.6" y="0" width="66.4" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="933.6" y="0" width="66.4" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="941.6" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Reload</text>
+</g>
+<clipPath id="clip-14"><rect x="503" y="32" width="497" height="517.6"/></clipPath>
+<g clip-path="url(#clip-14)">
+<rect x="503" y="32" width="497" height="517.6" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-15"><rect x="507" y="36" width="489" height="509.6"/></clipPath>
+<g clip-path="url(#clip-15)">
+<text xml:space="preserve" x="507" y="38" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#pragma once</text>
+<text xml:space="preserve" x="507" y="77.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, stat</text>
+<text xml:space="preserve" x="507" y="96.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">istics and search. Tested in</text>
+<text xml:space="preserve" x="507" y="116.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// tests/test_notes_logic.cpp; the app (model_notes.cpp) o</text>
+<text xml:space="preserve" x="507" y="136" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">nly wires these to widgets.</text>
+<text xml:space="preserve" x="507" y="175.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;prism/core/utf8.hpp&gt;</text>
+<text xml:space="preserve" x="507" y="214.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;algorithm&gt;</text>
+<text xml:space="preserve" x="507" y="234" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;cstddef&gt;</text>
+<text xml:space="preserve" x="507" y="253.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;expected&gt;</text>
+<text xml:space="preserve" x="507" y="273.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;filesystem&gt;</text>
+<text xml:space="preserve" x="507" y="292.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;fstream&gt;</text>
+<text xml:space="preserve" x="507" y="312.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;iterator&gt;</text>
+<text xml:space="preserve" x="507" y="332" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;optional&gt;</text>
+<text xml:space="preserve" x="507" y="351.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;string&gt;</text>
+<text xml:space="preserve" x="507" y="371.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;string_view&gt;</text>
+<text xml:space="preserve" x="507" y="390.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;vector&gt;</text>
+<text xml:space="preserve" x="507" y="430" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">namespace notes {</text>
+<text xml:space="preserve" x="507" y="469.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">inline std::expected&lt;std::string, std::string&gt; load_text(c</text>
+<text xml:space="preserve" x="507" y="488.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">onst std::filesystem::path&amp; path,</text>
+<text xml:space="preserve" x="507" y="508.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">                                                         s</text>
+<text xml:space="preserve" x="507" y="528" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">td::size_t max_bytes = 1 &lt;&lt; 20) {</text>
+<text xml:space="preserve" x="507" y="547.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">    std::error_code ec;</text>
+</g>
+</g>
+<clipPath id="clip-16"><rect x="503" y="549.6" width="497" height="24"/></clipPath>
+<g clip-path="url(#clip-16)">
+<rect x="503" y="549.6" width="497" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="507" y="553.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  73 lines, 2814 characters</text>
+</g>
+</svg>

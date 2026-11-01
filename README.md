@@ -200,6 +200,8 @@ struct Waveform {
 };
 ```
 
+Canvases can also draw images: `dl.image(img, rect)` with `prism::Image::from_rgba(w, h, pixels)`.
+
 <p align="center"><img src="doc/screenshots/canvas.svg" alt="Canvas" width="400"/></p>
 
 ### Plot
@@ -296,6 +298,40 @@ Both bind to data of any shape through three adapter tiers:
 
 [`examples/model_tree_browser`](examples/model_tree_browser/) is a filesystem browser built on tier 2.
 
+### Text, editing and menus
+
+Text fields behave like a desktop app's: selection (shift+arrows, mouse drag, shift+click,
+Ctrl/Cmd+A), copy, cut and paste, undo and redo, input methods for Chinese, Japanese and Korean,
+and UTF-8 throughout. Text is measured with the real font: Noto Sans for the interface,
+JetBrains Mono for code and `TextArea`. Widgets size to their content: buttons and labels take
+their text width, text fields fill the row.
+
+```cpp
+struct Editor {
+    prism::Field<prism::Menu> file{{.title = "File", .items = {"Open", "Save", "Quit"}}};
+    prism::Field<prism::TextField<>> find{{.placeholder = "Find..."}};
+    prism::Field<prism::TextArea<>> body{{.rows = 20}};
+
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.hstack(file, find);
+            vb.widget(body);
+        });
+    }
+};
+
+Editor editor;
+auto on_menu = editor.file.on_change().connect([](const prism::Menu& m) {
+    if (m.chosen == 1) { /* save */ }
+});
+```
+
+Menus open on an in-window popup layer that takes input first: a click outside closes the menu
+without reaching the widget underneath. Every widget also describes itself for assistive
+technology (role, name, value), ready for a screen-reader bridge.
+
+<p align="center"><img src="doc/screenshots/model_notes.svg" alt="Notes editor example" width="700"/></p>
+
 ### Live inspector
 
 Point PRISM at a plain struct behind a `Shared<T>`. You get a live, editable panel, with no mirror
@@ -331,7 +367,8 @@ struct Settings {
 
 [`examples/`](examples/README.md) holds complete apps, from a raw draw-list demo up to
 [`model_system_monitor`](examples/model_system_monitor/): live `/proc` data from a background
-thread, plots, and a sortable process table and tree.
+thread, plots, and a sortable process table and tree. [`model_notes`](examples/model_notes/) is
+its text-heavy counterpart: a small editor with a file tree, search, a File menu and undo.
 
 <p align="center"><img src="doc/screenshots/system_monitor.svg" alt="System monitor example" width="700"/></p>
 
@@ -517,7 +554,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `prism::then`/`prism::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation.
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer and `Menu`, accessibility metadata, images, anti-aliased shapes. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).
 - **Phase 5**: Vulkan/WebGPU backend, SDF text, tile compositing.
 
 </details>
