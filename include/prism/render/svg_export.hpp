@@ -75,7 +75,8 @@ struct SvgEmitter {
     }
 
     void emit(const TextCmd& c) {
-        out << "<text x=\"" << fmt_float(c.origin.x.raw())
+        // xml:space="preserve": SVG would otherwise collapse runs of spaces and drop indentation.
+        out << "<text xml:space=\"preserve\" x=\"" << fmt_float(c.origin.x.raw())
             << "\" y=\"" << fmt_float(c.origin.y.raw())
             << "\" font-family=\"" << (c.role == FontRole::Mono ? "monospace" : "Noto Sans, sans-serif") << "\""
             << " font-size=\"" << fmt_float(c.size)

@@ -9,6 +9,7 @@ subdir('hello_rect')
 subdir('model_dashboard')
 subdir('model_plot')
 subdir('model_tree_browser')
+subdir('model_notes')
 subdir('perf_lab')
 if not is_wasm
   subdir('model_system_monitor') # reads /proc

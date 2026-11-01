@@ -20,6 +20,8 @@ public:
         cache_path(root_);
     }
 
+    const std::filesystem::path& path_of(prism::ui::TreeNodeId id) const { return by_id_.at(id); }
+
     size_t root_count() const { return 1; }
     prism::ui::TreeNodeId root_at(size_t) const { return path_id(root_); }
 

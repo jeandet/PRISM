@@ -196,3 +196,13 @@ TEST_CASE("text uses a font family matching its role") {
     CHECK(svg.substr(svg.rfind("<text", code), code - svg.rfind("<text", code)).find("monospace")
           != std::string::npos);
 }
+
+TEST_CASE("text keeps its spaces (SVG collapses them by default)") {
+    prism::DrawList dl;
+    dl.text("    indented  twice", P(0, 0), 14.f, prism::Color::rgba(0, 0, 0, 255));
+    auto svg = prism::to_svg(dl);
+    auto at = svg.find(">    indented  twice<");
+    REQUIRE(at != std::string::npos);
+    CHECK(svg.substr(svg.rfind("<text", at), at - svg.rfind("<text", at)).find("xml:space=\"preserve\"")
+          != std::string::npos);
+}
