@@ -105,11 +105,19 @@ struct Widget<TreeRow> {
         auto w = delegate_detail::widget_w(node);
         dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, row_h), bg);
 
-        DX indent{static_cast<float>(row.depth) * 16.f};
-        std::string marker = row.has_children ? (row.expanded ? "v " : "> ") : "  ";
-        std::string icon_part = row.icon ? (*row.icon + " ") : std::string{};
-        dl.text(marker + icon_part + row.label,
-                 delegate_detail::make_point(X{8.f} + indent, Y{4.f}), 13, t.text);
+        // Marker, icon and label are separate commands in fixed slots: icon glyphs (Nerd Font,
+        // via the mono fallback) ink wider than their advance, so in one string they ran into
+        // the label once the UI font's space was narrower than the mono font's.
+        constexpr float font = 13.f, marker_slot = 14.f, icon_slot = 1.6f * font;
+        X x = X{8.f} + DX{static_cast<float>(row.depth) * 16.f};
+        if (row.has_children)
+            dl.text(row.expanded ? "v" : ">", delegate_detail::make_point(x, Y{4.f}), font, t.text);
+        x = x + DX{marker_slot};
+        if (row.icon) {
+            dl.text(*row.icon, delegate_detail::make_point(x, Y{4.f}), font, t.text);
+            x = x + DX{icon_slot};
+        }
+        dl.text(row.label, delegate_detail::make_point(x, Y{4.f}), font, t.text);
     }
 
     // Selection/expand-toggle/keyboard nav are handled centrally by TreeController via the

@@ -97,3 +97,25 @@ TEST_CASE("Widget<std::optional<TreeDetail>> renders label and attributes when s
     CHECK(has_text("size: 42"));
     CHECK(has_text("kind: file"));
 }
+
+TEST_CASE("Widget<TreeRow> draws the icon and the label separately, the label clear of the icon") {
+    // Nerd Font icons ink wider than their advance; drawn in one string with the label, they
+    // ran into it once the UI font's space got narrower than the mono font's.
+    prism::TreeRow row;
+    row.label = "examples";
+    row.icon = "\xef\x81\xbb";
+    row.has_children = true;
+    prism::Field<prism::TreeRow> field{row};
+    prism::DrawList dl;
+    auto node = make_node();
+    prism::Widget<prism::TreeRow>::record(dl, field, node);
+    float icon_x = -1.f, label_x = -1.f;
+    for (auto& cmd : dl.commands)
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd)) {
+            if (t->text == row.icon) icon_x = t->origin.x.raw();
+            if (t->text == "examples") label_x = t->origin.x.raw();
+        }
+    REQUIRE(icon_x >= 0.f);
+    REQUIRE(label_x >= 0.f);
+    CHECK(label_x - icon_x >= 1.5f * 13.f);   // a slot wide enough for the icon's ink
+}
