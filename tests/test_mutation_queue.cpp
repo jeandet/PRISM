@@ -147,15 +147,21 @@ TEST_CASE("concurrent posts from N threads all run") {
 
     struct Backend final : public prism::BackendBase {
         std::atomic<size_t>& count;
+        std::atomic<int>& ran;
         prism::HeadlessWindow window_{0, {}};
-        Backend(std::atomic<size_t>& c) : count(c) {}
+        Backend(std::atomic<size_t>& c, std::atomic<int>& r) : count(c), ran(r) {}
         prism::Window& create_window(prism::WindowConfig cfg) override {
             window_ = prism::HeadlessWindow{1, cfg};
             return window_;
         }
         void run(std::function<void(const prism::WindowEvent&)> cb) override {
             count.wait(0, std::memory_order_acquire);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // Close once every post ran, not after a fixed delay: the first publish happens
+            // before setup() starts its workers, and on a slow runner (wasm under node) they
+            // may still be posting after 100 ms -- posts after close are dropped by design.
+            auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            while (ran.load() < 40 && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
             cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
         }
         void submit(prism::WindowId, std::shared_ptr<const prism::SceneSnapshot>) override {
@@ -166,7 +172,7 @@ TEST_CASE("concurrent posts from N threads all run") {
         void quit() override {}
     };
 
-    auto backend = prism::Backend{std::make_unique<Backend>(submit_count)};
+    auto backend = prism::Backend{std::make_unique<Backend>(submit_count, run_count)};
     auto& window = backend.create_window({});
     prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
         std::vector<std::thread> workers;
