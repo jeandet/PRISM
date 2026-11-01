@@ -1,6 +1,7 @@
 # Wait-free snapshot handoff — design
 
-**Status:** proposed, not implemented. Plan item P1 #0 in `doc/review-2026-11-01.md`.
+**Status:** deferred after measurement (see below). Build it when the second backend starts.
+Plan item P1 #0 in `doc/review-2026-11-01.md`.
 **Origin:** drafted by opencode, challenged and amended by Claude Code (amendments marked ⟶).
 
 ## Why
@@ -12,6 +13,34 @@ The frame contract says the app never blocks the renderer. Today it can:
 3. If the app thread is preempted while holding either, the render thread waits for it —
    up to a scheduler time slice.
 
+## Measurement (2026-11-01)
+
+A temporary probe timed every contended wait on `windows_mutex_`. `perf_lab` ran on the real
+`SoftwareBackend` with SDL's offscreen driver (system `libSDL3.so.0` via `LD_PRELOAD`, since the
+vendored SDL build has no offscreen/dummy driver), 20 s per run, default perf_lab load:
+
+| Run | Render-thread acquisitions | Contended | Max wait |
+|---|---|---|---|
+| Unloaded | 1083 | 1 | 17 µs |
+| perf_lab + 4 busy loops pinned to the same 2 cores | 663 | 0 | 0 |
+
+The lock costs nothing measurable. Under overload the render thread lost frames to CPU
+starvation, not to the lock. Limit of the method: the bad case (app thread preempted *inside* a
+~1 µs critical section) is rare, so 20 s cannot rule it out; its worst case is one scheduler
+slice (a few ms) on an occasional frame — below one 16 ms frame.
+
+## Decision
+
+Not worth a 200-line rewrite of the SDL backend now. SDL will not stay the only backend, which
+changes where this belongs, not whether: the mailbox goes into a **backend-neutral component**
+(next to `SceneSnapshot`, used by every backend), built when the second backend is started and
+the handoff has to be extracted anyway. Then each backend supplies its own wake: SDL keeps
+`SDL_PushEvent` (lock inside SDL), a native backend can wake its render thread with a
+lock-free primitive (eventfd, futex, `std::atomic::notify_one`), which makes the whole path
+wait-free there.
+
+Re-open earlier if a measurement shows a stall (rerun the probe recipe above, with longer runs).
+
 ## Key fact
 
 The window map is already owned by the render thread. Window creation and close requests are
@@ -19,7 +48,7 @@ queued and drained there. Only two calls cross threads: `submit()` (writes) and
 `present_stats()` (reads). Both touch one per-window object. Move that object out of the map and
 `windows_mutex_` has no users left.
 
-## Design
+## Design (for the backend-neutral version)
 
 Per window, a `SnapshotMailbox` with a stable address, never freed:
 
