@@ -4,6 +4,7 @@
 #include <prism/ui/window_chrome.hpp>
 #include <prism/render/draw_list.hpp>
 #include <prism/render/scene_snapshot.hpp>
+#include <prism/render/frame_cache.hpp>
 #include <prism/ui/context.hpp>
 
 #include <SDL3/SDL.h>
@@ -90,6 +91,15 @@ private:
     // renderer scale (see render_snapshot) map that 1:1 onto the real backing resolution
     // instead of upscaling a low-res framebuffer.
     float device_scale_ = 1.0f;
+
+    // Rasterized text, reused across frames (see FrameCache); render thread only.
+    struct CachedText {
+        SDL_Texture* texture;
+        int w, h;   // backing pixels
+    };
+    render::FrameCache<CachedText> text_cache_;
+    std::string text_key_;
+    const CachedText* text_texture(TTF_Font* font, const std::string& text, float px_size);
 
     void create_sdl_window();
     void destroy_sdl_window();

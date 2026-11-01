@@ -53,7 +53,7 @@ private:
     mutable std::mutex windows_mutex_;
     std::unordered_map<WindowId, std::unique_ptr<SdlWindow>> windows_;
     uint32_t next_id_ = 0;
-    TTF_Font* font_ = nullptr;
+    TTF_Font* font_ = nullptr;   // render thread; its size is whatever the last text-cache miss set
     std::unique_ptr<SdlTextMeasurer> measurer_;   // logic thread's own font; see the class
     std::atomic<bool> running_{true};
     std::atomic<bool> ready_{false};

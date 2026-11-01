@@ -1,3 +1,4 @@
+#include <cstring>
 #include <prism/backends/sdl_window.hpp>
 #include "sdl_platform.hpp"
 
@@ -15,10 +16,6 @@ namespace {
 
 SDL_FRect to_sdl(Rect r) {
     return {r.origin.x.raw(), r.origin.y.raw(), r.extent.w.raw(), r.extent.h.raw()};
-}
-
-SDL_Color to_sdl(Color c) {
-    return {c.r, c.g, c.b, c.a};
 }
 
 SDL_HitTestResult sdl_hit_test_callback(SDL_Window* win, const SDL_Point* area, void*) {
@@ -113,6 +110,7 @@ void SdlWindow::enable_vsync() {
 }
 
 void SdlWindow::destroy_sdl_window() {
+    text_cache_.clear([](const CachedText& t) { SDL_DestroyTexture(t.texture); });   // before the renderer
     if (renderer_) { SDL_DestroyRenderer(renderer_); renderer_ = nullptr; }
     if (sdl_window_) { SDL_DestroyWindow(sdl_window_); sdl_window_ = nullptr; }
 }
@@ -271,6 +269,8 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, TTF_Font* font, const
         render_draw_list(chrome_dl, font);
     }
 
+    // Text shown in neither this frame nor the previous one is released.
+    text_cache_.end_frame(2, [](const CachedText& t) { SDL_DestroyTexture(t.texture); });
     SDL_RenderPresent(renderer_);
 }
 
@@ -314,19 +314,15 @@ void SdlWindow::render_cmd(const TextCmd& cmd, TTF_Font* font) {
     // stretches it back to exactly the glyph bitmap's native size, instead of upscaling a
     // low-res texture and blurring it.
     float target_px_size = cmd.size * device_scale_;
-    float current_size = TTF_GetFontSize(font);
-    if (std::abs(current_size - target_px_size) > 0.5f) {
-        TTF_SetFontSize(font, target_px_size);
-    }
-
-    SDL_Color color = to_sdl(cmd.color);
-    SDL_Surface* surface = TTF_RenderText_Blended(font, cmd.text.c_str(), 0, color);
-    if (!surface) return;
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
-    if (texture) {
-        float tw = static_cast<float>(surface->w) / device_scale_;
-        float th = static_cast<float>(surface->h) / device_scale_;
+    const CachedText* cached = text_texture(font, cmd.text, target_px_size);
+    if (!cached) return;
+    SDL_Texture* texture = cached->texture;
+    // Rasterized in white: the colour is applied per draw, so one texture serves every colour.
+    SDL_SetTextureColorMod(texture, cmd.color.r, cmd.color.g, cmd.color.b);
+    SDL_SetTextureAlphaMod(texture, cmd.color.a);
+    {
+        float tw = static_cast<float>(cached->w) / device_scale_;
+        float th = static_cast<float>(cached->h) / device_scale_;
         float ox = cmd.origin.x.raw();
         float oy = cmd.origin.y.raw();
 
@@ -347,9 +343,27 @@ void SdlWindow::render_cmd(const TextCmd& cmd, TTF_Font* font) {
         } else {
             SDL_RenderTexture(renderer_, texture, nullptr, &dst);
         }
-        SDL_DestroyTexture(texture);
     }
+}
+
+const SdlWindow::CachedText* SdlWindow::text_texture(TTF_Font* font, const std::string& text, float px_size) {
+    // Reused buffer: building the key must not allocate on every text draw of every frame.
+    std::string& key = text_key_;
+    key.assign(sizeof font + sizeof px_size, '\0');
+    std::memcpy(key.data(), &font, sizeof font);
+    std::memcpy(key.data() + sizeof font, &px_size, sizeof px_size);
+    key += text;
+    if (auto* hit = text_cache_.find(key)) return hit;
+
+    if (std::abs(TTF_GetFontSize(font) - px_size) > 0.5f)
+        TTF_SetFontSize(font, px_size);
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), 0, SDL_Color{255, 255, 255, 255});
+    if (!surface) return nullptr;
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
+    CachedText entry{texture, surface->w, surface->h};
     SDL_DestroySurface(surface);
+    if (!texture) return nullptr;
+    return &text_cache_.insert(key, entry);
 }
 
 void SdlWindow::render_cmd(const ClipPush& cmd) {
