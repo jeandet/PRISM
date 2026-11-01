@@ -182,3 +182,17 @@ TEST_CASE("FilledPolygon strip of 4 points emits two triangles") {
     while ((pos = svg.find("<polygon", pos)) != std::string::npos) { ++count; pos += 8; }
     CHECK(count == 2);
 }
+
+TEST_CASE("text uses a font family matching its role") {
+    prism::DrawList dl;
+    dl.text("ui", P(0, 0), 14.f, prism::Color::rgba(0, 0, 0, 255));
+    dl.text("code", P(0, 20), 14.f, prism::Color::rgba(0, 0, 0, 255), 0.f,
+            prism::TextAnchor::TopLeft, prism::FontRole::Mono);
+    auto svg = prism::to_svg(dl);
+    auto ui = svg.find(">ui<"), code = svg.find(">code<");
+    REQUIRE(ui != std::string::npos);
+    REQUIRE(code != std::string::npos);
+    CHECK(svg.rfind("sans-serif", ui) != std::string::npos);
+    CHECK(svg.substr(svg.rfind("<text", code), code - svg.rfind("<text", code)).find("monospace")
+          != std::string::npos);
+}

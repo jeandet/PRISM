@@ -262,7 +262,7 @@ TEST_CASE("TabBar<S> reflective mode: tabs from struct members") {
 
 TEST_CASE("tab headers are as wide as their measured names") {
     struct M final : prism::TextMeasurer {   // 'm' = 10, others 2
-        float width(std::string_view s, float) const override {
+        float width(std::string_view s, float, prism::render::FontRole) const override {
             float w = 0; for (char c : s) w += c == 'm' ? 10.f : 2.f; return w;
         }
     } m;

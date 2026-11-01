@@ -77,7 +77,7 @@ struct SvgEmitter {
     void emit(const TextCmd& c) {
         out << "<text x=\"" << fmt_float(c.origin.x.raw())
             << "\" y=\"" << fmt_float(c.origin.y.raw())
-            << "\" font-family=\"monospace\""
+            << "\" font-family=\"" << (c.role == FontRole::Mono ? "monospace" : "Noto Sans, sans-serif") << "\""
             << " font-size=\"" << fmt_float(c.size)
             << "\" fill=\"" << fmt_color(c.color) << "\"";
         if (c.anchor == TextAnchor::Center)

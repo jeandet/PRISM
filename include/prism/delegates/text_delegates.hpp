@@ -179,6 +179,9 @@ struct LineCol {
     size_t col;
 };
 
+// TextArea text is fixed-width: columns stay aligned for code and tabular content.
+constexpr FontRole ta_font_role = FontRole::Mono;
+
 // Greedy wrap: each visual line takes the longest prefix that fits text_area_w.
 // simplify: breaks anywhere, not at word boundaries (UAX #14); per code point, not grapheme.
 // Cost: O(log n) measured prefixes per visual line, each a distinct string, so very large
@@ -199,7 +202,7 @@ inline std::vector<LineSpan> wrap_lines(std::string_view text, Width text_area_w
             size_t offset = 0;
             while (offset < logical_len) {
                 auto rest = text.substr(pos + offset, logical_len - offset);
-                size_t chunk = fit_bytes(m, rest, size, text_area_w.raw());
+                size_t chunk = fit_bytes(m, rest, size, text_area_w.raw(), ta_font_role);
                 result.push_back({pos + offset, chunk});
                 offset += chunk;
             }
@@ -276,7 +279,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
     if (sf.value.empty() && !vs.focused) {
-        dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{2}), ta_font_size, t.text_placeholder);
+        dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{2}), ta_font_size, t.text_placeholder,
+                0.f, TextAnchor::TopLeft, ta_font_role);
     } else {
         for (size_t i = 0; i < wrapped.size(); ++i) {
             Y y{static_cast<float>(i) * ta_line_height.raw() - es.scroll_y.raw()};
@@ -284,7 +288,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
             if (y.raw() > text_area_h.raw()) break;
             if (wrapped[i].length > 0) {
                 std::string line_text(sf.value.data() + wrapped[i].start, wrapped[i].length);
-                dl.text(line_text, delegate_detail::make_point(X{0}, y + DY{2.f}), ta_font_size, t.text);
+                dl.text(line_text, delegate_detail::make_point(X{0}, y + DY{2.f}), ta_font_size, t.text,
+                        0.f, TextAnchor::TopLeft, ta_font_role);
             }
         }
     }
@@ -293,7 +298,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
         auto [line, col] = cursor_to_line_col(std::string_view(sf.value.data(), sf.value.size()),
                                               es.cursor, wrapped);
         auto text = line_text(value, wrapped[line]);
-        X cx{prefix_width(m, text, core::utf8::offset(text, col), ta_font_size)};
+        X cx{prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role)};
         Y cy{static_cast<float>(line) * ta_line_height.raw() - es.scroll_y.raw()};
         dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_height), t.cursor);
     }
@@ -377,7 +382,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
             std::clamp(rel_y / ta_line_height.raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
         float rel_x = mb->position.x.raw() - ta_padding_x.raw();
         auto text = line_text(value, wrapped[click_line]);
-        size_t click_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, rel_x));
+        size_t click_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, rel_x, ta_font_role));
         size_t new_cursor = line_col_to_cursor(value, click_line, click_col, wrapped);
         if (new_cursor != es.cursor) {
             es.cursor = new_cursor;

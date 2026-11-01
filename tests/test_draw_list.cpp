@@ -352,3 +352,13 @@ TEST_CASE("bounding_box includes all filled_polygon points") {
     CHECK(bb.extent.w.raw() == 80.f);
     CHECK(bb.extent.h.raw() == 70.f);
 }
+
+TEST_CASE("TextCmd defaults to the UI font role; text() can ask for mono") {
+    prism::DrawList dl;
+    dl.text("ui", prism::Point{prism::X{0}, prism::Y{0}}, 14.f, prism::Color::rgba(0, 0, 0, 255));
+    dl.text("code", prism::Point{prism::X{0}, prism::Y{0}}, 14.f, prism::Color::rgba(0, 0, 0, 255),
+            0.f, prism::TextAnchor::TopLeft, prism::FontRole::Mono);
+    REQUIRE(dl.commands.size() == 2);
+    CHECK(std::get<prism::TextCmd>(dl.commands[0]).role == prism::FontRole::Ui);
+    CHECK(std::get<prism::TextCmd>(dl.commands[1]).role == prism::FontRole::Mono);
+}

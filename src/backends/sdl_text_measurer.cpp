@@ -24,7 +24,7 @@ TTF_Font* SdlTextMeasurer::font(float size) const {
     return font_;
 }
 
-float SdlTextMeasurer::width(std::string_view utf8, float size) const {
+float SdlTextMeasurer::width(std::string_view utf8, float size, ui::FontRole) const {
     if (utf8.empty()) return 0.f;
     std::string key(sizeof size, '\0');
     std::memcpy(key.data(), &size, sizeof size);

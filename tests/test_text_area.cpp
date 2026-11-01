@@ -781,7 +781,7 @@ TEST_CASE("TextArea down keeps the character column across multi-byte text") {
 
 TEST_CASE("wrap_lines breaks at the measured width") {
     struct M final : prism::TextMeasurer {   // 'm' = 10, others 2
-        float width(std::string_view s, float) const override {
+        float width(std::string_view s, float, prism::render::FontRole) const override {
             float w = 0; for (char c : s) w += c == 'm' ? 10.f : 2.f; return w;
         }
     } m;
@@ -789,4 +789,31 @@ TEST_CASE("wrap_lines breaks at the measured width") {
     REQUIRE(lines.size() == 2);
     CHECK(lines[0].length == 2);   // "mm" = 20
     CHECK(lines[1].length == 4);   // "iiii" = 8
+}
+
+TEST_CASE("TextArea draws and measures its text in the mono font") {
+    struct M final : prism::TextMeasurer {   // mono 10 per char, ui 1 per char
+        float width(std::string_view s, float, prism::FontRole r) const override {
+            return static_cast<float>(s.size()) * (r == prism::FontRole::Mono ? 10.f : 1.f);
+        }
+    } m;
+    prism::Theme theme;
+    theme.measurer = &m;
+    prism::Field<prism::TextArea<>> field{{.value = "ab"}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.visual_state.focused = true;
+    prism::Widget<prism::TextArea<>>::ensure_edit_state(node).cursor = 2;
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    bool mono_text = false;
+    float caret_x = -1.f;
+    for (auto& cmd : dl.commands) {
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd); t && t->text == "ab")
+            mono_text = t->role == prism::FontRole::Mono;
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->rect.extent.w.raw() <= 3.f)
+            caret_x = r->rect.origin.x.raw();
+    }
+    CHECK(mono_text);
+    CHECK(caret_x == doctest::Approx(4.f + 20.f));   // padding + mono width("ab")
 }

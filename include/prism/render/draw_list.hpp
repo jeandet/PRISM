@@ -26,6 +26,10 @@ struct RectOutline {
 
 enum class TextAnchor { TopLeft, Center };
 
+// Which font a backend draws the text with. Ui: proportional (labels, buttons, fields).
+// Mono: fixed advance (code, text areas). Each backend maps roles to its own fonts.
+enum class FontRole : std::uint8_t { Ui, Mono };
+
 struct TextCmd {
     std::string text;
     Point origin;
@@ -33,6 +37,7 @@ struct TextCmd {
     Color color;
     float angle = 0.f;       // degrees, counter-clockwise
     TextAnchor anchor = TextAnchor::TopLeft;
+    FontRole role = FontRole::Ui;
 };
 
 struct ClipPush {
@@ -121,10 +126,11 @@ struct DrawList {
     }
 
     void text(std::string s, Point origin, float size, Color c,
-              float angle = 0.f, TextAnchor anchor = TextAnchor::TopLeft)
+              float angle = 0.f, TextAnchor anchor = TextAnchor::TopLeft,
+              FontRole role = FontRole::Ui)
     {
         commands.emplace_back(
-            TextCmd{std::move(s), translated(origin), size, c, angle, anchor});
+            TextCmd{std::move(s), translated(origin), size, c, angle, anchor, role});
     }
 
     void clip_push(Point origin, Size extent)

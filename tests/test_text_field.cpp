@@ -488,7 +488,7 @@ TEST_CASE("TextField caret x follows the character column, not the byte offset")
 
 namespace {
 struct StubMeasurer final : prism::TextMeasurer {   // 'i' = 2, 'm' = 10, others 6
-    float width(std::string_view s, float) const override {
+    float width(std::string_view s, float, prism::render::FontRole) const override {
         float w = 0;
         for (char c : s) w += c == 'i' ? 2.f : c == 'm' ? 10.f : 6.f;
         return w;

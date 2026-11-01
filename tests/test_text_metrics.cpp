@@ -4,11 +4,12 @@
 #include <prism/ui/text_metrics.hpp>
 
 #include <string_view>
+#include <vector>
 
 namespace {
 // Proportional stub: 'i' = 2, 'm' = 10, any other code point = 6 (size ignored).
 struct StubMeasurer final : prism::ui::TextMeasurer {
-    float width(std::string_view s, float) const override {
+    float width(std::string_view s, float, prism::render::FontRole) const override {
         float w = 0;
         for (size_t i = 0; i < s.size(); i = prism::core::utf8::next(s, i))
             w += s[i] == 'i' ? 2.f : s[i] == 'm' ? 10.f : 6.f;
@@ -44,4 +45,21 @@ TEST_CASE("fit_bytes returns the longest prefix that fits, at least one characte
     CHECK(prism::ui::fit_bytes(&m, "mmii", 14.f, 21.f) == 2);    // "mm" = 20 fits, "mmi" = 22 does not
     CHECK(prism::ui::fit_bytes(&m, "mmii", 14.f, 5.f) == 1);     // never zero: always make progress
     CHECK(prism::ui::fit_bytes(&m, "mmii", 14.f, 999.f) == 4);
+}
+
+TEST_CASE("measurement helpers pass the font role through, UI by default") {
+    struct Recorder final : prism::ui::TextMeasurer {
+        mutable std::vector<prism::render::FontRole> roles;
+        float width(std::string_view s, float, prism::render::FontRole r) const override {
+            roles.push_back(r);
+            return static_cast<float>(s.size());
+        }
+    } m;
+    prism::ui::text_width(&m, "a", 14.f);
+    prism::ui::prefix_width(&m, "ab", 1, 14.f, prism::render::FontRole::Mono);
+    prism::ui::index_at(&m, "ab", 14.f, 1.f, prism::render::FontRole::Mono);
+    prism::ui::fit_bytes(&m, "ab", 14.f, 5.f, prism::render::FontRole::Mono);
+    REQUIRE(m.roles.size() >= 4);
+    CHECK(m.roles.front() == prism::render::FontRole::Ui);
+    for (size_t i = 1; i < m.roles.size(); ++i) CHECK(m.roles[i] == prism::render::FontRole::Mono);
 }

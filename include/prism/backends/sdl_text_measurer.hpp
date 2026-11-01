@@ -20,7 +20,8 @@ public:
     SdlTextMeasurer(const SdlTextMeasurer&) = delete;
     SdlTextMeasurer& operator=(const SdlTextMeasurer&) = delete;
 
-    float width(std::string_view utf8, float size) const override;
+    // simplify: one font for both roles until the bundled UI font lands.
+    float width(std::string_view utf8, float size, ui::FontRole role) const override;
 
 private:
     TTF_Font* font(float size) const;
