@@ -15,7 +15,11 @@ Emscripten's Dawn port (browser), code against the standard `webgpu.h` only. In 
   its native handles (X11, Wayland, Metal) and draws through the renderer, content below a custom
   title bar as layers; it falls back to SDL_Renderer when there is no surface or no adapter.
   `tests/test_wgpu_window.cpp` (CI under Xvfb on lavapipe); the notes app runs on it unchanged.
-- [ ] The snapshot mailbox, shared by both renderers; pixel tests against both.
+- [x] Pixel tests against both renderers (`tests/test_pixels.cpp`: a selection covers its word,
+  an icon clears its label, at 1x and 2x; the WebGPU cases fail too with the HiDPI fix undone).
+- [ ] The snapshot mailbox: deferred again. Its trigger was a separate backend extracting the
+  handoff; WebGPU ended up inside the SDL backend, sharing its handoff, and the measurement of
+  2026-11-01 showed no stall. Build it with the first backend that does not reuse the SDL one.
 - [ ] Browser build through emdawnwebgpu.
 
 Desktop-only call so far: `wgpuDevicePoll` (wgpu-native) to wait for the GPU in `wait_idle()`;

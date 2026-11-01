@@ -9,6 +9,9 @@
 #include <prism/backends/sdl_font_set.hpp>
 #include <prism/backends/sdl_text_measurer.hpp>
 #include <prism/backends/sdl_window.hpp>
+#ifdef PRISM_TEST_WEBGPU
+#include <prism/backends/wgpu_renderer.hpp>
+#endif
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -52,10 +55,13 @@ std::vector<std::pair<int, int>> runs(int w, int min_gap, Ink ink) {
     return out;
 }
 
-// One SDL window and font set, rendering a model's widget tree at a device scale.
+enum class Via { Sdl, WebGpu };
+
+// One font set, rendering a model's widget tree at a device scale: through an SDL window
+// (SDL_Renderer), or offscreen through the WebGPU renderer with the same fonts.
 struct Rig {
     static constexpr int w = 480, h = 60;
-    Rig() {
+    explicit Rig(Via via = Via::Sdl) : via(via) {
         SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "offscreen");
         REQUIRE(SDL_Init(SDL_INIT_VIDEO));
         REQUIRE(TTF_Init());
@@ -69,6 +75,9 @@ struct Rig {
 
     template <typename Model>
     Frame render(WidgetTree& tree, float scale, const char* name) {
+#ifdef PRISM_TEST_WEBGPU
+        if (via == Via::WebGpu) return render_webgpu(tree, scale, name);
+#endif
         backends::SdlWindow win{1, WindowConfig{.title = name, .width = static_cast<int>(w * scale),
                                                 .height = static_cast<int>(h * scale),
                                                 .decoration = DecorationMode::None}};
@@ -93,6 +102,27 @@ struct Rig {
         return f;
     }
 
+#ifdef PRISM_TEST_WEBGPU
+    Frame render_webgpu(WidgetTree& tree, float scale, const char* name) {
+        static auto ctx = backends::WgpuContext::create();
+        REQUIRE(ctx);
+        tree.set_text_measurer(&measurer);
+        auto snap = tree.build_snapshot(w, h, ++version);
+        int pw = static_cast<int>(w * scale), ph = static_cast<int>(h * scale);
+        auto* f = &fonts;
+        Frame out{pw, ph, backends::render_to_pixels(*ctx, *snap, pw, ph, scale, tree.theme().canvas_bg,
+                    [f](std::string_view text, float px, FontRole role) { return f->rasterize(text, px, role); })};
+        REQUIRE(out.rgba.size() == static_cast<size_t>(pw) * ph * 4);
+        if (const char* dir = std::getenv("PRISM_PIXEL_DUMP"))
+            if (SDL_Surface* s = SDL_CreateSurfaceFrom(pw, ph, SDL_PIXELFORMAT_RGBA32, out.rgba.data(), pw * 4)) {
+                SDL_SaveBMP(s, (std::string(dir) + "/webgpu-" + name + ".bmp").c_str());
+                SDL_DestroySurface(s);
+            }
+        return out;
+    }
+#endif
+
+    Via via;
     backends::SdlFontSet fonts;
     backends::SdlTextMeasurer measurer{PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH};
     std::uint64_t version = 0;
@@ -143,8 +173,8 @@ Frame field_frame(Rig& rig, std::string value, float scale, std::optional<std::p
     return rig.render<Field1>(tree, scale, tag.c_str());
 }
 
-void check_selection_covers_its_word(float scale) {
-    Rig rig;
+void check_selection_covers_its_word(float scale, Via via = Via::Sdl) {
+    Rig rig{via};
     // The selected word sits far along the line: measurement drift grows with distance.
     std::string before = "The quick brown fox jumps over the";
     std::string word = " lazy";
@@ -210,8 +240,8 @@ Frame row_frame(Rig& rig, std::string label, float scale) {
     return rig.render<RowModel>(tree, scale, tag.c_str());
 }
 
-void check_icon_clear_of_label(float scale) {
-    Rig rig;
+void check_icon_clear_of_label(float scale, Via via = Via::Sdl) {
+    Rig rig{via};
     Frame icon_only = row_frame(rig, "", scale);
     Frame with_label = row_frame(rig, "examples", scale);
     int s = device_scale(icon_only);
@@ -235,3 +265,12 @@ TEST_CASE("a selection covers exactly its word, at 1x") { check_selection_covers
 TEST_CASE("a selection covers exactly its word, at 2x (HiDPI)") { check_selection_covers_its_word(2.f); }
 TEST_CASE("a tree row's icon is clear of its label, at 1x") { check_icon_clear_of_label(1.f); }
 TEST_CASE("a tree row's icon is clear of its label, at 2x") { check_icon_clear_of_label(2.f); }
+
+#ifdef PRISM_TEST_WEBGPU
+// The same properties through the WebGPU renderer: text measured by SDL_ttf must land where the
+// GPU draws it, at 1x and 2x.
+TEST_CASE("webgpu: a selection covers exactly its word, at 1x") { check_selection_covers_its_word(1.f, Via::WebGpu); }
+TEST_CASE("webgpu: a selection covers exactly its word, at 2x (HiDPI)") { check_selection_covers_its_word(2.f, Via::WebGpu); }
+TEST_CASE("webgpu: a tree row's icon is clear of its label, at 1x") { check_icon_clear_of_label(1.f, Via::WebGpu); }
+TEST_CASE("webgpu: a tree row's icon is clear of its label, at 2x") { check_icon_clear_of_label(2.f, Via::WebGpu); }
+#endif

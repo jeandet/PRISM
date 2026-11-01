@@ -202,9 +202,10 @@ endif
 
 test_pixels = executable('test_pixels',
   files('test_pixels.cpp'),
-  dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
+  dependencies : [prism_software_backend_dep, prism_webgpu_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
   cpp_args : ['-DPRISM_TEST_UI_FONT_PATH="' + ui_font_path + '"',
-              '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"'],
+              '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"']
+           + (prism_webgpu_dep.found() ? ['-DPRISM_TEST_WEBGPU'] : []),
 )
 if can_open_window
   test('pixels', test_pixels, env : offscreen_env)
