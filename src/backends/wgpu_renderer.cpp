@@ -400,7 +400,8 @@ void WgpuRenderer::render(std::span<const Layer> layers, WGPUTextureView target,
     if (bytes > 0) wgpuQueueWriteBuffer(ctx_.queue(), vertices_, 0, vertices.data(), bytes);
 
     // Each layer sees its band of the target as its whole viewport, in points.
-    auto band_top_px = [&](const Layer& l) { return std::clamp(l.top * scale, 0.f, static_cast<float>(height_px)); };
+    // Whole pixels, so the viewport and the scissor start on the same row (no seam between bands).
+    auto band_top_px = [&](const Layer& l) { return std::clamp(std::round(l.top * scale), 0.f, static_cast<float>(height_px)); };
     while (uniforms_.size() < layers.size()) {
         Uniform u;
         WGPUBufferDescriptor ubd{};

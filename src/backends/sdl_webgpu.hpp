@@ -22,7 +22,8 @@ WebGpuTarget* make_webgpu_target(WgpuContext& ctx, SDL_Window* window);
 void destroy_webgpu_target(WebGpuTarget* target);
 
 // Draws one frame: content below the title bar when the decoration is Custom, the bar on top.
-// false when the surface was not ready (resized or hidden): it is reconfigured, try next frame.
+// false when the surface was not ready (resized, hidden or lost): it is reconfigured or remade,
+// try next frame. present = false draws nothing: a surface frame, once taken, must be presented.
 bool render_webgpu(WebGpuTarget& target, const render::SceneSnapshot& snap, SdlFontSet& fonts,
                    const ui::Theme& theme, app::DecorationMode decoration, const std::string& title,
                    float scale, bool present);

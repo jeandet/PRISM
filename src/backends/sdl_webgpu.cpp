@@ -5,6 +5,7 @@
 #include <prism/backends/wgpu_renderer.hpp>
 #include <prism/ui/window_chrome.hpp>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -17,6 +18,7 @@ struct WebGpuTarget {
     WGPUSurface surface = nullptr;
     WGPUTextureFormat format = WGPUTextureFormat_Undefined;
     WGPUCompositeAlphaMode alpha = WGPUCompositeAlphaMode_Auto;
+    WGPUPresentMode present_mode = WGPUPresentMode_Fifo;
     int width = 0, height = 0;   // as configured, in pixels
     std::unique_ptr<WgpuRenderer> renderer;
     int frames = 0;
@@ -79,13 +81,23 @@ bool pick_format(WebGpuTarget& t) {
     WGPUSurfaceCapabilities caps{};
     if (wgpuSurfaceGetCapabilities(t.surface, t.ctx->adapter(), &caps) != WGPUStatus_Success || caps.formatCount == 0)
         return false;
+    auto offers = [](auto* list, size_t n, auto value) { return std::find(list, list + n, value) != list + n; };
     t.format = caps.formats[0];
-    for (size_t i = 0; i < caps.formatCount; ++i)
-        if (caps.formats[i] == WGPUTextureFormat_BGRA8Unorm || caps.formats[i] == WGPUTextureFormat_RGBA8Unorm) {
-            t.format = caps.formats[i];
-            break;
-        }
-    t.alpha = caps.alphaModeCount > 0 ? caps.alphaModes[0] : WGPUCompositeAlphaMode_Auto;
+    for (auto f : {WGPUTextureFormat_BGRA8Unorm, WGPUTextureFormat_RGBA8Unorm})
+        if (offers(caps.formats, caps.formatCount, f)) { t.format = f; break; }
+    if (t.format == WGPUTextureFormat_BGRA8UnormSrgb || t.format == WGPUTextureFormat_RGBA8UnormSrgb)
+        std::fprintf(stderr, "[prism] webgpu: only an sRGB surface format is offered; colours will look washed out\n");
+    // PRISM writes straight alpha: an opaque window, else let the platform decide. Taking the
+    // first mode could pick Premultiplied, which puts halos around anti-aliased text.
+    t.alpha = WGPUCompositeAlphaMode_Auto;
+    for (auto a : {WGPUCompositeAlphaMode_Opaque, WGPUCompositeAlphaMode_Auto})
+        if (offers(caps.alphaModes, caps.alphaModeCount, a)) { t.alpha = a; break; }
+    // Mailbox shows the newest frame at the next vblank without blocking: no tearing, and the
+    // backend's frame pacer stays the only clock. Fifo (always offered) blocks in present until
+    // a vblank, on top of the pacer, as SDL_Renderer's vsync does.
+    // simplify: vsync cannot be turned off on this path (RenderConfig has no switch for it yet).
+    t.present_mode = offers(caps.presentModes, caps.presentModeCount, WGPUPresentMode_Mailbox)
+                   ? WGPUPresentMode_Mailbox : WGPUPresentMode_Fifo;
     wgpuSurfaceCapabilitiesFreeMembers(caps);
     return true;
 }
@@ -98,10 +110,29 @@ void configure(WebGpuTarget& t, int width, int height) {
     cfg.width = static_cast<std::uint32_t>(width);
     cfg.height = static_cast<std::uint32_t>(height);
     cfg.alphaMode = t.alpha;
-    cfg.presentMode = WGPUPresentMode_Fifo;   // vsync; always supported
+    cfg.presentMode = t.present_mode;
     wgpuSurfaceConfigure(t.surface, &cfg);
     t.width = width;
     t.height = height;
+}
+
+// A lost surface cannot be reconfigured: make a new one for the same window. The renderer is
+// rebuilt if the new surface wants another format (its pipeline is built for one).
+bool recreate_surface(WebGpuTarget& t) {
+    if (t.surface) wgpuSurfaceRelease(t.surface);
+#ifdef __APPLE__
+    if (t.metal_view) SDL_Metal_DestroyView(t.metal_view);
+    t.metal_view = nullptr;
+#endif
+    t.width = t.height = 0;
+    auto format = t.format;
+    t.surface = make_surface(t.ctx->instance(), t.window, t);
+    if (!t.surface || !pick_format(t)) {
+        std::fprintf(stderr, "[prism] webgpu: the window's surface was lost and could not be recreated\n");
+        return false;
+    }
+    if (t.format != format) t.renderer.reset();
+    return true;
 }
 
 } // namespace
@@ -135,6 +166,8 @@ void destroy_webgpu_target(WebGpuTarget* t) {
 
 bool render_webgpu(WebGpuTarget& t, const render::SceneSnapshot& snap, SdlFontSet& fonts, const ui::Theme& theme,
                    app::DecorationMode decoration, const std::string& title, float scale, bool present) {
+    // A surface frame that is acquired must be presented; nothing to draw into otherwise.
+    if (!present || !t.surface) return false;
     if (!t.renderer) {
         SdlFontSet* f = &fonts;   // the backend's, alive as long as its windows
         t.renderer = std::make_unique<WgpuRenderer>(*t.ctx, t.format,
@@ -151,9 +184,8 @@ bool render_webgpu(WebGpuTarget& t, const render::SceneSnapshot& snap, SdlFontSe
            || frame.status == WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal;
     if (!ok) {
         if (frame.texture) wgpuTextureRelease(frame.texture);
-        if (frame.status == WGPUSurfaceGetCurrentTextureStatus_Outdated
-            || frame.status == WGPUSurfaceGetCurrentTextureStatus_Lost)
-            configure(t, w, h);
+        if (frame.status == WGPUSurfaceGetCurrentTextureStatus_Outdated) configure(t, w, h);
+        else if (frame.status == WGPUSurfaceGetCurrentTextureStatus_Lost && recreate_surface(t)) configure(t, w, h);
         return false;
     }
     WGPUTextureView view = wgpuTextureCreateView(frame.texture, nullptr);
@@ -171,10 +203,8 @@ bool render_webgpu(WebGpuTarget& t, const render::SceneSnapshot& snap, SdlFontSe
     t.renderer->render(std::span{layers, custom ? 2u : 1u}, view, w, h, scale, theme.canvas_bg);
 
     wgpuTextureViewRelease(view);
-    if (present) {
-        wgpuSurfacePresent(t.surface);
-        ++t.frames;
-    }
+    wgpuSurfacePresent(t.surface);
+    ++t.frames;
     wgpuTextureRelease(frame.texture);
     return true;
 }
