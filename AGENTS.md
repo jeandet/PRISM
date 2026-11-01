@@ -100,7 +100,15 @@ meson test -C builddir
   read for its real output — then the next. Overlapping backgrounded builds against the same
   build dir have visibly degraded the host machine before.
 - `meson wrap update` periodically bumps wrapdb-tracked dependencies (routine hygiene, e.g.
-  before a PR) — rebuild and rerun the full suite afterward.
+  before a PR) — rebuild and rerun the full suite afterward. `subprojects/sdl3.wrap` carries
+  `diff_files = sdl3-headless-drivers.patch` (enables SDL's offscreen and dummy video drivers);
+  check the line survives an update, or the SDL tests lose their display-free driver.
+- SDL-backed tests run on SDL's offscreen driver (`offscreen_env` in `tests/meson.build`), so
+  they need no display. `tests/test_pixels.cpp` renders real widgets through the SDL backend
+  at 1x and 2x and checks properties of the pixels (a selection covers exactly its word, an
+  icon clears its label) instead of comparing to reference images. Set
+  `PRISM_PIXEL_DUMP=<dir>` to save the frames as BMPs when one fails. A new pixel test should
+  be shown to fail with the bug it guards against reintroduced.
 
 ## Module layout (`include/prism/`)
 

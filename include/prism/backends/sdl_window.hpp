@@ -64,6 +64,10 @@ public:
 
     void render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme = Theme{});
 
+    // Renders at this device scale instead of the display's (0 = follow the display). For
+    // HiDPI pixel tests on displays that have none, and as a user zoom (cf. QT_SCALE_FACTOR).
+    void force_device_scale(float scale) { forced_scale_ = scale; }
+
     // Best-effort vsync (tear guard on top of the backend's frame clock).
     void enable_vsync();
 
@@ -93,6 +97,7 @@ private:
     // renderer scale (see render_snapshot) map that 1:1 onto the real backing resolution
     // instead of upscaling a low-res framebuffer.
     float device_scale_ = 1.0f;
+    float forced_scale_ = 0.f;
 
     // Rasterized text, reused across frames (see FrameCache); render thread only.
     struct CachedText {

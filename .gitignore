@@ -13,3 +13,4 @@ python/prism/__pycache__/
 .serena/
 .superpowers/
 .vscode/
+!subprojects/packagefiles/

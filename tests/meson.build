@@ -11,6 +11,10 @@ test_node_link_args = host_machine.system() == 'emscripten' ? ['-sPROXY_TO_PTHRE
 # built (compile/link coverage) but not run.
 can_open_window = host_machine.system() != 'emscripten'
 
+# Real SDL rendering with no display: the offscreen video driver (enabled in the SDL wrap by
+# subprojects/packagefiles/sdl3-headless-drivers.patch).
+offscreen_env = environment({'SDL_VIDEODRIVER' : 'offscreen'})
+
 doctest_dep = declare_dependency(
   dependencies : dependency('doctest', fallback : ['doctest', 'doctest_dep']),
   compile_args : cpp.get_supported_arguments(doctest_clang_args),
@@ -145,7 +149,7 @@ test_software_backend_chrome_cursor = executable('test_software_backend_chrome_c
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
 if can_open_window
-  test('software_backend_chrome_cursor', test_software_backend_chrome_cursor)
+  test('software_backend_chrome_cursor', test_software_backend_chrome_cursor, env : offscreen_env)
 endif
 
 test_software_backend_concurrent = executable('test_software_backend_concurrent',
@@ -176,6 +180,16 @@ test_sdl_text_measurer = executable('test_sdl_text_measurer',
 )
 test('sdl_text_measurer', test_sdl_text_measurer)
 
+test_pixels = executable('test_pixels',
+  files('test_pixels.cpp'),
+  dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
+  cpp_args : ['-DPRISM_TEST_UI_FONT_PATH="' + ui_font_path + '"',
+              '-DPRISM_TEST_MONO_FONT_PATH="' + mono_font_path + '"'],
+)
+if can_open_window
+  test('pixels', test_pixels, env : offscreen_env)
+endif
+
 test_software_backend_present_stats = executable('test_software_backend_present_stats',
   files('test_software_backend_present_stats.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
@@ -189,7 +203,7 @@ test_model_app_chrome_cursor = executable('test_model_app_chrome_cursor',
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
 if can_open_window
-  test('model_app_chrome_cursor', test_model_app_chrome_cursor)
+  test('model_app_chrome_cursor', test_model_app_chrome_cursor, env : offscreen_env)
 endif
 
 # Tests that need a backend (SDL)

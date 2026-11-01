@@ -1,0 +1,15 @@
+--- a/src/video/meson.build
++++ b/src/video/meson.build
+@@ -1,5 +1,12 @@
+ subdir('yuv2rgb')
+ 
++# PRISM: the headless video drivers, for pixel tests and CI without a display
++# (SDL_VIDEODRIVER=offscreen). The wrapdb port ships their meson.build but never uses them.
++cdata.set('SDL_VIDEO_DRIVER_OFFSCREEN', 1)
++subdir('offscreen')
++cdata.set('SDL_VIDEO_DRIVER_DUMMY', 1)
++subdir('dummy')
++
+ if host_machine.system() == 'windows'
+   cdata.set('SDL_VIDEO_DRIVER_WINDOWS', 1)
+   subdir('windows')

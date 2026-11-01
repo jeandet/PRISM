@@ -238,7 +238,7 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, co
     // Re-read every frame rather than caching at creation time -- dragging the window to a
     // display with a different backing scale (e.g. Retina <-> external monitor) changes this
     // without any dedicated event we currently handle.
-    float density = SDL_GetWindowPixelDensity(sdl_window_);
+    float density = forced_scale_ > 0.f ? forced_scale_ : SDL_GetWindowPixelDensity(sdl_window_);
     device_scale_ = density > 0.f ? density : 1.0f;
     SDL_SetRenderScale(renderer_, device_scale_, device_scale_);
 
