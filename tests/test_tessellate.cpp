@@ -146,3 +146,12 @@ TEST_CASE("text_quad: from the origin, centred, and turned counter-clockwise") {
     CHECK(q[1].x == doctest::Approx(100.f));
     CHECK(q[1].y == doctest::Approx(40.f));   // the end of the text is above the origin
 }
+
+TEST_CASE("a single draw list tessellates like a snapshot of it") {
+    DrawList dl;
+    dl.filled_rect(R(0, 0, 10, 10), red);
+    dl.text("t", P(0, 0), 10.f, red);
+    auto t = tessellate(dl);
+    REQUIRE(t.batches.size() == 2);
+    CHECK(t.vertices.size() == 6);
+}

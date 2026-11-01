@@ -243,20 +243,7 @@ WgpuRenderer::WgpuRenderer(const WgpuContext& ctx, WGPUTextureFormat target_form
     wgpuShaderModuleRelease(module);
     wgpuPipelineLayoutRelease(pipeline_layout);
 
-    WGPUBufferDescriptor ubd{};
-    ubd.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
-    ubd.size = 16;   // vec2f, padded to a uniform buffer's minimum binding size
-    uniforms_ = wgpuDeviceCreateBuffer(ctx.device(), &ubd);
-    WGPUBindGroupEntry entry{};
-    entry.binding = 0;
-    entry.buffer = uniforms_;
-    entry.size = 16;
-    WGPUBindGroupDescriptor bgd{};
-    bgd.layout = uniform_layout;
-    bgd.entryCount = 1;
-    bgd.entries = &entry;
-    uniform_group_ = wgpuDeviceCreateBindGroup(ctx.device(), &bgd);
-    wgpuBindGroupLayoutRelease(uniform_layout);
+    uniform_layout_ = uniform_layout;
 
     WGPUSamplerDescriptor sd{};
     sd.addressModeU = sd.addressModeV = sd.addressModeW = WGPUAddressMode_ClampToEdge;
@@ -289,8 +276,11 @@ WgpuRenderer::~WgpuRenderer() {
     release(white_);
     if (vertices_) wgpuBufferRelease(vertices_);
     if (sampler_) wgpuSamplerRelease(sampler_);
-    if (uniform_group_) wgpuBindGroupRelease(uniform_group_);
-    if (uniforms_) wgpuBufferRelease(uniforms_);
+    for (auto& u : uniforms_) {
+        wgpuBindGroupRelease(u.group);
+        wgpuBufferRelease(u.buffer);
+    }
+    if (uniform_layout_) wgpuBindGroupLayoutRelease(uniform_layout_);
     if (texture_layout_) wgpuBindGroupLayoutRelease(texture_layout_);
     if (pipeline_) wgpuRenderPipelineRelease(pipeline_);
 }
@@ -351,37 +341,50 @@ const WgpuRenderer::Texture* WgpuRenderer::image_texture(const render::ImageCmd&
     return &image_cache_.insert(key_, upload(img.width(), img.height(), img.pixels().data()));
 }
 
-void WgpuRenderer::render(const render::SceneSnapshot& snap, WGPUTextureView target, int width_px, int height_px,
+void WgpuRenderer::render(std::span<const Layer> layers, WGPUTextureView target, int width_px, int height_px,
                           float scale, core::Color clear) {
+    if (!(scale > 0.f)) scale = 1.f;   // a window can report no density before it is shown
     struct Draw {
+        std::size_t layer;
         std::optional<core::Rect> clip;
         std::uint32_t first, count;
         WGPUBindGroup group;
     };
-    auto tess = render::tessellate(snap);
+    std::vector<render::Vertex> vertices;
     std::vector<Draw> draws;
-    for (const auto& b : tess.batches) {
-        if (auto* text = std::get_if<const render::TextCmd*>(&b.source)) {
-            const Texture* t = text_texture(**text, scale);
-            if (!t) continue;
-            auto first = static_cast<std::uint32_t>(tess.vertices.size());
-            push_quad(tess.vertices, render::text_quad(**text, t->width / scale, t->height / scale), (*text)->color);
-            draws.push_back({b.clip, first, 6, t->group});
-        } else if (auto* image = std::get_if<const render::ImageCmd*>(&b.source)) {
-            const Texture* t = image_texture(**image);
-            const auto& r = (*image)->rect;
-            float x = r.origin.x.raw(), y = r.origin.y.raw(), w = r.extent.w.raw(), h = r.extent.h.raw();
-            auto first = static_cast<std::uint32_t>(tess.vertices.size());
-            push_quad(tess.vertices, {{{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}}, core::Color::rgba(255, 255, 255));
-            draws.push_back({b.clip, first, 6, t->group});
-        } else if (b.count > 0) {
-            draws.push_back({b.clip, b.first, b.count, white_.group});
+    for (std::size_t li = 0; li < layers.size(); ++li) {
+        const Layer& layer = layers[li];
+        auto tess = layer.snapshot ? render::tessellate(*layer.snapshot)
+                  : layer.list     ? render::tessellate(*layer.list)
+                                   : render::Tessellation{};
+        auto base = static_cast<std::uint32_t>(vertices.size());
+        vertices.insert(vertices.end(), tess.vertices.begin(), tess.vertices.end());
+        for (const auto& b : tess.batches) {
+            if (auto* text = std::get_if<const render::TextCmd*>(&b.source)) {
+                const Texture* t = text_texture(**text, scale);
+                if (!t) continue;
+                auto first = static_cast<std::uint32_t>(vertices.size());
+                push_quad(vertices, render::text_quad(**text, t->width / scale, t->height / scale), (*text)->color);
+                draws.push_back({li, b.clip, first, 6, t->group});
+            } else if (auto* image = std::get_if<const render::ImageCmd*>(&b.source)) {
+                const Texture* t = image_texture(**image);
+                const auto& r = (*image)->rect;
+                float x = r.origin.x.raw(), y = r.origin.y.raw(), w = r.extent.w.raw(), h = r.extent.h.raw();
+                auto first = static_cast<std::uint32_t>(vertices.size());
+                push_quad(vertices, {{{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}}, core::Color::rgba(255, 255, 255));
+                draws.push_back({li, b.clip, first, 6, t->group});
+            } else if (b.count > 0) {
+                draws.push_back({li, b.clip, base + b.first, b.count, white_.group});
+            }
         }
     }
+    // Text churns; images are immutable and often scroll in and out (icons in a list), so they
+    // stay for a while. simplify: an image unseen for 120 frames is re-uploaded on return; a
+    // size budget would bound memory better than an idle count.
     text_cache_.end_frame(2, [](Texture& t) { release(t); });
-    image_cache_.end_frame(2, [](Texture& t) { release(t); });
+    image_cache_.end_frame(120, [](Texture& t) { release(t); });
 
-    std::uint64_t bytes = tess.vertices.size() * sizeof(render::Vertex);
+    std::uint64_t bytes = vertices.size() * sizeof(render::Vertex);
     // Grows by doubling and never shrinks: shapes change size frame to frame, and one large
     // frame keeps its buffer for the session (bounded by the largest frame drawn).
     if (bytes > vertex_capacity_) {
@@ -392,9 +395,32 @@ void WgpuRenderer::render(const render::SceneSnapshot& snap, WGPUTextureView tar
         vbd.size = vertex_capacity_;
         vertices_ = wgpuDeviceCreateBuffer(ctx_.device(), &vbd);
     }
-    if (bytes > 0) wgpuQueueWriteBuffer(ctx_.queue(), vertices_, 0, tess.vertices.data(), bytes);
-    float viewport[4] = {static_cast<float>(width_px) / scale, static_cast<float>(height_px) / scale, 0.f, 0.f};
-    wgpuQueueWriteBuffer(ctx_.queue(), uniforms_, 0, viewport, sizeof viewport);
+    if (bytes > 0) wgpuQueueWriteBuffer(ctx_.queue(), vertices_, 0, vertices.data(), bytes);
+
+    // Each layer sees its band of the target as its whole viewport, in points.
+    auto band_top_px = [&](const Layer& l) { return std::clamp(l.top * scale, 0.f, static_cast<float>(height_px)); };
+    while (uniforms_.size() < layers.size()) {
+        Uniform u;
+        WGPUBufferDescriptor ubd{};
+        ubd.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+        ubd.size = 16;   // vec2f, padded to a uniform buffer's minimum binding size
+        u.buffer = wgpuDeviceCreateBuffer(ctx_.device(), &ubd);
+        WGPUBindGroupEntry entry{};
+        entry.binding = 0;
+        entry.buffer = u.buffer;
+        entry.size = 16;
+        WGPUBindGroupDescriptor bgd{};
+        bgd.layout = uniform_layout_;
+        bgd.entryCount = 1;
+        bgd.entries = &entry;
+        u.group = wgpuDeviceCreateBindGroup(ctx_.device(), &bgd);
+        uniforms_.push_back(u);
+    }
+    for (std::size_t li = 0; li < layers.size(); ++li) {
+        float band_h = static_cast<float>(height_px) - band_top_px(layers[li]);
+        float viewport[4] = {static_cast<float>(width_px) / scale, band_h / scale, 0.f, 0.f};
+        wgpuQueueWriteBuffer(ctx_.queue(), uniforms_[li].buffer, 0, viewport, sizeof viewport);
+    }
 
     WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(ctx_.device(), nullptr);
     WGPURenderPassColorAttachment ca{};
@@ -409,12 +435,22 @@ void WgpuRenderer::render(const render::SceneSnapshot& snap, WGPUTextureView tar
     WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(enc, &rp);
     if (bytes > 0) {
         wgpuRenderPassEncoderSetPipeline(pass, pipeline_);
-        wgpuRenderPassEncoderSetBindGroup(pass, 0, uniform_group_, 0, nullptr);
         wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertices_, 0, bytes);
+        std::size_t current = layers.size();
         for (const auto& d : draws) {
-            auto s = scissor_of(d.clip, width_px, height_px, scale);
-            if (s.w == 0 || s.h == 0) continue;
-            wgpuRenderPassEncoderSetScissorRect(pass, s.x, s.y, s.w, s.h);
+            float top_px = band_top_px(layers[d.layer]);
+            float band_h = static_cast<float>(height_px) - top_px;
+            if (band_h <= 0.f) continue;   // the layer's band is off the target
+            if (d.layer != current) {
+                current = d.layer;
+                wgpuRenderPassEncoderSetViewport(pass, 0.f, top_px, static_cast<float>(width_px), band_h, 0.f, 1.f);
+                wgpuRenderPassEncoderSetBindGroup(pass, 0, uniforms_[current].group, 0, nullptr);
+            }
+            // The clip is in the layer's points; the scissor is in the target's pixels.
+            auto s = scissor_of(d.clip, width_px, height_px - static_cast<int>(top_px), scale);
+            auto y = s.y + static_cast<std::uint32_t>(top_px);
+            if (s.w == 0 || s.h == 0 || y >= static_cast<std::uint32_t>(height_px)) continue;
+            wgpuRenderPassEncoderSetScissorRect(pass, s.x, y, s.w, std::min(s.h, static_cast<std::uint32_t>(height_px) - y));
             wgpuRenderPassEncoderSetBindGroup(pass, 1, d.group, 0, nullptr);
             wgpuRenderPassEncoderDraw(pass, d.count, 1, d.first, 0);
         }
@@ -432,6 +468,13 @@ void WgpuRenderer::render(const render::SceneSnapshot& snap, WGPUTextureView tar
 std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, const render::SceneSnapshot& snap,
                                            int width_px, int height_px, float scale, core::Color clear,
                                            TextRasterizer text) {
+    Layer whole{&snap, nullptr, 0.f};
+    return render_to_pixels(ctx, std::span{&whole, 1}, width_px, height_px, scale, clear, std::move(text));
+}
+
+std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, std::span<const Layer> layers,
+                                           int width_px, int height_px, float scale, core::Color clear,
+                                           TextRasterizer text) {
     const auto w = static_cast<std::uint32_t>(width_px), h = static_cast<std::uint32_t>(height_px);
     WGPUTextureDescriptor td{};
     td.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
@@ -444,7 +487,7 @@ std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, const render:
     WGPUTextureView view = wgpuTextureCreateView(tex, nullptr);
     {   // a renderer per call: fine for tests and one-off exports; windows keep theirs
         WgpuRenderer renderer{ctx, td.format, std::move(text)};
-        renderer.render(snap, view, width_px, height_px, scale, clear);
+        renderer.render(layers, view, width_px, height_px, scale, clear);
     }
 
     const std::uint32_t row = (w * 4 + 255) / 256 * 256;   // copies need 256-byte rows

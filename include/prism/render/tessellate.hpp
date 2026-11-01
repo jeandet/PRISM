@@ -4,6 +4,7 @@
 #include <prism/render/shape_mesh.hpp>
 
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <numbers>
@@ -88,6 +89,7 @@ struct Builder {
     }
 
     void vertex(float x, float y, Color c, float alpha = 1.f) {
+        assert(std::holds_alternative<std::monostate>(out.batches.back().source) && "shape vertex in a text/image batch");
         out.vertices.push_back({x, y, 0.f, 0.f, c.r / 255.f, c.g / 255.f, c.b / 255.f, c.a / 255.f * alpha});
         ++out.batches.back().count;
     }
@@ -172,6 +174,16 @@ struct Builder {
 };
 
 } // namespace tess_detail
+
+// One draw list on its own (e.g. a window's title bar).
+inline Tessellation tessellate(const DrawList& dl) {
+    tess_detail::Builder b;
+    b.begin_batch();
+    b.draw_list(dl);
+    auto& bs = b.out.batches;
+    if (!bs.empty() && bs.back().count == 0 && std::holds_alternative<std::monostate>(bs.back().source)) bs.pop_back();
+    return std::move(b.out);
+}
 
 // Back to front: the snapshot's z order, then the overlay (never clipped).
 inline Tessellation tessellate(const SceneSnapshot& snap) {

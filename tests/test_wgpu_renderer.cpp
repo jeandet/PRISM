@@ -19,7 +19,7 @@ namespace {
 Rect R(float x, float y, float w, float h) { return {Point{X{x}, Y{y}}, Size{Width{w}, Height{h}}}; }
 const Color red = Color::rgba(255, 0, 0), blue = Color::rgba(0, 0, 255), black = Color::rgba(0, 0, 0);
 
-struct Image {
+struct Pixels {
     int w, h;
     std::vector<std::uint8_t> px;
     std::array<int, 4> at(int x, int y) const {
@@ -40,7 +40,7 @@ SceneSnapshot scene(DrawList dl) {
     return s;
 }
 
-Image draw(DrawList dl, int w, int h, float scale = 1.f, Color clear = black) {
+Pixels draw(DrawList dl, int w, int h, float scale = 1.f, Color clear = black) {
     return {w, h, render_to_pixels(*context(), scene(std::move(dl)), w, h, scale, clear)};
 }
 
@@ -130,7 +130,7 @@ struct BoxFont {
     }
 };
 
-Image draw_text(DrawList dl, int w, int h, float scale, BoxFont& font) {
+Pixels draw_text(DrawList dl, int w, int h, float scale, BoxFont& font) {
     return {w, h, render_to_pixels(*context(), scene(std::move(dl)), w, h, scale, black, font.fn())};
 }
 const Color green = Color::rgba(0, 255, 0);
@@ -201,4 +201,56 @@ TEST_CASE("text is cut by its clip, and the same string is rasterized once per f
     CHECK(out.at(6, 5) == std::array{0, 255, 0, 255});
     CHECK(out.at(16, 5) == std::array{0, 0, 0, 255});    // past the clip
     CHECK(out.at(16, 25) == std::array{0, 255, 0, 255});  // the second one is not clipped
+}
+
+// ---- Layers: content below a title bar, the bar on top ----
+
+TEST_CASE("a layer starting lower draws in its own band, clips included, at 1x and 2x") {
+    if (skip_without_gpu()) return;
+    for (float scale : {1.f, 2.f}) {
+        int s = static_cast<int>(scale);
+        DrawList content;
+        content.clip_push(Point{X{0}, Y{0}}, Size{Width{20}, Height{100}});
+        content.filled_rect(R(0, 0, 40, 10), red);   // the clip keeps its left 20 points
+        content.clip_pop();
+        auto snap = scene(std::move(content));
+        DrawList bar;
+        bar.filled_rect(R(0, 0, 40, 8), blue);
+        prism::backends::Layer layers[] = {{&snap, nullptr, 8.f}, {nullptr, &bar, 0.f}};
+        Pixels out{40 * s, 40 * s,
+                  render_to_pixels(*context(), std::span{layers}, 40 * s, 40 * s, scale, black)};
+        INFO("scale " << scale);
+        CHECK(out.at(5 * s, 4 * s) == std::array{0, 0, 255, 255});   // the bar, on top
+        CHECK(out.at(5 * s, 12 * s) == std::array{255, 0, 0, 255});  // content, moved down 8 points
+        CHECK(out.at(30 * s, 12 * s) == std::array{0, 0, 0, 255});   // past the content's clip
+        CHECK(out.at(5 * s, 20 * s) == std::array{0, 0, 0, 255});    // below the 10-point rect
+    }
+}
+
+// ---- From the opencode review of 7162853 ----
+
+TEST_CASE("a frame of text only draws, and a string the font cannot render draws nothing") {
+    if (skip_without_gpu()) return;
+    BoxFont font;
+    DrawList dl;
+    dl.text("only", Point{X{2}, Y{2}}, 10.f, green);
+    auto out = draw_text(std::move(dl), 30, 20, 1.f, font);
+    CHECK(out.at(5, 5) == std::array{0, 255, 0, 255});
+
+    prism::backends::TextRasterizer none = [](std::string_view, float, FontRole) { return std::optional<prism::backends::TextBitmap>{}; };
+    DrawList dl2;
+    dl2.text("missing", Point{X{2}, Y{2}}, 10.f, green);
+    auto empty = render_to_pixels(*context(), scene(std::move(dl2)), 30, 20, 1.f, black, none);
+    REQUIRE(empty.size() == 30u * 20 * 4);
+    CHECK(empty[(5 * 30 + 5) * 4 + 1] == 0);
+}
+
+TEST_CASE("a zero scale is treated as 1, not turned into NaN quads") {
+    if (skip_without_gpu()) return;
+    BoxFont font;
+    DrawList dl;
+    dl.text("t", Point{X{2}, Y{2}}, 10.f, green);
+    auto out = render_to_pixels(*context(), scene(std::move(dl)), 30, 20, 0.f, black, font.fn());
+    REQUIRE(out.size() == 30u * 20 * 4);
+    CHECK(out[(5 * 30 + 5) * 4 + 1] == 255);
 }

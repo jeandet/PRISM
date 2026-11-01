@@ -7,6 +7,7 @@
 #include <prism/core/types.hpp>
 #include <prism/render/frame_cache.hpp>
 #include <prism/render/scene_snapshot.hpp>
+#include <prism/render/text_bitmap.hpp>
 
 #include <webgpu/webgpu.h>
 
@@ -14,6 +15,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,16 +46,17 @@ private:
     WGPUQueue queue_ = nullptr;
 };
 
-// A string rasterized in white, coverage in alpha: RGBA8, rows tightly packed, top row first.
-// The renderer tints it with the text colour, so one bitmap serves every colour.
-struct TextBitmap {
-    int width = 0, height = 0;
-    std::vector<std::uint8_t> rgba;
+using render::TextBitmap;
+using render::TextRasterizer;
+
+// What one render draws, back to front: snapshots or single draw lists, each in its own band of
+// the target starting `top` points from its top edge (a window's content below its title bar,
+// then the title bar itself). Exactly one of `snapshot` and `list` is set.
+struct Layer {
+    const render::SceneSnapshot* snapshot = nullptr;
+    const render::DrawList* list = nullptr;
+    float top = 0.f;
 };
-// Rasterizes `text` at `px_size` device pixels in the font for `role`; nullopt draws nothing.
-// The backend supplies it (the SDL setup through SDL_ttf), so the renderer has no font code and
-// text is drawn with the same fonts the measurer measures with.
-using TextRasterizer = std::function<std::optional<TextBitmap>(std::string_view text, float px_size, render::FontRole)>;
 
 class WgpuRenderer {
 public:
@@ -62,10 +65,15 @@ public:
     WgpuRenderer(const WgpuRenderer&) = delete;
     WgpuRenderer& operator=(const WgpuRenderer&) = delete;
 
-    // Clears the target and draws the snapshot. `scale` is device pixels per point: the target
-    // is width_px x height_px pixels, the snapshot is in points.
-    void render(const render::SceneSnapshot& snap, WGPUTextureView target, int width_px, int height_px,
+    // Clears the target and draws the layers. `scale` is device pixels per point: the target
+    // is width_px x height_px pixels, the layers are in points.
+    void render(std::span<const Layer> layers, WGPUTextureView target, int width_px, int height_px,
                 float scale, core::Color clear);
+    void render(const render::SceneSnapshot& snap, WGPUTextureView target, int width_px, int height_px,
+                float scale, core::Color clear) {
+        Layer whole{&snap, nullptr, 0.f};
+        render(std::span{&whole, 1}, target, width_px, height_px, scale, clear);
+    }
 
     struct Texture {
         WGPUTexture texture = nullptr;
@@ -84,8 +92,12 @@ private:
     WGPURenderPipeline pipeline_ = nullptr;
     WGPUBindGroupLayout texture_layout_ = nullptr;
     WGPUSampler sampler_ = nullptr;
-    WGPUBuffer uniforms_ = nullptr;
-    WGPUBindGroup uniform_group_ = nullptr;
+    WGPUBindGroupLayout uniform_layout_ = nullptr;
+    struct Uniform {
+        WGPUBuffer buffer = nullptr;
+        WGPUBindGroup group = nullptr;
+    };
+    std::vector<Uniform> uniforms_;   // one per layer: each has its own viewport size
     WGPUBuffer vertices_ = nullptr;
     std::uint64_t vertex_capacity_ = 0;   // bytes
     Texture white_;                        // what shapes sample
@@ -97,6 +109,9 @@ private:
 // Renders offscreen and reads the pixels back: RGBA8, rows tightly packed, top row first.
 // For tests and image export.
 std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, const render::SceneSnapshot& snap,
+                                           int width_px, int height_px, float scale, core::Color clear,
+                                           TextRasterizer text = {});
+std::vector<std::uint8_t> render_to_pixels(const WgpuContext& ctx, std::span<const Layer> layers,
                                            int width_px, int height_px, float scale, core::Color clear,
                                            TextRasterizer text = {});
 
