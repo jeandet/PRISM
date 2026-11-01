@@ -96,6 +96,13 @@ inline void route_text_input(WidgetTree& tree, const InputEvent& ev) {
         tree.dispatch(tree.focused_id(), ev);
 }
 
+// Releases go to the focused widget only. Tab and page keys act on press; their release is
+// delivered like any other key, never acted on twice.
+inline void route_key_release(WidgetTree& tree, const InputEvent& ev) {
+    if (tree.focused_id() != 0)
+        tree.dispatch(tree.focused_id(), ev);
+}
+
 // Top-level dispatcher: switches on the event variant and routes to the
 // per-kind handlers above. `snap` may be null — mouse routing hit-tests
 // against a snapshot; key/text routing doesn't need one.
@@ -113,6 +120,8 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
         route_key_press(tree, ev, *kp);
     if (std::get_if<TextInput>(&ev))
         route_text_input(tree, ev);
+    if (std::get_if<KeyRelease>(&ev))
+        route_key_release(tree, ev);
 }
 
 } // namespace prism::app::widget_detail

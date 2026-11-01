@@ -2,6 +2,7 @@
 #include <doctest.h>
 
 #include <prism/app/widget_tree.hpp>
+#include <prism/app/event_routing.hpp>
 #include <prism/core/field.hpp>
 #include <prism/input/input_event.hpp>
 
@@ -682,3 +683,55 @@ TEST_CASE("Channel<T> member of a reflection-only model is auto-drained by drain
     CHECK(received == 7);
 }
 #endif
+
+// --- KeyRelease routing ---
+
+struct KeySink { int id = 0; bool operator==(const KeySink&) const = default; };
+static std::vector<prism::InputEvent> key_sink_events;
+
+namespace prism::ui {
+template <> struct Widget<KeySink> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static void record(DrawList&, const Field<KeySink>&, WidgetNode&) {}
+    static void handle_input(Field<KeySink>&, const InputEvent& ev, WidgetNode&) {
+        key_sink_events.push_back(ev);
+    }
+};
+}
+
+struct KeySinkModel {
+    prism::Field<KeySink> a{{1}};
+    prism::Field<KeySink> b{{2}};
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.vstack(a, b); }
+};
+
+TEST_CASE("KeyRelease reaches only the focused widget") {
+    KeySinkModel model;
+    prism::WidgetTree tree(model);
+    key_sink_events.clear();
+    tree.set_focused(tree.leaf_ids()[1]);
+
+    prism::app::widget_detail::route_event(tree, nullptr, prism::KeyRelease{prism::keys::space, 0});
+
+    REQUIRE(key_sink_events.size() == 1);
+    CHECK(std::get<prism::KeyRelease>(key_sink_events[0]).key == prism::keys::space);
+}
+
+TEST_CASE("KeyRelease with nothing focused is dropped") {
+    KeySinkModel model;
+    prism::WidgetTree tree(model);
+    key_sink_events.clear();
+    prism::app::widget_detail::route_event(tree, nullptr, prism::KeyRelease{prism::keys::space, 0});
+    CHECK(key_sink_events.empty());
+}
+
+TEST_CASE("releasing tab does not move focus a second time") {
+    KeySinkModel model;
+    prism::WidgetTree tree(model);
+    auto first = tree.leaf_ids()[0];
+    tree.set_focused(first);
+    key_sink_events.clear();
+    prism::app::widget_detail::route_event(tree, nullptr, prism::KeyRelease{prism::keys::tab, 0});
+    CHECK(tree.focused_id() == first);
+    CHECK(key_sink_events.size() == 1);
+}
