@@ -3,6 +3,7 @@
 #include <prism/delegates/dropdown_delegates.hpp>
 #include <prism/delegates/menu_delegates.hpp>
 #include <prism/delegates/dialog_delegates.hpp>
+#include <prism/delegates/form_delegates.hpp>
 #include <prism/delegates/tabs_delegates.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/core/list.hpp>

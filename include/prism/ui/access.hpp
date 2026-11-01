@@ -11,9 +11,9 @@ namespace prism::ui {
 enum class Role : std::uint8_t {
     Cell = 2, Label = 3, Row = 6, TreeItem = 9, GenericContainer = 14, CheckBox = 15,
     TextInput = 17, Button = 18, Pane = 20, ColumnHeader = 22, List = 24, Table = 25,
-    MultilineTextInput = 31, PasswordInput = 40, Canvas = 51, ComboBox = 56, Group = 78,
-    ScrollBar = 107, ScrollView = 108, Slider = 113, Tab = 120, TabList = 121, Tree = 129,
-    Window = 133,
+    MultilineTextInput = 31, PasswordInput = 40, Canvas = 51, ComboBox = 56, Dialog = 66, Group = 78,
+    ProgressIndicator = 101, RadioGroup = 102, ScrollBar = 107, ScrollView = 108, Slider = 113,
+    SpinButton = 114, Tab = 120, TabList = 121, Tree = 129, Window = 133,
 };
 
 // What a widget says about itself: role, a human-readable name, and its value/state.

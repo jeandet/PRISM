@@ -800,7 +800,7 @@ struct Widget<ContextMenu> {
 template <>
 struct Widget<Dialog> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
-    static constexpr Role access_role = Role::Button;   // AccessKit's Dialog role comes with the bridge
+    static constexpr Role access_role = Role::Dialog;
     static constexpr bool popup_anchor = true;
     static void describe(const Field<Dialog>& f, AccessInfo& a) { a.name = f.get().title; }
     static void record(DrawList& dl, const Field<Dialog>& field, WidgetNode& node);

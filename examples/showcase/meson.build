@@ -9,6 +9,7 @@ showcases = {
   'table':    'showcase_table.cpp',
   'tabs':     'showcase_tabs.cpp',
   'dialog':   'showcase_dialog.cpp',
+  'form':     'showcase_form.cpp',
 }
 
 foreach name, src : showcases
