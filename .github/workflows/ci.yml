@@ -42,6 +42,42 @@ jobs:
           name: meson-testlog-build-and-test
           path: builddir/meson-logs/testlog.txt
 
+  # The only Linux lane with P2996 reflection (GCC 16). Without it, the reflection path
+  # ("write a struct, get a UI") is only covered by macos-gcc, and only as long as Homebrew
+  # happens to ship GCC >= 16. Python is covered by the other lanes.
+  gcc16-reflection:
+    runs-on: ubuntu-24.04
+    container: gcc:16-trixie
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          apt-get update
+          apt-get install -y python3-venv pkg-config libfreetype-dev libharfbuzz-dev \
+            libudev-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev \
+            libxss-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgl-dev libdrm-dev libgbm-dev \
+            libdbus-1-dev libasound2-dev libpulse-dev libibus-1.0-dev libpipewire-0.3-dev libwayland-bin xvfb xauth
+          python3 -m venv /opt/venv
+          /opt/venv/bin/pip install 'meson>=1.5' ninja
+          echo /opt/venv/bin >> "$GITHUB_PATH"
+      - name: Setup builddir
+        run: meson setup builddir -Dmagic_enum:test=false -Dsdl3:werror=false -Dsdl3:warning_level=0
+      - name: Require reflection
+        run: |
+          grep -q '__cpp_impl_reflection check" compiles: YES' builddir/meson-logs/meson-log.txt
+      - name: Build
+        run: ninja -C builddir
+      - name: Run tests (C++ only)
+        run: xvfb-run -a meson test -C builddir --print-errorlogs --exclude python_bindings
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-testlog-gcc16-reflection
+          path: builddir/meson-logs/testlog.txt
+
   # Every other lane compiles PRISM's C++ with GCC. Emscripten (the wasm path) is clang +
   # libc++ only, so this lane keeps the code building there. Python is excluded: the wasm
   # build won't have it, and a libc++ extension inside a libstdc++ CPython tests nothing useful.
