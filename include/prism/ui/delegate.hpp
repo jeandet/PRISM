@@ -3,6 +3,7 @@
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/context.hpp>
 #include <prism/ui/text_metrics.hpp>
+#include <prism/ui/text_edit.hpp>
 #include <prism/render/draw_list.hpp>
 #include <prism/core/field.hpp>
 #include <prism/input/input_event.hpp>
@@ -106,6 +107,7 @@ struct TextEditState {
     size_t cursor = 0;
     std::optional<size_t> anchor;   // selection start; empty when nothing is selected
     bool dragging = false;   // a mouse press started a selection drag
+    EditHistory history;
     DX scroll_offset{0};
 };
 
@@ -114,6 +116,7 @@ struct TextAreaEditState {
     size_t cursor = 0;
     std::optional<size_t> anchor;
     bool dragging = false;
+    EditHistory history;
     DY scroll_y{0};
 };
 

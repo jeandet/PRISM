@@ -60,3 +60,68 @@ TEST_CASE("offsets are snapped to character boundaries") {
     auto e = te::move_to(TextEdit{"a\xC3\xA9", 0, 0}, 2, false);   // byte 2 is inside "é"
     CHECK(e.cursor == 1);
 }
+
+// --- undo history ---
+
+using prism::ui::EditHistory;
+
+TEST_CASE("consecutive typing is one undo step; undo then redo restores both states") {
+    EditHistory h;
+    TextEdit e{"", 0, 0};
+    for (const char* c : {"a", "b", "c"}) {
+        TextEdit next = te::insert(e, c, 0);
+        h.record(e, next, EditHistory::Kind::Typing);
+        e = next;
+    }
+    auto undone = h.undo(e);
+    REQUIRE(undone);
+    CHECK(undone->text == "");
+    auto redone = h.redo(*undone);
+    REQUIRE(redone);
+    CHECK(redone->text == "abc");
+    CHECK_FALSE(h.redo(*redone));
+}
+
+TEST_CASE("a non-typing edit or a caret move starts a new step") {
+    EditHistory h;
+    TextEdit e{"", 0, 0};
+    TextEdit a = te::insert(e, "a", 0);
+    h.record(e, a, EditHistory::Kind::Typing);
+    h.break_group();   // caret moved
+    TextEdit b = te::insert(a, "b", 0);
+    h.record(a, b, EditHistory::Kind::Typing);
+    TextEdit c = te::erase_back(b);
+    h.record(b, c, EditHistory::Kind::Other);
+    CHECK(h.undo(c)->text == "ab");
+    CHECK(h.undo(b)->text == "a");
+    CHECK(h.undo(a)->text == "");
+}
+
+TEST_CASE("undo restores the selection that was replaced") {
+    EditHistory h;
+    TextEdit before{"hello", 4, 1};
+    TextEdit after = te::insert(before, "X", 0);
+    h.record(before, after, EditHistory::Kind::Other);
+    auto back = h.undo(after);
+    REQUIRE(back);
+    CHECK(*back == before);
+}
+
+TEST_CASE("a new edit clears redo; the history is capped") {
+    EditHistory h;
+    TextEdit e{"", 0, 0};
+    TextEdit a = te::insert(e, "a", 0);
+    h.record(e, a, EditHistory::Kind::Other);
+    h.undo(a);
+    TextEdit b = te::insert(e, "b", 0);
+    h.record(e, b, EditHistory::Kind::Other);
+    CHECK_FALSE(h.redo(b));
+    for (int i = 0; i < 500; ++i) {
+        TextEdit n = te::insert(b, "x", 0);
+        h.record(b, n, EditHistory::Kind::Other);
+        b = n;
+    }
+    int steps = 0;
+    while (auto u = h.undo(b)) { b = *u; ++steps; }
+    CHECK(steps == static_cast<int>(EditHistory::capacity));
+}

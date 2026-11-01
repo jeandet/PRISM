@@ -156,6 +156,15 @@ inline std::string normalized_lines(std::string_view s) {
     return out;
 }
 
+// Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y redo. nullopt for other keys.
+inline std::optional<std::optional<TextEdit>> history_key(EditHistory& h, const TextEdit& e, const KeyPress& kp) {
+    if (!mods::shortcut(kp.mods)) return std::nullopt;
+    bool shift = (kp.mods & mods::shift) != 0;
+    if (kp.key == keys::z) return shift ? h.redo(e) : h.undo(e);
+    if (kp.key == keys::y) return h.redo(e);
+    return std::nullopt;
+}
+
 // Writes an edit back: the field only if the text changed, the caret and selection always.
 template <typename Sentinel, typename EditState>
 void apply_edit(Field<Sentinel>& field, WidgetNode& node, EditState& es,
@@ -173,9 +182,10 @@ void apply_edit(Field<Sentinel>& field, WidgetNode& node, EditState& es,
 }
 
 template <typename Sentinel, typename EditState>
-TextEdit current_edit(const Field<Sentinel>& field, const EditState& es) {
+TextEdit current_edit(const Field<Sentinel>& field, EditState& es) {
     const auto& v = field.get().value;
     TextEdit e{std::string(v.data(), v.size()), 0, 0};
+    if (!es.history.tracks(e.text)) es.history.clear();   // changed by the program: steps are stale
     e.cursor = core::utf8::snap(e.text, es.cursor);   // the value may have changed under us
     e.anchor = core::utf8::snap(e.text, es.anchor.value_or(es.cursor));
     return e;
@@ -210,6 +220,10 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
         after = text_edit::insert(before, single_line(pa->text), field.get().max_length);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         bool shift = (kp->mods & mods::shift) != 0;
+        if (auto h = history_key(es.history, before, *kp)) {
+            if (*h) apply_edit(field, node, es, before, **h);
+            return;   // an undo step is not itself recorded
+        }
         if (auto c = clipboard_key(before, *kp, cb, allow_copy)) after = c;
         else if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
         else if (kp->key == keys::end) after = text_edit::move_to(before, before.text.size(), shift);
@@ -219,7 +233,11 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
             return cursor_at(m, before.text, p.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw(), display_fn);
         });
     }
-    if (after) apply_edit(field, node, es, before, *after);
+    if (after) {
+        es.history.record(before, *after, std::holds_alternative<TextInput>(ev)
+                                              ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
+        apply_edit(field, node, es, before, *after);
+    }
 
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - tf_padding_x * 2.f;
@@ -404,6 +422,10 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         after = text_edit::insert(before, normalized_lines(pa->text), field.get().max_length);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         bool shift = (kp->mods & mods::shift) != 0;
+        if (auto h = history_key(es.history, before, *kp)) {
+            if (*h) apply_edit(field, node, es, before, **h);
+            return;   // an undo step is not itself recorded
+        }
         if (auto c = clipboard_key(before, *kp, node.theme ? node.theme->clipboard : nullptr, true)) after = c;
         else switch (kp->key) {
         case keys::enter: after = text_edit::insert(before, "\n", field.get().max_length); break;
@@ -431,7 +453,11 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
             return line_col_to_cursor(value, click_line, click_col, wrapped);
         });
     }
-    if (after) apply_edit(field, node, es, before, *after);
+    if (after) {
+        es.history.record(before, *after, std::holds_alternative<TextInput>(ev)
+                                              ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
+        apply_edit(field, node, es, before, *after);
+    }
 
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
     auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);

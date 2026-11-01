@@ -659,3 +659,29 @@ TEST_CASE("paste replaces the selection; a TextField flattens newlines to spaces
     TF::handle_input(field, prism::Paste{"a\r\nb\nc"}, node);
     CHECK(field.get().value == "ha b co");
 }
+
+// --- undo / redo ---
+
+TEST_CASE("ctrl+Z undoes typing, ctrl+shift+Z and ctrl+Y redo") {
+    prism::Field<prism::TextField<>> field{{.value = ""}};
+    auto node = make_node({.focused = true});
+    TF::handle_input(field, prism::TextInput{"a"}, node);
+    TF::handle_input(field, prism::TextInput{"b"}, node);
+    key(field, node, prism::keys::z, prism::mods::ctrl);
+    CHECK(field.get().value.empty());
+    key(field, node, prism::keys::z, prism::mods::ctrl | prism::mods::shift);
+    CHECK(field.get().value == "ab");
+    key(field, node, prism::keys::z, prism::mods::gui);   // Cmd+Z
+    CHECK(field.get().value.empty());
+    key(field, node, prism::keys::y, prism::mods::ctrl);
+    CHECK(field.get().value == "ab");
+}
+
+TEST_CASE("a value changed by the program drops the undo history") {
+    prism::Field<prism::TextField<>> field{{.value = ""}};
+    auto node = make_node({.focused = true});
+    TF::handle_input(field, prism::TextInput{"a"}, node);
+    field.set({.value = "from the model"});
+    key(field, node, prism::keys::z, prism::mods::ctrl);
+    CHECK(field.get().value == "from the model");
+}

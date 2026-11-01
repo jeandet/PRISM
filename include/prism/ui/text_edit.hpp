@@ -4,9 +4,11 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace prism::ui {
 
@@ -78,4 +80,54 @@ inline TextEdit erase_forward(TextEdit e) {
 }
 
 } // namespace text_edit
+
+// Undo/redo for one edited text. Each step stores the whole TextEdit before the change, so undo
+// also restores the caret and the selection that was replaced. Consecutive typing merges into
+// one step until the caret moves (break_group) or another kind of edit happens.
+// simplify: whole-text snapshots, fine for fields and notes; a large document wants diffs.
+class EditHistory {
+public:
+    enum class Kind { Typing, Other };
+    static constexpr std::size_t capacity = 100;
+
+    void record(const TextEdit& before, const TextEdit& after, Kind kind) {
+        if (before.text == after.text) { break_group(); return; }   // caret/selection only
+        redo_.clear();
+        bool merge = kind == Kind::Typing && typing_ && !undo_.empty();
+        if (!merge) push(undo_, before);
+        typing_ = kind == Kind::Typing;
+        last_text_ = after.text;
+    }
+
+    void break_group() { typing_ = false; }
+
+    std::optional<TextEdit> undo(const TextEdit& current) { return step(undo_, redo_, current); }
+    std::optional<TextEdit> redo(const TextEdit& current) { return step(redo_, undo_, current); }
+
+    // False when the text was changed by someone else since this history last touched it: the
+    // stored steps no longer apply.
+    bool tracks(std::string_view text) const { return !last_text_ || *last_text_ == text; }
+    void clear() { *this = {}; }
+
+private:
+    static void push(std::vector<TextEdit>& v, TextEdit e) {
+        v.push_back(std::move(e));
+        if (v.size() > capacity) v.erase(v.begin());
+    }
+
+    std::optional<TextEdit> step(std::vector<TextEdit>& from, std::vector<TextEdit>& to, const TextEdit& current) {
+        if (from.empty()) return std::nullopt;
+        TextEdit target = std::move(from.back());
+        from.pop_back();
+        push(to, current);
+        typing_ = false;
+        last_text_ = target.text;
+        return target;
+    }
+
+    std::vector<TextEdit> undo_, redo_;
+    bool typing_ = false;
+    std::optional<std::string> last_text_;
+};
+
 } // namespace prism::ui
