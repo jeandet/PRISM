@@ -328,7 +328,8 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                     }
                     event_cb(WindowEvent{wid, MouseButton{
                         Point{X{ev.button.x}, Y{client_y(wid, ev.button.y)}},
-                        ev.button.button, true}});
+                        ev.button.button, true,
+                        static_cast<uint16_t>(SDL_GetModState()), ev.button.clicks}});
                     break;
                 }
                 case SDL_EVENT_MOUSE_BUTTON_UP: {
@@ -342,7 +343,8 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                     }
                     event_cb(WindowEvent{wid, MouseButton{
                         Point{X{ev.button.x}, Y{client_y(wid, ev.button.y)}},
-                        ev.button.button, false}});
+                        ev.button.button, false,
+                        static_cast<uint16_t>(SDL_GetModState()), ev.button.clicks}});
                     break;
                 }
                 case SDL_EVENT_MOUSE_WHEEL: {

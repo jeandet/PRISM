@@ -863,3 +863,29 @@ TEST_CASE("TextArea click picks the line using the measured line height") {
     // y = 25 is line 0 with 30 px lines, but line 1 with the 19.6 px estimate.
     CHECK(std::any_cast<prism::TextAreaEditState>(node.edit_state).cursor == 1);
 }
+
+TEST_CASE("TextArea: shift+down selects to the same column on the next line") {
+    prism::Field<prism::TextArea<>> field{{.value = "abc\ndef"}};
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextArea<>>::ensure_edit_state(node).cursor = 1;
+    prism::Widget<prism::TextArea<>>::handle_input(
+        field, prism::KeyPress{prism::keys::down, prism::mods::shift}, node);
+    auto& es = node.peek<prism::TextAreaEditState>();
+    CHECK(es.anchor == std::optional<size_t>{1});
+    CHECK(es.cursor == 5);
+}
+
+TEST_CASE("TextArea: a selection over two lines is highlighted on both") {
+    prism::Field<prism::TextArea<>> field{{.value = "abc\ndef"}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 5;
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    int highlights = 0;
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->color == test_theme.text_selection)
+            ++highlights;
+    CHECK(highlights == 2);
+}

@@ -11,7 +11,7 @@ using namespace prism::core;
 
 
 struct MouseMove   { Point position; };
-struct MouseButton { Point position; uint8_t button; bool pressed; };
+struct MouseButton { Point position; uint8_t button; bool pressed; uint16_t mods = 0; uint8_t clicks = 1; };
 struct MouseScroll { Point position; DX dx; DY dy; };
 struct KeyPress    { int32_t key; uint16_t mods; };
 struct KeyRelease  { int32_t key; uint16_t mods; };
@@ -40,13 +40,22 @@ namespace keys {
     inline constexpr int32_t escape    = 0x1B;          // matches SDLK_ESCAPE
     inline constexpr int32_t page_up   = 0x4000'004B;  // matches SDLK_PAGEUP
     inline constexpr int32_t page_down = 0x4000'004E;  // matches SDLK_PAGEDOWN
+    inline constexpr int32_t a         = 0x61;         // matches SDLK_A
+    inline constexpr int32_t c         = 0x63;         // matches SDLK_C
     inline constexpr int32_t i         = 0x69;         // matches SDLK_I
     inline constexpr int32_t m         = 0x6D;         // matches SDLK_M
+    inline constexpr int32_t v         = 0x76;         // matches SDLK_V
+    inline constexpr int32_t x         = 0x78;         // matches SDLK_X
+    inline constexpr int32_t y         = 0x79;         // matches SDLK_Y
+    inline constexpr int32_t z         = 0x7A;         // matches SDLK_Z
 }
 
 namespace mods {
     inline constexpr uint16_t shift = 0x0003;  // matches SDL_KMOD_SHIFT
     inline constexpr uint16_t ctrl  = 0x00C0;  // matches SDL_KMOD_CTRL
+    inline constexpr uint16_t gui   = 0x0C00;  // matches SDL_KMOD_GUI (Cmd on macOS)
+    // Shortcut modifier: Ctrl, or Cmd on macOS -- accept either everywhere.
+    inline constexpr bool shortcut(uint16_t m) { return (m & (ctrl | gui)) != 0; }
 }
 
 namespace buttons {

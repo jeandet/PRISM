@@ -1,11 +1,13 @@
 #pragma once
 
 #include <prism/core/utf8.hpp>
+#include <prism/ui/text_edit.hpp>
 #include <prism/ui/text_metrics.hpp>
 #include <prism/ui/widget_node.hpp>
 
 #include <algorithm>
 #include <cassert>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -21,24 +23,6 @@ inline std::string mask_string(size_t len) {
     for (size_t i = 0; i < len; ++i)
         result += "\xe2\x97\x8f";
     return result;
-}
-
-// Truncates `text` so `current` + result stays within `max_length` characters (0 = no limit),
-// never cutting a character in half.
-inline std::string clamp_to_max_length(std::string text, std::string_view current, size_t max_length) {
-    if (max_length == 0) return text;
-    size_t have = core::utf8::count(current);
-    size_t room = have < max_length ? max_length - have : 0;
-    text.resize(core::utf8::offset(text, room));
-    return text;
-}
-
-template <typename Sentinel>
-void set_erased(Field<Sentinel>& field, Sentinel sf, std::string_view value, size_t from, size_t to) {
-    std::string v(value);
-    v.erase(from, to - from);
-    sf.value = std::remove_cvref_t<decltype(sf.value)>(v);
-    field.set(sf);
 }
 
 constexpr Height tf_widget_h{30.f};
@@ -89,6 +73,16 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     Width text_area_w = w - tf_padding_x * 2.f;
     dl.clip_push(delegate_detail::make_point(X{tf_padding_x.raw()}, Y{0}), Size{text_area_w, tf_widget_h});
 
+    if (vs.focused && es.anchor && *es.anchor != es.cursor) {
+        auto value = std::string_view(sf.value.data(), sf.value.size());
+        auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
+        float x0 = caret_x(t.measurer, value, lo, display_fn) - es.scroll_offset.raw();
+        float x1 = caret_x(t.measurer, value, hi, display_fn) - es.scroll_offset.raw();
+        dl.filled_rect(delegate_detail::make_rect(X{x0}, Y{tf_padding_y.raw()}, Width{x1 - x0},
+                                                  tf_widget_h - tf_padding_y * 2.f),
+                       t.text_selection);
+    }
+
     if (sf.value.empty() && !vs.focused) {
         dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{tf_padding_y.raw() + 2.f}), tf_font_size,
                 t.text_placeholder);
@@ -110,52 +104,85 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     dl.clip_pop();
 }
 
+// Keys shared by TextField and TextArea, as edits on a TextEdit. Returns nullopt for keys the
+// widget handles itself (home/end, up/down, enter).
+inline std::optional<TextEdit> common_edit_key(const TextEdit& e, const KeyPress& kp) {
+    namespace te = text_edit;
+    bool shift = (kp.mods & mods::shift) != 0;
+    auto [lo, hi] = te::selection(e);
+    switch (kp.key) {
+    case keys::a: if (mods::shortcut(kp.mods)) return te::select_all(e); break;
+    case keys::backspace: return te::erase_back(e);
+    case keys::delete_: return te::erase_forward(e);
+    case keys::left:
+        if (te::has_selection(e) && !shift) return te::move_to(e, lo, false);
+        return te::move_to(e, core::utf8::prev(e.text, e.cursor), shift);
+    case keys::right:
+        if (te::has_selection(e) && !shift) return te::move_to(e, hi, false);
+        return te::move_to(e, core::utf8::next(e.text, e.cursor), shift);
+    }
+    return std::nullopt;
+}
+
+// Writes an edit back: the field only if the text changed, the caret and selection always.
+template <typename Sentinel, typename EditState>
+void apply_edit(Field<Sentinel>& field, WidgetNode& node, EditState& es,
+                const TextEdit& before, const TextEdit& after) {
+    if (after.text != before.text) {
+        auto sf = field.get();
+        sf.value = std::remove_cvref_t<decltype(sf.value)>(after.text);
+        field.set(sf);
+    }
+    std::optional<size_t> anchor;
+    if (after.anchor != after.cursor) anchor = after.anchor;
+    if (after.cursor != es.cursor || anchor != es.anchor) node.dirty = true;
+    es.cursor = after.cursor;
+    es.anchor = anchor;
+}
+
+template <typename Sentinel, typename EditState>
+TextEdit current_edit(const Field<Sentinel>& field, const EditState& es) {
+    const auto& v = field.get().value;
+    TextEdit e{std::string(v.data(), v.size()), 0, 0};
+    e.cursor = core::utf8::snap(e.text, es.cursor);   // the value may have changed under us
+    e.anchor = core::utf8::snap(e.text, es.anchor.value_or(es.cursor));
+    return e;
+}
+
+// Mouse: press places the caret (shift extends) and starts a drag; moves extend while dragging.
+template <typename EditState, typename HitFn>
+std::optional<TextEdit> mouse_edit(const TextEdit& e, EditState& es, const InputEvent& ev, HitFn hit) {
+    if (auto* mb = std::get_if<MouseButton>(&ev)) {
+        if (!mb->pressed) { es.dragging = false; return std::nullopt; }
+        es.dragging = true;
+        return text_edit::move_to(e, hit(mb->position), (mb->mods & mods::shift) != 0);
+    }
+    if (auto* mm = std::get_if<MouseMove>(&ev); mm && es.dragging)
+        return text_edit::move_to(e, hit(mm->position), true);
+    return std::nullopt;
+}
+
 template <typename Sentinel, typename DisplayFn>
 void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node,
                              DisplayFn display_fn) {
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     auto& es = node.get_or_create<TextEditState>();
-    auto sf = field.get();
-    auto value = std::string_view(sf.value.data(), sf.value.size());
-    auto len = value.size();
-    es.cursor = core::utf8::snap(value, es.cursor);
+    const TextEdit before = current_edit(field, es);
+    std::optional<TextEdit> after;
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
-        std::string to_insert = clamp_to_max_length(ti->text, value, sf.max_length);
-        if (!to_insert.empty()) {
-            std::string v(value);
-            v.insert(es.cursor, to_insert);
-            es.cursor += to_insert.size();
-            sf.value = std::remove_cvref_t<decltype(sf.value)>(v);
-            field.set(sf);
-        }
+        after = text_edit::insert(before, ti->text, field.get().max_length);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
-        if (kp->key == keys::backspace && es.cursor > 0) {
-            set_erased(field, sf, value, core::utf8::prev(value, es.cursor), es.cursor);
-            es.cursor = core::utf8::prev(value, es.cursor);
-        } else if (kp->key == keys::delete_ && es.cursor < len) {
-            set_erased(field, sf, value, es.cursor, core::utf8::next(value, es.cursor));
-        } else if (kp->key == keys::left && es.cursor > 0) {
-            es.cursor = core::utf8::prev(value, es.cursor);
-            node.dirty = true;
-        } else if (kp->key == keys::right && es.cursor < len) {
-            es.cursor = core::utf8::next(value, es.cursor);
-            node.dirty = true;
-        } else if (kp->key == keys::home && es.cursor > 0) {
-            es.cursor = 0;
-            node.dirty = true;
-        } else if (kp->key == keys::end && es.cursor < len) {
-            es.cursor = len;
-            node.dirty = true;
-        }
-    } else if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed) {
-        float rel_x = mb->position.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw();
-        size_t pos = cursor_at(m, value, rel_x, display_fn);
-        if (pos != es.cursor) {
-            es.cursor = pos;
-            node.dirty = true;
-        }
+        bool shift = (kp->mods & mods::shift) != 0;
+        if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
+        else if (kp->key == keys::end) after = text_edit::move_to(before, before.text.size(), shift);
+        else after = common_edit_key(before, *kp);
+    } else {
+        after = mouse_edit(before, es, ev, [&](Point p) {
+            return cursor_at(m, before.text, p.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw(), display_fn);
+        });
     }
+    if (after) apply_edit(field, node, es, before, *after);
 
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - tf_padding_x * 2.f;
@@ -280,6 +307,19 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     auto value = std::string_view(sf.value.data(), sf.value.size());
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
 
+    if (vs.focused && es.anchor && *es.anchor != es.cursor) {
+        auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
+        for (size_t i = 0; i < wrapped.size(); ++i) {
+            size_t a = std::max(lo, wrapped[i].start), b = std::min(hi, wrapped[i].start + wrapped[i].length);
+            if (a >= b) continue;
+            auto text = line_text(value, wrapped[i]);
+            float x0 = prefix_width(m, text, a - wrapped[i].start, ta_font_size, ta_font_role);
+            float x1 = prefix_width(m, text, b - wrapped[i].start, ta_font_size, ta_font_role);
+            Y y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()};
+            dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_selection);
+        }
+    }
+
     if (sf.value.empty() && !vs.focused) {
         dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{2}), ta_font_size, t.text_placeholder,
                 0.f, TextAnchor::TopLeft, ta_font_role);
@@ -311,86 +351,47 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
 template <typename Sentinel>
 void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node) {
     auto& es = node.get_or_create<TextAreaEditState>();
-    auto sf = field.get();
-    auto value = std::string_view(sf.value.data(), sf.value.size());
-    auto len = value.size();
-    es.cursor = core::utf8::snap(value, es.cursor);
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
+    const TextEdit before = current_edit(field, es);
+    std::string_view value = before.text;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
-    Height text_area_h{static_cast<float>(sf.rows) * ta_line_h(m).raw()};
-
+    Height text_area_h{static_cast<float>(field.get().rows) * ta_line_h(m).raw()};
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
+    auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped);
+    std::optional<TextEdit> after;
 
     if (auto* ti = std::get_if<TextInput>(&ev)) {
-        std::string to_insert = clamp_to_max_length(ti->text, value, sf.max_length);
-        if (!to_insert.empty()) {
-            std::string v(value);
-            v.insert(es.cursor, to_insert);
-            es.cursor += to_insert.size();
-            sf.value = std::remove_cvref_t<decltype(sf.value)>(v);
-            field.set(sf);
-        }
+        after = text_edit::insert(before, ti->text, field.get().max_length);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
-        if (kp->key == keys::enter) {
-            if (sf.max_length == 0 || core::utf8::count(value) < sf.max_length) {
-                std::string v(sf.value.data(), sf.value.size());
-                v.insert(es.cursor, 1, '\n');
-                es.cursor++;
-                sf.value = std::remove_cvref_t<decltype(sf.value)>(v);
-                field.set(sf);
-            }
-        } else if (kp->key == keys::backspace && es.cursor > 0) {
-            set_erased(field, sf, value, core::utf8::prev(value, es.cursor), es.cursor);
-            es.cursor = core::utf8::prev(value, es.cursor);
-        } else if (kp->key == keys::delete_ && es.cursor < len) {
-            set_erased(field, sf, value, es.cursor, core::utf8::next(value, es.cursor));
-        } else if (kp->key == keys::left && es.cursor > 0) {
-            es.cursor = core::utf8::prev(value, es.cursor);
-            node.dirty = true;
-        } else if (kp->key == keys::right && es.cursor < len) {
-            es.cursor = core::utf8::next(value, es.cursor);
-            node.dirty = true;
-        } else if (kp->key == keys::home) {
-            auto [line, col] = cursor_to_line_col(value, es.cursor, wrapped);
-            size_t new_cursor = line_col_to_cursor(value, line, 0, wrapped);
-            if (new_cursor != es.cursor) {
-                es.cursor = new_cursor;
-                node.dirty = true;
-            }
-        } else if (kp->key == keys::end) {
-            auto [line, col] = cursor_to_line_col(value, es.cursor, wrapped);
-            size_t new_cursor = wrapped[line].start + wrapped[line].length;
-            if (new_cursor != es.cursor) {
-                es.cursor = new_cursor;
-                node.dirty = true;
-            }
-        } else if (kp->key == keys::up) {
-            auto [line, col] = cursor_to_line_col(value, es.cursor, wrapped);
-            if (line > 0) {
-                es.cursor = line_col_to_cursor(value, line - 1, col, wrapped);
-                node.dirty = true;
-            }
-        } else if (kp->key == keys::down) {
-            auto [line, col] = cursor_to_line_col(value, es.cursor, wrapped);
-            if (line + 1 < wrapped.size()) {
-                es.cursor = line_col_to_cursor(value, line + 1, col, wrapped);
-                node.dirty = true;
-            }
+        bool shift = (kp->mods & mods::shift) != 0;
+        switch (kp->key) {
+        case keys::enter: after = text_edit::insert(before, "\n", field.get().max_length); break;
+        case keys::home: after = text_edit::move_to(before, line_col_to_cursor(value, line, 0, wrapped), shift); break;
+        case keys::end:
+            after = text_edit::move_to(before, wrapped[line].start + wrapped[line].length, shift);
+            break;
+        case keys::up:
+            if (line > 0) after = text_edit::move_to(before, line_col_to_cursor(value, line - 1, col, wrapped), shift);
+            break;
+        case keys::down:
+            if (line + 1 < wrapped.size())
+                after = text_edit::move_to(before, line_col_to_cursor(value, line + 1, col, wrapped), shift);
+            break;
+        default: after = common_edit_key(before, *kp);
         }
-    } else if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed) {
-        float rel_y = mb->position.y.raw() - ta_padding_y.raw() + es.scroll_y.raw();
-        size_t click_line = static_cast<size_t>(
-            std::clamp(rel_y / ta_line_h(m).raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
-        float rel_x = mb->position.x.raw() - ta_padding_x.raw();
-        auto text = line_text(value, wrapped[click_line]);
-        size_t click_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, rel_x, ta_font_role));
-        size_t new_cursor = line_col_to_cursor(value, click_line, click_col, wrapped);
-        if (new_cursor != es.cursor) {
-            es.cursor = new_cursor;
-            node.dirty = true;
-        }
+    } else {
+        after = mouse_edit(before, es, ev, [&](Point p) {
+            float rel_y = p.y.raw() - ta_padding_y.raw() + es.scroll_y.raw();
+            size_t click_line = static_cast<size_t>(
+                std::clamp(rel_y / ta_line_h(m).raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
+            auto text = line_text(value, wrapped[click_line]);
+            size_t click_col = core::utf8::count_upto(
+                text, index_at(m, text, ta_font_size, p.x.raw() - ta_padding_x.raw(), ta_font_role));
+            return line_col_to_cursor(value, click_line, click_col, wrapped);
+        });
     }
+    if (after) apply_edit(field, node, es, before, *after);
 
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
     auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);

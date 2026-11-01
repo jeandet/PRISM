@@ -526,3 +526,86 @@ TEST_CASE("TextField click maps x to the nearest measured character boundary") {
         field, prism::MouseButton{P(4.f + 11.5f, 10.f), 1, true}, node);   // between "mi" (12) and "m" (10)
     CHECK(std::any_cast<prism::TextEditState>(node.edit_state).cursor == 2);
 }
+
+// --- selection ---
+
+namespace {
+using TF = prism::Widget<prism::TextField<>>;
+void key(prism::Field<prism::TextField<>>& f, prism::WidgetNode& n, int32_t k, uint16_t mods = 0) {
+    TF::handle_input(f, prism::KeyPress{k, mods}, n);
+}
+const prism::TextEditState& state(const prism::WidgetNode& n) { return n.peek<prism::TextEditState>(); }
+}
+
+TEST_CASE("shift+arrows select, typing replaces the selection") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    TF::ensure_edit_state(node).cursor = 1;
+    key(field, node, prism::keys::right, prism::mods::shift);
+    key(field, node, prism::keys::right, prism::mods::shift);
+    CHECK(state(node).anchor == std::optional<size_t>{1});
+    CHECK(state(node).cursor == 3);
+    TF::handle_input(field, prism::TextInput{"EY"}, node);
+    CHECK(field.get().value == "hEYlo");
+}
+
+TEST_CASE("ctrl+A then backspace clears the field") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    key(field, node, prism::keys::a, prism::mods::ctrl);
+    key(field, node, prism::keys::backspace);
+    CHECK(field.get().value.empty());
+}
+
+TEST_CASE("left without shift collapses a selection to its start") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 4;
+    key(field, node, prism::keys::left);
+    CHECK(state(node).cursor == 1);
+    CHECK_FALSE(state(node).anchor.has_value());
+}
+
+TEST_CASE("the selection is highlighted from its start to its end") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;
+    es.cursor = 3;
+    prism::DrawList dl;
+    TF::record(dl, field, node);
+    float cw = prism::char_width(14.f).raw();
+    bool found = false;
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->color == test_theme.text_selection) {
+            CHECK(r->rect.origin.x.raw() == doctest::Approx(4.f + cw));
+            CHECK(r->rect.extent.w.raw() == doctest::Approx(2.f * cw));
+            found = true;
+        }
+    CHECK(found);
+}
+
+TEST_CASE("dragging the mouse selects") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    float cw = prism::char_width(14.f).raw();
+    TF::handle_input(field, prism::MouseButton{P(4.f, 10.f), 1, true}, node);
+    TF::handle_input(field, prism::MouseMove{P(4.f + 3.f * cw, 10.f)}, node);
+    TF::handle_input(field, prism::MouseButton{P(4.f + 3.f * cw, 10.f), 1, false}, node);
+    CHECK(state(node).anchor == std::optional<size_t>{0});
+    CHECK(state(node).cursor == 3);
+    TF::handle_input(field, prism::MouseMove{P(4.f + 5.f * cw, 10.f)}, node);   // released: no change
+    CHECK(state(node).cursor == 3);
+}
+
+TEST_CASE("shift+click extends the selection") {
+    prism::Field<prism::TextField<>> field{{.value = "hello"}};
+    auto node = make_node({.focused = true});
+    TF::ensure_edit_state(node).cursor = 1;
+    float cw = prism::char_width(14.f).raw();
+    TF::handle_input(field, prism::MouseButton{P(4.f + 4.f * cw, 10.f), 1, true, prism::mods::shift}, node);
+    CHECK(state(node).anchor == std::optional<size_t>{1});
+    CHECK(state(node).cursor == 4);
+}

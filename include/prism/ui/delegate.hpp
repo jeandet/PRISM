@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <any>
 #include <memory>
+#include <optional>
 #if __cpp_impl_reflection
 #include <meta>
 #else
@@ -103,12 +104,16 @@ inline Width char_width(float font_size) { return Width{0.6f * font_size}; }
 // Ephemeral cursor state for text editing delegates
 struct TextEditState {
     size_t cursor = 0;
+    std::optional<size_t> anchor;   // selection start; empty when nothing is selected
+    bool dragging = false;   // a mouse press started a selection drag
     DX scroll_offset{0};
 };
 
 // Ephemeral cursor state for multiline text editing
 struct TextAreaEditState {
     size_t cursor = 0;
+    std::optional<size_t> anchor;
+    bool dragging = false;
     DY scroll_y{0};
 };
 

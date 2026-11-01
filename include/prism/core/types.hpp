@@ -246,6 +246,8 @@ constexpr Size operator/(Size s, float f) { return {s.w / f, s.h / f}; }
 struct Color {
     uint8_t r, g, b, a;
 
+    bool operator==(const Color&) const = default;
+
     static constexpr Color rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
         return {r, g, b, a};
