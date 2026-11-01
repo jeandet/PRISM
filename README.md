@@ -473,6 +473,9 @@ with prism.transaction():                       # one publish for both changes
 |---|---|---|
 | `prism.field(default)` | `Field<T>` | `.value` get/set, `.observe()` |
 | `prism.slider` / `prism.checkbox` | `Field<Slider<>>` / `Field<Checkbox>` | widget types |
+| `prism.radio(default, options=[...])` | `Field<RadioGroup>` | `.value` is the chosen option string |
+| `prism.spinbox(default, min, max, step)` | `Field<SpinBox<int64_t>>` / `Field<SpinBox<double>>` | int when `default` and `step` are ints |
+| `prism.progress(default, label=...)` | `Field<ProgressBar>` | display only |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |

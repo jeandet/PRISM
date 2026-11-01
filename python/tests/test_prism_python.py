@@ -3714,3 +3714,75 @@ def test_bundled_fonts_are_found_next_to_the_package(tmp_path):
 
 def test_missing_bundled_fonts_leave_lookup_to_the_backend(tmp_path):
     assert prism._bundled_fonts(tmp_path) == ("", "")
+
+
+# ---- radio / spinbox / progress ----
+
+def test_radio_value_is_the_chosen_option():
+    class Prefs(Model):
+        units = prism.radio("Metric", options=["Metric", "Imperial"])
+
+    m = Prefs()
+    assert m.units.value == "Metric"
+    seen = []
+    m.units.observe(seen.append)
+    m.units.value = "Imperial"
+    assert m.units.value == "Imperial"
+    assert seen == ["Imperial"]
+
+
+def test_radio_rejects_a_value_that_is_not_an_option():
+    class Prefs(Model):
+        units = prism.radio("Metric", options=["Metric", "Imperial"])
+
+    m = Prefs()
+    with pytest.raises(ValueError):
+        m.units.value = "Furlongs"
+    assert m.units.value == "Metric"
+    with pytest.raises(ValueError):
+        prism.radio("Furlongs", options=["Metric"])
+
+
+def test_spinbox_int_and_float_and_clamping():
+    class Job(Model):
+        copies = prism.spinbox(3, min=1, max=99)
+        scale = prism.spinbox(1.25, min=0.5, max=4.0, step=0.25)
+
+    m = Job()
+    assert m.copies.value == 3 and isinstance(m.copies.value, int)
+    assert m.scale.value == 1.25 and isinstance(m.scale.value, float)
+    m.copies.value = 500
+    assert m.copies.value == 99
+    m.scale.value = 0.1
+    assert m.scale.value == 0.5
+
+
+def test_spinbox_holds_64_bit_integers():
+    class Big(Model):
+        n = prism.spinbox(0, min=0, max=2**62, step=1)
+
+    m = Big()
+    m.n.value = 2**62
+    assert m.n.value == 2**62
+
+
+def test_progress_value_and_observer():
+    class Export(Model):
+        done = prism.progress(0.0, label="Exporting")
+
+    m = Export()
+    seen = []
+    m.done.observe(seen.append)
+    m.done.value = 0.5
+    assert m.done.value == 0.5
+    assert seen == [0.5]
+
+
+def test_form_widgets_render_headless():
+    class Form(Model):
+        units = prism.radio("Imperial", options=["Metric", "Imperial"])
+        copies = prism.spinbox(2, min=1, max=9)
+        done = prism.progress(0.25)
+
+    m = Form()
+    prism._run_headless(m, delay_ms=50)

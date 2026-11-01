@@ -144,6 +144,9 @@ __all__ = [
     "field",
     "slider",
     "checkbox",
+    "radio",
+    "spinbox",
+    "progress",
     "shared",
     "channel",
     "derived",
@@ -448,6 +451,15 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"])
         elif self.kind == "checkbox":
             h = instance._add_checkbox_internal(self.default, self.meta["label"])
+        elif self.kind == "radio":
+            h = instance._add_radio_internal(self.default, self.meta["options"])
+        elif self.kind == "spinbox":
+            m = self.meta
+            alloc = instance._add_spinbox_int_internal if m["int"] else instance._add_spinbox_float_internal
+            h = alloc(self.default, m["min"], m["max"], m["step"])
+        elif self.kind == "progress":
+            m = self.meta
+            h = instance._add_progress_internal(self.default, m["min"], m["max"], m["label"])
         else:
             kind = _kind_of(self.default)
             h = getattr(instance, f"_add_{kind}_internal")(self.default)
@@ -520,6 +532,51 @@ def checkbox(default, label=None, validator=None):
     """
     return _FieldDescriptor(
         bool(default), validator=validator, kind="checkbox", meta={"label": label or ""}
+    )
+
+
+def radio(default, options, validator=None):
+    """Value may be set from any thread (posted to the logic thread).
+
+    One of ``options`` (strings), rendered as radio buttons (C++ ``RadioGroup``).
+    ``.value`` is the chosen option; setting a string that is not an option raises
+    ``ValueError``, as does a ``default`` that is not one.
+    """
+    options = [str(o) for o in options]
+    if default not in options:
+        raise ValueError(f"radio(): {default!r} is not one of the options {options!r}")
+    return _FieldDescriptor(default, validator=validator, kind="radio", meta={"options": options})
+
+
+def spinbox(default, min=0, max=100, step=1, validator=None):
+    """Value may be set from any thread (posted to the logic thread).
+
+    A number with up/down steppers (C++ ``SpinBox<T>``). It holds integers when
+    ``default`` and ``step`` are ints, floats otherwise. Arrows, the wheel and
+    the steppers add ``step``; values set from Python are kept inside
+    ``[min, max]``, like the widget's own.
+    """
+    is_int = all(isinstance(v, int) and not isinstance(v, bool) for v in (default, step))
+    cast = int if is_int else float
+    return _FieldDescriptor(
+        cast(default),
+        validator=validator,
+        kind="spinbox",
+        meta={"int": is_int, "min": cast(min), "max": cast(max), "step": cast(step)},
+    )
+
+
+def progress(default=0.0, min=0.0, max=1.0, label="", validator=None):
+    """Value may be set from any thread (posted to the logic thread).
+
+    A display-only progress bar (C++ ``ProgressBar``) showing ``value`` within
+    ``[min, max]``, with an optional ``label`` above it.
+    """
+    return _FieldDescriptor(
+        float(default),
+        validator=validator,
+        kind="progress",
+        meta={"min": float(min), "max": float(max), "label": label},
     )
 
 

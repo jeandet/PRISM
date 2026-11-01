@@ -1,5 +1,6 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 #include <nanobind/stl/function.h>
 
 #include <prism/core/field.hpp>
@@ -11,11 +12,13 @@
 #include <prism/app/model_app.hpp>
 #include <prism/app/backend.hpp>
 #include <prism/ui/delegate.hpp> // Slider<T>, Checkbox, Orientation — for BoundSliderValue/BoundCheckboxValue
+#include <prism/delegates/form_delegates.hpp> // RadioGroup, SpinBox<T>, ProgressBar
 #include <prism/widgets/plot.hpp>
 #include <prism/ui/tree.hpp>
 
 #include <prism/app/headless_window.hpp>
 #include <algorithm>
+#include <cstdint>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -680,6 +683,13 @@ struct SlotCheckbox : SlotBase {
     explicit SlotCheckbox(Checkbox v) : field(std::move(v)) {}
     void build(ViewBuilder& vb) override { vb.widget(field); }
 };
+// Any widget struct held in one Field (radio group, spin box, progress bar).
+template <typename S>
+struct SlotWidget : SlotBase {
+    Field<S> field;
+    explicit SlotWidget(S v) : field(std::move(v)) {}
+    void build(ViewBuilder& vb) override { vb.widget(field); }
+};
 
 // Forward declarations for dispatch helpers used by Plot/Tree handles
 inline void list_op_dispatch(std::shared_ptr<void> keep, std::function<void()> fn);
@@ -1122,6 +1132,82 @@ struct BoundCheckboxValue {
         return conn;
     }
 };
+
+// Bound handle for the one value Python sees inside a widget struct S (the radio group's
+// chosen option, a spin box's or progress bar's value). A write is posted as an in-place
+// change of that value only, so the rest of the struct (options, range, label) is never
+// overwritten by a stale copy. `check` (optional) rejects a value on the calling thread.
+template <typename S, typename V>
+struct BoundWidgetValue {
+    std::shared_ptr<SlotBase> owner;
+    Field<S>* field = nullptr;
+    V (*read)(const S&) = nullptr;
+    void (*write)(S&, const V&) = nullptr;
+    void (*check)(const S&, const V&) = nullptr;
+    V get() const {
+        if (!field) throw nb::value_error("handle is not bound to a Model");
+        Field<S>* p = field;
+        return read(dispatch_sync_read<S>([p](){ return p->get(); }));
+    }
+    void set(V v) {
+        if (!field) throw nb::value_error("handle is not bound to a Model");
+        Field<S>* p = field;
+        if (check) {
+            auto current = dispatch_sync_read<S>([p](){ return p->get(); });
+            check(current, v);
+        }
+        auto w = write;
+        list_op_dispatch(owner, [p, w, v](){ auto s = p->get(); w(s, v); p->set(s); });
+    }
+    Connection observe(nb::callable cb) {
+        if (!field) throw nb::value_error("observe(): handle is not bound to a Model");
+        auto owner_copy = owner;
+        auto r = read;
+        auto conn = field->on_change().connect([wc = WeakCallback(cb), r](const S& s) { wc(r(s)); });
+        if (owner_copy) conn.keep_alive(owner_copy);
+        return conn;
+    }
+};
+
+using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
+using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
+using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
+using BoundProgress = BoundWidgetValue<ProgressBar, double>;
+
+inline BoundRadio make_bound_radio(std::shared_ptr<SlotBase> owner, Field<RadioGroup>* f) {
+    BoundRadio h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const RadioGroup& g) { return g.selected < g.options.size() ? g.options[g.selected] : std::string{}; };
+    h.write = [](RadioGroup& g, const std::string& v) {
+        g.selected = static_cast<std::size_t>(std::ranges::find(g.options, v) - g.options.begin());
+    };
+    h.check = [](const RadioGroup& g, const std::string& v) {
+        if (std::ranges::find(g.options, v) == g.options.end())
+            throw nb::value_error(("radio: '" + v + "' is not one of the options").c_str());
+    };
+    return h;
+}
+
+template <typename T>
+BoundWidgetValue<SpinBox<T>, T> make_bound_spinbox(std::shared_ptr<SlotBase> owner, Field<SpinBox<T>>* f) {
+    BoundWidgetValue<SpinBox<T>, T> h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const SpinBox<T>& s) { return s.value; };
+    // Like the widget: kept inside [min, max].
+    h.write = [](SpinBox<T>& s, const T& v) { s.value = std::clamp(v, s.min, std::max(s.min, s.max)); };
+    return h;
+}
+
+inline BoundProgress make_bound_progress(std::shared_ptr<SlotBase> owner, Field<ProgressBar>* f) {
+    BoundProgress h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const ProgressBar& p) { return p.value; };
+    h.write = [](ProgressBar& p, const double& v) { p.value = v; };
+    return h;
+}
 
 // Standalone / bound handles for Shared<T> and Channel<T>
 //
@@ -1571,6 +1657,10 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundField<bool>*)nullptr)) return;
     if (connect_slider()) return;
     if (connect_field((BoundCheckboxValue*)nullptr)) return;
+    if (connect_field((BoundRadio*)nullptr)) return;
+    if (connect_field((BoundSpinBoxInt*)nullptr)) return;
+    if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
+    if (connect_field((BoundProgress*)nullptr)) return;
     if (connect_shared((BoundShared<int>*)nullptr)) return;
     if (connect_shared((BoundShared<double>*)nullptr)) return;
     if (connect_shared((BoundShared<std::string>*)nullptr)) return;
@@ -1606,6 +1696,10 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
         else if (b.field_v) vb.widget(*b.field_v);
     }
     else if (nb::isinstance<BoundCheckboxValue>(h)) vb.widget(*nb::cast<BoundCheckboxValue&>(h).field);
+    else if (nb::isinstance<BoundRadio>(h)) vb.widget(*nb::cast<BoundRadio&>(h).field);
+    else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
+    else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
+    else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
     else if (nb::isinstance<BoundDerived<int>>(h)) vb.widget_generic<int>(*nb::cast<BoundDerived<int>&>(h).derived);
     else if (nb::isinstance<BoundDerived<double>>(h)) vb.widget_generic<double>(*nb::cast<BoundDerived<double>&>(h).derived);
     else if (nb::isinstance<BoundDerived<std::string>>(h)) vb.widget_generic<std::string>(*nb::cast<BoundDerived<std::string>&>(h).derived);
@@ -1686,6 +1780,14 @@ struct PyModel {
         auto* p = &s->field;
         slots.push_back(s);
         return {s, p, nullptr};
+    }
+    template <typename S>
+    std::pair<std::shared_ptr<SlotBase>, Field<S>*> add_widget_slot(S v) {
+        auto s = std::make_shared<SlotWidget<S>>(std::move(v));
+        auto* p = &s->field;
+        std::lock_guard<std::mutex> lk(slots_mutex);
+        slots.push_back(s);
+        return {s, p};
     }
     std::pair<std::shared_ptr<SlotBase>, Field<Checkbox>*> add_checkbox_slot(bool v, std::string label) {
         auto s = std::make_shared<SlotCheckbox>(Checkbox{v, std::move(label)});
@@ -2001,6 +2103,18 @@ template <typename Handle, typename T>
 void validated_set(nb::object self, T v) {
     v = apply_validator<T>(self, std::move(v));
     nb::cast<Handle&>(self).set(std::move(v));
+}
+
+// One registration for each BoundWidgetValue instantiation (radio, spin box, progress).
+template <typename H, typename V>
+void bind_widget_value(nb::module_& m, const char* name, const char* doc) {
+    nb::class_<H>(m, name, nb::dynamic_attr(), nb::is_weak_referenceable(), doc)
+        .def_prop_rw("value", &H::get, &validated_set<H, V>, "Any thread. Writes are posted to the logic thread.")
+        .def("observe", [](nb::object self, nb::callable cb) {
+            return keep_connection(self, nb::cast<H&>(self).observe(cb), cb);
+        }, nb::arg("callback"), kObserveDoc)
+        .def("get", &H::get, "Any thread; dispatched read. Same as .value.")
+        .def("set", &validated_set<H, V>, nb::arg("value"), "Any thread; posted to the logic thread.");
 }
 
 // One templated registration per scalar handle family (Field/Bound/Shared/BoundShared/
@@ -2346,6 +2460,16 @@ NB_MODULE(_prism_ext, m) {
         .def("set", &validated_set<BoundCheckboxValue, bool>, nb::arg("value"),
              "Any thread; posted to the logic thread. Same as assigning .value.");
 
+    bind_widget_value<BoundRadio, std::string>(m, "BoundRadio",
+        "Bound handle for a Model's radio field: .value is the chosen option. Setting a string "
+        "that is not one of the options raises ValueError.");
+    bind_widget_value<BoundSpinBoxInt, std::int64_t>(m, "BoundSpinBoxInt",
+        "Bound handle for a Model's integer spin box. Writes are kept inside [min, max].");
+    bind_widget_value<BoundSpinBoxFloat, double>(m, "BoundSpinBoxFloat",
+        "Bound handle for a Model's float spin box. Writes are kept inside [min, max].");
+    bind_widget_value<BoundProgress, double>(m, "BoundProgress",
+        "Bound handle for a Model's progress bar: .value, display only.");
+
     bind_list<int>(m, "Int");
     bind_list<double>(m, "Float");
     bind_list<std::string>(m, "Str");
@@ -2493,6 +2617,25 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_checkbox_slot(v, label);
                 BoundCheckboxValue h; h.owner = std::move(owner); h.field = p; h.label = std::move(label); return h;
             }, nb::arg("value")=false, nb::arg("label")="")
+        .def("_add_radio_internal", [](PyModel& self, std::string v, std::vector<std::string> options){
+                auto it = std::ranges::find(options, v);
+                if (it == options.end()) throw nb::value_error(("radio(): '" + v + "' is not one of the options").c_str());
+                RadioGroup g{.selected = static_cast<std::size_t>(it - options.begin()), .options = std::move(options)};
+                auto [owner, p] = self.add_widget_slot(std::move(g));
+                return make_bound_radio(std::move(owner), p);
+            }, nb::arg("value"), nb::arg("options"))
+        .def("_add_spinbox_int_internal", [](PyModel& self, std::int64_t v, std::int64_t mn, std::int64_t mx, std::int64_t step){
+                auto [owner, p] = self.add_widget_slot(SpinBox<std::int64_t>{.value = v, .min = mn, .max = mx, .step = step});
+                return make_bound_spinbox<std::int64_t>(std::move(owner), p);
+            }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("step"))
+        .def("_add_spinbox_float_internal", [](PyModel& self, double v, double mn, double mx, double step){
+                auto [owner, p] = self.add_widget_slot(SpinBox<double>{.value = v, .min = mn, .max = mx, .step = step});
+                return make_bound_spinbox<double>(std::move(owner), p);
+            }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("step"))
+        .def("_add_progress_internal", [](PyModel& self, double v, double mn, double mx, std::string label){
+                auto [owner, p] = self.add_widget_slot(ProgressBar{.value = v, .min = mn, .max = mx, .label = std::move(label)});
+                return make_bound_progress(std::move(owner), p);
+            }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("label"))
         // Shared internal allocators
         .def("_add_shared_int_internal", [](PyModel& self, int v){
                 auto [owner, p] = self.add_shared_int_slot(v);
