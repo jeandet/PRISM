@@ -99,3 +99,56 @@ TEST_CASE("a right click outside any context menu's container does nothing") {
     route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{10}}, buttons::right, true});
     CHECK(tree.popup_owner() == 0);
 }
+
+TEST_CASE("a right click on empty space inside the menu's container opens it too") {
+    Fixture f;
+    f.press(10, 290, buttons::right);   // below the last label, still inside the vstack
+    CHECK(f.tree.popup_owner() != 0);
+}
+
+TEST_CASE("opening a menu with a click leaves no widget captured") {
+    Fixture f;
+    f.press(10, 10, buttons::left);   // opens File (press + release)
+    REQUIRE(f.tree.popup_owner() != 0);
+    CHECK(f.tree.captured_id() == 0);
+}
+
+TEST_CASE("a right click inside an open context menu doesn't move it") {
+    Fixture f;
+    f.press(50, 60, buttons::right);
+    f.refresh();
+    f.press(60, 70, buttons::right);
+    auto a = f.area();
+    REQUIRE(a);
+    CHECK(a->origin.x.raw() == doctest::Approx(50.f));
+}
+
+TEST_CASE("popup anchors are not listed as leaves") {
+    Fixture f;
+    CHECK(f.tree.leaf_ids().size() == 3);   // File, title, body
+}
+
+TEST_CASE("empty space in a nested container opens that container's menu, not a sibling's") {
+    struct TwoPanes {
+        Field<Label<>> left{{"left"}};
+        Field<Label<>> right{{"right"}};
+        Field<ContextMenu> left_menu{{.items = {"L"}}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.hstack([&] {
+                vb.vstack([&] {
+                    vb.widget(left);
+                    vb.context_menu(left_menu);
+                });
+                vb.vstack([&] { vb.widget(right); });
+            });
+        }
+    } m;
+    WidgetTree tree{m};
+    (void)tree.build_snapshot(400, 300, 1);
+    auto snap = tree.build_snapshot(400, 300, 2);
+    route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{250}}, buttons::right, true});
+    CHECK(tree.popup_owner() != 0);   // empty area of the left pane
+    tree.close_popup();
+    route_event(tree, snap.get(), MouseButton{Point{X{390}, Y{250}}, buttons::right, true});
+    CHECK(tree.popup_owner() == 0);   // the right pane has no context menu
+}

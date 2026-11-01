@@ -79,6 +79,7 @@ struct Theme {
     Color popup_bg        = Color::rgba(50, 50, 62);
     Color popup_border    = Color::rgba(80, 80, 95);
     Color popup_highlight = Color::rgba(60, 100, 180);
+    Color scrim           = Color::rgba(0, 0, 0, 140);   // dims the window behind a modal dialog
 
     // Table
     Color table_row_even  = Color::rgba(30, 30, 50);

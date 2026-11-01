@@ -331,8 +331,26 @@ auto on_menu = editor.file.on_change().connect([](const prism::Menu& m) {
 ```
 
 Menus open on an in-window popup layer that takes input first: a click outside closes the menu
-without reaching the widget underneath. Every widget also describes itself for assistive
-technology (role, name, value), ready for a screen-reader bridge.
+without reaching the widget underneath. Menus side by side form a menu bar: with one open, the
+arrow keys or the mouse move to the next. Popups always stay inside the window.
+
+A right-click menu belongs to the container it is declared in, and a modal dialog is a field
+the app opens:
+
+```cpp
+prism::Field<prism::ContextMenu> actions{{.items = {"Copy", "Paste"}}};
+prism::Field<prism::Dialog> ask{{.title = "Unsaved changes",
+                                 .message = "Reloading discards your edits.",
+                                 .buttons = {"Discard", "Cancel"}}};
+// in view(): vb.context_menu(actions); vb.dialog(ask);
+// to ask:    auto d = ask.get(); d.open = true; ask.set(d);
+// the answer arrives through ask.on_change(): d.chosen is the button, or empty on Escape.
+```
+
+<p align="center"><img src="doc/screenshots/dialog.svg" alt="Modal dialog" width="420"/></p>
+
+Every widget also describes itself for assistive technology (role, name, value), ready for a
+screen-reader bridge.
 
 <p align="center"><img src="doc/screenshots/model_notes.svg" alt="Notes editor example" width="700"/></p>
 
@@ -558,7 +576,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `prism::then`/`prism::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer and `Menu`, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus and modal dialogs, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).
 - **Phase 5**: Vulkan/WebGPU backend, SDF text, tile compositing.
 
 </details>

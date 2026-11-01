@@ -155,6 +155,9 @@ public:
     // A right click anywhere in the current container opens this menu at the pointer.
     void context_menu(Field<ContextMenu>& menu) { widget(menu); }
 
+    // A modal dialog, shown when the app sets its `open` (see ui::Dialog).
+    void dialog(Field<Dialog>& d) { widget(d); }
+
     // Renders like widget(Field<T>&) but without focus/input wiring --
     // for prism::inspector's [[=prism::inspector::readonly]] annotation.
     template <typename T>

@@ -259,6 +259,23 @@ struct ContextMenu {
     bool operator==(const ContextMenu&) const = default;
 };
 
+// A modal dialog: a card centered over a dimmed window. The app opens it by setting `open`;
+// a button (click, or Enter on the highlighted one) closes it with `chosen` set, Escape closes
+// it with no choice. Either way `activations` counts up. It takes no layout space.
+struct Dialog {
+    std::string title;
+    std::string message;
+    std::vector<std::string> buttons;
+    bool open = false;
+    std::optional<std::size_t> chosen{};
+    std::uint64_t activations = 0;
+    bool operator==(const Dialog&) const = default;
+};
+
+struct DialogEditState {
+    std::size_t highlighted = 0;
+};
+
 template <ScopedEnum T>
 struct Dropdown {
     T value{};
@@ -775,8 +792,19 @@ struct Widget<ContextMenu> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
     static constexpr Role access_role = Role::Button;
     static constexpr bool context_menu = true;
+    static constexpr bool popup_anchor = true;
     static void record(DrawList& dl, const Field<ContextMenu>& field, WidgetNode& node);
     static void handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+template <>
+struct Widget<Dialog> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::Button;   // AccessKit's Dialog role comes with the bridge
+    static constexpr bool popup_anchor = true;
+    static void describe(const Field<Dialog>& f, AccessInfo& a) { a.name = f.get().title; }
+    static void record(DrawList& dl, const Field<Dialog>& field, WidgetNode& node);
+    static void handle_input(Field<Dialog>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <>

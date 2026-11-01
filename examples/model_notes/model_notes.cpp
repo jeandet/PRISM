@@ -23,6 +23,9 @@ struct NotesApp {
     prism::Field<prism::Menu> file_menu{{.title = "File", .items = {"Save", "Reload"}}};
     prism::Field<prism::Menu> search_menu{{.title = "Search", .items = {"Clear search"}}};
     prism::Field<prism::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
+    prism::Field<prism::Dialog> discard{{.title = "Unsaved changes",
+                                         .message = "Reloading discards your edits.",
+                                         .buttons = {"Discard", "Cancel"}}};
     prism::Field<prism::TextField<>> search{{.placeholder = "Find in file..."}};
     prism::Field<prism::Button> save{{"Save"}};
     prism::Field<prism::Button> reload{{"Reload"}};
@@ -47,12 +50,15 @@ struct NotesApp {
         wiring.push_back(search_menu.on_change().connect(on_choice));
         wiring.push_back(editor_menu.on_change().connect(on_choice));
         wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
+        wiring.push_back(discard.on_change().connect([this](const prism::Dialog& d) {
+            if (!d.open && d.chosen == 0) open(current);
+        }));
     }
 
     // Every menu entry, by its label.
     void run(std::string_view command) {
         if (command == "Save") write();
-        else if (command == "Reload" && !current.empty()) open(current);
+        else if (command == "Reload" && !current.empty()) confirm_reload();
         else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
     }
 
@@ -65,6 +71,7 @@ struct NotesApp {
                 vb.widget(body);
                 vb.widget(status);
                 vb.context_menu(editor_menu);
+                vb.dialog(discard);
             });
         });
     }
@@ -81,6 +88,13 @@ struct NotesApp {
         error.clear();
         body.set({.value = *text, .placeholder = body.get().placeholder, .rows = body.get().rows});
         refresh_status();
+    }
+
+    void confirm_reload() {
+        if (body.get().value == saved) return open(current);
+        auto d = discard.get();
+        d.open = true;
+        discard.set(d);
     }
 
     void write() {

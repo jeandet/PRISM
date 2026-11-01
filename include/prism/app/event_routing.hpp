@@ -35,10 +35,15 @@ inline void dispatch_to_popup(WidgetTree& tree, const SceneSnapshot& snap, const
 inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev, Point pos,
                               bool is_press) {
     if (tree.popup_owner() == 0) return false;
+    // The release of the click that opened the popup lands here, not in the normal routing:
+    // let go of the pressed widget, or it would keep receiving every pointer move.
+    if (auto* b = std::get_if<MouseButton>(&ev); b && !b->pressed && tree.captured_id() != 0)
+        tree.set_pressed(tree.captured_id(), false);
     auto area = popup_area(tree, snap);
     bool inside = area && area->contains(pos);
+    // The dismissing press is swallowed: a right click outside an open menu only closes it.
     if (is_press && !inside) {
-        if (!tree.popup_node()->popup_modal) tree.close_popup();
+        if (auto* owner = tree.popup_node(); !owner || !owner->popup_modal) tree.close_popup();
         return true;
     }
     if (!inside && std::holds_alternative<MouseMove>(ev) && tree.opens_menu(tree.popup_owner())) {   // menu bar: hover switches menus
@@ -78,7 +83,7 @@ inline void route_mouse_move(WidgetTree& tree, const SceneSnapshot& snap,
 inline bool open_context_menu(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev,
                               const MouseButton& mb) {
     if (!mb.pressed || mb.button != buttons::right) return false;
-    auto menu = tree.context_menu_for(hit_test(snap, mb.position));
+    auto menu = tree.context_menu_for(hit_test(snap, mb.position), mb.position);
     if (!menu) return false;
     auto rect = find_widget_rect(snap, *menu);
     tree.dispatch(*menu, rect ? localize_mouse(ev, *rect) : ev);
@@ -93,7 +98,8 @@ inline Rect clamp_into(Rect r, Size window) {
 
 // simplify: slides an overflowing popup back inside the window (it may then cover its menu
 // title) rather than flipping it to the other side of its anchor; add flipping when a popup
-// anchored to a widget looks wrong in practice.
+// anchored to a widget looks wrong in practice. A popup taller than the window is pinned to
+// the top and its last rows stay unreachable: menus would need scrolling for that.
 inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
     auto area = popup_area(tree, snap);
     if (!area || snap.viewport.w.raw() <= 0.f) return;
@@ -164,7 +170,8 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
     if (tree.popup_owner() != 0) {   // keys belong to the popup; escape closes a plain one
         auto bar_step = kp.key == keys::right ? 1 : kp.key == keys::left ? -1 : 0;
         auto neighbour = bar_step ? tree.menu_neighbour(tree.popup_owner(), bar_step) : std::nullopt;
-        if (kp.key == keys::escape && !tree.popup_node()->popup_modal) tree.close_popup();
+        auto* owner = tree.popup_node();
+        if (kp.key == keys::escape && (!owner || !owner->popup_modal)) tree.close_popup();
         else if (neighbour) tree.switch_menu(*neighbour);
         else if (!bar_step || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
         return;

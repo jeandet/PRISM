@@ -1,9 +1,12 @@
 # Menus, popups and dialogs
 
-**Status:** partly implemented (plan item P2 #12 in `doc/review-2026-11-01.md`): the popup
-layer (`WidgetNode::popup_area`/`popup_modal`, `WidgetTree::popup_owner`/`close_popup`, routing in
-`app/event_routing.hpp`) and a `Menu` widget (`delegates/menu_delegates.hpp`). Not yet: menu bar
-navigation between menus, context menus, edge clamping, modal scrim, dialog card.
+**Status:** implemented (plan item P2 #12 in `doc/review-2026-11-01.md`): the popup layer
+(`WidgetNode::popup_area`/`popup_modal`, `WidgetTree::popup_owner`/`close_popup`/`adopt_popup`,
+routing in `app/event_routing.hpp`), `Menu` with menu bar navigation, `ContextMenu`
+(`delegates/menu_delegates.hpp`) and a modal `Dialog` with a scrim (`delegates/dialog_delegates.hpp`).
+Popups slide back inside the window; they don't flip yet. Not yet: tooltips, popovers anchored
+to arbitrary widgets, keyboard mnemonics, a scrollable widget inside a dialog (scrolling is
+blocked while a popup is open).
 
 ## Decision
 

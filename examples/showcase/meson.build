@@ -8,6 +8,7 @@ showcases = {
   'tree':     'showcase_tree.cpp',
   'table':    'showcase_table.cpp',
   'tabs':     'showcase_tabs.cpp',
+  'dialog':   'showcase_dialog.cpp',
 }
 
 foreach name, src : showcases

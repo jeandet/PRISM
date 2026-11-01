@@ -36,6 +36,7 @@ struct WidgetNode {
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
     bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)
     bool context_menu = false;  // opened by a right click in its parent container
+    bool popup_anchor = false;  // draws nothing in place, only popups (context menu, dialog)
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
@@ -93,7 +94,8 @@ struct WidgetNode {
     const Theme* theme = nullptr;
     bool table_input_wired = false;
     std::shared_ptr<std::vector<std::string>> tab_names;
-    Height viewport_height{0};
+    Height viewport_height{0};   // the window's size, set after each layout
+    Width viewport_width{0};
     X absolute_x{0};
     Y absolute_y{0};
 };
@@ -214,6 +216,8 @@ Node node_leaf(Field<T>& field, WidgetId& next_id) {
                 wn.opens_menu = Widget<T>::opens_menu;
             if constexpr (requires { Widget<T>::context_menu; })
                 wn.context_menu = Widget<T>::context_menu;
+            if constexpr (requires { Widget<T>::popup_anchor; })
+                wn.popup_anchor = Widget<T>::popup_anchor;
             if constexpr (requires { Widget<T>::expand_axis; })
                 wn.expand_axis = Widget<T>::expand_axis;
             wn.record = [&field](WidgetNode& node) {

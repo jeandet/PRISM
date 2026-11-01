@@ -86,7 +86,7 @@ inline void close_overlays_impl(WidgetNode& node) {
 
 inline void collect_leaf_ids(const WidgetNode& node, std::vector<WidgetId>& ids) {
     if (!node.is_container) {
-        if (node.layout_kind != LayoutKind::Spacer)
+        if (node.layout_kind != LayoutKind::Spacer && !node.popup_anchor)
             ids.push_back(node.id);
         return;
     }

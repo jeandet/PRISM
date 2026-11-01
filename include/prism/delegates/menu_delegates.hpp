@@ -71,6 +71,7 @@ template <typename M>
 bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
     const auto& items = field.get().items;
     auto& es = node.get_or_create<MenuEditState>();
+    es.highlighted = std::min(es.highlighted, items.empty() ? 0 : items.size() - 1);   // items may have shrunk
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
         auto i = item_at(items, node, mb->position);
         if (!i) return false;
@@ -134,7 +135,10 @@ inline void Widget<ContextMenu>::record(DrawList&, const Field<ContextMenu>& fie
 
 inline void Widget<ContextMenu>::handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node) {
     using namespace menu_detail;
-    if (node.popup_area && open_popup_input(field, ev, node)) return;
+    if (node.popup_area) {
+        open_popup_input(field, ev, node);
+        return;
+    }
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::right)
         open_at(field.get().items, node, mb->position, 120.f);
 }

@@ -2,6 +2,7 @@
 
 #include <prism/delegates/dropdown_delegates.hpp>
 #include <prism/delegates/menu_delegates.hpp>
+#include <prism/delegates/dialog_delegates.hpp>
 #include <prism/delegates/tabs_delegates.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/core/list.hpp>
@@ -203,10 +204,18 @@ public:
         return it != index_.end() && it->second->opens_menu;
     }
 
-    // The context menu for a right click on `hit`: declared in the nearest enclosing
-    // container (the root when nothing was hit).
-    [[nodiscard]] std::optional<WidgetId> context_menu_for(std::optional<WidgetId> hit) const {
-        WidgetId current = hit.value_or(root_.id);
+    // The innermost container under `p` (containers have no hit geometry of their own).
+    [[nodiscard]] const WidgetNode& container_at(const WidgetNode& n, Point p) const {
+        for (const auto& c : n.children)
+            if (c.is_container && Rect{Point{c.absolute_x, c.absolute_y}, c.arranged_extent}.contains(p))
+                return container_at(c, p);
+        return n;
+    }
+
+    // The context menu for a right click at `p` on `hit`: declared in the nearest enclosing
+    // container. With no widget hit, the walk starts at the container under the pointer.
+    [[nodiscard]] std::optional<WidgetId> context_menu_for(std::optional<WidgetId> hit, Point p) const {
+        WidgetId current = hit.value_or(container_at(root_, p).id);
         while (true) {
             if (auto it = index_.find(current); it != index_.end())
                 for (const auto& c : it->second->children)
@@ -230,6 +239,26 @@ public:
         close_popup();
         set_focused(to);
         dispatch(to, KeyPress{keys::down, 0});
+    }
+
+    // A popup can also open or close without input, e.g. a dialog the app opens by setting
+    // its field. Picks the first open one when none is tracked; drops one that closed.
+    // simplify: walks the tree each frame while no popup is open; keep a list of popup
+    // anchors if trees grow large enough for this to show in profiles.
+    void adopt_popup(WidgetNode& node) {
+        if (popup_owner_ != 0) {
+            if (auto it = index_.find(popup_owner_); it == index_.end() || !it->second->popup_area)
+                popup_owner_ = 0;
+            return;
+        }
+        if (node.popup_area && node.id != 0) {
+            popup_owner_ = node.id;
+            return;
+        }
+        for (auto& c : node.children) {
+            adopt_popup(c);
+            if (popup_owner_ != 0) return;
+        }
     }
 
     // id == 0 ("no widget") is a no-op, letting callers skip their own zero checks.
@@ -487,7 +516,8 @@ public:
             ++layout_passes;
         }
 
-        update_canvas_bounds(layout, Height{h});
+        update_canvas_bounds(layout, Size{Width{w}, Height{h}});
+        adopt_popup(root_);
 
         auto snap = std::make_unique<SceneSnapshot>();
         snap->version = version;
@@ -939,15 +969,21 @@ private:
             update_split_state(child);
     }
 
-    void update_canvas_bounds(LayoutNode& layout_node, Height viewport_h = Height{0}) {
-        // Propagate absolute Y and viewport height to all indexed widget nodes
+    void update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
+        // Propagate absolute position and the window size to all indexed widget nodes
+        bool window_changed = false;
         if (layout_node.id != 0) {
             auto it = index_.find(layout_node.id);
             if (it != index_.end()) {
-                it->second->absolute_x = layout_node.allocated.origin.x;
-                it->second->absolute_y = layout_node.allocated.origin.y;
-                it->second->viewport_height = viewport_h;
-                it->second->arranged_extent = layout_node.allocated.extent;
+                auto& n = *it->second;
+                window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
+                              || n.absolute_x != layout_node.allocated.origin.x
+                              || n.absolute_y != layout_node.allocated.origin.y;
+                n.absolute_x = layout_node.allocated.origin.x;
+                n.absolute_y = layout_node.allocated.origin.y;
+                n.viewport_height = viewport.h;
+                n.viewport_width = viewport.w;
+                n.arranged_extent = layout_node.allocated.extent;
             }
         }
 
@@ -971,7 +1007,10 @@ private:
             // output) into layout_node -- nothing between there and here touches wn->draws,
             // so when we skip re-recording, layout_node's copy is already correct and doesn't
             // need refreshing.
-            if (wn && wn->record && wn->canvas_bounds.extent != layout_node.allocated.extent) {
+            // Popup anchors place their popup relative to the window, so they also re-record
+            // when the window or their position in it changes.
+            bool resized = wn && wn->canvas_bounds.extent != layout_node.allocated.extent;
+            if (wn && wn->record && (resized || (window_changed && wn->popup_anchor))) {
                 wn->canvas_bounds = Rect{
                     Point{X{0}, Y{0}},
                     layout_node.allocated.extent
@@ -983,7 +1022,7 @@ private:
             return;
         }
         for (auto& child : layout_node.children)
-            update_canvas_bounds(child, viewport_h);
+            update_canvas_bounds(child, viewport);
     }
 
     void unindex_node(WidgetId id) {

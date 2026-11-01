@@ -476,9 +476,10 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap) {
 }
 
 inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor) {
-    // A context menu draws nothing in place, but routing needs its origin: its popup is
-    // stored in its own coordinates. It gets a zero-size rect there, which nothing can hit.
-    bool anchor_only = node.draws.empty() && node.widget && node.widget->context_menu;
+    // A popup anchor (context menu, dialog) draws nothing in place, but routing needs its
+    // origin: its popup is stored in its own coordinates. It gets a zero-size rect there,
+    // which nothing can hit.
+    bool anchor_only = node.draws.empty() && node.widget && node.widget->popup_anchor;
     if (node.draws.empty() && node.kind != LayoutNode::Kind::Canvas && !anchor_only) return;
 
     // Reuse last frame's already-translated+clipped DrawList when this widget's content
