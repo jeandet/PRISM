@@ -16,14 +16,19 @@
     #status { padding: 10px 16px; color: #9aa5ce; }
     /* The app window fills the page (SDL's fill-document mode hides the status once it runs). */
     canvas { display: block; margin: 0; outline: none; }
-    #back { position: fixed; top: 6px; right: 8px; z-index: 10; padding: 3px 10px;
-            border-radius: 6px; background: rgba(22, 22, 30, 0.8); color: #7aa2f7;
-            font: 13px/1.4 system-ui, sans-serif; text-decoration: none; opacity: 0.75; }
+    /* Floats over the app (SDL's fill-document mode owns the page), so keep it small and in the
+       corner least likely to hold controls: a "←" that spells itself out on hover. */
+    #back { position: fixed; bottom: 8px; left: 8px; z-index: 10; padding: 2px 9px;
+            border-radius: 12px; background: rgba(22, 22, 30, 0.85); color: #7aa2f7;
+            font: 13px/1.5 system-ui, sans-serif; text-decoration: none; opacity: 0.7;
+            white-space: nowrap; }
+    #back .label { display: none; }
     #back:hover { opacity: 1; }
+    #back:hover .label { display: inline; }
   </style>
 </head>
 <body>
-  <a id="back" href="./">← PRISM examples</a>
+  <a id="back" href="./" title="PRISM examples">←<span class="label"> PRISM examples</span></a>
   <div id="status">Loading…</div>
   <!-- The canvas must be its container's only child. SDL's fill-document mode records the
        canvas's next sibling, hides every other <body> element, and later (e.g. when it recreates

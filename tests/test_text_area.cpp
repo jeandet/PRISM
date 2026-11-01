@@ -910,3 +910,19 @@ TEST_CASE("TextArea shows a composition inline without changing the value") {
         if (auto* t = std::get_if<prism::TextCmd>(&cmd)) shown |= t->text == "anib";
     CHECK(shown);
 }
+
+TEST_CASE("TextArea draws its highlighted ranges, one rect per line they cover") {
+    prism::Field<prism::TextArea<>> field{{.value = "abcdef\nghij", .highlights = {{1, 3}, {5, 9}}}};
+    auto node = make_node();
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    float cw = prism::char_width(14.f).raw();
+    std::vector<std::pair<float, float>> spans;   // x, width
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->color == test_theme.text_match)
+            spans.push_back({r->rect.origin.x.raw(), r->rect.extent.w.raw()});
+    REQUIRE(spans.size() == 3);   // "bc"; "f" at the end of line 1; "gh" on line 2
+    CHECK(spans[0].first == doctest::Approx(4.f + cw));
+    CHECK(spans[0].second == doctest::Approx(2.f * cw));
+    CHECK(spans[2].second == doctest::Approx(2.f * cw));
+}

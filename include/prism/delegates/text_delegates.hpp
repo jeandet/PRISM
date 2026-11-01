@@ -426,6 +426,12 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
             dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_selection);
         });
     }
+    // Highlights (e.g. search matches) are in value offsets: skipped while composing.
+    if (es.preedit.empty())
+        for (const auto& h : sf.highlights)
+            for_each_span(std::min(h.begin, raw.size()), std::min(h.end, raw.size()), [&](float x0, float x1, Y y) {
+                dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_match);
+            });
     if (!es.preedit.empty()) {   // underline the composition
         for_each_span(caret, caret + es.preedit.size(), [&](float x0, float x1, Y y) {
             Y under = y + DY{ta_line_h(m).raw() - 2.f};

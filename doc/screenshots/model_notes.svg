@@ -60,7 +60,7 @@
 <rect x="552.6" y="0" width="331.4" height="30" fill="rgba(45,45,55,1)"/>
 <clipPath id="clip-11"><rect x="556.6" y="0" width="323.4" height="30"/></clipPath>
 <g clip-path="url(#clip-11)">
-<text xml:space="preserve" x="556.6" y="6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Find in file...</text>
+<text xml:space="preserve" x="556.6" y="6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">include</text>
 </g>
 </g>
 <clipPath id="clip-12"><rect x="884" y="0" width="49.6" height="32"/></clipPath>
@@ -80,6 +80,17 @@
 <rect x="503" y="32" width="497" height="517.6" fill="rgba(45,45,55,1)"/>
 <clipPath id="clip-15"><rect x="507" y="36" width="489" height="509.6"/></clipPath>
 <g clip-path="url(#clip-15)">
+<rect x="515.4" y="173.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="212.4" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="232" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="251.6" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="271.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="290.8" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="310.4" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="330" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="349.6" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="369.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<rect x="515.4" y="388.8" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
 <text xml:space="preserve" x="507" y="38" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#pragma once</text>
 <text xml:space="preserve" x="507" y="77.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, stat</text>
 <text xml:space="preserve" x="507" y="96.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">istics and search. Tested in</text>
@@ -107,6 +118,6 @@
 <clipPath id="clip-16"><rect x="503" y="549.6" width="497" height="24"/></clipPath>
 <g clip-path="url(#clip-16)">
 <rect x="503" y="549.6" width="497" height="24" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="507" y="553.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  73 lines, 2814 characters</text>
+<text xml:space="preserve" x="507" y="553.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  73 lines, 2814 characters  |  11 matches</text>
 </g>
 </svg>

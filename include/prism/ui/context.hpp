@@ -73,6 +73,7 @@ struct Theme {
     // Text cursor
     Color cursor          = Color::rgba(220, 220, 240);
     Color text_selection  = Color::rgba(60, 100, 180, 140);
+    Color text_match      = Color::rgba(230, 170, 50, 90);   // highlighted ranges (search hits)
 
     // Dropdown popup
     Color popup_bg        = Color::rgba(50, 50, 62);

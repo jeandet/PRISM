@@ -37,8 +37,8 @@ struct NotesApp {
             std::error_code ec;
             if (id && fs::is_regular_file(source.path_of(*id), ec)) open(source.path_of(*id));
         }));
-        wiring.push_back(body.on_change().connect([this](const auto&) { refresh_status(); }));
-        wiring.push_back(search.on_change().connect([this](const auto&) { refresh_status(); }));
+        wiring.push_back(body.on_change().connect([this](const auto&) { update_matches(); }));
+        wiring.push_back(search.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
         wiring.push_back(file_menu.on_change().connect([this](const prism::Menu& m) {
             if (m.chosen == 0) write();
@@ -80,6 +80,21 @@ struct NotesApp {
         refresh_status();
     }
 
+    // Highlights every match of the search text in the editor (stored in the field's value, so the
+    // TextArea draws them), then refreshes the status line. Setting the value notifies again;
+    // the second pass finds identical highlights and stops.
+    void update_matches() {
+        const auto& query = search.get().value;
+        std::vector<prism::TextRange> hits;
+        for (auto pos : notes::find_all(body.get().value, query)) hits.push_back({pos, pos + query.size()});
+        if (hits != body.get().highlights) {
+            auto b = body.get();
+            b.highlights = std::move(hits);
+            body.set(b);
+        }
+        refresh_status();
+    }
+
     void refresh_status() {
         const auto& text = body.get().value;
         auto query = search.get().value;
@@ -94,6 +109,7 @@ int main(int argc, char* argv[]) {
     if (argc >= 2) {   // README capture: open a known file
         NotesApp app{argc >= 3 ? fs::path(argv[2]) : fs::current_path()};
         if (argc >= 4) app.open(argv[3]);
+        app.search.set({.value = "include", .placeholder = "Find in file..."});   // show highlights
         if (app.files.rows.size() > 0) app.files.on_row_clicked(0, app.files.rows[0]);
         return showcase(argc, argv, app, 1000, 640);
     }

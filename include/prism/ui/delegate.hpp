@@ -89,6 +89,12 @@ struct Password {
     bool operator==(const Password&) const = default;
 };
 
+// A byte range [begin, end) of a text value.
+struct TextRange {
+    size_t begin = 0, end = 0;
+    bool operator==(const TextRange&) const = default;
+};
+
 // Sentinel: multiline text editor with character wrapping
 template <StringLike T = std::string>
 struct TextArea {
@@ -96,6 +102,7 @@ struct TextArea {
     std::string placeholder{};
     size_t max_length = 0;   // 0 = unlimited
     size_t rows = 6;         // visible lines, determines widget height
+    std::vector<TextRange> highlights{};   // e.g. search matches; drawn under the text
     bool operator==(const TextArea&) const = default;
 };
 
