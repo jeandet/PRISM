@@ -964,3 +964,20 @@ TEST_CASE("TextArea draws its highlighted ranges, one rect per line they cover")
     CHECK(spans[0].second == doctest::Approx(2.f * cw));
     CHECK(spans[2].second == doctest::Approx(2.f * cw));
 }
+
+TEST_CASE("TextArea: a caret among hanging spaces stays inside the visible area") {
+    // "ab" + 40 spaces, then a newline: the spaces hang far past the 192 px text width.
+    prism::Field<prism::TextArea<>> field{{.value = "ab" + std::string(40, ' ') + "\ncd"}};
+    prism::DrawList dl;
+    auto node = make_node({.focused = true});
+    node.get_or_create<prism::TextAreaEditState>().cursor = 42;   // End of the first line
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+
+    std::optional<prism::Rect> caret;
+    for (auto& cmd : dl.commands)
+        if (auto* fr = std::get_if<prism::FilledRect>(&cmd); fr && fr->rect.extent.w.raw() == doctest::Approx(2.f))
+            caret = fr->rect;
+    REQUIRE(caret);
+    float text_right = 4.f + 200.f - 2 * 4.f;   // clip origin x + text width (absolute)
+    CHECK(caret->origin.x.raw() + caret->extent.w.raw() <= text_right + 0.01f);
+}

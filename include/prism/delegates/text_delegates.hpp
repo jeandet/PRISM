@@ -323,6 +323,8 @@ inline size_t word_break(std::string_view rest, size_t fit) {
 }
 
 // Greedy word wrap: each visual line takes the longest run of whole words that fits.
+// A line's span includes its hanging spaces, so Home/End and the caret count them; the caret
+// is drawn at the edge while it is among them.
 // simplify: breaks only at spaces and tabs, not after hyphens or between CJK ideographs
 // (UAX #14); per code point, not grapheme. Cost: O(log n) measured prefixes per visual line,
 // each a distinct string, so very large documents churn the measurer's cache. Upgrade:
@@ -476,7 +478,9 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
         size_t shown_caret = caret + (es.preedit.empty() ? 0 : es.preedit_caret);
         auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped);
         auto text = line_text(value, wrapped[line]);
-        X cx{prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role)};
+        // Hanging spaces can run past the edge (see word_break): the caret stops at the edge.
+        float caret_x = prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
+        X cx{std::min(caret_x, text_area_w.raw() - ta_cursor_w.raw())};
         Y cy{static_cast<float>(line) * ta_line_h(m).raw() - es.scroll_y.raw()};
         dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_h(m)), t.cursor);
     }
