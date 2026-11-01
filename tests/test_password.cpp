@@ -260,3 +260,16 @@ TEST_CASE("Password snapshot renders masked text") {
     CHECK_FALSE(has_actual);
     CHECK(has_bullets);
 }
+
+TEST_CASE("Password masks one glyph per character, not per byte") {
+    prism::Field<prism::Password<>> field{{.value = "\xC3\xA9\xC3\xA9"}};   // 2 chars, 4 bytes
+    prism::DrawList dl;
+    auto node = make_node();
+    node.visual_state.focused = true;
+    prism::Widget<prism::Password<>>::record(dl, field, node);
+    bool two_dots = false;
+    for (auto& cmd : dl.commands)
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd))
+            two_dots |= t->text == "\xe2\x97\x8f\xe2\x97\x8f";
+    CHECK(two_dots);
+}

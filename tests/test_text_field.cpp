@@ -426,3 +426,60 @@ TEST_CASE("TextField TextInput on empty field inserts text") {
     CHECK(field.get().value == "hello");
     CHECK(std::any_cast<prism::TextEditState>(node.edit_state).cursor == 5);
 }
+
+// --- UTF-8: the cursor is a byte offset that always sits on a code point boundary ---
+
+TEST_CASE("TextField backspace removes a whole multi-byte character") {
+    prism::Field<prism::TextField<>> field{{.value = "caf\xC3\xA9"}};   // "café", 5 bytes
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextField<>>::ensure_edit_state(node).cursor = 5;
+    prism::Widget<prism::TextField<>>::handle_input(
+        field, prism::KeyPress{prism::keys::backspace, 0}, node);
+    CHECK(field.get().value == "caf");
+    CHECK(std::any_cast<prism::TextEditState>(node.edit_state).cursor == 3);
+}
+
+TEST_CASE("TextField delete removes a whole multi-byte character") {
+    prism::Field<prism::TextField<>> field{{.value = "\xC3\xA9" "a"}};
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextField<>>::ensure_edit_state(node);
+    prism::Widget<prism::TextField<>>::handle_input(
+        field, prism::KeyPress{prism::keys::delete_, 0}, node);
+    CHECK(field.get().value == "a");
+}
+
+TEST_CASE("TextField arrows step over whole characters") {
+    prism::Field<prism::TextField<>> field{{.value = "a\xC3\xA9" "b"}};   // a é b: bytes 0 1 3 4
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextField<>>::ensure_edit_state(node);
+    es.cursor = 4;
+    auto key = [&](int32_t k) {
+        prism::Widget<prism::TextField<>>::handle_input(field, prism::KeyPress{k, 0}, node);
+        return std::any_cast<prism::TextEditState>(node.edit_state).cursor;
+    };
+    CHECK(key(prism::keys::left) == 3);
+    CHECK(key(prism::keys::left) == 1);
+    CHECK(key(prism::keys::right) == 3);
+}
+
+TEST_CASE("TextField max_length counts characters and never splits one") {
+    prism::Field<prism::TextField<>> field{{.value = "", .max_length = 1}};
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextField<>>::handle_input(
+        field, prism::TextInput{"\xC3\xA9\xC3\xA9"}, node);
+    CHECK(field.get().value == "\xC3\xA9");
+}
+
+TEST_CASE("TextField caret x follows the character column, not the byte offset") {
+    prism::Field<prism::TextField<>> field{{.value = "\xC3\xA9\xC3\xA9"}};   // 2 chars, 4 bytes
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextField<>>::ensure_edit_state(node).cursor = 4;
+    prism::DrawList dl;
+    prism::Widget<prism::TextField<>>::record(dl, field, node);
+    float caret_x = -1.f;
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->rect.extent.w.raw() <= 3.f)
+            caret_x = r->rect.origin.x.raw();
+    float expected = 4.f + 2.f * prism::char_width(14.f).raw();   // padding + 2 columns
+    CHECK(caret_x == doctest::Approx(expected));
+}

@@ -1,0 +1,55 @@
+#pragma once
+
+#include <algorithm>
+#include <cstddef>
+#include <string_view>
+
+// Byte-offset <-> code point helpers for text editing. Offsets are byte indices into UTF-8;
+// every function clamps out-of-range input and never reads past the end, even on malformed text.
+//
+// simplify: steps are code points, not grapheme clusters -- "e" + combining accent, or an emoji
+// ZWJ sequence, takes several steps. Upgrade to grapheme segmentation (UAX #29) when selection
+// and clipboard land.
+namespace prism::core::utf8 {
+
+inline bool is_continuation(char c) { return (static_cast<unsigned char>(c) & 0xC0) == 0x80; }
+
+// Start of the code point containing byte i (i clamped to the string size).
+inline std::size_t snap(std::string_view s, std::size_t i) {
+    i = std::min(i, s.size());
+    while (i > 0 && i < s.size() && is_continuation(s[i])) --i;
+    return i;
+}
+
+// Start of the code point after the one at i.
+inline std::size_t next(std::string_view s, std::size_t i) {
+    i = snap(s, i);
+    if (i >= s.size()) return s.size();
+    ++i;
+    while (i < s.size() && is_continuation(s[i])) ++i;
+    return i;
+}
+
+// Start of the code point before the one at i.
+inline std::size_t prev(std::string_view s, std::size_t i) {
+    i = snap(s, i);
+    if (i == 0) return 0;
+    return snap(s, i - 1);
+}
+
+// Number of code points in s[0, i).
+inline std::size_t count_upto(std::string_view s, std::size_t i) {
+    s = s.substr(0, std::min(i, s.size()));
+    return static_cast<std::size_t>(std::ranges::count_if(s, [](char c) { return !is_continuation(c); }));
+}
+
+inline std::size_t count(std::string_view s) { return count_upto(s, s.size()); }
+
+// Byte offset of the code point at index cp (clamped to the string size).
+inline std::size_t offset(std::string_view s, std::size_t cp) {
+    std::size_t i = 0;
+    for (; cp > 0 && i < s.size(); --cp) i = next(s, i);
+    return i;
+}
+
+} // namespace prism::core::utf8

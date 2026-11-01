@@ -131,7 +131,7 @@ TEST_CASE("cursor_to_line_col: cursor at start") {
     prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
     auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
-    auto [line, col] = prism::text_detail::cursor_to_line_col(0, lines);
+    auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 0, lines);
     CHECK(line == 0);
     CHECK(col == 0);
 }
@@ -140,7 +140,7 @@ TEST_CASE("cursor_to_line_col: cursor mid first line") {
     prism::Width cw = prism::char_width(14.f);
     prism::Width text_w{200.f - 2 * 4.f};
     auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
-    auto [line, col] = prism::text_detail::cursor_to_line_col(3, lines);
+    auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 3, lines);
     CHECK(line == 0);
     CHECK(col == 3);
 }
@@ -150,7 +150,7 @@ TEST_CASE("cursor_to_line_col: cursor at start of second line (after newline)") 
     prism::Width text_w{200.f - 2 * 4.f};
     auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
     // cursor=6 is after "hello\n" -> start of "world"
-    auto [line, col] = prism::text_detail::cursor_to_line_col(6, lines);
+    auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 6, lines);
     CHECK(line == 1);
     CHECK(col == 0);
 }
@@ -160,7 +160,7 @@ TEST_CASE("cursor_to_line_col: cursor at end of text") {
     prism::Width text_w{200.f - 2 * 4.f};
     auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
     // cursor=11 is at end of "world"
-    auto [line, col] = prism::text_detail::cursor_to_line_col(11, lines);
+    auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", 11, lines);
     CHECK(line == 1);
     CHECK(col == 5);
 }
@@ -170,7 +170,7 @@ TEST_CASE("cursor_to_line_col: cursor on wrapped line") {
     prism::Width text_w = cw * 3.f;  // wrap at 3
     auto lines = prism::text_detail::wrap_lines("abcde", text_w, cw);
     // lines: "abc"(0,3) "de"(3,2)
-    auto [line, col] = prism::text_detail::cursor_to_line_col(4, lines);
+    auto [line, col] = prism::text_detail::cursor_to_line_col("abcde", 4, lines);
     CHECK(line == 1);
     CHECK(col == 1);
 }
@@ -181,8 +181,8 @@ TEST_CASE("line_col_to_cursor: round-trip") {
     auto lines = prism::text_detail::wrap_lines("hello\nworld", text_w, cw);
 
     for (size_t cursor = 0; cursor <= 11; ++cursor) {
-        auto [line, col] = prism::text_detail::cursor_to_line_col(cursor, lines);
-        size_t back = prism::text_detail::line_col_to_cursor(line, col, lines);
+        auto [line, col] = prism::text_detail::cursor_to_line_col("hello\nworld", cursor, lines);
+        size_t back = prism::text_detail::line_col_to_cursor("hello\nworld", line, col, lines);
         CHECK(back == cursor);
     }
 }
@@ -192,7 +192,7 @@ TEST_CASE("line_col_to_cursor: clamps col to line length") {
     prism::Width text_w{200.f - 2 * 4.f};
     auto lines = prism::text_detail::wrap_lines("ab\ncd", text_w, cw);
     // Line 0 has length 2; asking col=10 should clamp to 2
-    size_t cursor = prism::text_detail::line_col_to_cursor(0, 10, lines);
+    size_t cursor = prism::text_detail::line_col_to_cursor("ab\ncd", 0, 10, lines);
     CHECK(cursor == 2);
 }
 
@@ -201,7 +201,7 @@ TEST_CASE("line_col_to_cursor: empty line returns start") {
     prism::Width text_w{200.f - 2 * 4.f};
     auto lines = prism::text_detail::wrap_lines("a\n\nb", text_w, cw);
     // Line 1 is empty (start=2, length=0)
-    size_t cursor = prism::text_detail::line_col_to_cursor(1, 0, lines);
+    size_t cursor = prism::text_detail::line_col_to_cursor("a\n\nb", 1, 0, lines);
     CHECK(cursor == 2);
 }
 
@@ -760,4 +760,34 @@ TEST_CASE("TextArea: cursor clamped when value shortened externally") {
 
     CHECK(std::string(field.get().value) == "abX");
     CHECK(es.cursor == 3);
+}
+
+// --- UTF-8 ---
+
+TEST_CASE("wrap_lines never splits a multi-byte character") {
+    prism::Width cw = prism::char_width(14.f);
+    auto lines = prism::text_detail::wrap_lines("\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9", cw * 2.f, cw);
+    REQUIRE(lines.size() == 3);
+    CHECK(lines[0].length == 4);   // 2 chars x 2 bytes
+    CHECK(lines[1].length == 4);
+    CHECK(lines[2].length == 2);
+}
+
+TEST_CASE("TextArea backspace removes a whole multi-byte character") {
+    prism::Field<prism::TextArea<>> field{{.value = "a\xC3\xA9"}};
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextArea<>>::ensure_edit_state(node).cursor = 3;
+    prism::Widget<prism::TextArea<>>::handle_input(
+        field, prism::KeyPress{prism::keys::backspace, 0}, node);
+    CHECK(field.get().value == "a");
+    CHECK(std::any_cast<prism::TextAreaEditState>(node.edit_state).cursor == 1);
+}
+
+TEST_CASE("TextArea down keeps the character column across multi-byte text") {
+    prism::Field<prism::TextArea<>> field{{.value = "\xC3\xA9\xC3\xA9\nab"}};   // line 1 starts at byte 5
+    auto node = make_node({.focused = true});
+    prism::Widget<prism::TextArea<>>::ensure_edit_state(node).cursor = 4;   // end of line 0 = column 2
+    prism::Widget<prism::TextArea<>>::handle_input(
+        field, prism::KeyPress{prism::keys::down, 0}, node);
+    CHECK(std::any_cast<prism::TextAreaEditState>(node.edit_state).cursor == 7);   // byte 5 + 2
 }
