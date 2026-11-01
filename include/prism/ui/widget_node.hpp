@@ -29,6 +29,7 @@ struct WidgetNode {
     WidgetId id = 0;
     std::string name;                     // accessible name: the field's member name, if known
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
+    std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
@@ -199,6 +200,8 @@ Node node_leaf(Field<T>& field, WidgetId& next_id) {
         if constexpr (is_widget_v<T>) {
             wn.focus_policy = Widget<T>::focus_policy;
             wn.access = [&field] { return access_info(field); };
+            if constexpr (requires(const WidgetNode& n) { Widget<T>::intrinsic_width(field, n); })
+                wn.intrinsic_width = [&field](const WidgetNode& n) { return Widget<T>::intrinsic_width(field, n); };
             if constexpr (requires { Widget<T>::expand; })
                 wn.expand = Widget<T>::expand;
             if constexpr (requires { Widget<T>::expand_axis; })

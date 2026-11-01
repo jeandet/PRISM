@@ -93,6 +93,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             leaf.overlay_draws = node.overlay_draws;
             leaf.hint.expand = node.expand;
             leaf.hint.expand_axis = node.expand_axis;
+            if (node.intrinsic_width) leaf.intrinsic_width = node.intrinsic_width(node);
             leaf.widget = &node;
             parent.children.push_back(std::move(leaf));
         }

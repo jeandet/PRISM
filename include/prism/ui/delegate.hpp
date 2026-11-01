@@ -353,6 +353,9 @@ concept is_widget_v = requires(DrawList& dl, const Field<T>& cf, Field<T>& f,
 template <Numeric T>
 struct Widget<T> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static float intrinsic_width(const Field<T>& f, const WidgetNode& n) {
+        return 8.f + text_width(node_theme(n).measurer, std::to_string(f.get()), 14.f);
+    }
     static constexpr Role access_role = Role::Label;
     static void describe(const Field<T>& f, AccessInfo& a) { a.value = std::to_string(f.get()); }
 
@@ -370,6 +373,9 @@ struct Widget<T> {
 template <StringLike T>
 struct Widget<T> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static float intrinsic_width(const Field<T>& f, const WidgetNode& n) {
+        return 8.f + text_width(node_theme(n).measurer, std::string_view(f.get().data(), f.get().size()), 14.f);
+    }
     static constexpr Role access_role = Role::Label;
     static void describe(const Field<T>& f, AccessInfo& a) { a.value = std::string(f.get().data(), f.get().size()); }
 
@@ -417,6 +423,9 @@ inline void draw_check_box(DrawList& dl, X x, Y y, bool checked,
 template <>
 struct Widget<Checkbox> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static float intrinsic_width(const Field<Checkbox>& f, const WidgetNode& n) {
+        return 32.f + text_width(node_theme(n).measurer, f.get().label, 14.f) + 8.f;   // box, gap, label, margin
+    }
     static constexpr Role access_role = Role::CheckBox;
     static void describe(const Field<Checkbox>& f, AccessInfo& a) {
         a.name = f.get().label;
@@ -482,6 +491,9 @@ struct Widget<bool> {
 template <StringLike T>
 struct Widget<Label<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static float intrinsic_width(const Field<Label<T>>& f, const WidgetNode& n) {
+        return 8.f + text_width(node_theme(n).measurer, std::string_view(f.get().value.data(), f.get().value.size()), 14.f);
+    }
     static constexpr Role access_role = Role::Label;
     static void describe(const Field<Label<T>>& f, AccessInfo& a) {
         a.value = std::string(f.get().value.data(), f.get().value.size());
@@ -604,6 +616,9 @@ struct Button {
 template <>
 struct Widget<Button> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static float intrinsic_width(const Field<Button>& f, const WidgetNode& n) {
+        return std::max(48.f, 16.f + text_width(node_theme(n).measurer, f.get().text, 14.f));   // text at x = 8, both sides
+    }
     static constexpr Role access_role = Role::Button;
     static void describe(const Field<Button>& f, AccessInfo& a) { a.name = f.get().text; }
 
@@ -633,6 +648,8 @@ struct Widget<Button> {
 template <StringLike T>
 struct Widget<TextField<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr bool expand = true;   // fills its row
+    static constexpr ExpandAxis expand_axis = ExpandAxis::Horizontal;
     static constexpr Role access_role = Role::TextInput;
     static void describe(const Field<TextField<T>>& f, AccessInfo& a) {
         a.value = std::string(f.get().value.data(), f.get().value.size());
@@ -656,6 +673,8 @@ struct Widget<TextField<T>> {
 template <StringLike T>
 struct Widget<Password<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr bool expand = true;
+    static constexpr ExpandAxis expand_axis = ExpandAxis::Horizontal;
     static constexpr Role access_role = Role::PasswordInput;   // value deliberately never set
     static constexpr Height widget_h{30.f};
     static constexpr Width padding_x{4.f};
@@ -672,6 +691,8 @@ struct Widget<Password<T>> {
 template <StringLike T>
 struct Widget<TextArea<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr bool expand = true;
+    static constexpr ExpandAxis expand_axis = ExpandAxis::Horizontal;
     static constexpr Role access_role = Role::MultilineTextInput;
     static void describe(const Field<TextArea<T>>& f, AccessInfo& a) {
         a.value = std::string(f.get().value.data(), f.get().value.size());

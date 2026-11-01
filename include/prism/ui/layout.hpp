@@ -75,6 +75,9 @@ namespace layout_detail {
 struct LayoutNode {
     WidgetId id = 0;
     SizeHint hint;
+    // Width the content needs when laid out in a row (text plus padding); unset = derive it from
+    // the draws, as before. Drawn size can't serve: widgets draw at their last allocation.
+    std::optional<float> intrinsic_width;
     Rect allocated{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
     DrawList draws;
     DrawList overlay_draws;
@@ -102,12 +105,37 @@ inline void layout_arrange(LayoutNode& node, Rect available);
 
 namespace layout_detail {
 
+inline ExpandAxis axis_flag(LayoutAxis a) {
+    return a == LayoutAxis::Horizontal ? ExpandAxis::Horizontal : ExpandAxis::Vertical;
+}
+
+// Whether a measured child wants extra space along `axis`. ExpandAxis::None with expand set is
+// the legacy "expand" (plots, canvases, lists): both axes.
+inline bool expands_along(const SizeHint& h, LayoutAxis axis) {
+    if (h.expand_axis == ExpandAxis::None) return h.expand;
+    return h.expand_axis == ExpandAxis::Both || h.expand_axis == axis_flag(axis);
+}
+
 inline void measure_linear(LayoutNode& node, LayoutAxis own_axis, LayoutAxis parent_axis) {
     float sum = 0, max_cross = 0;
-    bool has_expander = false;
+    bool has_expander = false;        // some child expands along this container's own axis
+    bool has_cross_expander = false;  // some child expands across it
+    LayoutAxis cross_axis = own_axis == LayoutAxis::Horizontal ? LayoutAxis::Vertical : LayoutAxis::Horizontal;
     size_t pane_index = 0;
+    for (auto& child : node.children) layout_measure(child, own_axis);
+    // A splitter divides space: if no pane expands on its own, they all share it (until a drag
+    // fixes their sizes) instead of sitting at their content size with the rest unused.
+    // Panes also never go below the size a drag can produce, so engaging a split never snaps them.
+    auto is_handle = [](const LayoutNode& c) { return c.kind == LayoutNode::Kind::Handle; };
+    if (std::ranges::any_of(node.children, is_handle)) {
+        bool none_expand = std::ranges::none_of(node.children, [](const LayoutNode& c) { return c.hint.expand; });
+        for (auto& child : node.children) {
+            if (is_handle(child)) continue;
+            child.hint.preferred = std::max(child.hint.preferred, splitter::min_pane_size_px);
+            if (none_expand && node.split_sizes.empty()) child.hint.expand = true;
+        }
+    }
     for (auto& child : node.children) {
-        layout_measure(child, own_axis);
         // Read the child's expand intent BEFORE the split override below clears it:
         // engaging split mode fixes pane sizes along this container's own axis, but says
         // nothing about how the container itself should size in its parent -- a row with
@@ -115,6 +143,7 @@ inline void measure_linear(LayoutNode& node, LayoutAxis own_axis, LayoutAxis par
         // from its parent column after the drag, or it falls back to its cross-hint and
         // starves every other expander to zero height.
         if (child.hint.expand) has_expander = true;
+        if (expands_along(child.hint, cross_axis)) has_cross_expander = true;
         if (!node.split_sizes.empty() && child.kind != LayoutNode::Kind::Handle) {
             if (pane_index < node.split_sizes.size()) {
                 child.hint.preferred = node.split_sizes[pane_index];
@@ -128,7 +157,13 @@ inline void measure_linear(LayoutNode& node, LayoutAxis own_axis, LayoutAxis par
     bool aligned = (own_axis == parent_axis);
     node.hint.preferred = aligned ? sum : max_cross;
     node.hint.cross = aligned ? max_cross : sum;
-    if (has_expander) node.hint.expand = true;
+    // Expansion is per axis: a row whose text field fills it horizontally must not also claim
+    // spare height from its parent column.
+    node.hint.expand = aligned ? has_expander : has_cross_expander;
+    node.hint.expand_axis = has_expander && has_cross_expander ? ExpandAxis::Both
+                          : has_expander                       ? axis_flag(own_axis)
+                          : has_cross_expander                 ? axis_flag(cross_axis)
+                                                               : ExpandAxis::None;
 }
 
 inline void measure_scrollable(LayoutNode& node) {
@@ -174,7 +209,7 @@ inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
     case LayoutNode::Kind::Leaf: {
         auto bb = node.draws.bounding_box();
         bool horiz = (parent_axis == LayoutAxis::Horizontal);
-        node.hint.preferred = horiz ? bb.extent.w.raw() : bb.extent.h.raw();
+        node.hint.preferred = horiz ? node.intrinsic_width.value_or(bb.extent.w.raw()) : bb.extent.h.raw();
         node.hint.cross     = horiz ? bb.extent.h.raw() : bb.extent.w.raw();
         // Directional expand: only expand along the widget's declared axis
         if (node.hint.expand_axis != ExpandAxis::None) {

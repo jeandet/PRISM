@@ -12,6 +12,6 @@ undo/redo, input-method composition and real text measurement on whole files. Al
 text logic is in `notes_logic.hpp`, tested by `tests/test_notes_logic.cpp`; `model_notes.cpp`
 only wires it to widgets.
 
-Known gaps it shows (tracked in `doc/review-2026-11-01.md`): `hstack` gives every child an equal
-share, so the buttons are as wide as the search field; `TextArea` wraps anywhere, not at word
-boundaries; there is no menu bar or file dialog yet.
+Known gaps it shows (tracked in `doc/review-2026-11-01.md`): `TextArea` wraps anywhere, not at
+word boundaries; there is no menu bar or file dialog yet. (Its first capture also showed buttons
+as wide as the search field -- fixed by content-sized widgets.)
