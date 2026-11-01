@@ -229,7 +229,7 @@ inline void draw_tick_labels(DrawList& dl, const PlotMapping& map,
                              bool draw_x_axis = true,
                              const std::function<std::string(double)>& x_tick_format = {})
 {
-    Width cw = char_width(tick_font_size);
+    auto label_width = [&](const std::string& s) { return Width{text_width(t.measurer, s, tick_font_size)}; };
 
     if (draw_x_axis) {
         for (double tx : ticks.x) {
@@ -238,7 +238,7 @@ inline void draw_tick_labels(DrawList& dl, const PlotMapping& map,
             dl.line(Point{x, map.bottom()},
                     Point{x, map.bottom() + DY{tick_len}}, t.border, 1.f);
             auto label = x_tick_format ? x_tick_format(tx) : fmt::format("{:.6g}", tx);
-            Width label_w = cw * static_cast<float>(label.size());
+            Width label_w = label_width(label);
             dl.text(std::move(label),
                     Point{x - DX{label_w.raw() / 2.f}, map.bottom() + DY{tick_len + 2.f}},
                     tick_font_size, t.text_muted);
@@ -251,7 +251,7 @@ inline void draw_tick_labels(DrawList& dl, const PlotMapping& map,
         dl.line(Point{map.left() - DX{tick_len}, y},
                 Point{map.left(), y}, t.border, 1.f);
         auto label = fmt::format("{:.6g}", ty);
-        Width label_w = cw * static_cast<float>(label.size());
+        Width label_w = label_width(label);
         dl.text(std::move(label),
                 Point{map.left() - DX{tick_len + 2.f + label_w.raw()}, y - DY{6.f}},
                 tick_font_size, t.text_muted);
@@ -479,7 +479,7 @@ template <typename SeriesRange>
 void draw_series_values_at_cursor(DrawList& dl, const PlotMapping& map,
                                   const SeriesRange& series, double data_x, const Theme& t)
 {
-    Width cw = char_width(label_font_size);
+
 
     for (auto& s : series) {
         if (s.size() == 0) continue;
@@ -520,7 +520,7 @@ void draw_series_values_at_cursor(DrawList& dl, const PlotMapping& map,
         dl.circle(px, 3.f, s.style().color, 0.f);
 
         auto label = fmt::format("{:.4g}", value);
-        Width label_w = cw * static_cast<float>(label.size());
+        Width label_w{text_width(t.measurer, label, label_font_size)};
         X tx = px.x + DX{8.f};
         Y ty = px.y - DY{16.f};
         if (tx + DX{label_w.raw()} + DX{4.f} > map.right())

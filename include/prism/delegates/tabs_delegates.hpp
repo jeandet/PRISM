@@ -13,7 +13,6 @@ constexpr Height tab_h{32.f};
 constexpr Width tab_padding{16.f};
 constexpr float tab_font_size = 14.f;
 constexpr Height tab_accent_h{2.f};
-constexpr Width tab_char_width{8.f};
 
 inline void tabs_record(DrawList& dl, WidgetNode& node,
                         size_t selected, const std::vector<std::string>& names) {
@@ -21,9 +20,12 @@ inline void tabs_record(DrawList& dl, WidgetNode& node,
     auto& es = node.get_or_create<TabBarEditState>();
     auto& t = *node.theme;
 
+    auto tab_w = [&](const std::string& name) {
+        return tab_padding * 2.f + Width{text_width(t.measurer, name, tab_font_size)};
+    };
     Width total_w{0};
     for (auto& name : names)
-        total_w += tab_padding * 2.f + tab_char_width * static_cast<float>(name.size());
+        total_w += tab_w(name);
 
     dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, total_w, tab_h), t.tab_bar_bg);
 
@@ -31,7 +33,7 @@ inline void tabs_record(DrawList& dl, WidgetNode& node,
     es.header_x_ranges.reserve(names.size());
     X x{0};
     for (size_t i = 0; i < names.size(); ++i) {
-        Width w = tab_padding * 2.f + tab_char_width * static_cast<float>(names[i].size());
+        Width w = tab_w(names[i]);
         es.header_x_ranges.push_back({x, x + DX{w.raw()}});
 
         bool is_selected = (i == selected);

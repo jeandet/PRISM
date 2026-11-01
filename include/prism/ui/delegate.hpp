@@ -2,6 +2,7 @@
 
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/context.hpp>
+#include <prism/ui/text_metrics.hpp>
 #include <prism/render/draw_list.hpp>
 #include <prism/core/field.hpp>
 #include <prism/input/input_event.hpp>
@@ -95,8 +96,8 @@ struct TextArea {
     bool operator==(const TextArea&) const = default;
 };
 
-// Monospace width estimate. Text widgets now use TextMeasurer (ui/text_metrics.hpp); tabs and
-// plot labels still use this until they are moved over.
+// Per-character width of the no-measurer estimate (see text_width in ui/text_metrics.hpp).
+// Widgets measure through Theme::measurer; this remains as a shorthand for tests.
 inline Width char_width(float font_size) { return Width{0.6f * font_size}; }
 
 // Ephemeral cursor state for text editing delegates

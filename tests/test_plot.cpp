@@ -1622,3 +1622,30 @@ TEST_CASE("draw_series full-fidelity path scans without per-sample dispatch")
     CHECK(calls.x == 3);
     CHECK(calls.y == 3);
 }
+
+TEST_CASE("tick labels are placed using the theme's text measurer")
+{
+    using namespace prism;
+    using namespace prism::plot;
+    struct Wide final : TextMeasurer {   // every label is 100 px wide
+        float width(std::string_view, float) const override { return 100.f; }
+    } m;
+    PlotMapping map{
+        .x_range = {0.0, 10.0},
+        .y_range = {0.0, 100.0},
+        .plot_area = Rect{Point{X{60}, Y{10}}, Size{Width{300}, Height{200}}},
+    };
+    Theme t = default_theme();
+    t.measurer = &m;
+    TickArrays ticks{.x = {5.0}, .y = {50.0}};
+    DrawList dl;
+    draw_tick_labels(dl, map, ticks, t);
+
+    float x_tick = map.to_pixel(5.0, 0.0).x.raw();
+    std::vector<float> text_x;
+    for (auto& cmd : dl.commands)
+        if (auto* tc = std::get_if<TextCmd>(&cmd)) text_x.push_back(tc->origin.x.raw());
+    REQUIRE(text_x.size() == 2);
+    CHECK(text_x[0] == doctest::Approx(x_tick - 50.f));                    // x label centred
+    CHECK(text_x[1] == doctest::Approx(60.f - tick_len - 2.f - 100.f));    // y label right-aligned
+}

@@ -259,3 +259,36 @@ TEST_CASE("TabBar<S> reflective mode: tabs from struct members") {
     CHECK(snap2 != nullptr);
 }
 #endif
+
+TEST_CASE("tab headers are as wide as their measured names") {
+    struct M final : prism::TextMeasurer {   // 'm' = 10, others 2
+        float width(std::string_view s, float) const override {
+            float w = 0; for (char c : s) w += c == 'm' ? 10.f : 2.f; return w;
+        }
+    } m;
+    prism::Theme theme;
+    theme.measurer = &m;
+    prism::Field<prism::TabBar<>> field{{.selected = 0}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.tab_names = std::make_shared<std::vector<std::string>>(std::vector<std::string>{"mi", "m"});
+    prism::DrawList dl;
+    prism::Widget<prism::TabBar<>>::record(dl, field, node);
+    auto& es = std::any_cast<prism::TabBarEditState&>(node.edit_state);
+    REQUIRE(es.header_x_ranges.size() == 2);
+    CHECK((es.header_x_ranges[0].second - es.header_x_ranges[0].first).raw() == doctest::Approx(32.f + 12.f));
+    CHECK((es.header_x_ranges[1].second - es.header_x_ranges[1].first).raw() == doctest::Approx(32.f + 10.f));
+}
+
+TEST_CASE("a non-ASCII tab name is not sized per byte") {
+    prism::Theme theme;   // no measurer: estimate, but per character
+    prism::Field<prism::TabBar<>> field{{.selected = 0}};
+    prism::WidgetNode node;
+    node.theme = &theme;
+    node.tab_names = std::make_shared<std::vector<std::string>>(std::vector<std::string>{"\xC3\xA9\xC3\xA9"});
+    prism::DrawList dl;
+    prism::Widget<prism::TabBar<>>::record(dl, field, node);
+    auto& es = std::any_cast<prism::TabBarEditState&>(node.edit_state);
+    CHECK((es.header_x_ranges[0].second - es.header_x_ranges[0].first).raw()
+          == doctest::Approx(32.f + 2.f * 0.6f * 14.f));
+}
