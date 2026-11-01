@@ -20,6 +20,7 @@ namespace fs = std::filesystem;
 struct NotesApp {
     FileTreeSource source;
     prism::TreeController files{prism::wrap_tree_storage(source)};
+    prism::Field<prism::Menu> file_menu{{.title = "File", .items = {"Save", "Reload"}}};
     prism::Field<prism::TextField<>> search{{.placeholder = "Find in file..."}};
     prism::Field<prism::Button> save{{"Save"}};
     prism::Field<prism::Button> reload{{"Reload"}};
@@ -39,6 +40,10 @@ struct NotesApp {
         wiring.push_back(body.on_change().connect([this](const auto&) { refresh_status(); }));
         wiring.push_back(search.on_change().connect([this](const auto&) { refresh_status(); }));
         wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
+        wiring.push_back(file_menu.on_change().connect([this](const prism::Menu& m) {
+            if (m.chosen == 0) write();
+            else if (m.chosen == 1 && !current.empty()) open(current);
+        }));
         wiring.push_back(reload.on_change().connect([this](const auto&) { if (!current.empty()) open(current); }));
     }
 
@@ -47,7 +52,7 @@ struct NotesApp {
             vb.tree(files);
             vb.handle();
             vb.vstack([&] {
-                vb.hstack(search, save, reload);
+                vb.hstack(file_menu, search, save, reload);
                 vb.widget(body);
                 vb.widget(status);
             });

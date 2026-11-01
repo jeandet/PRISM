@@ -7,6 +7,7 @@
 // fails with "invalid use of incomplete type 'class prism::app::WidgetTree'".
 
 #include <prism/delegates/dropdown_delegates.hpp>
+#include <prism/delegates/menu_delegates.hpp>
 #include <prism/delegates/tabs_delegates.hpp>
 #include <prism/delegates/text_delegates.hpp>
 #include <prism/core/list.hpp>

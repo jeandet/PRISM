@@ -30,6 +30,10 @@ struct WidgetNode {
     std::string name;                     // accessible name: the field's member name, if known
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
+    // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;
+    // while set, the popup gets all input first (see doc/design/menus-and-dialogs.md).
+    std::optional<Rect> popup_area;
+    bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif

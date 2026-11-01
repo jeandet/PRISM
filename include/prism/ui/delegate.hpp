@@ -229,6 +229,20 @@ T enum_from_index(size_t index) {
 #endif
 
 // Sentinel: dropdown with optional custom labels
+// A menu: a title that opens a popup list of items (see doc/design/menus-and-dialogs.md).
+// `activations` bumps on every choice, so choosing the same item again still notifies.
+struct Menu {
+    std::string title;
+    std::vector<std::string> items;
+    std::optional<std::size_t> chosen{};
+    std::uint64_t activations = 0;
+    bool operator==(const Menu&) const = default;
+};
+
+struct MenuEditState {
+    std::size_t highlighted = 0;
+};
+
 template <ScopedEnum T>
 struct Dropdown {
     T value{};
@@ -727,6 +741,16 @@ struct Widget<Dropdown<T>> {
 
     static void record(DrawList& dl, const Field<Dropdown<T>>& field, WidgetNode& node);
     static void handle_input(Field<Dropdown<T>>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+template <>
+struct Widget<Menu> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::Button;   // AccessKit's Menu roles come with the bridge
+    static void describe(const Field<Menu>& f, AccessInfo& a) { a.name = f.get().title; }
+    static float intrinsic_width(const Field<Menu>& f, const WidgetNode& n);
+    static void record(DrawList& dl, const Field<Menu>& field, WidgetNode& node);
+    static void handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <>

@@ -1,6 +1,9 @@
 # Menus, popups and dialogs
 
-**Status:** design note, not implemented (plan item P2 #12 in `doc/review-2026-11-01.md`).
+**Status:** partly implemented (plan item P2 #12 in `doc/review-2026-11-01.md`): the popup
+layer (`WidgetNode::popup_area`/`popup_modal`, `WidgetTree::popup_owner`/`close_popup`, routing in
+`app/event_routing.hpp`) and a `Menu` widget (`delegates/menu_delegates.hpp`). Not yet: menu bar
+navigation between menus, context menus, edge clamping, modal scrim, dialog card.
 
 ## Decision
 

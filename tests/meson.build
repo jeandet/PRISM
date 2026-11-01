@@ -70,6 +70,8 @@ headless_tests = {
   'access' : files('test_access.cpp'),
   'intrinsic_size' : files('test_intrinsic_size.cpp'),
   'image' : files('test_image.cpp'),
+  'popup' : files('test_popup.cpp'),
+  'menu' : files('test_menu.cpp'),
   'channel' : files('test_channel.cpp'),
   'field_mirror' : files('test_field_mirror.cpp'),
   'inspector' : files('test_inspector.cpp'),

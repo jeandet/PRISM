@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/delegates/dropdown_delegates.hpp>
+#include <prism/delegates/menu_delegates.hpp>
 #include <prism/delegates/tabs_delegates.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/core/list.hpp>
@@ -157,11 +158,35 @@ public:
     }
 
     void dispatch(WidgetId id, const InputEvent& ev) {
-        if (auto it = index_.find(id); it != index_.end())
+        if (auto it = index_.find(id); it != index_.end()) {
             it->second->on_input.emit(ev);
+            track_popup(*it->second);
+        }
+    }
+
+    // The widget whose popup is open (0 = none). One popup at a time.
+    [[nodiscard]] WidgetId popup_owner() const { return popup_owner_; }
+    [[nodiscard]] const WidgetNode* popup_node() const {
+        auto it = index_.find(popup_owner_);
+        return it != index_.end() ? it->second : nullptr;
+    }
+    void close_popup() {
+        if (auto it = index_.find(popup_owner_); it != index_.end()) {
+            WidgetNode& n = *it->second;
+            n.popup_area.reset();
+            n.overlay_draws.clear();
+            n.edit_state.reset();   // the owner's open/highlight state, as close_overlays does
+            n.dirty = true;
+        }
+        popup_owner_ = 0;
     }
 
     // id == 0 ("no widget") is a no-op, letting callers skip their own zero checks.
+    void track_popup(const WidgetNode& n) {
+        if (n.popup_area) popup_owner_ = n.id;
+        else if (popup_owner_ == n.id) popup_owner_ = 0;
+    }
+
     void flip_visual_flag(WidgetId id, bool WidgetVisualState::* flag, bool value) {
         if (id == 0) return;
         if (auto it = index_.find(id); it != index_.end()) {
@@ -452,6 +477,7 @@ private:
     std::unordered_map<const void*, std::string_view> field_names_;   // also accessible names
 #endif
     WidgetId next_id_ = 1;
+    WidgetId popup_owner_ = 0;
     WidgetId hovered_id_ = 0;
     WidgetId focused_id_ = 0;
     WidgetId captured_id_ = 0;
