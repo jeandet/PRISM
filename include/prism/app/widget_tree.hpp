@@ -182,6 +182,7 @@ public:
         if (auto it = index_.find(popup_owner_); it != index_.end()) {
             WidgetNode& n = *it->second;
             n.popup_area.reset();
+            n.popup_opened_from.reset();
             n.overlay_draws.clear();
             n.edit_state.reset();   // the owner's open/highlight state, as close_overlays does
             n.dirty = true;

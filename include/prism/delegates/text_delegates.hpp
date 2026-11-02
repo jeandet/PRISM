@@ -455,6 +455,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     bool vertical = key && (key->key == keys::up || key->key == keys::down);
     bool hover = std::holds_alternative<MouseMove>(ev) && !es.dragging;
     if (!vertical && !hover && !std::holds_alternative<KeyRelease>(ev)) es.goal_x.reset();
+    if (es.goal_cursor != before.cursor) es.goal_x.reset();   // the caret moved some other way
     // The caret on line `to`, as near to goal_x as that line allows.
     auto vertical_target = [&](size_t to) {
         if (!es.goal_x) {
@@ -513,6 +514,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
                                               ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
         apply_edit(field, node, es, before, *after);
     }
+    if (vertical) es.goal_cursor = es.cursor;
 
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
     auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);

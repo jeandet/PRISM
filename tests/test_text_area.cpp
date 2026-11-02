@@ -673,6 +673,30 @@ TEST_CASE("TextArea: typing forgets the remembered column") {
     CHECK(es.cursor == 13);                  // hij|kl: column 3
 }
 
+TEST_CASE("TextArea: Shift+Down keeps the column too, extending the selection") {
+    prism::Field<prism::TextArea<>> field{{.value = "abcde\nfg\nhijkl"}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.cursor = 4;
+    for (int i = 0; i < 2; ++i) {
+        prism::InputEvent ev = prism::KeyPress{.key = prism::keys::down, .mods = prism::mods::shift};
+        prism::Widget<prism::TextArea<>>::handle_input(field, ev, node);
+    }
+    CHECK(es.cursor == 13);
+    CHECK(es.anchor == std::optional<size_t>{4});
+}
+
+TEST_CASE("TextArea: a caret moved by anything else does not reuse the old column") {
+    prism::Field<prism::TextArea<>> field{{.value = "abcde\nfg\nhijkl"}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.cursor = 4;
+    press(field, node, prism::keys::down);   // fg|, aiming at column 4
+    es.cursor = 6;                            // |fg: e.g. the app replaced the text and reset the caret
+    press(field, node, prism::keys::down);
+    CHECK(es.cursor == 9);                    // |hijkl: from where the caret is, not column 4
+}
+
 TEST_CASE("TextArea: mouse click positions cursor") {
     prism::Field<prism::TextArea<>> field{{.value = "abc\ndef"}};
     auto node = make_node({.focused = true});

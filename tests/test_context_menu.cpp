@@ -234,3 +234,13 @@ TEST_CASE("a menu at the right edge lines up with the right of its title") {
     float title_right = title->origin.x.raw() + title->extent.w.raw();
     CHECK(a->origin.x.raw() + a->extent.w.raw() == doctest::Approx(std::min(title_right, 400.f)));
 }
+
+TEST_CASE("closing a popup any way forgets what it opened from") {
+    Fixture f;
+    f.press(50, 60, buttons::right);
+    REQUIRE(f.tree.popup_node());
+    REQUIRE(f.tree.popup_node()->popup_opened_from);
+    const WidgetNode* owner = f.tree.popup_node();
+    f.tree.close_popup();
+    CHECK_FALSE(owner->popup_opened_from);
+}
