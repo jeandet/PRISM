@@ -1,6 +1,11 @@
 #include <prism/backends/font_lookup.hpp>
 
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(_WIN32)
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <string>
+#elif !defined(__EMSCRIPTEN__)
 #include <dlfcn.h>
 #endif
 
@@ -20,8 +25,23 @@ std::string find_font(const char* override_path, const char* build_path,
     return {};
 }
 
+// The folder of the module (shared library or executable) this function is in. The web build
+// preloads fonts at their build-tree paths, so it never needs this.
 std::filesystem::path backend_library_dir() {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(_WIN32)
+    HMODULE module = nullptr;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCWSTR>(&backend_library_dir), &module)) {
+        std::wstring path(MAX_PATH, L'\0');
+        DWORD n = 0;
+        while ((n = GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()))) == path.size())
+            path.resize(path.size() * 2);   // truncated: try a longer buffer
+        if (n > 0) {
+            path.resize(n);
+            return std::filesystem::path(path).parent_path();
+        }
+    }
+#elif !defined(__EMSCRIPTEN__)
     Dl_info info{};
     if (dladdr(reinterpret_cast<void*>(&backend_library_dir), &info) && info.dli_fname) {
         std::error_code ec;
@@ -29,8 +49,6 @@ std::filesystem::path backend_library_dir() {
         if (!ec) return path.parent_path();
     }
 #endif
-    // simplify: Windows would use GetModuleHandleEx + GetModuleFileNameW; the web build
-    // preloads fonts at their build-tree paths, so it never gets here.
     return {};
 }
 

@@ -6,13 +6,13 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <unistd.h>
+#include <random>
 
 namespace fs = std::filesystem;
 
 namespace {
 struct TempDir {
-    fs::path root = fs::temp_directory_path() / ("prism-notes-" + std::to_string(::getpid()));
+    fs::path root = fs::temp_directory_path() / ("prism-notes-" + std::to_string(std::random_device{}()));
     TempDir() { fs::create_directories(root); }
     ~TempDir() { fs::remove_all(root); }
 };

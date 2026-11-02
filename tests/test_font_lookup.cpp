@@ -6,14 +6,14 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <unistd.h>
+#include <random>
 
 namespace fs = std::filesystem;
 using prism::backends::find_font;
 
 namespace {
 struct TempTree {   // <tmp>/lib64 holds the library; fonts go under <tmp>/share/prism/fonts
-    fs::path root = fs::temp_directory_path() / ("prism-font-lookup-" + std::to_string(::getpid()));
+    fs::path root = fs::temp_directory_path() / ("prism-font-lookup-" + std::to_string(std::random_device{}()));
     TempTree() { fs::create_directories(root / "lib64"); }
     ~TempTree() { fs::remove_all(root); }
     fs::path touch(const fs::path& rel) {

@@ -325,3 +325,43 @@ jobs:
         run: |
           PYTHONPATH=builddir/python python -c "import prism; print('import ok')"
           meson test -C builddir python_bindings --print-errorlogs
+
+  # Windows with MSYS2's UCRT64 GCC: it tracks the newest GCC, so C++26 builds as on Linux
+  # (MSVC's C++26 support is the open question; this lane is the reference). C++ tests only;
+  # SDL tests run on the offscreen driver as on Linux.
+  windows:
+    runs-on: windows-latest
+    env:
+      CC: gcc
+      CXX: g++
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-meson
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-cmake
+      - name: Compiler
+        run: g++ --version
+      - name: Setup builddir
+        run: >
+          meson setup builddir -Dmagic_enum:test=false
+          -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0
+      - name: Build
+        run: ninja -C builddir
+      - name: Run tests (C++ only)
+        run: meson test -C builddir --print-errorlogs --exclude python_bindings
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-testlog-windows
+          path: builddir/meson-logs/testlog.txt
