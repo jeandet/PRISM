@@ -32,11 +32,12 @@ namespace scrollbar {
     // callers read [0] as the moving thumb), then the full-height track gutter,
     // so a press anywhere on the track starts a drag for every scrollable kind.
     // No-op when the content fits the viewport.
-    // simplify: the overlay is unclipped, so a scrollbar inside another scroll view that is
-    // scrolled out of sight still draws (a TextArea or a nested Scroll in a ScrollArea).
-    // Upgrade: carry the ancestors' clip rect down layout_flatten and clip or skip the thumb.
+    // `clip`: what the scroll views around this one leave visible. The overlay itself is not
+    // clipped, so the thumb and its track are cut to it here (both are plain rectangles); a
+    // part outside is neither drawn nor grabbable.
     inline void emit_thumb(SceneSnapshot& snap, WidgetId id, Rect viewport,
-                           Height content_h, DY scroll_offset, const Theme& theme) {
+                           Height content_h, DY scroll_offset, const Theme& theme,
+                           std::optional<Rect> clip = std::nullopt) {
         Height viewport_h = viewport.extent.h;
         if (content_h.raw() <= viewport_h.raw()) return;
         Height thumb_h = thumb_height(viewport_h, content_h);
@@ -48,10 +49,15 @@ namespace scrollbar {
         Rect thumb_rect{
             Point{track_x, viewport.origin.y + DY{thumb_y}},
             Size{Width{track_width}, thumb_h}};
-        snap.overlay.filled_rect(thumb_rect, theme.scrollbar_thumb);
-        snap.overlay_geometry.push_back({id, thumb_rect});
-        snap.overlay_geometry.push_back({id, Rect{Point{track_x, viewport.origin.y},
-                                                  Size{Width{track_inset}, viewport_h}}});
+        Rect track_rect{Point{track_x, viewport.origin.y}, Size{Width{track_inset}, viewport_h}};
+        auto visible = [&](Rect r) { return clip ? clip->intersect(r) : r; };
+        auto empty = [](Rect r) { return r.extent.w.raw() <= 0.f || r.extent.h.raw() <= 0.f; };
+        thumb_rect = visible(thumb_rect);
+        track_rect = visible(track_rect);
+        if (empty(track_rect)) return;
+        if (!empty(thumb_rect)) snap.overlay.filled_rect(thumb_rect, theme.scrollbar_thumb);
+        snap.overlay_geometry.push_back({id, thumb_rect});   // [0]: the thumb, even if cut away
+        snap.overlay_geometry.push_back({id, track_rect});
     }
 }
 
@@ -377,12 +383,15 @@ inline void offset_subtree_y(LayoutNode& node, DY dy) {
 } // namespace layout_detail
 
 // Forward declaration — the flatten helpers below recurse into it. See the
-// definition for the clipped_by_ancestor contract.
-inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor = false);
+// definition for the `clip` contract.
+inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip = std::nullopt);
 
 namespace layout_detail {
 
-inline void flatten_table(LayoutNode& node, SceneSnapshot& snap) {
+// The visible part of `inner` given what the enclosing scroll views leave visible.
+inline Rect narrow(std::optional<Rect> clip, Rect inner) { return clip ? clip->intersect(inner) : inner; }
+
+inline void flatten_table(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
     auto vp = node.allocated;
     Height item_h = node.vlist_item_height.raw() > 0 ? node.vlist_item_height : Height{24.f};
     Height header_h = node.table_header_h.raw() > 0 ? node.table_header_h : item_h;
@@ -428,7 +437,7 @@ inline void flatten_table(LayoutNode& node, SceneSnapshot& snap) {
     DY neg_scroll{-scroll_dy.raw()};
     for (auto& child : node.children) {
         layout_detail::offset_subtree_y(child, neg_scroll);
-        layout_flatten(child, snap, /*clipped_by_ancestor=*/true);
+        layout_flatten(child, snap, narrow(clip, body_rect));
         layout_detail::offset_subtree_y(child, DY{scroll_dy.raw()});
     }
 
@@ -438,10 +447,10 @@ inline void flatten_table(LayoutNode& node, SceneSnapshot& snap) {
     snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(body_clip_pop)));
     snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
 
-    scrollbar::emit_thumb(snap, node.id, body_rect, node.scroll_content_h, scroll_dy, *node.theme);
+    scrollbar::emit_thumb(snap, node.id, body_rect, node.scroll_content_h, scroll_dy, *node.theme, clip);
 }
 
-inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap) {
+inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
     // ClipPush for the viewport
     DrawList clip_dl;
     clip_dl.clip_push(node.allocated.origin, node.allocated.extent);
@@ -462,7 +471,7 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap) {
             continue;
 
         layout_detail::offset_subtree_y(child, neg_scroll);
-        layout_flatten(child, snap, /*clipped_by_ancestor=*/true);
+        layout_flatten(child, snap, narrow(clip, node.allocated));
         DY restore{scroll_dy.raw()};
         layout_detail::offset_subtree_y(child, restore);
     }
@@ -475,7 +484,7 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap) {
     snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
 
     scrollbar::emit_thumb(snap, node.id, node.allocated, node.scroll_content_h,
-                          node.scroll_offset, *node.theme);
+                          node.scroll_offset, *node.theme, clip);
 }
 
 inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor) {
@@ -547,24 +556,27 @@ inline void flatten_overlays(LayoutNode& node, SceneSnapshot& snap) {
 
 } // namespace layout_detail
 
-// `clipped_by_ancestor`: true when some ancestor (Scroll/VirtualList/Table) already wraps
-// this node in a ClipPush/ClipPop pair. Leaf/Canvas DrawLists are only cached and shared
-// across frames (see LayoutNode::widget below) when this is false -- see the comment at
+// `clip`: set when some ancestor (Scroll/VirtualList/Table) wraps this node in a
+// ClipPush/ClipPop pair; it is the part those ancestors leave visible (their viewports,
+// intersected). Draw lists are clipped by the ClipPush; scrollbar thumbs, which go to the
+// unclipped overlay, are cut to it. Leaf/Canvas DrawLists are only cached and shared
+// across frames (see LayoutNode::widget below) when it is unset -- see the comment at
 // that cache check for why.
-inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor) {
+inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
+    bool clipped_by_ancestor = clip.has_value();
     switch (node.kind) {
     case LayoutNode::Kind::Spacer:
         return;
     case LayoutNode::Kind::Tabs:
         for (auto& child : node.children)
-            layout_flatten(child, snap, clipped_by_ancestor);
+            layout_flatten(child, snap, clip);
         return;
     case LayoutNode::Kind::Table:
-        layout_detail::flatten_table(node, snap);
+        layout_detail::flatten_table(node, snap, clip);
         return;
     case LayoutNode::Kind::Scroll:
     case LayoutNode::Kind::VirtualList:
-        layout_detail::flatten_scrollable(node, snap);
+        layout_detail::flatten_scrollable(node, snap, clip);
         return;
     default:
         break;
@@ -576,11 +588,11 @@ inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, bool clipped_b
         const auto& is = *node.widget->inner_scroll;
         Rect viewport{Point{node.allocated.origin.x + DX{is.viewport.origin.x.raw()},
                             node.allocated.origin.y + DY{is.viewport.origin.y.raw()}}, is.viewport.extent};
-        scrollbar::emit_thumb(snap, node.id, viewport, is.content_h, is.offset, *node.theme);
+        scrollbar::emit_thumb(snap, node.id, viewport, is.content_h, is.offset, *node.theme, clip);
     }
 
     for (auto& child : node.children) {
-        layout_flatten(child, snap, clipped_by_ancestor);
+        layout_flatten(child, snap, clip);
     }
 }
 

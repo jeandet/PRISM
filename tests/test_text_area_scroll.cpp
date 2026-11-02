@@ -115,3 +115,49 @@ TEST_CASE("moving the caret brings it back into view") {
     f.frame();
     CHECK(caret_line_shown());
 }
+
+namespace {
+// A long text area inside a scroll area, followed by enough filler to scroll it away.
+struct Page {
+    Field<TextArea<>> body{{.value = many_lines(60), .rows = 6}};
+    Field<Label<>> f1{{"filler"}}, f2{{"filler"}}, f3{{"filler"}}, f4{{"filler"}}, f5{{"filler"}},
+                   f6{{"filler"}}, f7{{"filler"}}, f8{{"filler"}}, f9{{"filler"}}, f10{{"filler"}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.scroll([&] { vb.vstack(body, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10); });
+    }
+};
+
+struct PageFixture {
+    Page model;
+    WidgetTree tree{model};
+    std::unique_ptr<SceneSnapshot> snap = tree.build_snapshot(300, 200, 1);
+    uint64_t v = 1;
+    void frame() { snap = tree.build_snapshot(300, 200, ++v); }
+    WidgetId body_id() const { return tree.leaf_ids()[0]; }
+    std::vector<Rect> overlay_rects_of(WidgetId id) const {
+        std::vector<Rect> out;
+        for (auto& [oid, r] : snap->overlay_geometry) if (oid == id) out.push_back(r);
+        return out;
+    }
+    void scroll_page(float dy) {   // the wheel over the filler, below the text area
+        route_event(tree, snap.get(), MouseScroll{Point{X{150}, Y{190}}, DX{0}, DY{dy}});
+        frame();
+    }
+};
+}
+
+TEST_CASE("an inner scrollbar scrolled out of an outer scroll view is not drawn or grabbable") {
+    PageFixture f;
+    REQUIRE_FALSE(f.overlay_rects_of(f.body_id()).empty());   // visible at first
+    f.scroll_page(10);                                         // far down: the text area is gone
+    CHECK(f.overlay_rects_of(f.body_id()).empty());
+}
+
+TEST_CASE("an inner scrollbar half out of an outer scroll view is cut at its edge") {
+    PageFixture f;
+    f.scroll_page(0.5f);   // 30 px: the text area's top goes out of view
+    for (auto r : f.overlay_rects_of(f.body_id())) {
+        CHECK(r.origin.y.raw() >= 0.f);                         // nothing above the outer view
+        CHECK(r.origin.y.raw() + r.extent.h.raw() <= 200.f);
+    }
+}
