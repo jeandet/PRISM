@@ -1190,6 +1190,8 @@ private:
         node.children.clear();
 
         // Bind children for visible range (wire after push to avoid dangling SenderHub pointers)
+        size_t range_size = new_end.raw() - new_start.raw();
+        node.children.reserve(range_size);
         for (size_t i = new_start.raw(); i < new_end.raw(); ++i) {
             WidgetNode wn;
             if (!vls->pool.empty()) {
@@ -1341,6 +1343,7 @@ private:
 
         recycle_table_rows(node, *ts);
 
+        node.children.reserve(new_end.raw() - new_start.raw());
         for (size_t i = new_start.raw(); i < new_end.raw(); ++i) {
             // id=0 is shared by every row (hit-test transparent, see paint_table_row);
             // registering it in index_/parent_map_ would alias to whichever

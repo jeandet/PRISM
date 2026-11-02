@@ -17,7 +17,6 @@
 #include <limits>
 #include <memory>
 #include <optional>
-#include <deque>
 #include <vector>
 
 namespace prism::ui {
@@ -77,8 +76,7 @@ struct WidgetNode {
 
     DrawList draws;
     DrawList overlay_draws;
-    std::deque<WidgetNode> children;   // a deque: adding a child moves no other, so pointers and wired
-                                        // references to existing nodes stay valid as rows materialize
+    std::vector<WidgetNode> children;
     SenderHub<const InputEvent&> on_input;
     // connections must be declared after on_input so they are destroyed first,
     // disconnecting from on_input before it is destroyed
