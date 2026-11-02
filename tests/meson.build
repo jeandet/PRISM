@@ -77,6 +77,7 @@ headless_tests = {
   'image' : files('test_image.cpp'),
   'popup' : files('test_popup.cpp'),
   'text_segmentation' : files('test_text_segmentation.cpp'),
+  'text_bidi' : files('test_text_bidi.cpp'),
   'combo_box' : files('test_combo_box.cpp'),
   'menu' : files('test_menu.cpp'),
   'context_menu' : files('test_context_menu.cpp'),

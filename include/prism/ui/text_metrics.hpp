@@ -1,11 +1,14 @@
 #pragma once
 
+#include <prism/ui/text_bidi.hpp>
 #include <prism/ui/text_segmentation.hpp>
 #include <prism/core/utf8.hpp>
 #include <prism/render/draw_list.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace prism::ui {
@@ -46,10 +49,11 @@ inline float prefix_width(const TextMeasurer* m, std::string_view utf8, std::siz
     return text_width(m, utf8.substr(0, core::utf8::snap(utf8, byte)), size, role);
 }
 
-// Byte offset of the character boundary nearest to x (exactly halfway: the later one). Binary search over boundaries (prefix
-// widths grow with the prefix), so O(log n) measurements.
-inline std::size_t index_at(const TextMeasurer* m, std::string_view utf8, float size, float x,
-                            FontRole role = FontRole::Ui) {
+// Byte offset of the character boundary nearest to x, reading the text left to right (exactly
+// halfway: the later one). Binary search over boundaries (prefix widths grow with the prefix), so
+// O(log n) measurements. index_at() below is the same for text with right-to-left runs.
+inline std::size_t logical_index_at(const TextMeasurer* m, std::string_view utf8, float size, float x,
+                                    FontRole role = FontRole::Ui) {
     std::size_t lo = 0, hi = core::utf8::count(utf8);   // in characters
     while (lo < hi) {   // first boundary whose prefix width is >= x
         std::size_t mid = (lo + hi) / 2;
@@ -60,6 +64,79 @@ inline std::size_t index_at(const TextMeasurer* m, std::string_view utf8, float 
     std::size_t after = core::utf8::offset(utf8, lo), before = core::utf8::offset(utf8, lo - 1);
     float w_after = prefix_width(m, utf8, after, size, role), w_before = prefix_width(m, utf8, before, size, role);
     return (x - w_before < w_after - x) ? before : after;   // a tie rounds to the later boundary
+}
+
+namespace bidi_detail {
+// A run with where it lands on screen.
+struct PlacedRun {
+    BidiRun run;
+    float x = 0.f, w = 0.f;
+};
+
+inline std::vector<PlacedRun> place_runs(const TextMeasurer* m, std::string_view line,
+                                         const std::vector<BidiRun>& runs, float size, FontRole role) {
+    std::vector<PlacedRun> placed;
+    float x = 0.f;
+    for (const auto& r : runs) {
+        float w = text_width(m, line.substr(r.begin, r.end - r.begin), size, role);
+        placed.push_back({r, x, w});
+        x += w;
+    }
+    return placed;
+}
+
+// x of the boundary at `byte` inside run `p`: after the run's start when it reads left to right,
+// before its end when it reads right to left.
+inline float edge_x(const TextMeasurer* m, std::string_view line, const PlacedRun& p, std::size_t byte,
+                    float size, FontRole role) {
+    auto [a, b] = p.run.rtl ? std::pair{byte, p.run.end} : std::pair{p.run.begin, byte};
+    return p.x + text_width(m, line.substr(a, b - a), size, role);
+}
+} // namespace bidi_detail
+
+// x of the caret at byte offset `byte` of one line, with right-to-left runs drawn as they are.
+// The caret goes with the character before it (the one just typed), so after a Hebrew letter it
+// sits on that letter's left, where the next one appears.
+// simplify: logical caret only; Left/Right step through the text in memory order, which inside a
+// right-to-left run moves the caret the other way on screen. Upgrade: visual movement, as most
+// editors default to.
+inline float caret_x_at(const TextMeasurer* m, std::string_view line, std::size_t byte, float size,
+                        FontRole role = FontRole::Ui) {
+    byte = core::utf8::snap(line, byte);
+    auto runs = bidi_runs(line);
+    if (is_plain_ltr(runs)) return prefix_width(m, line, byte, size, role);
+    std::size_t probe = byte == 0 ? 0 : byte - 1;   // a byte of the character before the caret
+    for (const auto& p : bidi_detail::place_runs(m, line, runs, size, role))
+        if (p.run.begin <= probe && probe < p.run.end) return bidi_detail::edge_x(m, line, p, byte, size, role);
+    return prefix_width(m, line, byte, size, role);   // unreachable: the runs cover the line
+}
+
+// Byte offset of the character boundary nearest to x on one line, right-to-left runs included.
+inline std::size_t index_at(const TextMeasurer* m, std::string_view line, float size, float x,
+                            FontRole role = FontRole::Ui) {
+    auto runs = bidi_runs(line);
+    if (is_plain_ltr(runs)) return logical_index_at(m, line, size, x, role);
+    auto placed = bidi_detail::place_runs(m, line, runs, size, role);
+    auto hit = std::find_if(placed.begin(), placed.end(), [x](const auto& p) { return x < p.x + p.w; });
+    const auto& p = hit == placed.end() ? placed.back() : *hit;
+    auto run_text = line.substr(p.run.begin, p.run.end - p.run.begin);
+    float local = p.run.rtl ? p.w - (x - p.x) : x - p.x;   // measured from where the run starts reading
+    return p.run.begin + logical_index_at(m, run_text, size, local, role);
+}
+
+// The x spans that show the selection [lo, hi) of one line: one per run it touches, so a
+// selection across a direction change can be several pieces.
+inline std::vector<std::pair<float, float>> selection_spans(const TextMeasurer* m, std::string_view line,
+                                                            std::size_t lo, std::size_t hi, float size,
+                                                            FontRole role = FontRole::Ui) {
+    std::vector<std::pair<float, float>> spans;
+    for (const auto& p : bidi_detail::place_runs(m, line, bidi_runs(line), size, role)) {
+        std::size_t a = std::max(lo, p.run.begin), b = std::min(hi, p.run.end);
+        if (a >= b) continue;
+        float xa = bidi_detail::edge_x(m, line, p, a, size, role), xb = bidi_detail::edge_x(m, line, p, b, size, role);
+        spans.emplace_back(std::min(xa, xb), std::max(xa, xb));
+    }
+    return spans;
 }
 
 // Bytes of the longest prefix that fits in max_width -- at least one character, so line

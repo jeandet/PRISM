@@ -29,11 +29,24 @@ inline std::string mask_string(size_t len) {
 constexpr Height tf_widget_h{30.f};
 constexpr float tf_font_size = 14.f;
 
+// The byte of `shown` matching byte `at` of `value`: they have the same characters, not always
+// the same bytes (the Password mask draws a dot per character).
+inline size_t shown_offset(std::string_view value, std::string_view shown, size_t at) {
+    return core::utf8::offset(shown, core::utf8::count_upto(value, core::utf8::snap(value, at)));
+}
+
 // Caret x for a byte offset, measured on the text as displayed (the Password mask draws dots).
 template <typename DisplayFn>
 float caret_x(const TextMeasurer* m, std::string_view value, size_t cursor, DisplayFn display_fn) {
-    std::string prefix(value.substr(0, core::utf8::snap(value, cursor)));
-    return text_width(m, display_fn(prefix), tf_font_size);
+    std::string shown = display_fn(std::string(value));
+    return caret_x_at(m, shown, shown_offset(value, shown, cursor), tf_font_size);
+}
+
+// The x spans showing [lo, hi) of `value` as displayed: several when it crosses a direction change.
+template <typename DisplayFn>
+auto range_spans(const TextMeasurer* m, std::string_view value, size_t lo, size_t hi, DisplayFn display_fn) {
+    std::string shown = display_fn(std::string(value));
+    return selection_spans(m, shown, shown_offset(value, shown, lo), shown_offset(value, shown, hi), tf_font_size);
 }
 
 // Byte offset in `value` nearest to x, hit-tested on the displayed text. Display and value have
@@ -91,11 +104,10 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     // keystroke would lose text. (Not while composing: offsets would not match `shown`.)
     if (es.anchor && *es.anchor != es.cursor && es.preedit.empty()) {
         auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
-        float x0 = caret_x(t.measurer, value, lo, display_fn) - es.scroll_offset.raw();
-        float x1 = caret_x(t.measurer, value, hi, display_fn) - es.scroll_offset.raw();
-        dl.filled_rect(delegate_detail::make_rect(X{x0}, Y{tf_padding_y.raw()}, Width{x1 - x0},
-                                                  tf_widget_h - tf_padding_y * 2.f),
-                       t.text_selection);
+        for (auto [x0, x1] : range_spans(t.measurer, value, lo, hi, display_fn))
+            dl.filled_rect(delegate_detail::make_rect(X{x0 - es.scroll_offset.raw()}, Y{tf_padding_y.raw()},
+                                                      Width{x1 - x0}, tf_widget_h - tf_padding_y * 2.f),
+                           t.text_selection);
     }
 
     if (sf.value.empty() && !vs.focused) {
@@ -108,10 +120,9 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     }
 
     if (!es.preedit.empty()) {   // underline the composition
-        float x0 = caret_x(t.measurer, shown, caret, display_fn) - es.scroll_offset.raw();
-        float x1 = caret_x(t.measurer, shown, caret + es.preedit.size(), display_fn) - es.scroll_offset.raw();
         Y y{tf_widget_h.raw() - tf_padding_y.raw() - 3.f};
-        dl.line(Point{X{x0}, y}, Point{X{x1}, y}, t.text, 1.f);
+        for (auto [x0, x1] : range_spans(t.measurer, shown, caret, caret + es.preedit.size(), display_fn))
+            dl.line(Point{X{x0 - es.scroll_offset.raw()}, y}, Point{X{x1 - es.scroll_offset.raw()}, y}, t.text, 1.f);
     }
 
     if (vs.focused) {
@@ -402,15 +413,17 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
     publish_scroll(node, es, Height{static_cast<float>(wrapped.size()) * ta_line_h(m).raw()}, text_area_w, text_area_h);
 
-    // Calls fn(x0, x1, line_top) for the part of [lo, hi) on each visual line.
+    // Calls fn(x0, x1, line_top) for the part of [lo, hi) on each visual line: several calls for
+    // one line when the range crosses a direction change there.
     auto for_each_span = [&](size_t lo, size_t hi, auto fn) {
         for (size_t i = 0; i < wrapped.size(); ++i) {
             size_t a = std::max(lo, wrapped[i].start), b = std::min(hi, wrapped[i].start + wrapped[i].length);
             if (a >= b) continue;
             auto text = line_text(value, wrapped[i]);
-            fn(prefix_width(m, text, a - wrapped[i].start, ta_font_size, ta_font_role),
-               prefix_width(m, text, b - wrapped[i].start, ta_font_size, ta_font_role),
-               Y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()});
+            Y y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()};
+            for (auto [x0, x1] : selection_spans(m, text, a - wrapped[i].start, b - wrapped[i].start,
+                                                 ta_font_size, ta_font_role))
+                fn(x0, x1, y);
         }
     };
 
@@ -454,7 +467,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
         auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped, es.upstream && es.preedit.empty());
         auto text = line_text(value, wrapped[line]);
         // Hanging spaces can run past the edge (see word_break): the caret stops at the edge.
-        float caret_x = prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
+        float caret_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
         X cx{std::min(caret_x, text_area_w.raw() - ta_cursor_w.raw())};
         Y cy{static_cast<float>(line) * ta_line_h(m).raw() - es.scroll_y.raw()};
         dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_h(m)), t.cursor);
@@ -490,7 +503,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto vertical_target = [&](size_t to) {
         if (!es.goal_x) {
             auto text = line_text(value, wrapped[line]);
-            es.goal_x = prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
+            es.goal_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
         }
         auto text = line_text(value, wrapped[to]);
         size_t to_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, *es.goal_x, ta_font_role));

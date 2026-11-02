@@ -26,7 +26,8 @@ img_lib = static_library('sdl3_image', img_src,
   c_args : img_args,
   include_directories : 'include',
   dependencies : sdl_dep,
-  pic : true)
+  pic : true,
+  override_options : ['werror=false', 'warning_level=0'])   # third-party code: not our warnings
 
 sdl3_image_dep = declare_dependency(include_directories : 'include', link_with : img_lib)
 meson.override_dependency('sdl3_image', sdl3_image_dep)

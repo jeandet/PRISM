@@ -75,9 +75,12 @@ if python3.found()
     # --capture=sys (not the default fd capture): sanitizer reports are written to
     # fd 2 from C and the process exits right after, so with fd capture pytest
     # swallows the report and the log shows only "exit status 1".
+    # -o pythonpath: pyproject.toml puts builddir/python first, which in any other build
+    # directory (clang, asan, tsan) would test builddir's extension instead of this one.
     test('python_bindings',
       python3,
-      args : ['-m', 'pytest', meson.project_source_root() / 'python/tests/test_prism_python.py', '-q', '-ra', '--capture=sys', '--import-mode=importlib'],
+      args : ['-m', 'pytest', meson.project_source_root() / 'python/tests/test_prism_python.py', '-q', '-ra', '--capture=sys', '--import-mode=importlib',
+              '-o', 'pythonpath=' + meson.project_build_root() / 'python'],
       env : python_bindings_env,
       depends : _prism_ext,
       timeout : 60,

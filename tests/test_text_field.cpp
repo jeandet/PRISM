@@ -1,5 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
+#include <algorithm>
 
 #include <prism/ui/delegate.hpp>
 #include <prism/core/field.hpp>
@@ -777,4 +778,37 @@ TEST_CASE("an empty composition cancels the preedit") {
     TF::handle_input(field, prism::Composition{"ni", -1, -1}, node);
     TF::handle_input(field, prism::Composition{"", -1, -1}, node);
     CHECK(state(node).preedit.empty());
+}
+
+TEST_CASE("a selection crossing into a Hebrew word is highlighted where each part is drawn") {
+    // "ab " then Hebrew: the Hebrew is drawn right to left, so its first letter is its rightmost.
+    std::string hebrew = "\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d";
+    prism::Field<prism::TextField<>> field{{.value = "ab " + hebrew}};
+    auto node = make_node({.focused = true});
+    auto& es = TF::ensure_edit_state(node);
+    es.anchor = 1;   // from "b" ...
+    es.cursor = 5;   // ... to after the first Hebrew letter
+    prism::DrawList dl;
+    TF::record(dl, field, node);
+    float cw = prism::char_width(14.f).raw();
+    std::vector<std::pair<float, float>> spans;
+    for (auto& cmd : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->color == test_theme.text_selection)
+            spans.emplace_back(r->rect.origin.x.raw(), r->rect.extent.w.raw());
+    std::sort(spans.begin(), spans.end());
+    REQUIRE(spans.size() == 2);
+    CHECK(spans[0].first == doctest::Approx(4.f + cw));       // "b "
+    CHECK(spans[0].second == doctest::Approx(2.f * cw));
+    CHECK(spans[1].first == doctest::Approx(4.f + 6.f * cw)); // the first letter, drawn last
+    CHECK(spans[1].second == doctest::Approx(cw));
+}
+
+TEST_CASE("a click on the rightmost Hebrew letter puts the caret before it in the text") {
+    std::string hebrew = "\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d";
+    prism::Field<prism::TextField<>> field{{.value = "ab " + hebrew}};
+    auto node = make_node({.focused = true});
+    float cw = prism::char_width(14.f).raw();
+    TF::handle_input(field, prism::MouseButton{P(4.f + 6.8f * cw, 10.f), 1, true}, node);
+    TF::handle_input(field, prism::MouseButton{P(4.f + 6.8f * cw, 10.f), 1, false}, node);
+    CHECK(state(node).cursor == 3);   // the first Hebrew letter starts at byte 3
 }

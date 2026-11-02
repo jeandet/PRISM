@@ -1,4 +1,5 @@
 #include <prism/backends/sdl_font_set.hpp>
+#include <prism/ui/text_bidi.hpp>
 
 #include <SDL3/SDL.h>
 #include <cstdint>
@@ -6,8 +7,10 @@
 
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <algorithm>
 #include <cmath>
 #include <string_view>
+#include <vector>
 
 namespace prism::backends {
 
@@ -49,9 +52,9 @@ TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
     return font;
 }
 
-std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, float px_size, render::FontRole role) {
-    TTF_Font* font = get(role, px_size);
-    if (!font || text.empty()) return std::nullopt;
+namespace {
+// One string in one direction, as SDL_ttf draws it.
+std::optional<render::TextBitmap> rasterize_run(TTF_Font* font, std::string_view text) {
     SDL_Surface* raw = TTF_RenderText_Blended(font, text.data(), text.size(), SDL_Color{255, 255, 255, 255});
     if (!raw) return std::nullopt;
     SDL_Surface* rgba = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
@@ -65,6 +68,54 @@ std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, f
                     static_cast<size_t>(rgba->w) * 4);
     SDL_DestroySurface(rgba);
     return out;
+}
+
+// A run SDL_ttf draws nothing for (only spaces): blank, but as wide as measured, so the runs
+// after it stay where the caret math puts them.
+render::TextBitmap blank_run(TTF_Font* font, std::string_view text) {
+    int w = 0, h = 0;
+    TTF_GetStringSize(font, text.data(), text.size(), &w, &h);
+    return {w, h, std::vector<std::uint8_t>(static_cast<size_t>(w) * h * 4, 0)};
+}
+
+// Pieces side by side, left to right, top-aligned (one font, so one baseline).
+render::TextBitmap concat(const std::vector<render::TextBitmap>& pieces) {
+    render::TextBitmap out{0, 0, {}};
+    for (const auto& p : pieces) {
+        out.width += p.width;
+        out.height = std::max(out.height, p.height);
+    }
+    out.rgba.assign(static_cast<size_t>(out.width) * out.height * 4, 0);
+    int x = 0;
+    for (const auto& p : pieces) {
+        for (int y = 0; y < p.height; ++y)
+            std::memcpy(&out.rgba[(static_cast<size_t>(y) * out.width + x) * 4],
+                        &p.rgba[static_cast<size_t>(y) * p.width * 4], static_cast<size_t>(p.width) * 4);
+        x += p.width;
+    }
+    return out;
+}
+
+// Mixed-direction text: each run shaped in its own direction, the runs in visual order (UAX #9),
+// as ui::caret_x_at() expects them.
+std::optional<render::TextBitmap> rasterize_bidi(TTF_Font* font, std::string_view text,
+                                                 const std::vector<ui::BidiRun>& runs) {
+    std::vector<render::TextBitmap> pieces;
+    for (const auto& r : runs) {
+        TTF_SetFontDirection(font, r.rtl ? TTF_DIRECTION_RTL : TTF_DIRECTION_LTR);
+        auto run = text.substr(r.begin, r.end - r.begin);
+        pieces.push_back(rasterize_run(font, run).value_or(blank_run(font, run)));
+    }
+    TTF_SetFontDirection(font, TTF_DIRECTION_INVALID);   // back to HarfBuzz's guess
+    return concat(pieces);
+}
+} // namespace
+
+std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, float px_size, render::FontRole role) {
+    TTF_Font* font = get(role, px_size);
+    if (!font || text.empty()) return std::nullopt;
+    auto runs = ui::bidi_runs(text);
+    return ui::is_plain_ltr(runs) ? rasterize_run(font, text) : rasterize_bidi(font, text, runs);
 }
 
 } // namespace prism::backends

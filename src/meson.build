@@ -16,9 +16,12 @@ endif
 unibreak_dep = dependency('libunibreak', fallback : ['libunibreak', 'unibreak_dep'],
                           default_options : ['tests=disabled', 'default_library=static'])
 
+# Bidirectional text (ui/text_bidi.hpp): visual runs of a line. Static, like libunibreak.
+sheenbidi_dep = dependency('sheenbidi', fallback : ['sheenbidi', 'sheenbidi_dep'])
+
 prism_core_dep = declare_dependency(
   include_directories : prism_inc,
-  dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep],
+  dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep, sheenbidi_dep],
 )
 
 # Software backend: links SDL3 + SDL3_ttf
