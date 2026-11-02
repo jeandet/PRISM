@@ -156,7 +156,8 @@ public:
         : tree_(tree), target_(target) {}
 
     // The tooltip `observable`'s widget gets wherever it is placed, by widget() or a stack --
-    // for code that does not place the widget itself (automatic layouts, bindings).
+    // for code that does not place the widget itself (automatic layouts, bindings). Read when
+    // the widget is placed: declare it before.
     template <typename Obs>
     void tooltip_for(Obs& observable, std::string text) {
         tree_.field_tooltips_[static_cast<const void*>(&observable)] = std::move(text);

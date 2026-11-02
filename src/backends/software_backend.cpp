@@ -288,8 +288,8 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                     event_cb(WindowEvent{wid, WindowClose{}});
                     running_.store(false, std::memory_order_relaxed);
                     break;
-                case SDL_EVENT_WINDOW_MOUSE_LEAVE:
-                    pointer_left(wid);
+                case SDL_EVENT_WINDOW_MOUSE_LEAVE:   // its own window only, not the drag fallback
+                    pointer_left(sdl_id_to_prism_id(ev.window.windowID));
                     break;
                 case SDL_EVENT_WINDOW_RESIZED: {
                     int rh = ev.window.data2;
@@ -318,6 +318,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                                 static_cast<int>(ev.motion.x), static_cast<int>(ev.motion.y), ww, wh);
                             if (zone != WindowChrome::HitZone::Client) {
                                 win->set_cursor(WindowChrome::cursor_for(zone));
+                                flush_pending_motion();   // the last content move, then the leave
                                 pointer_left(wid);
                                 break;
                             }

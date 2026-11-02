@@ -6,6 +6,8 @@
 #include <SDL3/SDL.h>
 
 #include <atomic>
+#include <mutex>
+#include <vector>
 #include <chrono>
 #include <thread>
 
@@ -227,4 +229,33 @@ TEST_CASE("SoftwareBackend: moving onto a custom title bar leaves the content") 
 
     backend.run([&](const prism::WindowEvent& we) { if (is_mouse_leave(we)) left = true; });
     driver.join();
+}
+
+TEST_CASE("SoftwareBackend: a move queued before going onto the title bar is not delivered after the leave") {
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300,
+                                           .decoration = prism::DecorationMode::Custom});
+    auto& sdl_win = static_cast<prism::backends::SdlWindow&>(window);
+    std::mutex m;
+    std::vector<int> kinds;   // 0 move, 1 leave
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        auto id = SDL_GetWindowID(sdl_win.sdl_window());
+        for (int round = 0; round < 20; ++round) {   // back to back: one pump batch, so the move is coalesced
+            push_motion(id, 150.f, 150.f);
+            push_motion(id, 150.f, 10.f);
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+        backend.quit();
+    });
+
+    backend.run([&](const prism::WindowEvent& we) {
+        std::lock_guard l(m);
+        if (std::holds_alternative<prism::MouseMove>(we.event)) kinds.push_back(0);
+        if (is_mouse_leave(we)) kinds.push_back(1);
+    });
+    driver.join();
+    REQUIRE_FALSE(kinds.empty());
+    CHECK(kinds.back() == 1);   // the pointer ended on the title bar: the last word is a leave
 }

@@ -80,14 +80,17 @@ inline std::string_view tooltip_line(std::string_view text, LineSpan span) {
     return line;
 }
 
-// Wrapped at max_width and at newlines; the box is as wide as the widest line.
+// Wrapped at max_width (or the window, if narrower) and at newlines; the box is as wide as the
+// widest line.
 inline void draw_tooltip(render::DrawList& dl, std::string_view text, core::Point pointer,
                          core::Size window, const Theme& theme) {
     using namespace tooltip_metrics;
-    auto spans = wrap_lines(text, Width{max_width}, theme.measurer, font_size, FontRole::Ui);
+    float wrap_w = std::max(1.f, std::min(max_width, window.w.raw() - 2 * pad_x));
+    auto spans = wrap_lines(text, Width{wrap_w}, theme.measurer, font_size, FontRole::Ui);
     float widest = 0.f;
     for (auto span : spans)
         widest = std::max(widest, text_width(theme.measurer, tooltip_line(text, span), font_size));
+    if (widest <= 0.f) return;   // blank
     float line_h = line_height(theme.measurer, font_size);
     core::Size size{Width{widest}, Height{line_h * static_cast<float>(spans.size())}};
     auto r = tooltip_rect(pointer, size, window);

@@ -123,6 +123,28 @@ TEST_CASE("tooltip: long text wraps at the maximum width, the box fits the lines
     CHECK(box->rect.extent.h.raw() == doctest::Approx(20.f * static_cast<float>(lines.size()) + 2 * tooltip_metrics::pad_y));
 }
 
+TEST_CASE("tooltip: in a window narrower than the maximum width, lines wrap to fit it") {
+    FixedAdvance m;
+    Theme theme;
+    theme.measurer = &m;
+    render::DrawList dl;
+    draw_tooltip(dl, "Reads the file again from disk and drops every edit", at, Size{Width{150}, Height{600}}, theme);
+    auto* box = std::get_if<render::FilledRect>(&dl.commands.front());
+    REQUIRE(box);
+    CHECK(box->rect.extent.w.raw() <= 150.f);
+    for (auto& l : drawn_lines(dl))
+        CHECK(7.f * static_cast<float>(l.size()) <= 150.f - 2 * tooltip_metrics::pad_x);
+}
+
+TEST_CASE("tooltip: blank text draws nothing") {
+    FixedAdvance m;
+    Theme theme;
+    theme.measurer = &m;
+    render::DrawList dl;
+    draw_tooltip(dl, "   ", at, Size{Width{800}, Height{600}}, theme);
+    CHECK(dl.commands.empty());
+}
+
 TEST_CASE("tooltip: a newline starts a new line") {
     FixedAdvance m;
     Theme theme;

@@ -2802,6 +2802,9 @@ NB_MODULE(_prism_ext, m) {
     });
     // Test helper: the tooltips of the widgets the model's view builds, in layout order.
     m.def("_tooltips", [](PyModel& model) {
+        // A second tree over a model an app is driving would race the logic thread.
+        if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))
+            throw std::runtime_error("_tooltips: not while an app is running");
         WidgetTree tree{model};
         auto snap = tree.build_snapshot(400, 300, 1);
         std::vector<std::string> out;
