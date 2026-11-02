@@ -104,18 +104,30 @@ struct NotesApp {
         app::FileDialog dialog{.kind = kind,
                                .title = saving ? "Save the note as" : "Open a note",
                                .filters = {{"Text", "txt;md;cpp;hpp;py;toml;json;yaml"}, {"Any file", "*"}},
-                               .start = current.string()};   // empty: the platform picks
+                               // a folder to open from, the file itself to save over; empty: the platform picks
+                               .start = (saving ? current : current.parent_path()).string()};
         ctx->choose_files(std::move(dialog), [this, saving](app::FileDialogResult r) {
             if (!r.error.empty()) {
                 error = "file dialog: " + r.error;
                 refresh_status();
             } else if (!r.paths.empty() && saving) {
-                current = r.paths.front();
-                write();
+                save_as(r.paths.front());
             } else if (!r.paths.empty()) {
                 open(r.paths.front());
             }
         });
+    }
+
+    // Writes to `path` and makes it the current file -- only if the write succeeded.
+    void save_as(const fs::path& path) {
+        if (auto ok = notes::save_text(path, body.get().value); !ok) {
+            error = "save failed: " + ok.error();
+        } else {
+            current = path;
+            saved = body.get().value;
+            error.clear();
+        }
+        refresh_status();
     }
 
     void confirm_reload() {
@@ -175,4 +187,5 @@ int main(int argc, char* argv[]) {
         app.ctx = &ctx;
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.open(drop.paths.front()); });
     });
+    app.ctx = nullptr;   // the context ended with model_app
 }

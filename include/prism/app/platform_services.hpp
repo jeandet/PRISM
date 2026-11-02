@@ -36,7 +36,8 @@ enum class MessageKind { Info, Warning, Error };
 
 struct PlatformServices {
     virtual ~PlatformServices() = default;
-    // Calls `done` exactly once, on any thread, when the user closes the dialog.
+    // Calls `done` once, on any thread, when the user closes the dialog -- unless the app
+    // shuts down while it is open (AppContext then drops the answer).
     virtual void show_file_dialog(WindowId parent, FileDialog dialog,
                                   std::function<void(FileDialogResult)> done) = 0;
     // For what the app cannot show in its own window (it may block the platform's UI thread

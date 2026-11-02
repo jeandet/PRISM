@@ -78,7 +78,7 @@ public:
     }
     // Shows a file dialog (see PlatformServices); `done` runs on the logic thread with the
     // chosen paths -- empty when cancelled, or with `error` set when the platform has no file
-    // dialogs or the dialog failed. Does not block.
+    // dialogs or the dialog failed. Does not block. Not called if the app quits first.
     void choose_files(FileDialog dialog, std::function<void(FileDialogResult)> done) {
         auto on_logic_thread = [gate = wake_gate_, done = std::move(done)](FileDialogResult r) mutable {
             gate->post([done = std::move(done), r = std::move(r)]() mutable { done(std::move(r)); });
