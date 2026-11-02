@@ -3879,3 +3879,64 @@ def test_popup_holds_widgets_while_open():
     assert prism._tooltips(m) == []          # closed: its widgets do not exist
     m.prefs.open = True
     assert prism._tooltips(m) == ["Your name"]
+
+
+# --- platform services: file dialogs, message boxes, drops ---
+
+def test_choose_files_outside_a_running_app_raises():
+    with pytest.raises(RuntimeError):
+        prism.choose_files(lambda paths, error: None)
+
+
+def test_choose_files_answers_on_the_logic_thread_headless_with_an_error():
+    # A headless backend has no file dialogs: the answer says so, it does not hang or crash.
+    class M(Model):
+        x = prism.field(0)
+
+    m = M()
+    answers = []
+
+    def done(paths, error):
+        answers.append((paths, error, prism.is_logic_thread()))
+
+    with prism.headless(m) as app:
+        prism.choose_files(done, kind="save", title="Save as", filters=[("Text", "txt;md")])
+        app.wait_until(lambda: answers, timeout=5)
+    paths, error, on_logic = answers[0]
+    assert paths == []
+    assert "no file dialogs" in error
+    assert on_logic
+
+
+def test_choose_files_rejects_an_unknown_kind():
+    class M(Model):
+        x = prism.field(0)
+
+    with prism.headless(M()):
+        with pytest.raises(ValueError):
+            prism.choose_files(lambda p, e: None, kind="sideways")
+
+
+def test_show_message_is_accepted_headless():
+    class M(Model):
+        x = prism.field(0)
+
+    with prism.headless(M()):
+        prism.show_message("Saved.", title="Notes", kind="info")   # no platform: ignored
+    with pytest.raises(RuntimeError):
+        prism.show_message("too late")
+
+
+def test_on_file_drop_gets_the_paths_and_the_point():
+    class M(Model):
+        x = prism.field(0)
+
+    drops = []
+    prism.on_file_drop(lambda paths, x, y: drops.append((paths, x, y)))
+    try:
+        with prism.headless(M()) as app:
+            prism._simulate_file_drop(["/tmp/a.txt", "/tmp/b.md"], 12.0, 34.0)
+            app.wait_until(lambda: drops, timeout=5)
+    finally:
+        prism.on_file_drop(None)
+    assert drops == [(["/tmp/a.txt", "/tmp/b.md"], 12.0, 34.0)]

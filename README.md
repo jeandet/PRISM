@@ -548,7 +548,9 @@ with prism.transaction():                       # one publish for both changes
 | `prism.run(model)` | `model_app(title, model)` | |
 
 Also: `prism.headless()` and `prism.run(m, headless_seconds=..., until=...)` for tests and CI,
-`field.add(n)` for atomic increments, a `tooltip="..."` keyword on every field factory
+`field.add(n)` for atomic increments, `prism.choose_files(on_done, kind="open")`,
+`prism.show_message(text)` and `prism.on_file_drop(callback)` for the platform's file dialogs,
+message boxes and drag and drop, a `tooltip="..."` keyword on every field factory
 (`ViewBuilder::tooltip_for` in C++), `plot.replace_series()` / `set_labels()`, and the
 `@prism.on_change(*deps)` method decorator.
 

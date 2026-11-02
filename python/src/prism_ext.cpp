@@ -3,6 +3,7 @@
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/function.h>
 #include <nanobind/stl/optional.h>
+#include <nanobind/stl/pair.h>
 
 #include <prism/core/field.hpp>
 #include <prism/render/image_decoder.hpp>
@@ -27,6 +28,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <map>
 #include <optional>
 #include <thread>
 #include <type_traits>
@@ -55,6 +57,9 @@ static const char* py_type_name() {
 // Holds weak_ptrs to the mutation queue so post after model_app returns is not UAF.
 static std::mutex g_handle_mutex;
 static std::optional<AppContext::PostHandle> g_post_handle;
+// The running app's context, for its platform services (file dialogs, message boxes); set by
+// run()/_run_headless()'s setup, cleared with g_post_handle. Guarded by g_handle_mutex.
+static AppContext* g_ctx = nullptr;
 static std::atomic<bool> g_has_handle{false};
 static std::atomic<bool> g_run_guard{false};
 static std::atomic<bool> g_app_closed{false};
@@ -78,11 +83,18 @@ static std::atomic<bool> g_fail_next_run{false};
 // "prism.run already running" forever. Constructed right after the CAS that claims
 // g_run_guard, so its destructor always runs exactly once per successful claim,
 // success or exception.
+// prism.on_file_drop's callback, called on the logic thread for every drop; may be set before a
+// run or during it.
+static std::mutex g_file_drop_mutex;
+static std::shared_ptr<struct PyHolder> g_file_drop;
+static void call_file_drop(const prism::input::FileDrop& drop);
+
 struct RunGuardReset {
     ~RunGuardReset() {
         {
             std::lock_guard<std::mutex> lk(g_handle_mutex);
             g_post_handle.reset();
+            g_ctx = nullptr;
             g_app_closed.store(true, std::memory_order_release);
         }
         g_has_handle.store(false, std::memory_order_release);
@@ -403,6 +415,38 @@ struct PyHolder {
     PyHolder& operator=(PyHolder&&) = default;
     ~PyHolder() { release_py_object_guarded(obj); }
 };
+
+// Waits through a run's startup (it began, but its setup has not stored the context yet), giving
+// up the GIL meanwhile since startup may need it to build the view. Throws outside a run. Call
+// without g_handle_mutex; then check g_ctx again under it (the run may end in between).
+static void wait_for_context(const char* who) {
+    for (int i = 0; i < 1000; ++i) {
+        {
+            std::lock_guard<std::mutex> lk(g_handle_mutex);
+            if (g_ctx) return;
+        }
+        if (!g_run_guard.load(std::memory_order_acquire)) break;
+        if (PyGILState_Check()) {
+            nb::gil_scoped_release release;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    throw std::runtime_error(std::string(who) + " needs a running app (prism.run or prism.headless)");
+}
+
+static void call_file_drop(const prism::input::FileDrop& drop) {
+    std::shared_ptr<PyHolder> fn;
+    {
+        std::lock_guard<std::mutex> lk(g_file_drop_mutex);
+        fn = g_file_drop;
+    }
+    if (!fn || !Py_IsInitialized()) return;
+    nb::gil_scoped_acquire gil;
+    try { fn->obj(drop.paths, drop.position.x.raw(), drop.position.y.raw()); }
+    catch (...) { report_python_callback_error(); }
+}
 
 // Atomic `field.add(n)` for int/float fields: get()+set() must both happen on the
 // logic thread (the only thread allowed to touch Field<T> directly) so concurrent
@@ -2917,6 +2961,58 @@ NB_MODULE(_prism_ext, m) {
         return out;
     }, nb::arg("model"));
     m.def("_fail_next_run", [](){ g_fail_next_run.store(true, std::memory_order_release); });
+
+    // --- platform services: file dialogs, message boxes, drops ---
+    m.def("choose_files", [](nb::callable done, std::string kind, std::string title,
+                             std::vector<std::pair<std::string, std::string>> filters, std::string start) {
+        static const std::map<std::string, FileDialogKind> kinds{
+            {"open", FileDialogKind::Open}, {"open_many", FileDialogKind::OpenMany},
+            {"save", FileDialogKind::Save}, {"folder", FileDialogKind::Folder}};
+        auto k = kinds.find(kind);
+        if (k == kinds.end())
+            throw nb::value_error("choose_files: kind must be 'open', 'open_many', 'save' or 'folder'");
+        FileDialog dialog{.kind = k->second, .title = std::move(title), .filters = {}, .start = std::move(start)};
+        for (auto& [name, patterns] : filters) dialog.filters.push_back({name, patterns});
+        auto holder = std::make_shared<PyHolder>(std::move(done));
+        wait_for_context("prism.choose_files");
+        std::lock_guard<std::mutex> lk(g_handle_mutex);
+        if (!g_ctx) throw std::runtime_error("prism.choose_files: the app has ended");
+        g_ctx->choose_files(std::move(dialog), [holder](FileDialogResult r) {
+            if (!Py_IsInitialized()) return;
+            nb::gil_scoped_acquire gil;
+            try { holder->obj(r.paths, r.error); }
+            catch (...) { report_python_callback_error(); }
+        });
+    }, nb::arg("on_done"), nb::arg("kind") = "open", nb::arg("title") = "",
+       nb::arg("filters") = std::vector<std::pair<std::string, std::string>>{}, nb::arg("start") = "",
+       "Any thread, while an app runs. Shows the platform's file dialog and returns at once; "
+       "on_done(paths, error) runs on the logic thread: paths empty when cancelled, error set when "
+       "the platform has none. kind: 'open', 'open_many', 'save' or 'folder'; filters: "
+       "[(name, 'txt;md'), ...].");
+    m.def("show_message", [](std::string text, std::string title, std::string kind) {
+        static const std::map<std::string, MessageKind> kinds{
+            {"info", MessageKind::Info}, {"warning", MessageKind::Warning}, {"error", MessageKind::Error}};
+        auto k = kinds.find(kind);
+        if (k == kinds.end()) throw nb::value_error("show_message: kind must be 'info', 'warning' or 'error'");
+        wait_for_context("prism.show_message");
+        std::lock_guard<std::mutex> lk(g_handle_mutex);
+        if (!g_ctx) throw std::runtime_error("prism.show_message: the app has ended");
+        g_ctx->show_message(k->second, std::move(title), std::move(text));
+    }, nb::arg("text"), nb::arg("title") = "", nb::arg("kind") = "info",
+       "Any thread, while an app runs. The platform's message box (ignored where there is none).");
+    m.def("on_file_drop", [](nb::object fn) {
+        auto holder = fn.is_none() ? nullptr : std::make_shared<PyHolder>(std::move(fn));
+        std::lock_guard<std::mutex> lk(g_file_drop_mutex);
+        g_file_drop = std::move(holder);
+    }, nb::arg("callback").none(),
+       "callback(paths, x, y) runs on the logic thread for every file dropped on the window; "
+       "None removes it. Set it before prism.run or while it runs.");
+    m.def("_simulate_file_drop", [](std::vector<std::string> paths, float x, float y) {
+        wait_for_context("_simulate_file_drop");
+        // Posted outside g_handle_mutex: posting takes it too.
+        prism::input::FileDrop drop{Point{X{x}, Y{y}}, std::move(paths)};
+        try_post_any_thread([drop] { call_file_drop(drop); });
+    }, nb::arg("paths"), nb::arg("x") = 0.f, nb::arg("y") = 0.f, "Test-only: a file drop, as the window would deliver it.");
     m.def("_run_headless", [](PyModel& model, int delay_ms){
         {
             bool expected = false;
@@ -2941,8 +3037,10 @@ NB_MODULE(_prism_ext, m) {
                 nb::gil_scoped_acquire g;
                 fn();
             });
+            ctx.on_file_drop(&call_file_drop);
             std::lock_guard<std::mutex> lk(g_handle_mutex);
             g_post_handle = ctx.post_handle();
+            g_ctx = &ctx;
             g_has_handle.store(true, std::memory_order_release);
             g_app_closed.store(false, std::memory_order_release);
         };
@@ -2977,8 +3075,10 @@ NB_MODULE(_prism_ext, m) {
                 nb::gil_scoped_acquire g;
                 fn();
             });
+            ctx.on_file_drop(&call_file_drop);
             std::lock_guard<std::mutex> lk(g_handle_mutex);
             g_post_handle = ctx.post_handle();
+            g_ctx = &ctx;
             g_has_handle.store(true, std::memory_order_release);
             g_app_closed.store(false, std::memory_order_release);
         };
