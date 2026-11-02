@@ -343,6 +343,28 @@ public:
         return ui::tooltip_wake(tooltip_);
     }
 
+    // When the tree next needs a frame with no input: a pending tooltip, or an animating widget
+    // (busy progress). The app arms its timer with it and calls tick() then.
+    [[nodiscard]] std::optional<TooltipState::clock::time_point> next_wake() const {
+        auto wake = tooltip_wake();
+        auto earliest = [&](auto& self, const WidgetNode& n) -> void {
+            if (n.redraw_at && (!wake || *n.redraw_at < *wake)) wake = n.redraw_at;
+            for (auto& c : n.children) self(self, c);
+        };
+        earliest(earliest, root_);
+        return wake;
+    }
+
+    // Runs what is due at `now`: shows a tooltip, redraws animating widgets.
+    void tick(TooltipState::clock::time_point now) {
+        tick_tooltip(now);
+        auto due = [&](auto& self, WidgetNode& n) -> void {
+            if (n.redraw_at && *n.redraw_at <= now) n.dirty = true;
+            for (auto& c : n.children) self(self, c);
+        };
+        due(due, root_);
+    }
+
     void set_pressed(WidgetId id, bool pressed) {
         flip_visual_flag(id, &WidgetVisualState::pressed, pressed);
         captured_id_ = pressed ? id : 0;

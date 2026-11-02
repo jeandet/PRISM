@@ -17,6 +17,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <chrono>
 #include <vector>
 
 namespace prism::ui {
@@ -45,6 +46,8 @@ struct WidgetNode {
     // with a column node to fill); `popup_content_open` is what the widget asks for.
     std::function<void(Node&)> popup_builder;
     bool popup_content_open = false;
+    // An animating widget's next frame (set by its record(); see WidgetTree::next_wake).
+    std::optional<std::chrono::steady_clock::time_point> redraw_at;
     WidgetId focus_before_popup = 0;   // given back when the popup closes
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
     bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)

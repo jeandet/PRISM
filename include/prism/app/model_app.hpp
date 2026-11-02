@@ -362,13 +362,13 @@ void model_app(Backend& backend, Window& window, Model& model,
     std::optional<DeadlineTimer> deadline_timer;
     auto arm_deadlines = [&] {
         registry.for_each([&](WindowId, WindowRegistry::Entry& e) {
-            if (auto due = e.tree->tooltip_wake()) deadline_timer->arm(*due);
+            if (auto due = e.tree->next_wake()) deadline_timer->arm(*due);
         });
     };
     deadline_timer.emplace([&, ctx = ctx_holder.get()] {
         ctx->post_deferred([&] {
             auto now = DeadlineTimer::clock::now();
-            registry.for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->tick_tooltip(now); });
+            registry.for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->tick(now); });
             arm_deadlines();
         });
     });

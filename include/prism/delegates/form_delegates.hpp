@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -130,13 +131,14 @@ struct Widget<Radio<E>> {
 
 // ---- Progress bar ----
 
-// Display only.
-// simplify: no indeterminate (busy) mode -- that needs a frame clock to animate; add it with one.
+// Display only. `busy`: the work's length is unknown -- a segment slides back and forth
+// instead of the value (Qt's indeterminate progress).
 struct ProgressBar {
     double value = 0.0;
     double min = 0.0;
     double max = 1.0;
     std::string label{};   // drawn over the bar when not empty
+    bool busy = false;
     bool operator==(const ProgressBar&) const = default;
 };
 
@@ -149,6 +151,17 @@ constexpr float label_size = 12.f;
 inline float fraction(const ProgressBar& p) {
     if (!(p.max > p.min)) return 0.f;
     return static_cast<float>(std::clamp((p.value - p.min) / (p.max - p.min), 0.0, 1.0));
+}
+
+constexpr double busy_period_s = 1.4;   // there and back
+constexpr auto busy_frame = std::chrono::milliseconds(33);
+
+// Where the busy segment is (x, width) on a track `w` wide, `seconds` into its animation.
+inline std::pair<float, float> busy_segment(float w, double seconds) {
+    float seg = 0.3f * w;
+    double phase = std::fmod(seconds, busy_period_s) / busy_period_s;   // 0..1
+    double there_and_back = phase < 0.5 ? 2 * phase : 2 - 2 * phase;     // 0..1..0
+    return {static_cast<float>(there_and_back) * (w - seg), seg};
 }
 } // namespace progress_detail
 
@@ -176,9 +189,16 @@ struct Widget<ProgressBar> {
         if (!p.label.empty()) dl.text(p.label, Point{X{0}, Y{1}}, label_size, t.text);
         Rect track{Point{X{0}, Y{top + (bar_row_h - track_h) / 2}}, Size{Width{w}, Height{track_h}}};
         dl.rounded_rect(track, t.track, track_h / 2);
-        if (float filled = fraction(p) * w; filled > 0.f)
+        node.redraw_at.reset();
+        if (p.busy) {
+            auto now = std::chrono::steady_clock::now();
+            auto [x, seg] = busy_segment(w, std::chrono::duration<double>(now.time_since_epoch()).count());
+            dl.rounded_rect(Rect{Point{X{x}, track.origin.y}, Size{Width{seg}, Height{track_h}}}, t.primary, track_h / 2);
+            node.redraw_at = now + busy_frame;   // the tree's tick redraws it then
+        } else if (float filled = fraction(p) * w; filled > 0.f) {
             dl.rounded_rect(Rect{track.origin, Size{Width{filled}, Height{track_h}}}, t.primary,
                             std::min(track_h, filled) / 2);
+        }
     }
     static void handle_input(Field<ProgressBar>&, const InputEvent&, WidgetNode&) {}
 };

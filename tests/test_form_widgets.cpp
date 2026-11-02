@@ -281,3 +281,48 @@ TEST_CASE("spin box: no step is reported when the step is zero") {
     Field<SpinBox<int>> f{{.value = 1, .min = 0, .max = 9, .step = 0}};
     CHECK_FALSE(access_info(f).step.has_value());
 }
+
+// ---- busy progress ----
+
+TEST_CASE("busy progress: the segment slides across the track and comes back") {
+    using progress_detail::busy_segment;
+    float w = 200.f;
+    auto a = busy_segment(w, 0.0), b = busy_segment(w, 0.4), c = busy_segment(w, 0.8);
+    CHECK(a.first != b.first);                       // it moves
+    for (auto s : {a, b, c}) {
+        CHECK(s.first >= 0.f);
+        CHECK(s.first + s.second <= w + 0.001f);      // inside the track
+        CHECK(s.second > 0.f);
+    }
+    auto period = busy_segment(w, 0.0);
+    auto again = busy_segment(w, progress_detail::busy_period_s);
+    CHECK(again.first == doctest::Approx(period.first));   // periodic
+}
+
+namespace {
+struct Loading {
+    Field<ProgressBar> bar{{.value = 0.0, .busy = true}};
+};
+struct Static {
+    Field<ProgressBar> bar{{.value = 0.5}};
+};
+}
+
+TEST_CASE("busy progress asks the tree for its next frame; the tree's tick redraws it") {
+    Loading m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(300, 100, 1);
+    auto wake = tree.next_wake();
+    REQUIRE(wake);
+    CHECK(*wake - std::chrono::steady_clock::now() < std::chrono::milliseconds(100));
+    tree.clear_dirty();
+    tree.tick(*wake);
+    CHECK(tree.any_dirty());
+}
+
+TEST_CASE("a progress bar that is not busy needs no timed frames") {
+    Static m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(300, 100, 1);
+    CHECK_FALSE(tree.next_wake());
+}
