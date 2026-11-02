@@ -175,6 +175,11 @@ struct Builder {
 
 } // namespace tess_detail
 
+// Batches point into what was tessellated, so it must outlive them: no temporaries.
+struct Tessellation;
+Tessellation tessellate(const DrawList&&) = delete;
+Tessellation tessellate(const SceneSnapshot&&) = delete;
+
 // One draw list on its own (e.g. a window's title bar).
 inline Tessellation tessellate(const DrawList& dl) {
     tess_detail::Builder b;

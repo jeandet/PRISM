@@ -24,7 +24,8 @@ SceneSnapshot one_list(DrawList dl) {
 TEST_CASE("a filled rect is two triangles in one unclipped batch") {
     DrawList dl;
     dl.filled_rect(R(10, 20, 30, 40), red);
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap1 = one_list(std::move(dl));
+    auto t = tessellate(snap1);
     REQUIRE(t.batches.size() == 1);
     CHECK_FALSE(t.batches[0].clip);
     CHECK(t.batches[0].count == 6);
@@ -43,7 +44,8 @@ TEST_CASE("clips split batches; a push with nothing before it reuses the empty b
     dl.filled_rect(R(0, 0, 10, 10), red);
     dl.clip_pop();
     dl.filled_rect(R(60, 0, 10, 10), red);
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap2 = one_list(std::move(dl));
+    auto t = tessellate(snap2);
     REQUIRE(t.batches.size() == 2);
     REQUIRE(t.batches[0].clip);
     CHECK(t.batches[0].clip->extent.w.raw() == 50.f);
@@ -70,7 +72,8 @@ TEST_CASE("rounded rects and circles come from the shared meshes, with an alpha 
     DrawList dl;
     dl.rounded_rect(R(0, 0, 40, 20), red, 6.f);
     dl.circle(P(50, 50), 10.f, red);
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap3 = one_list(std::move(dl));
+    auto t = tessellate(snap3);
     CHECK(t.vertices.size() > 12);
     CHECK(t.vertices.size() % 3 == 0);
     bool fringe = false;
@@ -83,14 +86,16 @@ TEST_CASE("lines, polylines and strips become triangles") {
     dl.line(P(0, 0), P(10, 0), red, 2.f);
     dl.polyline({P(0, 0), P(10, 0), P(10, 10)}, red, 1.f);
     dl.filled_polygon({P(0, 0), P(10, 0), P(0, 10), P(10, 10)}, red);
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap4 = one_list(std::move(dl));
+    auto t = tessellate(snap4);
     CHECK(t.vertices.size() == 6 + 2 * 6 + 2 * 3);
 }
 
 TEST_CASE("a line is as thick as asked, centred on its path") {
     DrawList dl;
     dl.line(P(0, 10), P(20, 10), red, 4.f);
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap5 = one_list(std::move(dl));
+    auto t = tessellate(snap5);
     float lo = 1e9, hi = -1e9;
     for (auto& v : t.vertices) { lo = std::min(lo, v.y); hi = std::max(hi, v.y); }
     CHECK(lo == doctest::Approx(8.f));
@@ -104,7 +109,8 @@ TEST_CASE("text and images get batches of their own, in drawing order") {
     dl.image(*Image::from_rgba(1, 1, {255, 255, 255, 255}), R(0, 0, 4, 4));
     dl.filled_rect(R(20, 0, 10, 10), red);
     dl.text("", P(0, 0), 14.f, red);   // nothing to draw
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap6 = one_list(std::move(dl));
+    auto t = tessellate(snap6);
     REQUIRE(t.batches.size() == 4);
     CHECK(std::holds_alternative<std::monostate>(t.batches[0].source));
     REQUIRE(std::holds_alternative<const TextCmd*>(t.batches[1].source));
@@ -120,7 +126,8 @@ TEST_CASE("a text batch carries the clip it was drawn under") {
     dl.clip_push(P(0, 0), Size{Width{30}, Height{30}});
     dl.text("clipped", P(0, 0), 14.f, red);
     dl.clip_pop();
-    auto t = tessellate(one_list(std::move(dl)));
+    auto snap7 = one_list(std::move(dl));
+    auto t = tessellate(snap7);
     REQUIRE(t.batches.size() == 1);
     REQUIRE(t.batches[0].clip);
     CHECK(t.batches[0].clip->extent.w.raw() == 30.f);
