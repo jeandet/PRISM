@@ -76,6 +76,7 @@ headless_tests = {
   'intrinsic_size' : files('test_intrinsic_size.cpp'),
   'image' : files('test_image.cpp'),
   'popup' : files('test_popup.cpp'),
+  'combo_box' : files('test_combo_box.cpp'),
   'menu' : files('test_menu.cpp'),
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),

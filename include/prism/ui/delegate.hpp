@@ -120,6 +120,10 @@ struct TextEditState {
     std::string preedit;          // input-method composition shown at the caret, not in the value
     std::size_t preedit_caret = 0;   // byte offset of the IME caret inside preedit
     DX scroll_offset{0};
+    // Suggestions under a ComboBox: the highlighted one, and whether Escape or a pick closed the
+    // list (an edit reopens it).
+    std::size_t completion_index = 0;
+    bool completion_closed = false;
 };
 
 // Ephemeral cursor state for multiline text editing
@@ -738,6 +742,28 @@ struct Widget<TextField<T>> {
     static TextEditState& ensure_edit_state(WidgetNode& node);
     static void record(DrawList& dl, const Field<TextField<T>>& field, WidgetNode& node);
     static void handle_input(Field<TextField<T>>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+// A text field with suggestions: typing filters `options` (case-insensitive), Down/Up move
+// through them, Enter or a click takes one, Escape closes the list. The value is free text: it
+// need not be one of the options (an editable combo box, as QComboBox::setEditable).
+struct ComboBox {
+    std::string value{};
+    std::string placeholder{};
+    size_t max_length = 0;
+    std::vector<std::string> options{};
+    bool operator==(const ComboBox&) const = default;
+};
+
+template <>
+struct Widget<ComboBox> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr bool expand = true;
+    static constexpr ExpandAxis expand_axis = ExpandAxis::Horizontal;
+    static constexpr Role access_role = Role::ComboBox;
+    static void describe(const Field<ComboBox>& f, AccessInfo& a) { a.value = f.get().value; }
+    static void record(DrawList& dl, const Field<ComboBox>& field, WidgetNode& node);
+    static void handle_input(Field<ComboBox>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <StringLike T>

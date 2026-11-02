@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220">
-<rect width="360" height="220" fill="rgba(30,30,30,1)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 260">
+<rect width="360" height="260" fill="rgba(30,30,30,1)"/>
 <clipPath id="clip-0"><rect x="0" y="0" width="90.4" height="86"/></clipPath>
 <g clip-path="url(#clip-0)">
 <rect x="0" y="0" width="90.4" height="86" fill="rgba(45,45,55,1)"/>
@@ -36,11 +36,19 @@
 <polygon points="120.6,97 128.6,97 124.6,92" fill="rgba(220,220,220,1)"/>
 <polygon points="120.6,105 128.6,105 124.6,110" fill="rgba(220,220,220,1)"/>
 </g>
-<clipPath id="clip-4"><rect x="0" y="116" width="360" height="34"/></clipPath>
+<clipPath id="clip-4"><rect x="0" y="116" width="360" height="30"/></clipPath>
 <g clip-path="url(#clip-4)">
-<rect x="0" y="116" width="360" height="34" fill="rgba(0,0,0,0)"/>
-<text xml:space="preserve" x="0" y="117" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">62% exported</text>
-<rect x="0" y="138" width="360" height="8" rx="4" fill="rgba(60,60,70,1)"/>
-<rect x="0" y="138" width="223.2" height="8" rx="4" fill="rgba(40,105,180,1)"/>
+<rect x="0" y="116" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-5"><rect x="4" y="116" width="352" height="30"/></clipPath>
+<g clip-path="url(#clip-5)">
+<text xml:space="preserve" x="4" y="122" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">PNG</text>
+</g>
+</g>
+<clipPath id="clip-6"><rect x="0" y="146" width="360" height="34"/></clipPath>
+<g clip-path="url(#clip-6)">
+<rect x="0" y="146" width="360" height="34" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="0" y="147" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">62% exported</text>
+<rect x="0" y="168" width="360" height="8" rx="4" fill="rgba(60,60,70,1)"/>
+<rect x="0" y="168" width="223.2" height="8" rx="4" fill="rgba(40,105,180,1)"/>
 </g>
 </svg>

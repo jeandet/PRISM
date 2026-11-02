@@ -562,6 +562,107 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
 
 } // namespace text_detail
 
+// --- Widget<ComboBox>: a TextField (the same editing code reads value/placeholder/max_length)
+// with a list of suggestions in its overlay, below the field. ---
+
+namespace combo_detail {
+constexpr float row_h = 24.f;
+constexpr std::size_t max_rows = 8;
+
+inline std::string lower(std::string_view s) {
+    std::string out(s);
+    for (auto& c : out) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    return out;
+}
+
+// The options containing what was typed (all of them when nothing is), at most max_rows.
+// simplify: ASCII case folding; Unicode folding needs the text segmentation dependency (P2).
+inline std::vector<std::size_t> matches(const ComboBox& c) {
+    std::vector<std::size_t> out;
+    auto typed = lower(c.value);
+    for (std::size_t i = 0; i < c.options.size() && out.size() < max_rows; ++i)
+        if (lower(c.options[i]).find(typed) != std::string::npos) out.push_back(i);
+    return out;
+}
+
+inline bool list_open(const ComboBox& c, const WidgetNode& node, const TextEditState& es) {
+    return node_vs(node).focused && !es.completion_closed && !matches(c).empty();
+}
+
+// The row under a point in the widget's coordinates (the list starts below the field).
+inline std::optional<std::size_t> row_at(Point p, std::size_t rows, const WidgetNode& node) {
+    float top = Widget<TextField<>>::widget_h.raw();
+    if (p.y.raw() < top || p.x.raw() < 0 || p.x.raw() > delegate_detail::widget_w(node).raw()) return std::nullopt;
+    auto i = static_cast<std::size_t>((p.y.raw() - top) / row_h);
+    return i < rows ? std::optional{i} : std::nullopt;
+}
+
+inline void take(Field<ComboBox>& field, TextEditState& es, std::size_t option) {
+    auto c = field.get();
+    c.value = c.options[option];
+    es.cursor = c.value.size();
+    es.anchor.reset();
+    es.completion_closed = true;
+    field.set(c);
+}
+} // namespace combo_detail
+
+inline void Widget<ComboBox>::record(DrawList& dl, const Field<ComboBox>& field, WidgetNode& node) {
+    using namespace combo_detail;
+    node.visual_state.cursor = CursorShape::Text;
+    text_detail::text_field_record(dl, field, node, text_detail::plain_display);
+    auto& es = node.get_or_create<TextEditState>();
+    if (!list_open(field.get(), node, es)) return;
+    auto rows = matches(field.get());
+    es.completion_index = std::min(es.completion_index, rows.size() - 1);
+    const auto& t = node_theme(node);
+    float w = delegate_detail::widget_w(node).raw();
+    float top = Widget<TextField<>>::widget_h.raw();
+    Rect list{Point{X{0}, Y{top}}, Size{Width{w}, Height{row_h * static_cast<float>(rows.size())}}};
+    node.overlay_draws.filled_rect(list, t.popup_bg);
+    node.overlay_draws.rect_outline(list, t.popup_border, 1.f);
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        Y y{top + row_h * static_cast<float>(i)};
+        bool hl = i == es.completion_index;
+        if (hl) node.overlay_draws.filled_rect(Rect{Point{X{0}, y}, Size{Width{w}, Height{row_h}}}, t.popup_highlight);
+        node.overlay_draws.text(field.get().options[rows[i]], Point{X{8.f}, y + DY{4.f}}, 14.f,
+                                hl ? t.text_on_primary : t.text);
+    }
+}
+
+inline void Widget<ComboBox>::handle_input(Field<ComboBox>& field, const InputEvent& ev, WidgetNode& node) {
+    using namespace combo_detail;
+    auto& es = node.get_or_create<TextEditState>();
+    if (list_open(field.get(), node, es)) {
+        auto rows = matches(field.get());
+        if (auto* kp = std::get_if<KeyPress>(&ev)) {
+            if (kp->key == keys::down || kp->key == keys::up) {
+                bool down = kp->key == keys::down;
+                es.completion_index = down ? std::min(es.completion_index + 1, rows.size() - 1)
+                                           : (es.completion_index > 0 ? es.completion_index - 1 : 0);
+                node.dirty = true;
+                return;
+            }
+            if (kp->key == keys::enter) return take(field, es, rows[std::min(es.completion_index, rows.size() - 1)]);
+            if (kp->key == keys::escape) {
+                es.completion_closed = true;
+                node.dirty = true;
+                return;
+            }
+        }
+        if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left)
+            if (auto i = row_at(mb->position, rows.size(), node)) return take(field, es, rows[*i]);
+    }
+    std::string before = field.get().value;
+    text_detail::text_field_handle_input(field, ev, node, text_detail::plain_display, true);
+    if (field.get().value != before) {   // typing reopens the list at its top
+        auto& after = node.get_or_create<TextEditState>();
+        after.completion_closed = false;
+        after.completion_index = 0;
+        node.dirty = true;
+    }
+}
+
 // --- Widget<TextField<T>> method bodies ---
 
 template <StringLike T>

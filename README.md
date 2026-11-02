@@ -155,7 +155,7 @@ struct Editor {
 };
 ```
 
-<p align="center"><img src="doc/screenshots/form.svg" alt="Radio buttons, spin boxes and a progress bar" width="360"/></p>
+<p align="center"><img src="doc/screenshots/form.svg" alt="Radio buttons, spin boxes, a combo box and a progress bar" width="360"/></p>
 
 Widgets match on **concepts**, not concrete types. Your own string type works in `Label<>` if it
 is `StringLike`. Any scoped enum gets a dropdown, through P2996 `enumerators_of` or magic_enum.
@@ -632,7 +632,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `core::then`/`core::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus, modal dialogs and tooltips, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes and progress bars; pixel tests through SDL. Done plan: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md); next: [`doc/review-2026-11-02.md`](doc/review-2026-11-02.md).
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus, modal dialogs and tooltips, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes, editable combo boxes and progress bars (busy too); pixel tests through SDL. Done plan: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md); next: [`doc/review-2026-11-02.md`](doc/review-2026-11-02.md).
 - **Phase 5**: WebGPU renderer (started: shapes, text, images and windows on desktop; browser next), GPU text (Slug), tile compositing.
 
 </details>
