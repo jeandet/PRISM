@@ -16,8 +16,8 @@ namespace fs = std::filesystem;
 struct NotesApp {
     FileTreeSource source;
     ui::TreeController files{ui::wrap_tree_storage(source)};
-    core::Field<ui::Menu> file_menu{{.title = "File", .items = {"Save", "Reload"}}};
-    core::Field<ui::Menu> search_menu{{.title = "Search", .items = {"Clear search"}}};
+    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Save", "&Reload"}}};
+    core::Field<ui::Menu> search_menu{{.title = "&Search", .items = {"&Clear search"}}};
     core::Field<ui::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
     core::Field<ui::Dialog> discard{{.title = "Unsaved changes",
                                          .message = "Reloading discards your edits.",
@@ -42,7 +42,7 @@ struct NotesApp {
         wiring.push_back(body.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(search.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
-        auto on_choice = [this](const auto& m) { if (m.chosen) run(m.items[*m.chosen]); };
+        auto on_choice = [this](const auto& m) { if (m.chosen) run(ui::menu_text(m.items[*m.chosen])); };
         wiring.push_back(file_menu.on_change().connect(on_choice));
         wiring.push_back(search_menu.on_change().connect(on_choice));
         wiring.push_back(editor_menu.on_change().connect(on_choice));

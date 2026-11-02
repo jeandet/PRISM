@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/ui/mnemonic.hpp>
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/context.hpp>
 #include <prism/ui/text_metrics.hpp>
@@ -785,7 +786,8 @@ struct Widget<Menu> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
     static constexpr Role access_role = Role::Button;   // AccessKit's Menu roles come with the bridge
     static constexpr bool opens_menu = true;   // neighbouring menus form a menu bar
-    static void describe(const Field<Menu>& f, AccessInfo& a) { a.name = f.get().title; }
+    static void describe(const Field<Menu>& f, AccessInfo& a) { a.name = menu_detail::parse_mnemonic(f.get().title).text; }
+    static std::int32_t mnemonic_key(const Field<Menu>& f) { return menu_detail::mnemonic_key(f.get().title); }
     static float intrinsic_width(const Field<Menu>& f, const WidgetNode& n);
     static void record(DrawList& dl, const Field<Menu>& field, WidgetNode& node);
     static void handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node);

@@ -249,6 +249,18 @@ public:
         }
     }
 
+    // The menu whose title's mnemonic is `key` (Alt+key opens it), if any.
+    [[nodiscard]] std::optional<WidgetId> menu_for_key(std::int32_t key) const {
+        for (auto& [id, n] : index_)
+            if (n->opens_menu && n->mnemonic_key && key != 0 && n->mnemonic_key() == key) return id;
+        return std::nullopt;
+    }
+
+    // Text input that follows a key press a popup used (SDL sends both for a letter): dropped,
+    // or a letter that chose a menu item would also be typed into the focused field.
+    void swallow_next_text_input(bool on) { swallow_text_ = on; }
+    [[nodiscard]] bool swallows_text_input() const { return swallow_text_; }
+
     // Closes the open menu and opens `to` (menus open on Down), focused.
     void switch_menu(WidgetId to) {
         close_popup();
@@ -607,7 +619,8 @@ private:
     std::vector<WidgetId> focus_order_;
     std::unordered_map<WidgetId, WidgetNode*> index_;
     TooltipState tooltip_;
-    bool tooltip_dirty_ = false;   // shown or hidden since the last publish
+    bool tooltip_dirty_ = false;
+    bool swallow_text_ = false;   // shown or hidden since the last publish
 
     void set_tooltip(TooltipState s) {
         if (s.shown != tooltip_.shown) tooltip_dirty_ = true;

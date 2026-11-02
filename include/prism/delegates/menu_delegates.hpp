@@ -17,7 +17,8 @@ using Items = std::vector<std::string>;
 
 inline Size popup_size(const Items& items, const WidgetNode& n, float min_w) {
     float w = 0.f;
-    for (const auto& item : items) w = std::max(w, text_width(node_theme(n).measurer, item, font_size));
+    for (const auto& item : items)
+        w = std::max(w, text_width(node_theme(n).measurer, parse_mnemonic(item).text, font_size));
     return Size{Width{std::max(w + 2.f * pad, min_w)}, Height{item_h.raw() * static_cast<float>(items.size())}};
 }
 
@@ -30,6 +31,12 @@ inline std::optional<std::size_t> item_at(const Items& items, const WidgetNode& 
 }
 
 // Below `anchor`, left-aligned; routing flips it near the window edges (place_popup).
+inline std::optional<std::size_t> item_for_key(const Items& items, std::int32_t key) {
+    for (std::size_t i = 0; i < items.size(); ++i)
+        if (key != 0 && mnemonic_key(items[i]) == key) return i;
+    return std::nullopt;
+}
+
 inline void open_at(const Items& items, WidgetNode& node, Rect anchor, float min_w) {
     Point below{anchor.origin.x, anchor.origin.y + DY{anchor.extent.h.raw()}};
     node.popup_area = Rect{below, popup_size(items, node, min_w)};
@@ -54,6 +61,18 @@ void choose(Field<M>& field, WidgetNode& node, std::size_t i) {
     field.set(m);
 }
 
+// A label without its "&" marker, with the marked letter underlined.
+inline void draw_label(DrawList& dl, std::string_view label, Point at, Color color, const TextMeasurer* m) {
+    auto mn = parse_mnemonic(label);
+    dl.text(mn.text, at, font_size, color);
+    if (mn.underline == std::string::npos) return;
+    std::string_view text = mn.text;
+    float x0 = text_width(m, text.substr(0, mn.underline), font_size);
+    float x1 = text_width(m, text.substr(0, core::utf8::next(text, mn.underline)), font_size);
+    Y under = at.y + DY{font_size + 2.f};
+    dl.line(Point{at.x + DX{x0}, under}, Point{at.x + DX{x1}, under}, color, 1.f);
+}
+
 inline void draw_popup(const Items& items, WidgetNode& node) {
     const Rect& area = *node.popup_area;
     const auto& t = *node.theme;
@@ -64,8 +83,8 @@ inline void draw_popup(const Items& items, WidgetNode& node) {
         Y y{area.origin.y.raw() + static_cast<float>(i) * item_h.raw()};
         if (i == hl)
             node.overlay_draws.filled_rect(Rect{Point{area.origin.x, y}, Size{area.extent.w, item_h}}, t.popup_highlight);
-        node.overlay_draws.text(items[i], Point{area.origin.x + DX{pad}, y + DY{6.f}}, font_size,
-                                i == hl ? t.text_on_primary : t.text);
+        draw_label(node.overlay_draws, items[i], Point{area.origin.x + DX{pad}, y + DY{6.f}},
+                   i == hl ? t.text_on_primary : t.text, t.measurer);
     }
 }
 
@@ -90,6 +109,8 @@ bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
         else if (kp->key == keys::up && es.highlighted > 0) --es.highlighted;
         else if ((kp->key == keys::enter || kp->key == keys::space) && es.highlighted < items.size())
             choose(field, node, es.highlighted);
+        else if (auto i = item_for_key(items, kp->key); i && !mods::shortcut(kp->mods))
+            choose(field, node, *i);
         else return false;
         node.dirty = true;
     } else {
@@ -101,7 +122,8 @@ bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
 } // namespace menu_detail
 
 inline float Widget<Menu>::intrinsic_width(const Field<Menu>& f, const WidgetNode& n) {
-    return 2.f * menu_detail::pad + text_width(node_theme(n).measurer, f.get().title, menu_detail::font_size);
+    return 2.f * menu_detail::pad
+         + text_width(node_theme(n).measurer, menu_detail::parse_mnemonic(f.get().title).text, menu_detail::font_size);
 }
 
 inline void Widget<Menu>::record(DrawList& dl, const Field<Menu>& field, WidgetNode& node) {
@@ -113,7 +135,7 @@ inline void Widget<Menu>::record(DrawList& dl, const Field<Menu>& field, WidgetN
     bool is_open = node.popup_area.has_value();
     dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, title_h),
                    is_open ? t.surface_active : vs.hovered ? t.surface_hover : t.surface);
-    dl.text(m.title, delegate_detail::make_point(X{pad}, Y{7}), font_size, t.text);
+    draw_label(dl, m.title, delegate_detail::make_point(X{pad}, Y{7}), t.text, t.measurer);
     if (vs.focused) delegate_detail::draw_focus_ring(dl, w, title_h, t);
     node.overlay_draws.clear();
     if (is_open) draw_popup(m.items, node);

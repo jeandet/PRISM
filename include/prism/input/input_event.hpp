@@ -47,8 +47,11 @@ namespace keys {
     inline constexpr int32_t page_down = 0x4000'004E;  // matches SDLK_PAGEDOWN
     inline constexpr int32_t a         = 0x61;         // matches SDLK_A
     inline constexpr int32_t c         = 0x63;         // matches SDLK_C
+    inline constexpr int32_t e         = 0x65;         // matches SDLK_E
+    inline constexpr int32_t f         = 0x66;         // matches SDLK_F
     inline constexpr int32_t i         = 0x69;         // matches SDLK_I
     inline constexpr int32_t m         = 0x6D;         // matches SDLK_M
+    inline constexpr int32_t s         = 0x73;         // matches SDLK_S
     inline constexpr int32_t v         = 0x76;         // matches SDLK_V
     inline constexpr int32_t x         = 0x78;         // matches SDLK_X
     inline constexpr int32_t y         = 0x79;         // matches SDLK_Y

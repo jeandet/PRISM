@@ -343,6 +343,9 @@ Menus open on an in-window popup layer that takes input first: a click outside c
 without reaching the widget underneath. Menus side by side form a menu bar: with one open, the
 arrow keys or the mouse move to the next. Popups always stay inside the window: near an edge a
 menu opens above its title, and a right-click menu opens up or left of the pointer.
+A `&` in a label marks its keyboard shortcut: `"&File"` shows *File* with the F underlined,
+Alt+F opens it, and an item's letter chooses it in an open menu (`ui::menu_text()` gives the
+label without the `&`).
 
 A right-click menu belongs to the container it is declared in, and a modal dialog is a field
 the app opens:

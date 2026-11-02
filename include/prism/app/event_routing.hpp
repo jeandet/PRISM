@@ -175,9 +175,22 @@ inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
     }
 }
 
+// Alt+letter opens the menu marked with that letter (or switches to it from another open
+// menu); not while a modal popup has the keyboard.
+inline bool open_menu_by_mnemonic(WidgetTree& tree, const KeyPress& kp) {
+    if (!(kp.mods & mods::alt) || (kp.mods & (mods::ctrl | mods::gui))) return false;
+    if (auto* owner = tree.popup_node(); owner && owner->popup_modal) return false;
+    auto menu = tree.menu_for_key(kp.key);
+    if (!menu) return false;
+    tree.switch_menu(*menu);
+    return true;
+}
+
 inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
                             const KeyPress& kp) {
     constexpr float page_delta = 200.f;
+    tree.swallow_next_text_input(false);   // only the text event right after a popup's key
+    if (open_menu_by_mnemonic(tree, kp)) return;
     if (tree.popup_owner() != 0) {   // keys belong to the popup; escape closes a plain one
         auto bar_step = kp.key == keys::right ? 1 : kp.key == keys::left ? -1 : 0;
         auto neighbour = bar_step ? tree.menu_neighbour(tree.popup_owner(), bar_step) : std::nullopt;
@@ -189,6 +202,7 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
         if (kp.key == keys::escape && (!owner || !owner->popup_modal)) tree.close_popup();
         else if (neighbour) tree.switch_menu(*neighbour);
         else if (!bar_step || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
+        tree.swallow_next_text_input(true);
         return;
     }
     if (kp.key == keys::tab) {
@@ -204,6 +218,10 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
 }
 
 inline void route_text_input(WidgetTree& tree, const InputEvent& ev) {
+    if (tree.swallows_text_input() && std::holds_alternative<TextInput>(ev)) {
+        tree.swallow_next_text_input(false);
+        return;
+    }
     WidgetId target = tree.popup_owner() != 0 ? tree.popup_owner() : tree.focused_id();
     if (target != 0) tree.dispatch(target, ev);
 }
