@@ -353,9 +353,12 @@ jobs:
       - name: Compiler
         run: g++ --version
       - name: Setup builddir
+        # FreeType and HarfBuzz are built from source here (no system copies): like SDL, their
+        # own warnings must not fail the build (on the command line: mesonbuild/meson#14528).
         run: >
           meson setup builddir -Dmagic_enum:test=false
           -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0
+          -Dfreetype2:werror=false -Dfreetype2:warning_level=0 -Dharfbuzz:werror=false -Dharfbuzz:warning_level=0
       - name: Build
         run: ninja -C builddir
       - name: Run tests (C++ only)

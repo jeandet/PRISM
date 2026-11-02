@@ -152,6 +152,7 @@ WindowId SoftwareBackend::sdl_id_to_prism_id(uint32_t sdl_window_id) const {
 
 namespace {
 
+#ifndef __EMSCRIPTEN__
 // One SDL file dialog in flight: owns the filter strings until SDL calls back (SDL requires
 // them to outlive the call), and the app's callback.
 struct DialogCall {
@@ -170,8 +171,15 @@ void SDLCALL dialog_done(void* userdata, const char* const* filelist, int) {
         for (auto p = filelist; *p; ++p) result.paths.emplace_back(*p);
     call->done(std::move(result));
 }
+#endif
 
 void show_file_dialog(SDL_Window* parent, QueuedPlatformServices::FileRequest& req) {
+#ifdef __EMSCRIPTEN__
+    // Emscripten's SDL port has no file dialogs; a web build would use the browser's file
+    // input instead (not done yet).
+    (void)parent;
+    req.done({{}, "no file dialogs in the web build yet"});
+#else
     auto call = std::make_unique<DialogCall>();
     for (auto& f : req.dialog.filters) {
         call->names.push_back(f.name);
@@ -190,6 +198,7 @@ void show_file_dialog(SDL_Window* parent, QueuedPlatformServices::FileRequest& r
     case app::FileDialogKind::Save:     SDL_ShowSaveFileDialog(dialog_done, raw, parent, filters, n, start); break;
     case app::FileDialogKind::Folder:   SDL_ShowOpenFolderDialog(dialog_done, raw, parent, start, false); break;
     }
+#endif
 }
 
 void show_message(SDL_Window* parent, const QueuedPlatformServices::MessageRequest& req) {
