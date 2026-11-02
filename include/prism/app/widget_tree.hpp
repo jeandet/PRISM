@@ -1305,14 +1305,15 @@ private:
         if (node.table_input_wired) return;
         node.table_input_wired = true;
         auto node_id = node.id;
+        // A re-sort moves the rows, whether a header click or the app set it.
+        node.connections.push_back(
+            ts->sort.on_change().connect([ts, this](const auto&) { ts->shifted_at = next_frame_version(); }));
         node.connections.push_back(
             node.on_input.connect([ts, node_id, this](const InputEvent& ev) {
                 auto it = index_.find(node_id);
                 if (it == index_.end()) return;
                 if (stale_body_press(*ts, ev)) return;
-                auto sort_before = ts->sort.get();
                 auto result = handle_table_input(*ts, ev);
-                if (ts->sort.get() != sort_before) ts->shifted_at = next_frame_version();
                 if (result.cursor) it->second->visual_state.cursor = *result.cursor;
                 if (result.repaint) it->second->dirty = true;
             })

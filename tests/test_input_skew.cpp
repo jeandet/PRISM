@@ -257,3 +257,15 @@ TEST_CASE("a live table whose cells change every frame stays clickable when unso
     route_event(tree, f1.get(), MouseButton{Point{X{20}, Y{row_y}}, buttons::left, true});
     CHECK(ts.selected_rows.get().size() == 1);
 }
+
+TEST_CASE("a table sorted by the app, not a header click, also drops clicks from before") {
+    TableDoc doc;
+    WidgetTree tree{doc};
+    auto f1 = tree.build_snapshot(400, 300, 1);
+    auto& ts = table_state(tree);
+    float row_y = ts.row_height.raw() * 2.5f;
+    ts.sort.set(SortSpec{0, false});   // the app sorts
+    using prism::app::widget_detail::route_event;
+    route_event(tree, f1.get(), MouseButton{Point{X{20}, Y{row_y}}, buttons::left, true});
+    CHECK(ts.selected_rows.get().empty());
+}
