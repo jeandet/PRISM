@@ -315,10 +315,21 @@ inline std::string_view line_text(std::string_view text, LineSpan line) {
 }
 
 // `col` is a character column within the wrapped line; cursors are byte offsets.
-inline LineCol cursor_to_line_col(std::string_view text, size_t cursor, std::span<const LineSpan> lines) {
+// Whether line i ends where the next begins: a wrap inside a paragraph, not a newline.
+inline bool soft_wrap_after(std::span<const LineSpan> lines, size_t i) {
+    return i + 1 < lines.size() && lines[i + 1].start == lines[i].start + lines[i].length;
+}
+
+// `upstream`: at a soft wrap, the caret is at the end of the line above (see
+// TextAreaEditState::upstream), not at the start of the next.
+inline LineCol cursor_to_line_col(std::string_view text, size_t cursor, std::span<const LineSpan> lines,
+                                  bool upstream = false) {
     auto at = [&](size_t i) {
         return LineCol{i, core::utf8::count_upto(line_text(text, lines[i]), cursor - lines[i].start)};
     };
+    if (upstream)
+        for (size_t i = 0; i < lines.size(); ++i)
+            if (soft_wrap_after(lines, i) && lines[i + 1].start == cursor) return at(i);
     for (size_t i = 0; i < lines.size(); ++i) {
         size_t line_end = lines[i].start + lines[i].length;
         bool is_last = (i + 1 == lines.size());
@@ -440,7 +451,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
 
     if (vs.focused) {
         size_t shown_caret = caret + (es.preedit.empty() ? 0 : es.preedit_caret);
-        auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped);
+        auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped, es.upstream && es.preedit.empty());
         auto text = line_text(value, wrapped[line]);
         // Hanging spaces can run past the edge (see word_break): the caret stops at the edge.
         float caret_x = prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
@@ -462,8 +473,14 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     Width text_area_w = w - ta_padding_x * 2.f;
     Height text_area_h{static_cast<float>(field.get().rows) * ta_line_h(m).raw()};
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
-    auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped);
+    auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped, es.upstream);
     std::optional<TextEdit> after;
+    bool upstream_after = false;   // only End and a landing past a line's end keep the line above
+    // The caret at `col` on line `to`; past the end of a soft-wrapped line it stays on that line.
+    auto at_line_col = [&](size_t to, size_t to_col) {
+        upstream_after = soft_wrap_after(wrapped, to) && to_col >= core::utf8::count(line_text(value, wrapped[to]));
+        return line_col_to_cursor(value, to, to_col, wrapped);
+    };
     auto* key = std::get_if<KeyPress>(&ev);
     bool vertical = key && (key->key == keys::up || key->key == keys::down);
     bool hover = std::holds_alternative<MouseMove>(ev) && !es.dragging;
@@ -477,7 +494,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         }
         auto text = line_text(value, wrapped[to]);
         size_t to_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, *es.goal_x, ta_font_role));
-        return line_col_to_cursor(value, to, to_col, wrapped);
+        return at_line_col(to, to_col);
     };
 
     if (auto* co = std::get_if<Composition>(&ev)) {
@@ -500,17 +517,10 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         else switch (kp->key) {
         case keys::enter: after = text_edit::insert(before, "\n", field.get().max_length); break;
         case keys::home: after = text_edit::move_to(before, line_col_to_cursor(value, line, 0, wrapped), shift); break;
-        case keys::end: {
-            // At a soft wrap the line's end is also the next line's start, where the caret is
-            // drawn: stop one character earlier (before the hanging space) to stay on this line.
-            // simplify: a word broken mid-word loses its last character to this; caret
-            // affinity (a caret that knows which line it belongs to) would fix both cases.
-            size_t end = wrapped[line].start + wrapped[line].length;
-            bool soft_wrap = line + 1 < wrapped.size() && wrapped[line + 1].start == end;
-            if (soft_wrap && end > wrapped[line].start) end = core::utf8::prev(value, end);
-            after = text_edit::move_to(before, end, shift);
+        case keys::end:
+            after = text_edit::move_to(before, wrapped[line].start + wrapped[line].length, shift);
+            upstream_after = soft_wrap_after(wrapped, line);
             break;
-        }
         case keys::up:
             if (line > 0) after = text_edit::move_to(before, vertical_target(line - 1), shift);
             break;
@@ -527,7 +537,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
             auto text = line_text(value, wrapped[click_line]);
             size_t click_col = core::utf8::count_upto(
                 text, index_at(m, text, ta_font_size, p.x.raw() - ta_padding_x.raw(), ta_font_role));
-            return line_col_to_cursor(value, click_line, click_col, wrapped);
+            return at_line_col(click_line, click_col);
         });
     }
     if (after) {
@@ -536,11 +546,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         apply_edit(field, node, es, before, *after);
     }
     if (vertical) es.goal_cursor = es.cursor;
+    if (after) es.upstream = upstream_after;
 
     if (!after) return;   // only a moved caret or an edit brings the caret into view (not a hover)
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
     auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);
-    auto [cur_line, cur_col] = cursor_to_line_col(new_value, es.cursor, new_wrapped);
+    auto [cur_line, cur_col] = cursor_to_line_col(new_value, es.cursor, new_wrapped, es.upstream);
     Y cursor_y{static_cast<float>(cur_line) * ta_line_h(m).raw()};
 
     if (cursor_y.raw() - es.scroll_y.raw() > text_area_h.raw() - ta_line_h(m).raw())

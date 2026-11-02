@@ -574,20 +574,71 @@ TEST_CASE("TextArea: End moves to end of wrapped line") {
     CHECK(es.cursor == 6);
 }
 
-TEST_CASE("TextArea: End on a soft-wrapped line keeps the caret on that line") {
+namespace {
+void press(prism::Field<prism::TextArea<>>& f, prism::WidgetNode& n, int32_t key) {
+    prism::InputEvent ev = prism::KeyPress{.key = key, .mods = 0};
+    prism::Widget<prism::TextArea<>>::handle_input(f, ev, n);
+}
+
+// Where the caret is drawn (the TextArea's focused caret is a 2 pt wide filled rect).
+std::optional<prism::Rect> drawn_caret(prism::Field<prism::TextArea<>>& field, prism::WidgetNode& node) {
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    for (auto& c : dl.commands)
+        if (auto* r = std::get_if<prism::FilledRect>(&c); r && r->rect.extent.w.raw() == 2.f) return r->rect;
+    return std::nullopt;
+}
+std::vector<prism::text_detail::LineSpan> wrapped_lines(const std::string& text, prism::WidgetNode& node) {
+    auto w = prism::delegate_detail::widget_w(node) - prism::Width{2 * 4.f};
+    return prism::text_detail::wrap_lines(text, w, nullptr, 14.f);
+}
+}
+
+TEST_CASE("TextArea: End on a soft-wrapped line draws the caret at that line's end, losing nothing") {
+    std::string text = "aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj";
+    prism::Field<prism::TextArea<>> field{{.value = text}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    auto lines = wrapped_lines(text, node);
+    REQUIRE(lines.size() > 1);
+    es.cursor = 0;
+    auto start = drawn_caret(field, node);
+    press(field, node, prism::keys::end);
+    CHECK(es.cursor == lines[1].start);                     // the wrap point, not a character before it
+    auto at_end = drawn_caret(field, node);
+    REQUIRE(start);
+    REQUIRE(at_end);
+    CHECK(at_end->origin.y == start->origin.y);             // still drawn on the first line
+    CHECK(at_end->origin.x.raw() > start->origin.x.raw());
+    press(field, node, prism::keys::home);
+    CHECK(es.cursor == 0);                                  // Home: the start of that same line
+}
+
+TEST_CASE("TextArea: End at a word broken mid-word keeps its last character") {
+    std::string text(80, 'x');                              // one word, wider than the area
+    prism::Field<prism::TextArea<>> field{{.value = text}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    auto lines = wrapped_lines(text, node);
+    REQUIRE(lines.size() > 1);
+    es.cursor = 0;
+    press(field, node, prism::keys::end);
+    CHECK(es.cursor == lines[0].length);                    // after the line's last character
+}
+
+TEST_CASE("TextArea: moving on from the end of a wrapped line draws the caret on the next line") {
     std::string text = "aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj";
     prism::Field<prism::TextArea<>> field{{.value = text}};
     auto node = make_node({.focused = true});
     auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
     es.cursor = 0;
-    prism::InputEvent ev = prism::KeyPress{.key = prism::keys::end, .mods = 0};
-    prism::Widget<prism::TextArea<>>::handle_input(field, ev, node);
-
-    auto w = prism::delegate_detail::widget_w(node) - prism::Width{2 * 4.f};
-    auto lines = prism::text_detail::wrap_lines(text, w, nullptr, 14.f);
-    REQUIRE(lines.size() > 1);                   // it does wrap
-    CHECK(prism::text_detail::cursor_to_line_col(text, es.cursor, lines).line == 0);
-    CHECK(es.cursor > 0);
+    auto first = drawn_caret(field, node);
+    press(field, node, prism::keys::end);
+    press(field, node, prism::keys::right);
+    auto next = drawn_caret(field, node);
+    REQUIRE(first);
+    REQUIRE(next);
+    CHECK(next->origin.y.raw() > first->origin.y.raw());
 }
 
 TEST_CASE("TextArea: Up moves to previous line, same column") {
@@ -645,12 +696,6 @@ TEST_CASE("TextArea: Down clamps col to shorter line") {
     CHECK(es.cursor == 8);
 }
 
-namespace {
-void press(prism::Field<prism::TextArea<>>& f, prism::WidgetNode& n, int32_t key) {
-    prism::InputEvent ev = prism::KeyPress{.key = key, .mods = 0};
-    prism::Widget<prism::TextArea<>>::handle_input(f, ev, n);
-}
-}
 
 TEST_CASE("TextArea: Down through a short line comes back to the starting column") {
     prism::Field<prism::TextArea<>> field{{.value = "abcde\nfg\nhijkl"}};

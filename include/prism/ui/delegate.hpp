@@ -135,6 +135,9 @@ struct TextAreaEditState {
     // line on the way does not pull the caret left; any other input forgets it.
     std::optional<float> goal_x;
     std::size_t goal_cursor = 0;   // the caret goal_x was last used for: moved since, it is stale
+    // At a soft wrap one offset is both the end of a line and the start of the next: true when
+    // the caret means the end (it got there by End, or a click or Up/Down past a line's end).
+    bool upstream = false;
     // For the scrollbar and the wheel (app::get_scroll_view), refreshed by each record().
     Height viewport_h{0};
     Height content_h{0};
