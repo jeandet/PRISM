@@ -51,6 +51,9 @@ inline std::optional<ScrollView> get_scroll_view(WidgetNode& node) {
         Height ch{static_cast<float>(ts->row_count()) * ts->row_height.raw()};
         return ScrollView{ts->scroll_y, ts->viewport_h, ch, ts->show_ticks, ts->event_policy};
     }
+    if (auto* ta = std::any_cast<TextAreaEditState>(&node.edit_state))
+        return ScrollView{ta->scroll_y, ta->viewport_h, ta->content_h, ta->show_ticks,
+                          ScrollEventPolicy::BubbleAtBounds};
     return std::nullopt;
 }
 

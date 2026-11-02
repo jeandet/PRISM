@@ -37,6 +37,10 @@ struct WidgetNode {
     // What the popup opened from (a menu's title, a right click's point), same coordinates:
     // near a window edge the popup flips to its other side. None: just kept inside the window.
     std::optional<Rect> popup_opened_from;
+    // A leaf that scrolls its own content (TextArea): drawn with a scrollbar like a scroll
+    // container's. viewport is in the widget's coordinates.
+    struct InnerScroll { Rect viewport; Height content_h; DY offset; };
+    std::optional<InnerScroll> inner_scroll;
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
     bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)
     std::function<std::int32_t()> mnemonic_key;   // a menu title's Alt+key (0: none); read live

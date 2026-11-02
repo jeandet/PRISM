@@ -569,6 +569,12 @@ inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, bool clipped_b
 
     layout_detail::flatten_node_draws(node, snap, clipped_by_ancestor);
     layout_detail::flatten_overlays(node, snap);
+    if (node.widget && node.widget->inner_scroll && node.theme) {
+        const auto& is = *node.widget->inner_scroll;
+        Rect viewport{Point{node.allocated.origin.x + DX{is.viewport.origin.x.raw()},
+                            node.allocated.origin.y + DY{is.viewport.origin.y.raw()}}, is.viewport.extent};
+        scrollbar::emit_thumb(snap, node.id, viewport, is.content_h, is.offset, *node.theme);
+    }
 
     for (auto& child : node.children) {
         layout_flatten(child, snap, clipped_by_ancestor);

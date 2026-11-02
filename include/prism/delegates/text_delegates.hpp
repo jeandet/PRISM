@@ -349,11 +349,23 @@ inline Height ta_line_h(const TextMeasurer* m) {
 }
 constexpr Width ta_cursor_w{2.f};
 
+// What the wheel and the scrollbar need (see app::get_scroll_view), and the offset kept inside
+// the content when it shrinks.
+inline void publish_scroll(WidgetNode& node, TextAreaEditState& es, Height content_h, Width text_area_w,
+                           Height text_area_h) {
+    es.viewport_h = text_area_h;
+    es.content_h = content_h;
+    es.scroll_y = DY{std::clamp(es.scroll_y.raw(), 0.f, std::max(0.f, content_h.raw() - text_area_h.raw()))};
+    Rect viewport{Point{X{ta_padding_x.raw()}, Y{ta_padding_y.raw()}}, Size{text_area_w, text_area_h}};
+    if (content_h.raw() > text_area_h.raw()) node.inner_scroll = WidgetNode::InnerScroll{viewport, content_h, es.scroll_y};
+    else node.inner_scroll.reset();
+}
+
 template <typename Sentinel>
-void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNode& node) {
+void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& node) {
     auto& vs = node_vs(node);
     auto& sf = field.get();
-    const auto& es = node.peek<TextAreaEditState>();
+    auto& es = node.get_or_create<TextAreaEditState>();
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
@@ -377,6 +389,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, const WidgetNo
     std::string shown = es.preedit.empty() ? std::string(raw) : with_preedit(raw, caret, es.preedit);
     std::string_view value = shown;
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
+    publish_scroll(node, es, Height{static_cast<float>(wrapped.size()) * ta_line_h(m).raw()}, text_area_w, text_area_h);
 
     // Calls fn(x0, x1, line_top) for the part of [lo, hi) on each visual line.
     auto for_each_span = [&](size_t lo, size_t hi, auto fn) {
@@ -524,6 +537,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     }
     if (vertical) es.goal_cursor = es.cursor;
 
+    if (!after) return;   // only a moved caret or an edit brings the caret into view (not a hover)
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
     auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);
     auto [cur_line, cur_col] = cursor_to_line_col(new_value, es.cursor, new_wrapped);

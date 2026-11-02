@@ -135,6 +135,10 @@ struct TextAreaEditState {
     // line on the way does not pull the caret left; any other input forgets it.
     std::optional<float> goal_x;
     std::size_t goal_cursor = 0;   // the caret goal_x was last used for: moved since, it is stale
+    // For the scrollbar and the wheel (app::get_scroll_view), refreshed by each record().
+    Height viewport_h{0};
+    Height content_h{0};
+    std::uint8_t show_ticks = 0;
 };
 
 // Ephemeral scroll state (stored in WidgetNode::edit_state)
