@@ -7,7 +7,8 @@ project('sdl3_image', 'c', version : '3.2.4')
 sdl_dep = dependency('sdl3', version : '>=3.2.4')
 
 formats = ['BMP', 'GIF', 'JPG', 'PNG', 'QOI', 'SVG', 'TGA']
-img_args = ['-DUSE_STBIMAGE', '-DSDL_IMAGE_SAVE_PNG=0', '-DSDL_IMAGE_SAVE_JPG=0']
+# COMMON_BACKEND: these decoders on Apple too (not ImageIO), so every platform decodes alike.
+img_args = ['-DUSE_STBIMAGE', '-DSDL_IMAGE_USE_COMMON_BACKEND', '-DSDL_IMAGE_SAVE_PNG=0', '-DSDL_IMAGE_SAVE_JPG=0']
 foreach f : formats
   img_args += '-DLOAD_' + f
 endforeach

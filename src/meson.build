@@ -23,17 +23,19 @@ prism_core_dep = declare_dependency(
 # Software backend: links SDL3 + SDL3_ttf
 if host_machine.system() == 'emscripten'
   # The wrapdb SDL3 port has no emscripten support; emscripten ships its own ports.
-  sdl3_dep = declare_dependency(compile_args : ['--use-port=sdl3'], link_args : ['--use-port=sdl3'])
+  # Emscripten's SDL3 port, also as `sdl3` for the subprojects built on it (SDL3_image: there
+  # is no sdl3_image port, so it is built from our wrap as on desktop).
+  sdl3_dep = declare_dependency(compile_args : ['--use-port=sdl3'], link_args : ['--use-port=sdl3'],
+                                version : '3.4.0')
+  meson.override_dependency('sdl3', sdl3_dep)
   sdl3_ttf_dep = declare_dependency(compile_args : ['--use-port=sdl3_ttf'], link_args : ['--use-port=sdl3_ttf'])
-  sdl3_image_dep = declare_dependency(compile_args : ['--use-port=sdl3_image:formats=png,svg'],
-                                      link_args : ['--use-port=sdl3_image:formats=png,svg'])
   sdl_platform_src = 'backends/sdl_platform_web.cpp'
 else
   sdl3_dep = dependency('sdl3', fallback : ['sdl3', 'sdl3_dep'])
   sdl3_ttf_dep = dependency('sdl3_ttf', fallback : ['sdl3_ttf', 'sdl3_ttf_dep'])
-  sdl3_image_dep = dependency('sdl3_image', fallback : ['sdl3_image', 'sdl3_image_dep'])
   sdl_platform_src = 'backends/sdl_platform_desktop.cpp'
 endif
+sdl3_image_dep = dependency('sdl3_image', fallback : ['sdl3_image', 'sdl3_image_dep'])
 
 fonts_dir = meson.project_source_root() / 'assets' / 'fonts'
 fonts_install_dir = get_option('datadir') / 'prism' / 'fonts'
