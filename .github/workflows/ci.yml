@@ -105,7 +105,7 @@ jobs:
       - name: Setup builddir
         run: >
           meson setup builddir -Dmagic_enum:test=false
-          -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0
+          -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0 -Dsdl3_image:werror=false -Dsdl3_image:warning_level=0
           -Dcpp_args=-stdlib=libc++ -Dcpp_link_args=-stdlib=libc++
       - name: Build
         run: ninja -C builddir
@@ -318,7 +318,7 @@ jobs:
           export CXX=$(ls $(brew --prefix)/bin/g++-1[0-9] | sort -V | tail -1)
           export CC=clang
           echo "CXX=$CXX" >> "$GITHUB_ENV"; echo "CC=$CC" >> "$GITHUB_ENV"
-          meson setup builddir -Dmagic_enum:test=false -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0
+          meson setup builddir -Dmagic_enum:test=false -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0 -Dsdl3_image:werror=false -Dsdl3_image:warning_level=0
       - name: Build
         run: ninja -C builddir
       - name: Import the extension and run the Python suite
@@ -357,7 +357,7 @@ jobs:
         # own warnings must not fail the build (on the command line: mesonbuild/meson#14528).
         run: >
           meson setup builddir -Dmagic_enum:test=false
-          -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0
+          -Dsdl3:werror=false -Dsdl3:warning_level=0 -Dsdl3_ttf:werror=false -Dsdl3_ttf:warning_level=0 -Dsdl3_image:werror=false -Dsdl3_image:warning_level=0
           -Dfreetype2:werror=false -Dfreetype2:warning_level=0 -Dharfbuzz:werror=false -Dharfbuzz:warning_level=0
       - name: Build
         run: ninja -C builddir

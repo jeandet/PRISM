@@ -21,10 +21,13 @@ if host_machine.system() == 'emscripten'
   # The wrapdb SDL3 port has no emscripten support; emscripten ships its own ports.
   sdl3_dep = declare_dependency(compile_args : ['--use-port=sdl3'], link_args : ['--use-port=sdl3'])
   sdl3_ttf_dep = declare_dependency(compile_args : ['--use-port=sdl3_ttf'], link_args : ['--use-port=sdl3_ttf'])
+  sdl3_image_dep = declare_dependency(compile_args : ['--use-port=sdl3_image:formats=png,svg'],
+                                      link_args : ['--use-port=sdl3_image:formats=png,svg'])
   sdl_platform_src = 'backends/sdl_platform_web.cpp'
 else
   sdl3_dep = dependency('sdl3', fallback : ['sdl3', 'sdl3_dep'])
   sdl3_ttf_dep = dependency('sdl3_ttf', fallback : ['sdl3_ttf', 'sdl3_ttf_dep'])
+  sdl3_image_dep = dependency('sdl3_image', fallback : ['sdl3_image', 'sdl3_image_dep'])
   sdl_platform_src = 'backends/sdl_platform_desktop.cpp'
 endif
 
@@ -67,10 +70,11 @@ prism_software_backend_lib = library('prism-software-backend',
   'backends/sdl_text_measurer.cpp',
   'backends/sdl_font_set.cpp',
   'backends/font_lookup.cpp',
+  'backends/sdl_image_decoder.cpp',
   sdl_platform_src,
   sdl_webgpu_src,
   # dl: dladdr() lives in libdl before glibc 2.34; empty dependency elsewhere.
-  dependencies : [prism_core_dep, sdl3_dep, sdl3_ttf_dep, prism_webgpu_dep,
+  dependencies : [prism_core_dep, sdl3_dep, sdl3_ttf_dep, sdl3_image_dep, prism_webgpu_dep,
                   meson.get_compiler('cpp').find_library('dl', required : false)],
   cpp_args : ['-DPRISM_UI_FONT_PATH="' + ui_font_path + '"',
               '-DPRISM_UI_FONT_INSTALL_PATH="' + fonts_install_dir / 'NotoSans-Regular.ttf' + '"',

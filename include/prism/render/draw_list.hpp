@@ -86,8 +86,7 @@ struct FilledPolygon {
 
 // Immutable RGBA8 pixels (row-major, 4 bytes per pixel, straight alpha). Shared by pointer: draw
 // lists hand them to the render thread, and each backend uploads an image once, keyed by id().
-// simplify: raw pixels only; decoding PNG/SVG (icons) needs a decoder dependency -- add it
-// behind a separate loader so this type stays format-free.
+// Format-free: files (PNG, SVG, ...) are decoded into it by render/image_decoder.hpp.
 class Image {
 public:
     static std::expected<std::shared_ptr<const Image>, std::string>

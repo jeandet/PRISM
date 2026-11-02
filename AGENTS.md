@@ -103,6 +103,9 @@ meson test -C builddir
   before a PR) — rebuild and rerun the full suite afterward. `subprojects/sdl3.wrap` carries
   `diff_files = sdl3-headless-drivers.patch` (enables SDL's offscreen and dummy video drivers);
   check the line survives an update, or the SDL tests lose their display-free driver.
+  `subprojects/sdl3_image.wrap` uses our own build file (`subprojects/packagefiles/sdl3_image/`,
+  `patch_directory`) instead of WrapDB's, whose port compiles every format as a stub: an update
+  would bring theirs back, so keep ours.
 - SDL-backed tests run on SDL's offscreen driver (`offscreen_env` in `tests/meson.build`), so
   they need no display. `tests/test_pixels.cpp` renders real widgets through the SDL backend
   at 1x and 2x and checks properties of the pixels (a selection covers exactly its word, an
