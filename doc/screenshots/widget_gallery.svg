@@ -20,18 +20,20 @@
 </g>
 <clipPath id="clip-3"><rect x="0" y="30" width="900" height="32"/></clipPath>
 <g clip-path="url(#clip-3)">
-<rect x="0" y="30" width="378.4" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="30" width="469.2" height="32" fill="rgba(42,42,58,1)"/>
 <rect x="0" y="30" width="99.2" height="32" fill="rgba(30,30,46,1)"/>
 <text xml:space="preserve" x="16" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Controls</text>
 <rect x="0" y="60" width="99.2" height="2" fill="rgba(124,111,255,1)"/>
-<rect x="99.2" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="115.2" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Text</text>
-<rect x="164.8" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="180.8" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
-<rect x="230.4" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="246.4" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Plot</text>
-<rect x="296" y="30" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="312" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Popups</text>
+<rect x="99.2" y="30" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="115.2" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Catalog</text>
+<rect x="190" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="206" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Text</text>
+<rect x="255.6" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="271.6" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
+<rect x="321.2" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="337.2" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Plot</text>
+<rect x="386.8" y="30" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="402.8" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Popups</text>
 </g>
 <clipPath id="clip-4"><rect x="0" y="62" width="900" height="546"/></clipPath>
 <g clip-path="url(#clip-4)">
@@ -114,19 +116,19 @@
 <g clip-path="url(#clip-18)">
 <rect x="0" y="328" width="71.6" height="32" fill="rgba(40,105,180,1)"/>
 <rect x="0" y="328" width="71.6" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
-<rect x="8" y="336" width="16" height="16" fill="rgba(128,128,128,0.5)"/>
+<image x="8" y="336" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7AAAAAAAAAAAA1NTpAOTk7wDl5fAA5eXuAObm8ADm5vAA5ubwAOTk7gDk5O4A4eHtAAAAAAAAAAAAAAAAAAAAAAAAAAAAANTU6QDU1OkM5OTvkOXl8J3l5e6/5ubwmebm8Jnm5vCZ5OTuruTk7q7h4e0r4uLtAAAAAAAAAAAAAAAAAAAAAAAA5eXvAOXl71Dm5vD/5OTuuebm8P/m5vCZ5ubwmebm8Jnl5fDd5eXv7eTk7+vj4+4u4+PtAAAAAAAAAAAAAAAAAADl5e8A5eXvUObm8P/l5e9Q5ubw/+bm8ADm5vAA5eXwAOXl8Krl5fCs5eXwu+Tk7+vk5O0d5OTtAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+Xl71Dm5vD/5ubwZubm8Gbm5vBm5ubwzOXl8Krf398I5ubw/+Xl71Dl5e8AAAAAAAAAAAAA5eXvAOXl71Dm5vD/5eXrKOXl7/Hm5vD/5ubw/+bm8P/m5vD/4+PvceLi6gDm5vD/5eXvUOXl7wAAAAAAAAAAAADl5e8A5eXvUObm8P/l5e0A5eXvAObm8ADm5vAA5ubwAObm8ADj4+8A5ubwAObm8P/l5e9Q5eXvAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+Xl7QDl5e8A5ubwAObm8ADm5vAA5ubwAOXl7wDl5e0A5ubw/+Xl71Dl5e8AAAAAAAAAAAAA5eXvAOXl71Dm5vD/5eXrKOXl7/Hm5vD/5ubw/+bm8P/m5vD/5eXv8eXl6yjm5vD/5eXvUOXl7wAAAAAAAAAAAADl5e8A5eXvUObm8P/l5e9Q5ubw/+bm8Gbm5vBm5ubwZubm8Gbm5vD/5eXvUObm8P/l5e9Q5eXvAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+Xl71Dm5vD/5ubwAObm8ADm5vAA5ubwAObm8P/l5e9Q5ubw/+Xl71Dl5e8AAAAAAAAAAAAA5eXvAOXl71Dm5vD/5eXvUObm8P/m5vAA5ubwAObm8ADm5vAA5ubw/+Xl71Dm5vD/5eXvUOXl7wAAAAAAAAAAAADl5e8A5eXvUObm8P/k5PBE5ubw/+bm8P/m5vD/5ubw/+bm8P/m5vD/5OTwRObm8P/l5e9Q5eXvAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+bm8Jnk5O655eXwweXl8MHl5fDB5eXwweTk7rnm5vCZ5ubw/+Xl71Dl5e8AAAAAAAAAAAAA1NTpANTU6Qzk5O+Q5ubwmebm8Jnm5vCZ5ubwmebm8Jnm5vCZ5ubwmebm8Jnk5O+Q1NTpDNTU6QAAAAAAAAAAAAAAAAAA1NTpAOTk7wDm5vAA5ubwAObm8ADm5vAA5ubwAObm8ADm5vAA5ubwAOTk7wDU1OkAAAAAAAAAAACQUKDjw2TY4wAAAABJRU5ErkJggg=="/>
 <text xml:space="preserve" x="30" y="335" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Save</text>
 </g>
 <clipPath id="clip-19"><rect x="79.6" y="328" width="80" height="32"/></clipPath>
 <g clip-path="url(#clip-19)">
 <rect x="79.6" y="328" width="80" height="32" fill="rgba(45,45,55,1)"/>
-<rect x="87.6" y="336" width="16" height="16" fill="rgba(128,128,128,0.5)"/>
+<image x="87.6" y="336" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANDQ5wDk5O4A5eXvAObm8ADm5vAA5eXvAOXl7gDU1NQA5eXrAOTk7wAAAAAAAAAAAAAAAAAAAAAAAAAAAADW1ucA0NDnC+Tk7mvl5e/Z5ubw/+bm8P/l5e/H5eXueNTU1Abl5eso5OTvuOTk7wAAAAAAAAAAAAAAAAAA1NTaAN3d6Bfl5e/Q5eXv9OXl75fm5vBm5ubwZuXl75bl5e/z5OTuzebm7l3m5vD/5ubwAAAAAAAAAAAAAMzMzADMzMwF5eXv1eXl79jj4+wc5OTtAObm8ADm5vAA4uLuAOHh8CLk5O+l5eXubebm8P/m5vAAAAAAAAAAAAAA5eXvAOXl72Xl5e/45OTtHePj7AAAAAAAAAAAAOLi7ADi4uw25ubwmebm8Jnk5O+55ubw/+bm8AAAAAAAAAAAAADk5O8A5OTvxOTk7pvk5O0AAAAAAAAAAAAAAAAA4uLsAOLi7Dbm5vCZ5ubwmebm8Jnk5O5p5OTuAAAAAAAAAAAAAOXl7wDl5e/o5OTuauTk7gAAAAAAAAAAAAAAAAAAAAAA4uLsAObm8ADl5eoA5OTkE+Pj7l3j4+4AAAAAAAAAAAAA5OTvAOTk7+vk5O5r5OTuAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOXl7gDl5e5u5eXv5uXl7wAAAAAAAAAAAADl5e8A5eXvtOTk76bk5O8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5OTvAOTk76Xk5O+55OTvAAAAAAAAAAAAAOPj7gDj4+5c5eXv/OXl7zLj4+0AAAAAAAAAAAAAAAAAAAAAAOTk7wDk5O8w5eXv/OXl7lrl5e4AAAAAAAAAAAAAAAAAAOTk7gDl5e6+5eXv4uHh6zTj4+0A5eXuAOTk7gDk5O8A5OTvMOXl7+Pl5e/B5eXuAAAAAAAAAAAAAAAAAAAAAAAA39/vAN/f7xDl5e+35eXv/eXl77Xl5e5s5OTuauXl77bm5vD/5OTvutra7A7a2uwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAb293AAAAAAHk5PBV5eXvsebm8Mzm5vDM5eXvsuPj71K/v78EzMzVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOTk8ADl5e8A5ubwAObm8ADl5e8A4+PvAL+/vwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABI9L14H+hsDwAAAABJRU5ErkJggg=="/>
 <text xml:space="preserve" x="109.6" y="335" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reset</text>
 </g>
 <clipPath id="clip-20"><rect x="167.6" y="328" width="32" height="32"/></clipPath>
 <g clip-path="url(#clip-20)">
 <rect x="167.6" y="328" width="32" height="32" fill="rgba(45,45,55,1)"/>
-<rect x="175.6" y="336" width="16" height="16" fill="rgba(128,128,128,0.5)"/>
+<image x="175.6" y="336" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADj4+8A5ubwAObm8ADm5vAA5ubwAOPj7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4+PvAOPj73Hm5vD/5ubw/+bm8P/m5vD/4+PvcePj7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5OTvAOXl7wDl5e8A5eXwqubm8Mzm5vBm5ubwZubm8Mzl5fCq5eXvAOXl7wDk5O8AAAAAAAAAAAAAAAAAAOTk7wDk5O+45eXv/+Xl7//l5e//5eXv/+bm8P/m5vD/5eXv/+Xl7//l5e//5eXv/+Tk77jk5O8AAAAAAAAAAAAA4+PuAOPj7i7l5fDA5OTv1OLi7m3i4u5t5ubwZubm8Gbi4u5t4uLubeTk79Tl5fDA4+PuLuPj7gAAAAAAAAAAAAAAAAAA5OTuAOXl74Pm5vDM5OTvAOLi7gDm5vAA5ubwAOLi7gDk5O8A5ubwzOXl74Pk5O4AAAAAAAAAAAAAAAAAAAAAAADl5e8A5eXvcOXl7+Dl5e8AAAAAAAAAAAAAAAAAAAAAAOXl7wDl5e/g5eXvcOXl7wAAAAAAAAAAAAAAAAAAAAAAAOPj7gDj4+5c5eXv9OPj6AAAAAAAAAAAAAAAAAAAAAAA4+PoAOXl7/Tj4+5c4+PuAAAAAAAAAAAAAAAAAAAAAAAA4uLtAOLi7Ujm5vD/4uLiCeLi4gAAAAAAAAAAAOLi4gDi4uIJ5ubw/+Li7Uji4u0AAAAAAAAAAAAAAAAAAAAAAADh4esA4eHrNObm8P/k5O0d5OTtAAAAAAAAAAAA5OTtAOTk7R3m5vD/4eHrNOHh6wAAAAAAAAAAAAAAAAAAAAAAAN/f7wDf3+8g5ubw/+Tk7zHl5e8A5ubwAObm8ADl5e8A5OTvMebm8P/f3+8g39/vAAAAAAAAAAAAAAAAAAAAAAAA1NTpANTU6Qzm5vD/5eXujebm8Gbm5vBm5ubwZubm8Gbl5e6N5ubw/9TU6QzU1OkAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3NzsAOXl78jm5vD/5ubw/+bm8P/m5vD/5ubw/+bm8P/l5e/I3NzsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5eXvAObm8ADm5vAA5ubwAObm8ADm5vAA5ubwAOXl7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACb6Lx4iRjAdQAAAABJRU5ErkJggg=="/>
 </g>
 <clipPath id="clip-21"><rect x="0" y="366" width="900" height="34"/></clipPath>
 <g clip-path="url(#clip-21)">

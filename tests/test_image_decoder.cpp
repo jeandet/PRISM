@@ -59,3 +59,29 @@ TEST_CASE("a missing file gives an error") {
     auto img = load_image("/nonexistent/prism/icon.png");
     CHECK_FALSE(img);
 }
+
+#include <prism/render/png_encode.hpp>
+
+TEST_CASE("a PNG we encode decodes back to the same pixels") {
+    // 3x2, every pixel different, with partial alpha.
+    std::vector<std::uint8_t> rgba;
+    for (int i = 0; i < 6; ++i) rgba.insert(rgba.end(), {std::uint8_t(40 * i), std::uint8_t(255 - 30 * i), 7, std::uint8_t(50 + 40 * i)});
+    auto png = prism::render::encode_png(3, 2, rgba);
+    auto img = prism::render::decode_image(std::as_bytes(std::span{png}));
+    REQUIRE(img.has_value());
+    CHECK((*img)->width() == 3);
+    CHECK((*img)->height() == 2);
+    auto px = (*img)->pixels();
+    CHECK(std::vector<std::uint8_t>(px.begin(), px.end()) == rgba);
+}
+
+TEST_CASE("base64 encodes as RFC 4648 says") {
+    auto b64 = [](std::string_view s) {
+        return prism::render::base64(std::as_bytes(std::span{s.data(), s.size()}));
+    };
+    CHECK(b64("") == "");
+    CHECK(b64("f") == "Zg==");
+    CHECK(b64("fo") == "Zm8=");
+    CHECK(b64("foo") == "Zm9v");
+    CHECK(b64("foobar") == "Zm9vYmFy");
+}

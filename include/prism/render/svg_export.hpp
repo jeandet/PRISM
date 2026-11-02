@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/render/draw_list.hpp>
+#include <prism/render/png_encode.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
 #include <cstdio>
@@ -74,11 +75,14 @@ struct SvgEmitter {
         out << "/>\n";
     }
 
-    // simplify: a placeholder rect; embedding pixels would need a PNG encoder.
+    // The pixels themselves, as an embedded PNG (render/png_encode.hpp).
     void emit(const ImageCmd& c) {
-        out << "<rect x=\"" << fmt_float(c.rect.origin.x.raw()) << "\" y=\"" << fmt_float(c.rect.origin.y.raw())
+        if (!c.image) return;
+        auto png = encode_png(c.image->width(), c.image->height(), c.image->pixels());
+        out << "<image x=\"" << fmt_float(c.rect.origin.x.raw()) << "\" y=\"" << fmt_float(c.rect.origin.y.raw())
             << "\" width=\"" << fmt_float(c.rect.extent.w.raw()) << "\" height=\"" << fmt_float(c.rect.extent.h.raw())
-            << "\" fill=\"rgba(128,128,128,0.5)\"/>\n";
+            << "\" preserveAspectRatio=\"none\" href=\"data:image/png;base64,"
+            << base64(std::as_bytes(std::span{png})) << "\"/>\n";
     }
 
     void emit(const TextCmd& c) {

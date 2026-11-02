@@ -206,3 +206,14 @@ TEST_CASE("text keeps its spaces (SVG collapses them by default)") {
     CHECK(svg.substr(svg.rfind("<text", at), at - svg.rfind("<text", at)).find("xml:space=\"preserve\"")
           != std::string::npos);
 }
+
+TEST_CASE("an image is embedded as a PNG, not a placeholder") {
+    prism::DrawList dl;
+    auto img = *prism::render::Image::from_rgba(2, 2, std::vector<std::uint8_t>(16, 200));
+    dl.image(img, prism::Rect{prism::Point{prism::X{10}, prism::Y{20}}, prism::Size{prism::Width{16}, prism::Height{16}}});
+    auto svg = prism::render::to_svg(dl);
+    CHECK(svg.find("<image") != std::string::npos);
+    CHECK(svg.find("href=\"data:image/png;base64,iVBORw0KGgo") != std::string::npos);   // the PNG signature
+    CHECK(svg.find("width=\"16\"") != std::string::npos);
+    CHECK(svg.find("rgba(128,128,128,0.5)") == std::string::npos);
+}
