@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/ui/text_segmentation.hpp>
 #include <prism/core/utf8.hpp>
 
 #include <algorithm>
@@ -70,13 +71,13 @@ inline TextEdit insert(TextEdit e, std::string_view s, std::size_t max_length) {
 
 // Backspace: the selection if any, else the character before the caret.
 inline TextEdit erase_back(TextEdit e) {
-    if (!has_selection(e)) e.anchor = core::utf8::prev(e.text, e.cursor);
+    if (!has_selection(e)) e.anchor = prev_grapheme(e.text, e.cursor);
     return replace_selection(std::move(e), "");
 }
 
 // Delete: the selection if any, else the character after the caret.
 inline TextEdit erase_forward(TextEdit e) {
-    if (!has_selection(e)) e.anchor = core::utf8::next(e.text, e.cursor);
+    if (!has_selection(e)) e.anchor = next_grapheme(e.text, e.cursor);
     return replace_selection(std::move(e), "");
 }
 

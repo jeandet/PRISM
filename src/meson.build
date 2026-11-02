@@ -11,9 +11,13 @@ else
   magic_enum_dep = dependency('', required : false)
 endif
 
+# Unicode text boundaries (ui/text_segmentation.hpp): graphemes and line breaks.
+unibreak_dep = dependency('libunibreak', fallback : ['libunibreak', 'unibreak_dep'],
+                          default_options : ['tests=disabled'])
+
 prism_core_dep = declare_dependency(
   include_directories : prism_inc,
-  dependencies : [stdexec_dep, magic_enum_dep, fmt_dep],
+  dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep],
 )
 
 # Software backend: links SDL3 + SDL3_ttf

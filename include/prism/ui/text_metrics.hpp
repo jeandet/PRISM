@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/ui/text_segmentation.hpp>
 #include <prism/core/utf8.hpp>
 #include <prism/render/draw_list.hpp>
 
@@ -83,26 +84,32 @@ struct LineSpan {
 
 inline bool is_wrap_space(char c) { return c == ' ' || c == '\t'; }
 
-// Where a visual line ends, given that `fit` bytes of `rest` fit: after the last space or tab
-// within the fit, then past any spaces that follow, which hang off the end of the line instead
-// of starting the next one (as in browsers and word processors). A word too long for a whole
-// line is broken inside it.
-inline size_t word_break(std::string_view rest, size_t fit) {
+// Where a visual line ends, given that `fit` bytes of `rest` fit and that a line may start at
+// rest offset i when can_start[base + i] (line_break_opportunities of the logical line, `rest`
+// starting `base` bytes into it):
+// - the fit ends among spaces: past them -- they hang off the end of the line instead of
+//   starting the next one (as in browsers and word processors);
+// - else at the last place a line may start within the fit (after a space or a hyphen, between
+//   ideographs: UAX #14);
+// - else inside the word, which is too long for a whole line.
+inline size_t word_break(std::string_view rest, size_t fit, const std::vector<bool>& can_start, size_t base) {
     if (fit >= rest.size()) return rest.size();
-    size_t end = fit;
-    if (!is_wrap_space(rest[fit])) {
-        size_t space = rest.substr(0, fit).find_last_of(" \t");
-        if (space != std::string_view::npos) end = space + 1;
+    if (is_wrap_space(rest[fit])) {
+        size_t end = fit;
+        while (end < rest.size() && is_wrap_space(rest[end])) ++end;
+        return end;
     }
-    while (end < rest.size() && is_wrap_space(rest[end])) ++end;
-    return end;
+    for (size_t p = fit; p > 0; --p)
+        if (can_start[base + p]) return p;
+    return fit;
 }
 
-// Greedy word wrap: each visual line takes the longest run of whole words that fits.
+// Greedy word wrap: each visual line takes the longest run that fits and ends where a line may
+// break (word_break).
 // A line's span includes its hanging spaces, so Home/End and the caret count them; the caret
 // is drawn at the edge while it is among them.
-// simplify: breaks only at spaces and tabs, not after hyphens or between CJK ideographs
-// (UAX #14); per code point, not grapheme. Cost: O(log n) measured prefixes per visual line,
+// simplify: a word too long for a line breaks at a code point, not a grapheme. Cost: O(log n)
+// measured prefixes per visual line,
 // each a distinct string, so very large documents churn the measurer's cache. Upgrade:
 // per-character advances (one linear scan).
 inline std::vector<LineSpan> wrap_lines(std::string_view text, core::Width text_area_w,
@@ -118,10 +125,11 @@ inline std::vector<LineSpan> wrap_lines(std::string_view text, core::Width text_
         if (logical_len == 0) {
             result.push_back({pos, 0});
         } else {
+            auto can_start = line_break_opportunities(text.substr(pos, logical_len));
             size_t offset = 0;
             while (offset < logical_len) {
                 auto rest = text.substr(pos + offset, logical_len - offset);
-                size_t chunk = word_break(rest, fit_bytes(m, rest, size, text_area_w.raw(), role));
+                size_t chunk = word_break(rest, fit_bytes(m, rest, size, text_area_w.raw(), role), can_start, offset);
                 result.push_back({pos + offset, chunk});
                 offset += chunk;
             }

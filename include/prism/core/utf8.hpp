@@ -9,9 +9,8 @@
 // Byte-offset <-> code point helpers for text editing. Offsets are byte indices into UTF-8;
 // every function clamps out-of-range input and never reads past the end, even on malformed text.
 //
-// simplify: steps are code points, not grapheme clusters -- "e" + combining accent, or an emoji
-// ZWJ sequence, takes several steps. Upgrade to grapheme segmentation (UAX #29) when users edit
-// such text (accents typed as combining marks, emoji).
+// Steps are code points. The caret and deletion step by user-perceived character instead
+// (ui/text_segmentation.hpp, UAX #29): use that for anything a user moves through.
 namespace prism::core::utf8 {
 
 inline bool is_continuation(char c) { return (static_cast<unsigned char>(c) & 0xC0) == 0x80; }

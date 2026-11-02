@@ -137,10 +137,10 @@ inline std::optional<TextEdit> common_edit_key(const TextEdit& e, const KeyPress
     case keys::delete_: return te::erase_forward(e);
     case keys::left:
         if (te::has_selection(e) && !shift) return te::move_to(e, lo, false);
-        return te::move_to(e, core::utf8::prev(e.text, e.cursor), shift);
+        return te::move_to(e, prev_grapheme(e.text, e.cursor), shift);
     case keys::right:
         if (te::has_selection(e) && !shift) return te::move_to(e, hi, false);
-        return te::move_to(e, core::utf8::next(e.text, e.cursor), shift);
+        return te::move_to(e, next_grapheme(e.text, e.cursor), shift);
     }
     return std::nullopt;
 }
