@@ -259,3 +259,35 @@ TEST_CASE("SoftwareBackend: a move queued before going onto the title bar is not
     REQUIRE_FALSE(kinds.empty());
     CHECK(kinds.back() == 1);   // the pointer ended on the title bar: the last word is a leave
 }
+
+TEST_CASE("SoftwareBackend stamps each event with the frame on screen") {
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300});
+    auto& sdl_win = static_cast<prism::backends::SdlWindow&>(window);
+    auto frame = std::make_shared<prism::SceneSnapshot>();
+    frame->viewport = prism::Size{prism::Width{300}, prism::Height{300}};
+    std::atomic<bool> stamped{false};
+    std::atomic<bool> seen{false};
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        backend.submit(window.id(), frame);
+        backend.wake();
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
+        while (!seen && std::chrono::steady_clock::now() < deadline) {
+            if (auto st = backend.present_stats(window.id()); st && st->present_count > 0)
+                push_motion(SDL_GetWindowID(sdl_win.sdl_window()), 50.f, 50.f);
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        backend.quit();
+    });
+
+    backend.run([&](const prism::WindowEvent& we) {
+        if (!std::holds_alternative<prism::MouseMove>(we.event)) return;
+        seen = true;
+        stamped = we.shown.get() == frame.get();
+    });
+    driver.join();
+    REQUIRE(seen);
+    CHECK(stamped);
+}

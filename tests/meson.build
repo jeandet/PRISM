@@ -122,6 +122,7 @@ backend_base_tests = {
   'golden_snapshot' : files('test_golden_snapshot.cpp'),
   'mutation_queue' : files('test_mutation_queue.cpp'),
   'tooltip' : files('test_tooltip.cpp'),
+  'input_skew' : files('test_input_skew.cpp'),
   'menu_mnemonics' : files('test_menu_mnemonics.cpp'),
 }
 

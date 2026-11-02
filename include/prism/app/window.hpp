@@ -1,9 +1,11 @@
 #pragma once
 
 #include <prism/input/input_event.hpp>
+#include <prism/render/scene_snapshot.hpp>
 #include <prism/ui/cursor.hpp>
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
 #include <utility>
 
@@ -78,6 +80,10 @@ public:
 struct WindowEvent {
     WindowId window;
     InputEvent event;
+    // The frame on screen when the backend read the event. Input is hit-tested against it, so
+    // a click lands on what the user saw even when a newer frame is published but not yet
+    // shown. Null: the latest published frame.
+    std::shared_ptr<const render::SceneSnapshot> shown = nullptr;
 };
 
 } // namespace prism::app

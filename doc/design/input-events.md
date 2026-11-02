@@ -63,7 +63,7 @@ The render thread forwards events via `exec::start_detached(schedule(sched) | th
 
 ## Hit Testing
 
-Hit testing runs on the application side using the geometry from the latest `SceneSnapshot` — a flat list of (widget_id, rect) pairs:
+Hit testing runs on the application side using the geometry of a `SceneSnapshot` — a flat list of (widget_id, rect) pairs. It uses the frame that was **on screen** when the backend read the event (`WindowEvent::shown`), not the latest published one: a publish can be a frame ahead of the screen, and a click must land on what the user saw. The SDL backend stamps every event with its last presented snapshot (the thread that presents also reads events, so it knows exactly); a backend that does not falls back to the latest published frame. One gap: list rows are recycled widgets bound to an index, so a click on a row reports the item at that index now (see the `simplify:` in `ViewBuilder::list`).
 
 ```cpp
 std::optional<WidgetId> hit_test(const SceneSnapshot& snap, Point pos) {

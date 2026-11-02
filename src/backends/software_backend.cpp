@@ -150,7 +150,15 @@ WindowId SoftwareBackend::sdl_id_to_prism_id(uint32_t sdl_window_id) const {
     return 0;
 }
 
-void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
+void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
+    // Every event carries the frame on screen when it was read (WindowEvent::shown), so the
+    // app hit-tests it against what the user saw. last_presented_ is only touched on this
+    // thread (presents and drain_close_requests), so reading it here needs no lock.
+    auto event_cb = [&](WindowEvent we) {
+        if (!we.shown)
+            if (auto it = last_presented_.find(we.window); it != last_presented_.end()) we.shown = it->second;
+        deliver(we);
+    };
     SDL_Init(SDL_INIT_VIDEO);
 
     TTF_Init();

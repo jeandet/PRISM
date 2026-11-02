@@ -408,6 +408,11 @@ public:
                     // Fires synchronously with a live items[index] ref during dispatch --
                     // a handler that mutates the list (e.g. erasing this row) risks it
                     // dangling mid-call; capture index/copy rather than mutate through it.
+                    // simplify: rows are recycled widgets bound to an index, so a click
+                    // hit-tested against the frame on screen (WindowEvent::shown) still reports
+                    // the item at that index *now*: if the list changed in a frame not yet
+                    // shown, it is the neighbour of the row the user saw. Upgrade: record each
+                    // row's bound index in the snapshot and pass it with the event.
                     node.connections.push_back(
                         node.on_input.connect([on_row_click, &items, index](const InputEvent& ev) {
                             auto* mb = std::get_if<MouseButton>(&ev);

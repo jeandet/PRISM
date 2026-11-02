@@ -401,7 +401,7 @@ void model_app(Backend& backend, Window& window, Model& model,
             auto wrapper_for_dispatch = logic_wrapper_holder;
             exec::start_detached(
                 stdexec::schedule(sched)
-                | stdexec::then([&, ev, wid, closed_copy, wrapper_for_dispatch] {
+                | stdexec::then([&, ev, wid, shown = we.shown, closed_copy, wrapper_for_dispatch] {
                     auto do_dispatch = [&]{
                         if (closed_copy->load(std::memory_order_acquire)) return;
                         if (std::holds_alternative<WindowClose>(ev)) {
@@ -437,7 +437,9 @@ void model_app(Backend& backend, Window& window, Model& model,
                             entry = registry.find(wid);
                             if (!entry) return;
                         }
-                        widget_detail::route_event(*entry->tree, entry->current_snap.get(), ev);
+                        // Against the frame the user saw, if the backend says which (see WindowEvent).
+                        const SceneSnapshot* seen = shown ? shown.get() : entry->current_snap.get();
+                        widget_detail::route_event(*entry->tree, seen, ev);
                         if (entry->current_snap)
                             entry->window->set_cursor(entry->tree->desired_cursor());
 
