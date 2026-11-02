@@ -139,19 +139,24 @@ enum class Theme { Light, Dark, System };
 struct Editor {
     core::Field<std::string>         title{""};                                    // read-only text
     core::Field<ui::Label<>>      status{{"OK"}};                               // read-only label
+    core::Field<ui::Label<>>      heading{{.value = "Editor", .heading = true}}; // a title
     core::Field<ui::TextField<>>  search{{.placeholder = "Search..."}};         // editable text
     core::Field<ui::Password<>>   secret{{.placeholder = "API key"}};           // masked input
+    core::Field<ui::ComboBox>     format{{.placeholder = "Format",
+                                           .options = {"PNG", "SVG", "PDF"}}};      // free text with suggestions
+    core::Field<ui::TextArea<>>   body{{.rows = 8}};                            // multi-line editor; .read_only, .font
     core::Field<ui::Slider<>>     volume{{.value = 0.8}};                       // continuous slider
     core::Field<ui::Slider<int>>  quality{{.value = 3, .min = 1,
                                                .max = 5, .step = 1}};               // discrete slider
     core::Field<ui::Button>       save{{"Save"}};                               // button
+    core::Field<ui::Button>       cancel{{.text = "Cancel", .primary = false}};  // a quieter button; .icon draws an image
     core::Field<bool>                dark_mode{true};                              // checkbox
     core::Field<ui::Checkbox>     notify{{.checked = true, .label = "Enable"}}; // labelled checkbox
     core::Field<Theme>               theme{Theme::Dark};                           // dropdown, from the enum
     core::Field<ui::Radio<Theme>> look{{Theme::Dark}};                          // the same enum, as radio buttons
     core::Field<ui::RadioGroup>   units{{.options = {"Metric", "Imperial"}}};   // radio buttons, from strings
     core::Field<ui::SpinBox<int>> copies{{.value = 1, .min = 1, .max = 99}};    // number with steppers
-    core::Field<ui::ProgressBar>  done{{.value = 0.4, .label = "Exporting"}};   // progress, display only
+    core::Field<ui::ProgressBar>  done{{.value = 0.4, .label = "Exporting"}};   // progress; .busy for unknown length
 };
 ```
 
@@ -188,7 +193,8 @@ struct Dashboard {
 
 <p align="center"><img src="doc/screenshots/layout.svg" alt="Nested layout" width="400"/></p>
 
-Put `vb.handle()` between two children of an `hstack`/`vstack` to make a draggable split pane.
+Put `vb.handle()` between two children of an `hstack`/`vstack` to make a draggable split pane,
+`vb.spacer()` to push the rest to the end, and `vb.gap(8)` for a fixed space.
 
 ### Canvas escape hatch
 
@@ -309,15 +315,23 @@ Both bind to data of any shape through three adapter tiers:
 | 2. Adapt your own container | `wrap_tree_storage()` | `wrap_column_storage()` | no |
 | 3. Point it at a struct | `wrap_struct_tree()` | `wrap_row_storage()` | yes |
 
-[`examples/model_tree_browser`](examples/model_tree_browser/) is a filesystem browser built on tier 2.
+[`model_notes`](examples/model_notes/)' file tree is tier 2 over the filesystem; the
+[Widget Gallery](examples/widget_gallery/) and the System Monitor use tiers 1 and 2, so they build
+without reflection, in the browser too.
 
 ### Text, editing and menus
 
 Text fields behave like a desktop app's: selection (shift+arrows, mouse drag, shift+click,
 Ctrl/Cmd+A), copy, cut and paste, undo and redo, input methods for Chinese, Japanese and Korean,
 and UTF-8 throughout. Text is measured with the real font: Noto Sans for the interface,
-JetBrains Mono for code and `TextArea`. Widgets size to their content: buttons and labels take
-their text width, text fields fill the row.
+JetBrains Mono for code (a `TextArea` takes either, through `.font`). Widgets size to their
+content: buttons and labels take their text width, text fields fill the row.
+
+Text follows Unicode. The caret and Backspace step over whole characters (an `e` plus a combining
+accent is one), lines wrap where the line-breaking rules allow, and Hebrew or Arabic read right
+to left inside English text: the caret, clicks and selections follow the runs on screen. Noto
+Sans Hebrew and Arabic are bundled as fallback fonts. A `TextArea` with `.read_only = true`
+can be selected and copied but not changed.
 
 ```cpp
 struct Editor {
@@ -360,13 +374,22 @@ core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
 // the answer arrives through ask.on_change(): d.chosen is the button, or empty on Escape.
 ```
 
-A popup can also hold ordinary widgets: a form, a list, a row of buttons. Focus moves into it
-when it opens, Tab stays inside, and it comes back when it closes:
+A dialog is made of ordinary widgets: its message wraps, scrolls and can be copied, and Enter
+picks the first button. It can hold a form too:
 
 ```cpp
-core::Field<ui::Popup> rename{{.open = false, .modal = true}};
-// in view(): vb.popup(rename, [&](auto& p) { p.vstack(new_name, ok); });
-// to open:   rename.set({.open = true, .modal = true});
+core::Field<ui::Dialog> rename{{.title = "Rename", .message = "", .buttons = {"Rename", "Cancel"}}};
+// in view(): vb.dialog(rename, [&](auto& d) { d.widget(new_name).focus_on_open(); });
+```
+
+Any popup can hold widgets: a form, a list, a row of buttons. Focus moves into it when it opens,
+Tab stays inside, and it comes back when it closes. A non-modal one (a popover) opens where it is
+declared and closes on a click outside:
+
+```cpp
+core::Field<ui::Popup> options{{.open = false, .modal = false}};
+// in view(), next to its button: vb.popup(options, [&](auto& p) { p.vstack(grid, snap); });
+// to open:   options.set({.open = true, .modal = false});
 ```
 
 <p align="center"><img src="doc/screenshots/dialog.svg" alt="Modal dialog" width="420"/></p>
@@ -418,10 +441,16 @@ struct Settings {
 
 ### Full examples
 
-[`examples/`](examples/README.md) holds complete apps, from a raw draw-list demo up to
-[`model_system_monitor`](examples/model_system_monitor/): live `/proc` data from a background
-thread, plots, and a sortable process table and tree. [`model_notes`](examples/model_notes/) is
-its text-heavy counterpart: a small editor with a file tree, search, a File menu and undo.
+[`examples/`](examples/README.md) holds four complete apps, all of which also run in the
+[browser](https://jeandet.github.io/PRISM/):
+
+- [`widget_gallery`](examples/widget_gallery/): every widget, in five tabs. Start here.
+- [`model_notes`](examples/model_notes/): a small editor with a file tree, search, menus and undo.
+- [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a
+  sortable process table and tree (Linux `/proc`, or a simulated machine elsewhere).
+- [`perf_lab`](examples/perf_lab/): a 100k-row table and a 1M-point plot under 1 kHz telemetry.
+
+<p align="center"><img src="doc/screenshots/widget_gallery.svg" alt="Widget Gallery" width="700"/></p>
 
 <p align="center"><img src="doc/screenshots/system_monitor.svg" alt="System monitor example" width="700"/></p>
 
@@ -564,7 +593,7 @@ meson test -C builddir
 | Entry point | You get | Example |
 |---|---|---|
 | `app::model_app(title, model)` | UI from your model structs (the main API) | most of [`examples/`](examples/) |
-| `app<State>(title, state, view, update)` | manual `row()` / `column()` layout | [`hello_rect`](examples/hello_rect/) |
+| `app<State>(title, state, view, update)` | manual `row()` / `column()` layout | `tests/test_ui.cpp` |
 | `app::App` + `Frame` | a raw `DrawList`, nothing else | |
 
 All three take a `WindowConfig`. Its `decoration` picks the window chrome:
@@ -609,7 +638,7 @@ source /path/to/emsdk/emsdk_env.sh
 meson setup builddir-wasm --cross-file cross/wasm32-emscripten.ini
 ninja -C builddir-wasm
 meson test -C builddir-wasm                 # tests run under node
-emrun builddir-wasm/examples/model_dashboard/model_dashboard.html
+emrun builddir-wasm/examples/widget_gallery/widget_gallery.html
 ```
 
 Anything linking `prism_dep` gets the browser setup for free: SDL3 from Emscripten ports, the
@@ -635,7 +664,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `core::then`/`core::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus, modal dialogs and tooltips, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes, editable combo boxes and progress bars (busy too); pixel tests through SDL. Done plan: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md); next: [`doc/review-2026-11-02.md`](doc/review-2026-11-02.md).
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus, modal dialogs and tooltips, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes, editable combo boxes and progress bars (busy too); pixel tests through SDL; popups and dialogs that hold widgets, file dialogs, message boxes, drag and drop; image decoding and icon buttons; graphemes, Unicode line breaks and bidirectional text; a Windows CI lane; the Widget Gallery. Done plan: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md); next: [`doc/review-2026-11-02.md`](doc/review-2026-11-02.md).
 - **Phase 5**: WebGPU renderer (started: shapes, text, images and windows on desktop; browser next), GPU text (Slug), tile compositing.
 
 </details>

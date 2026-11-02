@@ -1,91 +1,68 @@
 # Examples
 
-Each subfolder is a standalone executable built alongside the library, plus its own README
-walking through what it demonstrates and why it's built the way it is. They're ordered here
-roughly by how much of PRISM they exercise, from a raw draw-list demo to a multi-threaded
-reference app.
+Four complete apps, each with its own README. All of them also run in the browser, compiled to
+WebAssembly: see the [live demos](https://jeandet.github.io/PRISM/).
 
 <table>
 <tr>
 <th>Example</th>
 <th>Screenshot</th>
-<th>Entry point</th>
 <th>Demonstrates</th>
 </tr>
 <tr>
-<td><a href="hello_rect/">hello_rect</a></td>
-<td><img src="../doc/screenshots/hello_rect.svg" width="180"/></td>
-<td>Retained layout<br/><code>app&lt;State&gt;</code></td>
-<td>Manual <code>row()</code>/<code>column()</code>/<code>spacer()</code> composition, keyboard-driven state</td>
-</tr>
-<tr>
-<td><a href="model_plot/">model_plot</a></td>
-<td><img src="../doc/screenshots/model_plot.svg" width="180"/></td>
-<td>Model-driven<br/><code>app::model_app</code></td>
-<td><code>PlotModel</code>, sliders driving a live chart via <code>.observe()</code></td>
-</tr>
-<tr>
-<td><a href="model_tree_browser/">model_tree_browser</a></td>
-<td><img src="../doc/screenshots/model_tree_browser.svg" width="180"/></td>
-<td>Model-driven</td>
-<td>Tree widget over a hand-written <code>TreeStorage</code> filesystem adapter</td>
+<td><a href="widget_gallery/">widget_gallery</a></td>
+<td><img src="../doc/screenshots/widget_gallery.svg" width="180"/></td>
+<td>Every widget, in five tabs: controls with tooltips, text in several scripts (right to left
+too), a table, tree and list, a plot and a canvas, menus, dialogs (one holding a form), a popover,
+file dialogs, drag and drop. Start here.</td>
 </tr>
 <tr>
 <td><a href="model_notes/">model_notes</a></td>
 <td><img src="../doc/screenshots/model_notes.svg" width="180"/></td>
-<td>Model-driven</td>
-<td>Text editor: file tree, <code>TextArea</code> with selection, clipboard, undo and IME, find, a <code>Menu</code></td>
-</tr>
-<tr>
-<td><a href="model_dashboard/">model_dashboard</a></td>
-<td><img src="../doc/screenshots/model_dashboard.svg" width="180"/></td>
-<td>Model-driven</td>
-<td>Tabs, table, canvas escape hatch, animation, SVG export — the fullest tour of the widget set</td>
+<td>A text editor: file tree, <code>TextArea</code> with selection, clipboard, undo and input
+methods, search highlights, menus with Alt shortcuts, a rename dialog, file dialogs, drop to open</td>
 </tr>
 <tr>
 <td><a href="model_system_monitor/">model_system_monitor</a></td>
 <td><img src="../doc/screenshots/system_monitor.svg" width="180"/></td>
-<td>Model-driven</td>
-<td>Background-thread data ingestion via <code>Shared&lt;T&gt;</code>, live plots, sortable table/tree over real <code>/proc</code> data</td>
+<td>Background threads feeding the UI through <code>Shared&lt;T&gt;</code> and <code>Channel&lt;T&gt;</code>:
+live plots, a sortable process table and tree, an event log. Linux <code>/proc</code>, or a simulated
+machine elsewhere</td>
 </tr>
 <tr>
 <td><a href="perf_lab/">perf_lab</a></td>
 <td><img src="../doc/screenshots/perf_lab.svg" width="180"/></td>
-<td>Model-driven</td>
-<td>Perf lab: 100k-row table + 1M-point plot + 1 kHz telemetry, live FPS/build-stats bar, <code>--headless N</code> reporter</td>
+<td>100k-row table, 1M-point plot and 1 kHz telemetry, a live FPS/build-stats bar, and a
+<code>--headless N</code> report</td>
 </tr>
 </table>
 
 `showcase/` is a separate, internal set of minimal snippets used only to auto-generate the
 small feature screenshots embedded in the top-level README — not meant to be read as usage
-examples in their own right.
+examples on their own.
 
 Python counterparts live in [`../python/examples/`](../python/examples/README.md) — same ideas via `prism.Model` (`01_counter`, `02_mixer`, `03_validation_and_transaction`, `04_background_shared_channel`, `05_lists_and_derived`). Run with `PYTHONPATH=builddir/python python python/examples/01_counter.py`.
 
-## Building and running
+## Running
+
+Every example is built with the library:
 
 ```bash
 meson setup builddir
 ninja -C builddir
-./builddir/examples/model_dashboard/model_dashboard
+./builddir/examples/widget_gallery/widget_gallery
 ```
 
-Swap in any example's directory name to run a different one. See the root
-[README](../README.md#building) for full build prerequisites.
-
-## Regenerating the screenshots
-
-Every example doubles as its own screenshot generator: run it with an output path as `argv[1]`
-and it renders one frame headlessly (via `CapturingBackend`) and writes an SVG instead of opening
-a window. This is exactly what the `svg_<name>` custom target in each example's `meson.build`
-does at build time (`build_by_default : true`), and is how the images in this file and in each
-example's own README were produced:
+Each also writes a one-frame SVG capture when given an output path, which is how the screenshots
+above are made (`scripts/update_screenshots.sh` refreshes them all):
 
 ```bash
-ninja -C builddir examples/model_dashboard/model_dashboard.svg
-cp builddir/examples/model_dashboard/model_dashboard.svg doc/screenshots/model_dashboard.svg
+./builddir/examples/widget_gallery/widget_gallery capture.svg 2   # the gallery's third tab
 ```
 
 Meson's `custom_target` doesn't track header dependencies, so if you change a header without
 touching the `.cpp` that includes it, delete the stale `.svg` under `builddir/` before rebuilding
 or ninja won't notice it needs regenerating.
+
+For the browser build, see [In the browser](../README.md#in-the-browser) in the top-level README;
+`scripts/build_web_site.sh` assembles the demo page.

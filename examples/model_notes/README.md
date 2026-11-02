@@ -12,7 +12,10 @@ undo/redo, input-method composition and real text measurement on whole files. Al
 text logic is in `notes_logic.hpp`, tested by `tests/test_notes_logic.cpp`; `model_notes.cpp`
 only wires it to widgets.
 
-Known gaps it shows (tracked in `doc/review-2026-11-01.md`): `TextArea` wraps at spaces and
-tabs only, not after hyphens or between CJK characters; there is no file dialog yet. It has a File/Search menu bar, a right-click menu
-on the editor, and Reload asks before discarding unsaved edits. (Its first capture also showed buttons
-as wide as the search field -- fixed by content-sized widgets.)
+It has a File/Search menu bar with Alt shortcuts (`&File`), a right-click menu on the editor,
+tooltips, the platform's Open and Save As dialogs, drop-a-file-to-open, and a Rename dialog
+holding a text field. Reload asks before discarding unsaved edits.
+
+The file tree is `file_tree_source.hpp`, a `TreeStorage` over the filesystem (tier 2 of the tree
+adapters), tested by `tests/test_file_tree_source.cpp`. In the browser the build bundles PRISM's
+own sources and `web_pre.js` starts the app in that folder, since a page has no disk.

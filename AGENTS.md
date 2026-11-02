@@ -32,8 +32,13 @@ Two validated practices worth continuing rather than rediscovering:
   missed. When a feature needs a forcing function to prove it's real, reach for this app before
   writing a new demo. Its performance counterpart is `examples/perf_lab/` (100k-row table,
   1M-point plot, 1 kHz telemetry, `--headless N` publish-cost report) — use it to measure any
-  change to the publish/render path.
-- **Passing tests + "done" is not sufficient evidence a GUI feature actually works.** Expect real
+  change to the publish/render path. `examples/widget_gallery/` is the one place every widget
+  appears: add a new widget there (and so to the web demo page), then try it in a browser —
+  `benchmarks/widget_scale.cpp` measures the cost of N widgets per publish.
+- **Passing tests + "done" is not sufficient evidence a GUI feature actually works.** The web page
+  is a cheap way to look: `scripts/build_web_site.sh` and any COOP/COEP-serving HTTP server, then a
+  headless Chromium driven by playwright-core with real time (Chromium's `--virtual-time-budget`
+  never lets the app's threads start). Expect real
   bugs to surface only once a feature is used for something, and treat that as normal, not a sign
   something went wrong in planning.
 

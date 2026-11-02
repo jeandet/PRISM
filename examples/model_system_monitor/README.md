@@ -4,6 +4,9 @@ A fancy-htop: two background threads poll `/proc` and publish into PRISM's cross
 `Shared<T>`, while the UI thread drains it into live plots, a sortable table, and a process tree.
 The most realistic, multi-threaded example in this directory.
 
+Where there is no `/proc` (the web page, macOS, Windows) the same threads read a simulated
+machine instead (`sim_metrics.hpp`): smooth curves, and processes that start and stop.
+
 <p align="center"><img src="../../doc/screenshots/system_monitor.svg" alt="model_system_monitor screenshot" width="700"/></p>
 
 ## Overview
@@ -11,6 +14,9 @@ The most realistic, multi-threaded example in this directory.
 Two `std::jthread`s (`poll_system_loop`, `poll_processes_loop` in `proc_metrics.hpp`) read
 `/proc/stat`, `/proc/meminfo`, `/proc/net/dev`, and per-process `/proc/<pid>/{stat,status}`,
 computing CPU/mem/net deltas and a full process list, then publish into two `Shared<T>` cells.
+The loops take their reader as a parameter: `proc_system_reader()` and `read_process_list` on
+Linux, `simulated_system_sample` and `simulated_processes` elsewhere (`main()` picks with
+`has_proc()`).
 The UI thread never touches `/proc` directly — it only ever reads through
 `Shared<T>::observe()`, called during a drain the model opts into explicitly.
 
@@ -60,21 +66,20 @@ app.sys_sample.observe([&app](const SystemSample& s) { app.ingest_system(s); });
 app.proc_list.observe([&app](const std::vector<ProcessInfo>& p) { app.ingest_processes(p); });
 ```
 
-`ingest_processes()` is where the reflection-tiered table support pays off — no hand-rolled diff
-loop, just a full-replace call plus the same list feeding a second, tree-shaped view of the same
-data:
+`ingest_processes()` feeds one process list to two views, a table and a tree:
 
 ```cpp
 void ingest_processes(const std::vector<ProcessInfo>& processes) {
-    table_rows.replace_all(processes);
+    process_table.update(processes);
+    process_revision.set(process_revision.get() + 1);   // the table depends_on() it: it redraws
     tree_source.update(processes);
     tree_ctrl.refresh();
 }
 ```
 
-`table_rows` is a `core::List<ProcessInfo>` — `ProcessInfo` is a plain reflectable struct, so the
-table widget derives its columns and cell rendering from its fields directly, no `ProcessRow`
-twin struct needed. `tree_source` (`FlatProcessTreeSource`, in `process_tree_source.hpp`) builds
+`process_table` (`ProcessTable`, in `process_table.hpp`) is a hand-written `ColumnStorage`: four
+columns, formatted cells. It needs no reflection, so the monitor builds with any C++23 compiler
+and in the browser. `tree_source` (`FlatProcessTreeSource`, in `process_tree_source.hpp`) builds
 a parent→children index from the same flat `ProcessInfo` list via `build_process_tree_index()`,
 giving the "Tree" tab a hierarchical view of the exact same data the "Table" tab shows flat.
 
@@ -104,11 +109,6 @@ time since boot, which on a long-uptime machine is large enough that casting str
 loses precision below one frame's worth of phase advance — silently freezing the heartbeat
 (`Field<T>::set()` no-ops on an unchanged value) instead of animating it smoothly.
 
-**Requires reflection** (`__cpp_impl_reflection`) — `ProcessInfo`, `table_rows`, and the model's
-implicit `view()` all depend on P2996 struct reflection being available. Without it, `main()`
-degrades to writing a stub SVG so the build still succeeds on older compilers, rather than
-failing outright.
-
 **Headless capture.** `main()` seeds a small hard-coded process list (`seed_demo_data()`) before
 capturing, rather than relying on the two background pollers — a static single-frame capture
 can't wait for `/proc` polling to land real data:
@@ -124,7 +124,8 @@ if (argc >= 2) {
 
 - `Shared<T>` — the lock-free cross-thread cell; `.get()`/`.set()` from any thread, `.observe()`/`drain_notifications()` on the owning thread. See the root README's [Reactive core](../../README.md#reactive-core).
 - `void drain()` — the model-level opt-in that makes PRISM's app loop flush `Shared<T>` notifications every tick.
-- `List<ProcessInfo>::replace_all` + the reflected-struct table tier — a plain-struct row type drives the table with no manual column/diff code.
+- A hand-written `ColumnStorage` (tier 1) and `.depends_on()` — the table redraws when the list is replaced.
+- Readers passed to the sampler loops — the real `/proc`, or a simulated machine, behind one loop.
 - Variadic `.depends_on(a, b, c, ...)` — one call instead of chained `.depends_on()`s.
 - `canvas()` driven by an `AnimationClock` tick instead of a `Field<T>` change — the heartbeat.
 
@@ -140,5 +141,5 @@ headlessly and dump a single-frame SVG snapshot instead of opening a window.
 
 ## See also
 
-- [`model_tree_browser`](../model_tree_browser/) — the same `TreeController`, over the filesystem instead of an in-memory process list.
-- [`model_dashboard`](../model_dashboard/) — tabs and a table again, fed by user input instead of background threads.
+- [`model_notes`](../model_notes/) — the same `TreeController`, over the filesystem instead of an in-memory process list.
+- [`widget_gallery`](../widget_gallery/) — tabs, a table and a tree again, fed by user input instead of background threads.
