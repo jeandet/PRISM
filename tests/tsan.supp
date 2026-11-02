@@ -1,0 +1,5 @@
+# ThreadSanitizer suppressions for the CI tsan lane (TSAN_OPTIONS=suppressions=...).
+# libdbus is a system library built without TSan: its internal lock order is invisible, so
+# SDL_Init/SDL_Quit (which start and stop dbus) can report a lock-order inversion inside it.
+# Seen 2026-11-02 in test_pixels; Chromium and Cobalt suppress libdbus for the same reason.
+deadlock:libdbus-1.so
