@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <string_view>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -138,6 +139,30 @@ inline std::vector<std::pair<float, float>> selection_spans(const TextMeasurer* 
         spans.emplace_back(std::min(xa, xb), std::max(xa, xb));
     }
     return spans;
+}
+
+// The caret position one step right (+1) or left (-1) of `byte` on screen: of every place the
+// caret can stand on the line, the nearest past it in that direction; nullopt at the line's edge.
+// Inside a right-to-left run a step right goes backwards in the text.
+// simplify: measures every boundary of the line per step (O(n) widths); fine for a line. Cache
+// the positions if long lines show in profiles.
+inline std::optional<std::size_t> visual_step(const TextMeasurer* m, std::string_view line, std::size_t byte,
+                                              float size, int step, FontRole role = FontRole::Ui,
+                                              TextDirection dir = TextDirection::Auto) {
+    float from = caret_x_at(m, line, byte, size, role, dir);
+    std::optional<std::size_t> best;
+    float best_x = 0.f;
+    for (std::size_t b = 0;; b = next_grapheme(line, b)) {
+        float x = caret_x_at(m, line, b, size, role, dir);
+        bool beyond = step > 0 ? x > from + 0.01f : x < from - 0.01f;
+        bool nearer = !best || (step > 0 ? x < best_x : x > best_x);
+        if (beyond && nearer) {
+            best = b;
+            best_x = x;
+        }
+        if (b >= line.size()) break;
+    }
+    return best;
 }
 
 // Bytes of the longest prefix that fits in max_width -- at least one character, so line

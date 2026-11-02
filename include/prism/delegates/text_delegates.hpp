@@ -42,6 +42,15 @@ float caret_x(const TextMeasurer* m, std::string_view value, size_t cursor, Disp
     return caret_x_at(m, shown, shown_offset(value, shown, cursor), tf_font_size);
 }
 
+// Where the text starts: a field whose text starts right to left sits on the right while it fits
+// (as a text area's right-to-left paragraph does); a longer one scrolls as before.
+template <typename DisplayFn>
+float text_x0(const TextMeasurer* m, std::string_view value, Width area_w, DisplayFn display_fn) {
+    std::string shown = display_fn(std::string(value));
+    if (paragraph_direction(shown) != TextDirection::Rtl) return 0.f;
+    return std::max(0.f, area_w.raw() - text_width(m, shown, tf_font_size));
+}
+
 // The x spans showing [lo, hi) of `value` as displayed: several when it crosses a direction change.
 template <typename DisplayFn>
 auto range_spans(const TextMeasurer* m, std::string_view value, size_t lo, size_t hi, DisplayFn display_fn) {
@@ -99,13 +108,15 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     size_t caret = core::utf8::snap(value, es.cursor);
     // What is drawn: the value, with an input-method preedit inserted at the caret.
     std::string shown = es.preedit.empty() ? std::string(value) : with_preedit(value, caret, es.preedit);
+    // Where the text starts on screen: right-aligned right-to-left text, minus the scroll.
+    float shift = text_x0(t.measurer, shown, text_area_w, display_fn) - es.scroll_offset.raw();
 
     // Drawn focused or not: a selection that is invisible but still replaced by the next
     // keystroke would lose text. (Not while composing: offsets would not match `shown`.)
     if (es.anchor && *es.anchor != es.cursor && es.preedit.empty()) {
         auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
         for (auto [x0, x1] : range_spans(t.measurer, value, lo, hi, display_fn))
-            dl.filled_rect(delegate_detail::make_rect(X{x0 - es.scroll_offset.raw()}, Y{tf_padding_y.raw()},
+            dl.filled_rect(delegate_detail::make_rect(X{x0 + shift}, Y{tf_padding_y.raw()},
                                                       Width{x1 - x0}, tf_widget_h - tf_padding_y * 2.f),
                            t.text_selection);
     }
@@ -114,7 +125,7 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
         dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{tf_padding_y.raw() + 2.f}), tf_font_size,
                 t.text_placeholder);
     } else {
-        X text_x{-es.scroll_offset.raw()};
+        X text_x{shift};
         dl.text(display_fn(shown), delegate_detail::make_point(text_x, Y{tf_padding_y.raw() + 2.f}), tf_font_size,
                 t.text);
     }
@@ -122,12 +133,12 @@ void text_field_record(DrawList& dl, const Field<Sentinel>& field, const WidgetN
     if (!es.preedit.empty()) {   // underline the composition
         Y y{tf_widget_h.raw() - tf_padding_y.raw() - 3.f};
         for (auto [x0, x1] : range_spans(t.measurer, shown, caret, caret + es.preedit.size(), display_fn))
-            dl.line(Point{X{x0 - es.scroll_offset.raw()}, y}, Point{X{x1 - es.scroll_offset.raw()}, y}, t.text, 1.f);
+            dl.line(Point{X{x0 + shift}, y}, Point{X{x1 + shift}, y}, t.text, 1.f);
     }
 
     if (vs.focused) {
         size_t shown_caret = caret + (es.preedit.empty() ? 0 : es.preedit_caret);
-        X cursor_x{caret_x(t.measurer, shown, shown_caret, display_fn) - es.scroll_offset.raw()};
+        X cursor_x{caret_x(t.measurer, shown, shown_caret, display_fn) + shift};
         dl.filled_rect(delegate_detail::make_rect(cursor_x, Y{tf_padding_y.raw()}, tf_cursor_w,
                                  tf_widget_h - tf_padding_y * 2.f),
                        t.cursor);
@@ -154,6 +165,19 @@ inline std::optional<TextEdit> common_edit_key(const TextEdit& e, const KeyPress
         return te::move_to(e, next_grapheme(e.text, e.cursor), shift);
     }
     return std::nullopt;
+}
+
+// Left/Right on a line holding right-to-left text move across the screen (visual_step), not
+// through memory: the caret's new offset in `line`, or `at` itself at the line's edge on screen.
+// nullopt for other keys, a plain left-to-right line, or a selection to collapse (that stays as
+// common_edit_key does it: Left goes to the selection's start).
+inline std::optional<std::size_t> visual_arrow(std::string_view line, std::size_t at, const TextEdit& e,
+                                               const KeyPress& kp, const TextMeasurer* m, float size,
+                                               FontRole role, TextDirection dir) {
+    if (kp.key != keys::left && kp.key != keys::right) return std::nullopt;
+    if (mods::shortcut(kp.mods) || (text_edit::has_selection(e) && !(kp.mods & mods::shift))) return std::nullopt;
+    if (is_plain_ltr(bidi_runs(line, dir))) return std::nullopt;
+    return visual_step(m, line, at, size, kp.key == keys::right ? +1 : -1, role, dir).value_or(at);
 }
 
 // Ctrl/Cmd+C and +X. Returns nullopt for other keys. Without a clipboard, a selection, or
@@ -279,10 +303,17 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
         if (auto c = clipboard_key(before, *kp, cb, allow_copy)) after = c;
         else if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
         else if (kp->key == keys::end) after = text_edit::move_to(before, before.text.size(), shift);
+        // A secret field shows dots, which read left to right: its arrows stay logical.
+        else if (auto to = allow_copy ? visual_arrow(before.text, before.cursor, before, *kp, m, tf_font_size,
+                                                     FontRole::Ui, TextDirection::Auto)
+                                      : std::nullopt)
+            after = text_edit::move_to(before, *to, shift);
         else after = common_edit_key(before, *kp);
     } else {
+        Width area_w = delegate_detail::widget_w(node) - tf_padding_x * 2.f;
+        float x0 = text_x0(m, before.text, area_w, display_fn);
         after = mouse_edit(before, es, ev, [&](Point p) {
-            return cursor_at(m, before.text, p.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw(), display_fn);
+            return cursor_at(m, before.text, p.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw() - x0, display_fn);
         });
     }
     if (after) {
@@ -294,7 +325,7 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - tf_padding_x * 2.f;
     auto now = std::string_view(field.get().value.data(), field.get().value.size());
-    Width cursor_px{caret_x(m, now, es.cursor, display_fn)};
+    Width cursor_px{text_x0(m, now, text_area_w, display_fn) + caret_x(m, now, es.cursor, display_fn)};
     if (cursor_px.raw() - es.scroll_offset.raw() > text_area_w.raw())
         es.scroll_offset = DX{cursor_px.raw() - text_area_w.raw()};
     if (cursor_px.raw() < es.scroll_offset.raw())
@@ -590,7 +621,15 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         case keys::down:
             if (line + 1 < wrapped.size()) after = text_edit::move_to(before, vertical_target(line + 1), shift);
             break;
-        default: after = common_edit_key(before, *kp);
+        default: {
+            // simplify: at a line's edge on screen the step falls back to memory order (which
+            // moves to the neighbouring line). Upgrade: step to that line's edge on screen.
+            auto text = line_text(value, wrapped[line]);
+            auto at = core::utf8::offset(text, col);
+            auto to = visual_arrow(text, at, before, *kp, m, ta_font_size, role, places[line].dir);
+            after = to && *to != at ? text_edit::move_to(before, wrapped[line].start + *to, shift)
+                                    : common_edit_key(before, *kp);
+        }
         }
     } else {
         after = mouse_edit(before, es, ev, [&](Point p) {

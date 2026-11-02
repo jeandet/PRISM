@@ -123,3 +123,36 @@ TEST_CASE("the caret follows the paragraph's direction when one is given") {
     // "a" is at the left edge of "ab".
     CHECK(caret_x_at(nullptr, line, 0, size, FontRole::Ui, TextDirection::Rtl) == doctest::Approx(5 * ch));
 }
+
+TEST_CASE("visual caret steps move across the screen, right-to-left runs included") {
+    std::string line = "ab " + hebrew + " cd";
+    // From the start, Right keeps moving the caret right on screen until the end of the line.
+    std::size_t at = 0;
+    float x = caret_x_at(nullptr, line, at, size);
+    int steps = 0;
+    while (auto next = visual_step(nullptr, line, at, size, +1)) {
+        float nx = caret_x_at(nullptr, line, *next, size);
+        CHECK(nx > x);
+        at = *next;
+        x = nx;
+        REQUIRE(++steps < 20);
+    }
+    CHECK(at == line.size());   // the right end of " cd"
+    CHECK(steps >= 8);           // it went through the Hebrew, not around it
+    // And Left walks back to the start.
+    while (auto prev = visual_step(nullptr, line, at, size, -1)) {
+        float px = caret_x_at(nullptr, line, *prev, size);
+        CHECK(px < x);
+        at = *prev;
+        x = px;
+        REQUIRE(++steps < 40);
+    }
+    CHECK(at == 0);
+}
+
+TEST_CASE("inside a Hebrew word, Right moves toward its first letter") {
+    // Right on screen is backwards in memory inside a right-to-left run.
+    auto next = visual_step(nullptr, hebrew, 4, size, +1);   // after two letters
+    REQUIRE(next);
+    CHECK(*next == 2);
+}

@@ -1188,3 +1188,11 @@ TEST_CASE("a click at the right end of a right-to-left line puts the caret at it
     W::handle_input(field, prism::MouseButton{right_end, 1, false}, node);
     CHECK(node.get_or_create<prism::TextAreaEditState>().cursor == 0);
 }
+
+TEST_CASE("Right inside a Hebrew line of a text area moves across the screen") {
+    prism::Field<prism::TextArea<>> field{{.value = hebrew, .rows = 3}};
+    auto node = make_node({.focused = true});
+    node.get_or_create<prism::TextAreaEditState>().cursor = 4;
+    prism::Widget<prism::TextArea<>>::handle_input(field, prism::KeyPress{prism::keys::right, 0}, node);
+    CHECK(node.get_or_create<prism::TextAreaEditState>().cursor == 2);
+}

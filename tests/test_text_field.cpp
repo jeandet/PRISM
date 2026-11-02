@@ -812,3 +812,32 @@ TEST_CASE("a click on the rightmost Hebrew letter puts the caret before it in th
     TF::handle_input(field, prism::MouseButton{P(4.f + 6.8f * cw, 10.f), 1, false}, node);
     CHECK(state(node).cursor == 3);   // the first Hebrew letter starts at byte 3
 }
+
+// --- right-to-left text in a field ---
+
+TEST_CASE("Right inside a Hebrew word moves the caret toward its first letter (across the screen)") {
+    std::string hebrew = "\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d";
+    prism::Field<prism::TextField<>> field{{.value = hebrew}};
+    auto node = make_node({.focused = true});
+    TF::ensure_edit_state(node).cursor = 4;   // after two letters
+    key(field, node, prism::keys::right);
+    CHECK(state(node).cursor == 2);
+    key(field, node, prism::keys::left);
+    CHECK(state(node).cursor == 4);
+}
+
+TEST_CASE("a field whose text starts right to left sits on the right") {
+    std::string hebrew = "\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d";
+    prism::Field<prism::TextField<>> field{{.value = hebrew}};
+    auto node = make_node({.focused = true});
+    prism::DrawList dl;
+    TF::record(dl, field, node);
+    float cw = prism::char_width(14.f).raw(), area_w = 200.f - 2 * 4.f;
+    bool found = false;
+    for (auto& cmd : dl.commands)
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd); t && t->text == hebrew) {
+            CHECK(t->origin.x.raw() == doctest::Approx(4.f + area_w - 4 * cw));
+            found = true;
+        }
+    CHECK(found);
+}
