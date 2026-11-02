@@ -3,17 +3,21 @@
 #include <prism/render/draw_list.hpp>
 #include <prism/render/text_bitmap.hpp>
 
+#include <array>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 typedef struct TTF_Font TTF_Font;
 
 namespace prism::backends {
 
-// The UI font and the mono font, each registered as the other's SDL_ttf fallback: Noto Sans lacks
+// The UI font and the mono font, each a fallback of the other (mono through a copy, see open()): Noto Sans lacks
 // the geometric symbols (password dot, dropdown arrow, check mark) and the Nerd Font icons, which
 // the mono font has. SDL_ttf does not resize fallbacks with their primary, so both fonts always
 // share one size. One instance per thread: a TTF_Font must not be used by two threads.
+// Script fonts found next to the UI font (Noto Sans Hebrew and Arabic, bundled) are fallbacks of
+// both, so right-to-left text draws real letters; they are resized with the others too.
 // simplify: a string mixing fonts (e.g. "abc●") baselines each glyph on its own font's ascent,
 // about 1 px apart at UI sizes; PRISM draws its symbols as separate text commands.
 class SdlFontSet {
@@ -35,9 +39,17 @@ public:
     // `text` in white at `px_size`, coverage in alpha (what a GPU renderer uploads and tints).
     std::optional<render::TextBitmap> rasterize(std::string_view text, float px_size, render::FontRole role);
 
+    // File names of the script fallbacks, looked for in the UI font's folder.
+    static constexpr std::array<const char*, 2> script_font_files{"NotoSansHebrew-Regular.ttf",
+                                                                  "NotoSansArabic-Regular.ttf"};
+
 private:
+    void open_script_fallbacks(const char* beside, float size);
+    TTF_Font* open_extra(const char* path, float size);   // a fallback-only font, kept in extra_
+
     TTF_Font* ui_ = nullptr;
     TTF_Font* mono_ = nullptr;
+    std::vector<TTF_Font*> extra_;   // fallbacks only: a copy of the UI font, the script fonts
     float size_ = 0.f;
 };
 

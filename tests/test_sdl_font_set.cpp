@@ -95,3 +95,18 @@ TEST_CASE("mixed-direction text is as wide as each run measured on its own") {
     w_line = bmp->width;
     CHECK(w_line == w_parts);
 }
+
+TEST_CASE("Hebrew and Arabic letters draw from the bundled script fonts, not as boxes") {
+    // Found next to the UI font. Without them, two different letters draw the same empty box.
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    auto differ = [&](std::string a, std::string b) {
+        auto ba = fonts.rasterize(a, 14.f, FontRole::Ui), bb = fonts.rasterize(b, 14.f, FontRole::Ui);
+        REQUIRE(ba);
+        REQUIRE(bb);
+        return ba->width != bb->width || ba->rgba != bb->rgba;
+    };
+    CHECK(differ("\xd7\x90", "\xd7\x91"));   // alef, bet
+    CHECK(differ("\xd8\xa8", "\xd8\xb3"));   // beh, seen
+}

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <string_view>
 #include <vector>
 
@@ -25,20 +26,45 @@ bool SdlFontSet::open(const char* ui_path, const char* mono_path, float size) {
     for (TTF_Font* f : {ui_, mono_})
         if (f) TTF_SetFontHinting(f, TTF_HINTING_LIGHT_SUBPIXEL);
     if (ui_ && mono_) {
-        // Mutual fallbacks are fine: SDL_ttf stops the glyph search when it returns to the start.
+        // Each falls back on the other, but mono gets its own copy of the UI font: a fallback
+        // loop (ui -> mono -> ui) sends SDL_ttf's resize walk around it forever when it starts
+        // from a third font, as the script fallbacks do (UpdateFontText only stops at its start).
         TTF_AddFallbackFont(ui_, mono_);
-        TTF_AddFallbackFont(mono_, ui_);
+        if (TTF_Font* ui_copy = open_extra(ui_path, size)) TTF_AddFallbackFont(mono_, ui_copy);
     }
+    open_script_fallbacks(ui_path ? ui_path : mono_path, size);
     size_ = size;
     return ui_ || mono_;
+}
+
+void SdlFontSet::open_script_fallbacks(const char* beside, float size) {
+    if (!beside) return;
+    auto dir = std::filesystem::path(beside).parent_path();
+    for (const char* name : script_font_files) {
+        auto path = (dir / name).string();
+        if (!std::filesystem::is_regular_file(path)) continue;
+        if (TTF_Font* f = open_extra(path.c_str(), size))
+            for (TTF_Font* primary : {ui_, mono_})
+                if (primary) TTF_AddFallbackFont(primary, f);
+    }
+}
+
+TTF_Font* SdlFontSet::open_extra(const char* path, float size) {
+    TTF_Font* f = TTF_OpenFont(path, size);
+    if (!f) return nullptr;
+    TTF_SetFontHinting(f, TTF_HINTING_LIGHT_SUBPIXEL);
+    extra_.push_back(f);
+    return f;
 }
 
 void SdlFontSet::close() {
     if (TTF_WasInit() > 0) {
         if (ui_) TTF_CloseFont(ui_);
         if (mono_) TTF_CloseFont(mono_);
+        for (TTF_Font* f : extra_) TTF_CloseFont(f);
     }
     ui_ = mono_ = nullptr;
+    extra_.clear();
 }
 
 TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
@@ -47,6 +73,7 @@ TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
     if (font && std::abs(size_ - px_size) > 0.01f) {
         if (ui_) TTF_SetFontSize(ui_, px_size);      // both: each is the other's fallback
         if (mono_) TTF_SetFontSize(mono_, px_size);
+        for (TTF_Font* f : extra_) TTF_SetFontSize(f, px_size);
         size_ = px_size;
     }
     return font;

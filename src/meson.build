@@ -95,8 +95,11 @@ prism_software_backend_lib = library('prism-software-backend',
 
 # OFL: the licence texts travel with the fonts. Own install tag, so wheels (tags runtime,
 # python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
-bundled_font_files = [ui_font_path, mono_font_path,
-                      fonts_dir / 'NotoSans-OFL.txt', fonts_dir / 'JetBrainsMono-OFL.txt']
+# The script fonts are found beside the UI font (SdlFontSet::script_font_files).
+script_font_paths = [fonts_dir / 'NotoSansHebrew-Regular.ttf', fonts_dir / 'NotoSansArabic-Regular.ttf']
+bundled_font_files = [ui_font_path, mono_font_path] + script_font_paths + [
+                      fonts_dir / 'NotoSans-OFL.txt', fonts_dir / 'JetBrainsMono-OFL.txt',
+                      fonts_dir / 'NotoSansScripts-OFL.txt']
 install_data(bundled_font_files, install_dir : fonts_install_dir, install_tag : 'fonts')
 
 prism_software_backend_dep = declare_dependency(
@@ -134,6 +137,9 @@ if host_machine.system() == 'emscripten'
     app_link_args += ['--preload-file', t.full_path() + '@' + f[0]]
   endforeach
   app_sources = web_fonts
+  foreach f : script_font_paths   # small already (Hebrew 26 KB, Arabic 229 KB): not subset
+    app_link_args += ['--preload-file', f + '@' + f]
+  endforeach
 endif
 
 # Convenience: core + default software backend (SDL3 headers exposed for keycodes etc.)
