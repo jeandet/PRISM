@@ -379,7 +379,8 @@ public:
         container.layout_kind = LayoutKind::VirtualList;
         container.vlist_item_count = items.size();
 
-        container.vlist_bind_row = [&items, on_row_click](WidgetNode& wn, size_t index) {
+        auto shifted_at = std::make_shared<std::uint64_t>(0);
+        container.vlist_bind_row = [&items, on_row_click, shifted_at, &tree = tree_](WidgetNode& wn, size_t index) {
             auto field_ptr = std::make_shared<Field<T>>(items[index]);
             wn.edit_state = std::shared_ptr<void>(field_ptr);
             wn.focus_policy = Widget<T>::focus_policy;
@@ -393,7 +394,7 @@ public:
                 Widget<T>::record(node.draws, *field_ptr, node);
             };
             wn.record(wn);
-            wn.wire = [field_ptr, &items, index, on_row_click](WidgetNode& node) {
+            wn.wire = [field_ptr, &items, index, on_row_click, shifted_at, &tree](WidgetNode& node) {
                 node.connections.push_back(
                     node.on_input.connect([field_ptr, &node](const InputEvent& ev) {
                         Widget<T>::handle_input(*field_ptr, ev, node);
@@ -408,14 +409,15 @@ public:
                     // Fires synchronously with a live items[index] ref during dispatch --
                     // a handler that mutates the list (e.g. erasing this row) risks it
                     // dangling mid-call; capture index/copy rather than mutate through it.
-                    // simplify: rows are recycled widgets bound to an index, so a click
-                    // hit-tested against the frame on screen (WindowEvent::shown) still reports
-                    // the item at that index *now*: if the list changed in a frame not yet
-                    // shown, it is the neighbour of the row the user saw. Upgrade: record each
-                    // row's bound index in the snapshot and pass it with the event.
+                    // Rows are recycled widgets bound to an index. A click hit-tested against
+                    // a frame shown before a removal moved the rows (see WindowEvent::shown)
+                    // would report the row's neighbour: it is dropped instead, since without
+                    // item keys the item the user saw cannot be found again. Appends and
+                    // in-place updates move nothing and never drop a click.
                     node.connections.push_back(
-                        node.on_input.connect([on_row_click, &items, index](const InputEvent& ev) {
+                        node.on_input.connect([on_row_click, &items, index, shifted_at, &tree](const InputEvent& ev) {
                             auto* mb = std::get_if<MouseButton>(&ev);
+                            if (tree.input_frame() < *shifted_at) return;
                             if (mb && mb->pressed && mb->button == 1 && index < items.size())
                                 on_row_click(index, items[index]);
                         })
@@ -426,6 +428,14 @@ public:
 
         container.vlist_unbind_row = &view_builder_detail::unbind_vlist_row;
         view_builder_detail::wire_list_signals(container, items);
+        // A removal moves the rows after it: remember the first frame that shows them moved.
+        container.vlist_on_remove = [inner = container.vlist_on_remove, shifted_at, &tree = tree_](
+                                        size_t i, std::function<void()> cb) {
+            return inner(i, [cb = std::move(cb), shifted_at, &tree] {
+                *shifted_at = tree.next_frame_version();
+                cb();
+            });
+        };
 
         current_parent().children.push_back(std::move(container));
     }

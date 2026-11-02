@@ -253,6 +253,9 @@ struct ColumnResize {
 
 struct TableState {
     size_t column_count = 0;
+    // The first frame showing rows moved by a data change or a re-sort: a body click hit-tested
+    // against an earlier frame is dropped (see WidgetTree::input_frame).
+    std::uint64_t shifted_at = 0;
 
     DY scroll_y{0};
     Height viewport_h{0};

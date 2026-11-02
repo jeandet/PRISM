@@ -262,6 +262,13 @@ public:
         return std::nullopt;
     }
 
+    // Frame versions, for input hit-tested against an older frame than the latest (see
+    // WindowEvent::shown): routing records the event's frame; a change that moves content
+    // records the first frame that shows it (next_frame_version).
+    void set_input_frame(std::uint64_t version) { input_frame_ = version; }
+    [[nodiscard]] std::uint64_t input_frame() const { return input_frame_; }
+    [[nodiscard]] std::uint64_t next_frame_version() const { return last_built_version_ + 1; }
+
     // Text input that follows a key press a popup used (SDL sends both for a letter): dropped,
     // or a letter that chose a menu item would also be typed into the focused field.
     void swallow_next_text_input(bool on) { swallow_text_ = on; }
@@ -511,6 +518,7 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<SceneSnapshot> build_snapshot(float w, float h, uint64_t version) {
+        last_built_version_ = version;
         auto build_start = std::chrono::steady_clock::now();
         // Counted before refresh_dirty() runs record() -- record() never touches the
         // dirty flag itself (only clear_dirty(), called by the caller after publish,
@@ -626,7 +634,9 @@ private:
     std::unordered_map<WidgetId, WidgetNode*> index_;
     TooltipState tooltip_;
     bool tooltip_dirty_ = false;
-    bool swallow_text_ = false;   // shown or hidden since the last publish
+    bool swallow_text_ = false;
+    std::uint64_t last_built_version_ = 0;
+    std::uint64_t input_frame_ = UINT64_MAX;   // none known: as new as it gets   // shown or hidden since the last publish
 
     void set_tooltip(TooltipState s) {
         if (s.shown != tooltip_.shown) tooltip_dirty_ = true;
@@ -731,7 +741,10 @@ private:
             if (node.layout_kind == LayoutKind::Table) {
                 auto id = wn.id;
                 auto data_changed = [this, id, ts = node.table_state.get()]() {
-                    if (ts) ts->order_stale = true;
+                    if (ts) {
+                        ts->order_stale = true;
+                        ts->shifted_at = next_frame_version();
+                    }
                     set_dirty(id);
                 };
                 for (auto sig : {&Node::vlist_on_insert, &Node::vlist_on_remove,
@@ -1280,6 +1293,13 @@ private:
         }
     }
 
+    // A press on the body hit-tested against a frame from before the rows moved: it would act
+    // on whichever row has since taken that place.
+    bool stale_body_press(const TableState& ts, const InputEvent& ev) const {
+        auto* mb = std::get_if<MouseButton>(&ev);
+        return mb && mb->pressed && !table_input_detail::in_header(ts, mb->position) && input_frame() < ts.shifted_at;
+    }
+
     // Wires the input handler for selection, sorting, resizing and scrolling (once per node).
     void wire_table_input(WidgetNode& node, TableState* ts) {
         if (node.table_input_wired) return;
@@ -1289,7 +1309,10 @@ private:
             node.on_input.connect([ts, node_id, this](const InputEvent& ev) {
                 auto it = index_.find(node_id);
                 if (it == index_.end()) return;
+                if (stale_body_press(*ts, ev)) return;
+                auto sort_before = ts->sort.get();
                 auto result = handle_table_input(*ts, ev);
+                if (ts->sort.get() != sort_before) ts->shifted_at = next_frame_version();
                 if (result.cursor) it->second->visual_state.cursor = *result.cursor;
                 if (result.repaint) it->second->dirty = true;
             })

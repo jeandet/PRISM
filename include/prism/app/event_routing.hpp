@@ -256,6 +256,7 @@ inline void route_tooltip(WidgetTree& tree, const InputEvent& ev) {
 
 inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
                         const InputEvent& ev) {
+    tree.set_input_frame(snap ? snap->version : UINT64_MAX);
     tree.refresh_popup_owner();
     if (snap) {
         if (auto* mm = std::get_if<MouseMove>(&ev))
