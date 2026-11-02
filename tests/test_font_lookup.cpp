@@ -33,9 +33,9 @@ TEST_CASE("an installed font is found relative to the library, not the executabl
 TEST_CASE("an explicit path wins, then the build-tree path") {
     TempTree t;
     auto installed = t.touch("share/prism/fonts/Ui.ttf");
-    auto build = t.touch("src/Ui.ttf");
+    std::string build = t.touch("src/Ui.ttf").string();   // narrow: a Windows path's c_str() is wide
     CHECK(find_font("/explicit.ttf", build.c_str(), t.root / "lib64", "share/prism/fonts/Ui.ttf") == "/explicit.ttf");
-    CHECK(find_font(nullptr, build.c_str(), t.root / "lib64", "share/prism/fonts/Ui.ttf") == build.string());
+    CHECK(find_font(nullptr, build.c_str(), t.root / "lib64", "share/prism/fonts/Ui.ttf") == build);
     CHECK(fs::path(find_font(nullptr, "/no/such/build.ttf", t.root / "lib64", "share/prism/fonts/Ui.ttf")) == fs::canonical(installed));
 }
 
@@ -45,9 +45,9 @@ TEST_CASE("nothing found gives an empty path") {
     CHECK(find_font(nullptr, nullptr, {}, "share/prism/fonts/Ui.ttf").empty());
 }
 
-TEST_CASE("the library directory of this process's PRISM backend is known (where dladdr exists)") {
-#if defined(_WIN32) || defined(__EMSCRIPTEN__)
-    CHECK(prism::backends::backend_library_dir().empty());   // no dladdr: lookup falls back
+TEST_CASE("the library directory of this process's PRISM backend is known (dladdr, or the module on Windows)") {
+#if defined(__EMSCRIPTEN__)
+    CHECK(prism::backends::backend_library_dir().empty());   // no shared libraries: lookup falls back
 #else
     CHECK(fs::is_directory(prism::backends::backend_library_dir()));
 #endif
