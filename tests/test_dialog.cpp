@@ -207,3 +207,90 @@ TEST_CASE("the highlighted button is clamped when the buttons shrink") {
     f.key(keys::enter);
     CHECK(f.model.ask.get().chosen == std::optional<size_t>{0});
 }
+
+// --- long messages --------------------------------------------------------------
+
+namespace {
+std::string numbered(int n) {
+    std::string s;
+    for (int i = 0; i < n; ++i) s += (i ? "\n" : "") + std::string("message line ") + std::to_string(i);
+    return s;
+}
+
+bool overlay_draws_text(const WidgetTree& tree, std::string_view text) {
+    const auto* owner = tree.popup_node();
+    if (!owner) return false;
+    for (auto& c : owner->overlay_draws.commands)
+        if (auto* t = std::get_if<TextCmd>(&c); t && t->text == text) return true;
+    return false;
+}
+
+void show_message(Fixture& f, std::string message) {
+    auto d = f.model.ask.get();
+    d.message = std::move(message);
+    d.open = true;
+    f.model.ask.set(d);
+    f.frame();
+}
+}
+
+TEST_CASE("a message taller than the window: the card fits and its buttons stay clickable") {
+    Fixture f;
+    show_message(f, numbered(100));
+    auto c = f.card();
+    REQUIRE(c);
+    CHECK(c->origin.y.raw() >= 0.f);
+    CHECK(c->origin.y.raw() + c->extent.h.raw() <= 400.f);
+    // The last button sits along the card's bottom edge: a click there chooses it.
+    float x = c->origin.x.raw() + c->extent.w.raw() - 20.f - 10.f;
+    float y = c->origin.y.raw() + c->extent.h.raw() - 20.f - 15.f;
+    f.click(x, y);
+    CHECK(f.model.ask.get().chosen == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("the wheel and the arrow keys scroll a long message; the end is reachable") {
+    Fixture f;
+    show_message(f, numbered(100));
+    REQUIRE(overlay_draws_text(f.tree, "message line 0"));
+    REQUIRE_FALSE(overlay_draws_text(f.tree, "message line 99"));
+    auto c = *f.card();
+    Point inside{c.origin.x + DX{40}, c.origin.y + DY{c.extent.h.raw() / 2}};
+    route_event(f.tree, f.snap.get(), MouseScroll{inside, DX{0}, DY{1}});
+    f.frame();
+    CHECK_FALSE(overlay_draws_text(f.tree, "message line 0"));
+    for (int i = 0; i < 200; ++i) f.key(keys::down);
+    f.frame();
+    CHECK(overlay_draws_text(f.tree, "message line 99"));
+    f.key(keys::page_up);
+    f.key(keys::home);
+    f.frame();
+    CHECK(overlay_draws_text(f.tree, "message line 0"));
+}
+
+TEST_CASE("a very long line wraps instead of widening the card past the window") {
+    Fixture f;
+    std::string line;
+    for (int i = 0; i < 60; ++i) line += "word ";
+    show_message(f, line);
+    auto c = f.card();
+    REQUIRE(c);
+    CHECK(c->extent.w.raw() <= 600.f);
+    int lines = 0;
+    for (auto& cmd : f.tree.popup_node()->overlay_draws.commands)
+        if (auto* t = std::get_if<TextCmd>(&cmd); t && t->text.starts_with("word")) ++lines;
+    CHECK(lines > 1);
+}
+
+TEST_CASE("dragging the message's scrollbar thumb scrolls it") {
+    Fixture f;
+    show_message(f, numbered(100));
+    auto c = *f.card();
+    float thumb_x = c.origin.x.raw() + c.extent.w.raw() - 10.f;   // pad / 2 from the edge
+    float top = c.origin.y.raw() + 20.f + 30.f + 5.f;              // the thumb starts at the message top
+    route_event(f.tree, f.snap.get(), MouseButton{Point{X{thumb_x}, Y{top}}, buttons::left, true});
+    route_event(f.tree, f.snap.get(), MouseMove{Point{X{thumb_x}, Y{top + 400.f}}, buttons::left_mask});
+    route_event(f.tree, f.snap.get(), MouseButton{Point{X{thumb_x}, Y{top + 400.f}}, buttons::left, false});
+    f.frame();
+    CHECK(overlay_draws_text(f.tree, "message line 99"));   // dragged to the end
+    CHECK(f.tree.popup_owner() != 0);                       // and the dialog is still open
+}

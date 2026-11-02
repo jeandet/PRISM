@@ -9,7 +9,8 @@ delay is the one timed wake of the logic thread (`app/deadline_timer.hpp`).
 Popups open below what they came from (a menu title, a right click) and flip above it, or
 right-align with it, near a window edge. Not yet: popovers anchored
 to arbitrary widgets, keyboard mnemonics, a scrollable widget inside a dialog (scrolling is
-blocked while a popup is open).
+blocked while a popup is open). A long dialog message wraps, and scrolls inside a card kept
+within the window (wheel, Up/Down, PageUp/PageDown, Home/End, or its scrollbar).
 
 ## Decision
 

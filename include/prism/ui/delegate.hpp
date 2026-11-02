@@ -283,6 +283,8 @@ struct Dialog {
 
 struct DialogEditState {
     std::size_t highlighted = 0;
+    float scroll = 0.f;   // of a message taller than the window allows
+    std::optional<std::pair<float, float>> drag;   // the scrollbar's: pointer y and scroll at the press
 };
 
 template <ScopedEnum T>
