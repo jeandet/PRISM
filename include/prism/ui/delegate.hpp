@@ -684,14 +684,22 @@ struct Widget<Slider<T, O>> {
 struct Button {
     std::string text;
     uint64_t click_count = 0;
+    // Drawn 16 pt square left of the text (render/image_decoder.hpp loads one from a file). An
+    // icon-only button has empty text: give it a tooltip so it still has a name.
+    std::shared_ptr<const Image> icon{};
     bool operator==(const Button&) const = default;
 };
 
 template <>
 struct Widget<Button> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr float icon_size = 16.f;
+    static constexpr float icon_gap = 6.f;   // between the icon and the text
     static float intrinsic_width(const Field<Button>& f, const WidgetNode& n) {
-        return std::max(48.f, 16.f + text_width(node_theme(n).measurer, f.get().text, 14.f));   // text at x = 8, both sides
+        const auto& b = f.get();
+        if (b.text.empty() && b.icon) return 32.f;   // an icon alone: square
+        float icon = b.icon ? icon_size + icon_gap : 0.f;
+        return std::max(48.f, 16.f + icon + text_width(node_theme(n).measurer, b.text, 14.f));   // 8 pt each side
     }
     static constexpr Role access_role = Role::Button;
     static void describe(const Field<Button>& f, AccessInfo& a) { a.name = f.get().text; }
@@ -705,7 +713,13 @@ struct Widget<Button> {
                  : t.primary;
         dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), bg);
         dl.rect_outline(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), t.primary_outline, 1.0f);
-        dl.text(field.get().text, delegate_detail::make_point(X{8}, Y{7}), 14, t.text_on_primary);
+        const auto& b = field.get();
+        float x = 8.f;
+        if (b.icon) {
+            dl.image(b.icon, Rect{Point{X{x}, Y{(32.f - icon_size) / 2}}, Size{Width{icon_size}, Height{icon_size}}});
+            x += icon_size + icon_gap;
+        }
+        if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, t.text_on_primary);
         if (vs.focused)
             delegate_detail::draw_focus_ring(dl, w, Height{32}, t);
     }
