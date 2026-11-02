@@ -88,6 +88,11 @@ public:
         services->show_file_dialog(window_->id(), std::move(dialog), std::move(on_logic_thread));
     }
 
+    // Called on the logic thread with every file drop (the paths and where they were dropped),
+    // after the widget under the drop has seen it.
+    void on_file_drop(std::function<void(const FileDrop&)> fn) { file_drop_ = std::move(fn); }
+    [[nodiscard]] const std::function<void(const FileDrop&)>& file_drop_handler() const { return file_drop_; }
+
     // A message box, for what the app cannot show in its own window. Ignored when the
     // platform has none.
     void show_message(MessageKind kind, std::string title, std::string text) {
@@ -218,6 +223,7 @@ private:
         apply_wrapper(logic_wrapper_, do_drain);
     }
     scheduler_type sched_;
+    std::function<void(const FileDrop&)> file_drop_;
     AnimationClock* clock_;
     Window* window_;
     Backend* backend_;
@@ -459,6 +465,8 @@ void model_app(Backend& backend, Window& window, Model& model,
                         // Against the frame the user saw, if the backend says which (see WindowEvent).
                         const SceneSnapshot* seen = shown ? shown.get() : entry->current_snap.get();
                         widget_detail::route_event(*entry->tree, seen, ev);
+                        if (auto* drop = std::get_if<FileDrop>(&ev); drop && ctx_holder->file_drop_handler())
+                            ctx_holder->file_drop_handler()(*drop);
                         if (entry->current_snap)
                             entry->window->set_cursor(entry->tree->desired_cursor());
 

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace prism::input {
 using namespace prism::core;
@@ -23,11 +24,14 @@ struct Composition { std::string text; int32_t start = -1; int32_t length = -1; 
 struct WindowResize { int width, height; };
 struct WindowClose {};
 struct MouseLeave {};   // the pointer left the window's content (or went onto its title bar)
+// Dropped from another app: the files of one drop together, or text. Where the pointer was.
+struct FileDrop { Point position; std::vector<std::string> paths; };
+struct TextDrop { Point position; std::string text; };
 
 using InputEvent = std::variant<
     MouseMove, MouseButton, MouseScroll,
     KeyPress, KeyRelease, TextInput, Paste, Composition,
-    WindowResize, WindowClose, MouseLeave
+    WindowResize, WindowClose, MouseLeave, FileDrop, TextDrop
 >;
 
 namespace keys {

@@ -272,6 +272,8 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
     // ever dispatched -- flushed whenever a different kind of event (or a motion for a
     // different window) needs to be delivered first, preserving relative event order.
     std::optional<WindowEvent> pending_motion;
+    // One drop arrives as begin, a file or text event per item, complete: delivered as one event.
+    std::optional<WindowEvent> pending_drop;
     auto pointer_left = [&](WindowId wid) {
         if (pointer_window_ != wid) return;
         pointer_window_ = 0;
@@ -297,6 +299,10 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
             win && win->decoration_mode() == DecorationMode::Custom)
             y -= WindowChrome::title_bar_h.raw();
         return y;
+    };
+    auto drop_point = [&](WindowId wid, const SDL_DropEvent& d) {
+        std::lock_guard<std::mutex> lk(windows_mutex_);
+        return Point{X{d.x}, Y{client_y(wid, d.y)}};
     };
 
     // A window needs presenting when its snapshot slot differs from what was last
@@ -340,6 +346,8 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                     wid = sdl_id_to_prism_id(ev.key.windowID);
                 } else if (ev.type == SDL_EVENT_TEXT_INPUT) {
                     wid = sdl_id_to_prism_id(ev.text.windowID);
+                } else if (ev.type >= SDL_EVENT_DROP_FILE && ev.type <= SDL_EVENT_DROP_POSITION) {
+                    wid = sdl_id_to_prism_id(ev.drop.windowID);
                 }
                 // During a press-drag, route events to the window that received the press
                 if (wid == 0 && pressed_window_ != 0)
@@ -358,6 +366,28 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                 case SDL_EVENT_QUIT:
                     event_cb(WindowEvent{wid, WindowClose{}});
                     running_.store(false, std::memory_order_relaxed);
+                    break;
+                case SDL_EVENT_DROP_BEGIN:
+                    pending_drop.reset();
+                    break;
+                case SDL_EVENT_DROP_FILE:
+                case SDL_EVENT_DROP_TEXT: {
+                    std::string data = ev.drop.data ? ev.drop.data : "";   // SDL's copy is temporary
+                    Point at = drop_point(wid, ev.drop);
+                    if (ev.type == SDL_EVENT_DROP_FILE) {
+                        if (!pending_drop || !std::holds_alternative<FileDrop>(pending_drop->event))
+                            pending_drop = WindowEvent{wid, FileDrop{at, {}}};
+                        std::get<FileDrop>(pending_drop->event).paths.push_back(std::move(data));
+                    } else {
+                        if (!pending_drop || !std::holds_alternative<TextDrop>(pending_drop->event))
+                            pending_drop = WindowEvent{wid, TextDrop{at, {}}};
+                        std::get<TextDrop>(pending_drop->event).text += data;
+                    }
+                    break;
+                }
+                case SDL_EVENT_DROP_COMPLETE:
+                    if (pending_drop) event_cb(std::move(*pending_drop));
+                    pending_drop.reset();
                     break;
                 case SDL_EVENT_WINDOW_MOUSE_LEAVE:   // its own window only, not the drag fallback
                     pointer_left(sdl_id_to_prism_id(ev.window.windowID));

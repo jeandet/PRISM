@@ -133,3 +133,63 @@ TEST_CASE("show_message reaches the platform") {
     run_app(b, std::move(owner));
     CHECK(services.messages == std::vector<std::string>{"Could not save"});
 }
+
+// --- drag and drop -----------------------------------------------------------------------
+
+namespace {
+struct Form {
+    Field<TextField<>> name{{}};
+    void view(WidgetTree::ViewBuilder& vb) { vb.widget(name); }
+};
+
+// Sends `events` once the first frame exists, then closes.
+class DropBackend final : public BackendBase {
+    HeadlessWindow window_{1, {.width = 400, .height = 300}};
+    std::mutex m_;
+    std::condition_variable cv_;
+    bool framed_ = false;
+
+public:
+    std::vector<InputEvent> events;
+    Window& create_window(WindowConfig) override { return window_; }
+    void submit(WindowId, std::shared_ptr<const SceneSnapshot>) override {
+        { std::lock_guard l(m_); framed_ = true; }
+        cv_.notify_all();
+    }
+    void wake() override {}
+    void quit() override {}
+    void run(std::function<void(const WindowEvent&)> send) override {
+        { std::unique_lock l(m_); cv_.wait_for(l, 2s, [&] { return framed_; }); }
+        for (auto& ev : events) send({1, ev});
+        send({1, WindowClose{}});
+    }
+};
+}
+
+TEST_CASE("a file drop reaches the app's drop handler on the logic thread") {
+    Form model;
+    auto impl = std::make_unique<DropBackend>();
+    impl->events = {FileDrop{Point{X{10}, Y{10}}, {"/tmp/a.txt", "/tmp/b.txt"}}};
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    std::vector<std::string> got;
+    bool on_logic_thread = false;
+    model_app(backend, window, model, [&](AppContext& ctx) {
+        ctx.on_file_drop([&](const FileDrop& d) {
+            got = d.paths;
+            on_logic_thread = detail_is_logic_thread;
+        });
+    });
+    CHECK(got == std::vector<std::string>{"/tmp/a.txt", "/tmp/b.txt"});
+    CHECK(on_logic_thread);
+}
+
+TEST_CASE("text dropped on a text field is typed into it") {
+    Form model;
+    auto impl = std::make_unique<DropBackend>();
+    impl->events = {TextDrop{Point{X{20}, Y{10}}, "dropped"}};
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    model_app(backend, window, model);
+    CHECK(model.name.get().value == "dropped");
+}

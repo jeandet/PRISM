@@ -254,6 +254,26 @@ inline void route_tooltip(WidgetTree& tree, const InputEvent& ev) {
         tree.dismiss_tooltip();
 }
 
+// A drop goes to the widget under it. Dropped text is typed there, as a paste is: a text
+// field or text area inserts it (at its caret). Dropped files reach the widget too; the app
+// sees them through AppContext::on_file_drop.
+// simplify: dropped text goes in at the caret, not where it was dropped; moving the caret to
+// the drop point needs each text widget to map a point to an offset on a drop.
+inline void route_drop(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev) {
+    auto* file = std::get_if<FileDrop>(&ev);
+    auto* text = std::get_if<TextDrop>(&ev);
+    if (!file && !text) return;
+    auto id = hit_test(snap, file ? file->position : text->position);
+    if (!id) return;
+    if (file) {
+        auto rect = find_widget_rect(snap, *id);
+        tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
+        return;
+    }
+    tree.set_focused(*id);
+    tree.dispatch(*id, Paste{text->text});
+}
+
 inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
                         const InputEvent& ev) {
     tree.set_input_frame(snap ? snap->version : UINT64_MAX);
@@ -267,6 +287,7 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
             route_mouse_scroll(tree, *snap, *ms);
     }
     if (std::holds_alternative<MouseLeave>(ev)) tree.update_hover(std::nullopt);
+    if (snap) route_drop(tree, *snap, ev);
     if (auto* kp = std::get_if<KeyPress>(&ev))
         route_key_press(tree, ev, *kp);
     if (std::get_if<TextInput>(&ev) || std::get_if<Paste>(&ev) || std::get_if<Composition>(&ev))

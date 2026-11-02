@@ -323,3 +323,52 @@ TEST_CASE("SoftwareBackend: a file dialog that cannot open answers with an error
     CHECK(result.paths.empty());
     CHECK_FALSE(result.error.empty());
 }
+
+namespace {
+void push_drop(SDL_EventType type, SDL_WindowID w, const char* data, float x = 40.f, float y = 50.f) {
+    SDL_Event ev{};
+    ev.type = type;
+    ev.drop.windowID = w;
+    ev.drop.x = x;
+    ev.drop.y = y;
+    ev.drop.data = data;
+    SDL_PushEvent(&ev);
+}
+}
+
+TEST_CASE("SoftwareBackend: the files of one drop arrive together, with where they were dropped") {
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300});
+    auto& sdl_win = static_cast<prism::backends::SdlWindow&>(window);
+    std::mutex m;
+    std::vector<prism::FileDrop> drops;
+    std::vector<prism::TextDrop> texts;
+    std::atomic<int> seen{0};
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        auto w = SDL_GetWindowID(sdl_win.sdl_window());
+        push_drop(SDL_EVENT_DROP_BEGIN, w, nullptr);
+        push_drop(SDL_EVENT_DROP_FILE, w, "/tmp/a.txt");
+        push_drop(SDL_EVENT_DROP_FILE, w, "/tmp/b.txt");
+        push_drop(SDL_EVENT_DROP_COMPLETE, w, nullptr);
+        push_drop(SDL_EVENT_DROP_BEGIN, w, nullptr);
+        push_drop(SDL_EVENT_DROP_TEXT, w, "dropped words");
+        push_drop(SDL_EVENT_DROP_COMPLETE, w, nullptr);
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
+        while (seen < 2 && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        backend.quit();
+    });
+    backend.run([&](const prism::WindowEvent& we) {
+        std::lock_guard l(m);
+        if (auto* f = std::get_if<prism::FileDrop>(&we.event)) { drops.push_back(*f); ++seen; }
+        if (auto* t = std::get_if<prism::TextDrop>(&we.event)) { texts.push_back(*t); ++seen; }
+    });
+    driver.join();
+    REQUIRE(drops.size() == 1);
+    CHECK(drops[0].paths == std::vector<std::string>{"/tmp/a.txt", "/tmp/b.txt"});
+    CHECK(drops[0].position.x.raw() == doctest::Approx(40.f));
+    REQUIRE(texts.size() == 1);
+    CHECK(texts[0].text == "dropped words");
+}

@@ -171,5 +171,8 @@ int main(int argc, char* argv[]) {
     auto backend = app::Backend::software(app::RenderConfig{});
     auto& window = backend.create_window({.title = "PRISM Notes", .width = 1000, .height = 640,
                                           .decoration = app::DecorationMode::Custom});
-    app::model_app(backend, window, app, [&app](app::AppContext& ctx) { app.ctx = &ctx; });
+    app::model_app(backend, window, app, [&app](app::AppContext& ctx) {
+        app.ctx = &ctx;
+        ctx.on_file_drop([&app](const input::FileDrop& drop) { app.open(drop.paths.front()); });
+    });
 }
