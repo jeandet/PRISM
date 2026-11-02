@@ -291,3 +291,35 @@ TEST_CASE("SoftwareBackend stamps each event with the frame on screen") {
     REQUIRE(seen);
     CHECK(stamped);
 }
+
+TEST_CASE("SoftwareBackend: a file dialog that cannot open answers with an error, not silence") {
+    SDL_SetHint(SDL_HINT_FILE_DIALOG_DRIVER, "no-such-driver");   // never shows a real dialog
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300});
+    std::atomic<bool> answered{false};
+    prism::app::FileDialogResult result;
+    std::mutex m;
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        REQUIRE(backend.platform_services());
+        backend.platform_services()->show_file_dialog(
+            window.id(), {.kind = prism::app::FileDialogKind::Open, .title = "Open", .filters = {{"Text", "txt"}}, .start = {}},
+            [&](prism::app::FileDialogResult r) {
+                std::lock_guard l(m);
+                result = std::move(r);
+                answered = true;
+            });
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(2000);
+        while (!answered && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        backend.quit();
+    });
+    backend.run([](const prism::WindowEvent&) {});
+    driver.join();
+    SDL_ResetHint(SDL_HINT_FILE_DIALOG_DRIVER);
+    REQUIRE(answered);
+    std::lock_guard l(m);
+    CHECK(result.paths.empty());
+    CHECK_FALSE(result.error.empty());
+}

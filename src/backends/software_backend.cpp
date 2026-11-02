@@ -150,6 +150,69 @@ WindowId SoftwareBackend::sdl_id_to_prism_id(uint32_t sdl_window_id) const {
     return 0;
 }
 
+namespace {
+
+// One SDL file dialog in flight: owns the filter strings until SDL calls back (SDL requires
+// them to outlive the call), and the app's callback.
+struct DialogCall {
+    std::vector<std::string> names, patterns;
+    std::vector<SDL_DialogFileFilter> filters;
+    std::function<void(app::FileDialogResult)> done;
+};
+
+// SDL calls this once, on any thread: a list of paths, an empty list (cancelled), or null
+// (the dialog failed; SDL_GetError says why).
+void SDLCALL dialog_done(void* userdata, const char* const* filelist, int) {
+    std::unique_ptr<DialogCall> call{static_cast<DialogCall*>(userdata)};
+    app::FileDialogResult result;
+    if (!filelist) result.error = SDL_GetError();
+    else
+        for (auto p = filelist; *p; ++p) result.paths.emplace_back(*p);
+    call->done(std::move(result));
+}
+
+void show_file_dialog(SDL_Window* parent, QueuedPlatformServices::FileRequest& req) {
+    auto call = std::make_unique<DialogCall>();
+    for (auto& f : req.dialog.filters) {
+        call->names.push_back(f.name);
+        call->patterns.push_back(f.patterns);
+    }
+    for (std::size_t i = 0; i < call->names.size(); ++i)   // the strings no longer move
+        call->filters.push_back({call->names[i].c_str(), call->patterns[i].c_str()});
+    call->done = std::move(req.done);
+    const char* start = req.dialog.start.empty() ? nullptr : req.dialog.start.c_str();
+    const auto* filters = call->filters.empty() ? nullptr : call->filters.data();
+    int n = static_cast<int>(call->filters.size());
+    auto* raw = call.release();   // dialog_done takes it back
+    switch (req.dialog.kind) {
+    case app::FileDialogKind::Open:     SDL_ShowOpenFileDialog(dialog_done, raw, parent, filters, n, start, false); break;
+    case app::FileDialogKind::OpenMany: SDL_ShowOpenFileDialog(dialog_done, raw, parent, filters, n, start, true); break;
+    case app::FileDialogKind::Save:     SDL_ShowSaveFileDialog(dialog_done, raw, parent, filters, n, start); break;
+    case app::FileDialogKind::Folder:   SDL_ShowOpenFolderDialog(dialog_done, raw, parent, start, false); break;
+    }
+}
+
+void show_message(SDL_Window* parent, const QueuedPlatformServices::MessageRequest& req) {
+    SDL_MessageBoxFlags flags = req.kind == app::MessageKind::Error   ? SDL_MESSAGEBOX_ERROR
+                              : req.kind == app::MessageKind::Warning ? SDL_MESSAGEBOX_WARNING
+                                                                      : SDL_MESSAGEBOX_INFORMATION;
+    SDL_ShowSimpleMessageBox(flags, req.title.c_str(), req.text.c_str(), parent);
+}
+
+} // namespace
+
+// On the main thread. The parent is looked up under the lock, then the lock is released before
+// showing: a native dialog may run an event loop of its own.
+void SoftwareBackend::show_platform_requests() {
+    auto parent_of = [this](WindowId id) -> SDL_Window* {
+        std::lock_guard<std::mutex> lk(windows_mutex_);
+        auto it = windows_.find(id);
+        return it != windows_.end() ? it->second->sdl_window() : nullptr;
+    };
+    platform_.drain([&](QueuedPlatformServices::FileRequest& f) { show_file_dialog(parent_of(f.parent), f); },
+                    [&](QueuedPlatformServices::MessageRequest& m) { show_message(parent_of(m.parent), m); });
+}
+
 void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
     // Every event carries the frame on screen when it was read (WindowEvent::shown), so the
     // app hit-tests it against what the user saw. last_presented_ is only touched on this
@@ -429,6 +492,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                     drain_window_requests();
                     drain_close_requests();
                     clipboard_.drain([](const std::string& text) { SDL_SetClipboardText(text.c_str()); });
+                    show_platform_requests();
                     break;
                 case SDL_EVENT_WINDOW_EXPOSED:
                     // De-occlusion/un-minimize: SDL needs a redraw even though the

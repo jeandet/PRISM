@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 struct NotesApp {
     FileTreeSource source;
     ui::TreeController files{ui::wrap_tree_storage(source)};
-    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Save", "&Reload"}}};
+    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save", "Save &As…", "&Reload"}}};
     core::Field<ui::Menu> search_menu{{.title = "&Search", .items = {"&Clear search"}}};
     core::Field<ui::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
     core::Field<ui::Dialog> discard{{.title = "Unsaved changes",
@@ -52,9 +52,13 @@ struct NotesApp {
         }));
     }
 
+    app::AppContext* ctx = nullptr;   // for the platform's file dialogs; set by main()
+
     // Every menu entry, by its label.
     void run(std::string_view command) {
-        if (command == "Save") write();
+        if (command == "Open…") ask_for_file(app::FileDialogKind::Open);
+        else if (command == "Save As…") ask_for_file(app::FileDialogKind::Save);
+        else if (command == "Save") write();
         else if (command == "Reload" && !current.empty()) confirm_reload();
         else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
     }
@@ -91,6 +95,27 @@ struct NotesApp {
         error.clear();
         body.set({.value = *text, .placeholder = body.get().placeholder, .rows = body.get().rows});
         refresh_status();
+    }
+
+    // The platform's file dialog; its answer comes back on the logic thread.
+    void ask_for_file(app::FileDialogKind kind) {
+        if (!ctx) return;
+        bool saving = kind == app::FileDialogKind::Save;
+        app::FileDialog dialog{.kind = kind,
+                               .title = saving ? "Save the note as" : "Open a note",
+                               .filters = {{"Text", "txt;md;cpp;hpp;py;toml;json;yaml"}, {"Any file", "*"}},
+                               .start = current.string()};   // empty: the platform picks
+        ctx->choose_files(std::move(dialog), [this, saving](app::FileDialogResult r) {
+            if (!r.error.empty()) {
+                error = "file dialog: " + r.error;
+                refresh_status();
+            } else if (!r.paths.empty() && saving) {
+                current = r.paths.front();
+                write();
+            } else if (!r.paths.empty()) {
+                open(r.paths.front());
+            }
+        });
     }
 
     void confirm_reload() {
@@ -143,7 +168,8 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 1000, 640);
     }
     NotesApp app{argc >= 2 ? fs::path(argv[1]) : fs::current_path()};
-    app::model_app({.title = "PRISM Notes", .width = 1000, .height = 640,
-                      .decoration = app::DecorationMode::Custom},
-                     app);
+    auto backend = app::Backend::software(app::RenderConfig{});
+    auto& window = backend.create_window({.title = "PRISM Notes", .width = 1000, .height = 640,
+                                          .decoration = app::DecorationMode::Custom});
+    app::model_app(backend, window, app, [&app](app::AppContext& ctx) { app.ctx = &ctx; });
 }

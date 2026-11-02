@@ -76,6 +76,25 @@ public:
     void set_post_dispatch_hook(std::function<void()> fn) {
         *post_dispatch_hook_ = std::move(fn);
     }
+    // Shows a file dialog (see PlatformServices); `done` runs on the logic thread with the
+    // chosen paths -- empty when cancelled, or with `error` set when the platform has no file
+    // dialogs or the dialog failed. Does not block.
+    void choose_files(FileDialog dialog, std::function<void(FileDialogResult)> done) {
+        auto on_logic_thread = [gate = wake_gate_, done = std::move(done)](FileDialogResult r) mutable {
+            gate->post([done = std::move(done), r = std::move(r)]() mutable { done(std::move(r)); });
+        };
+        auto* services = backend_->platform_services();
+        if (!services) return on_logic_thread({{}, "this backend has no file dialogs"});
+        services->show_file_dialog(window_->id(), std::move(dialog), std::move(on_logic_thread));
+    }
+
+    // A message box, for what the app cannot show in its own window. Ignored when the
+    // platform has none.
+    void show_message(MessageKind kind, std::string title, std::string text) {
+        if (auto* services = backend_->platform_services())
+            services->show_message(window_->id(), kind, std::move(title), std::move(text));
+    }
+
     // Injectable wrapper for logic-thread work (e.g. GIL acquire for Python callbacks).
     // Keep SDL-free: caller provides the wrapping logic.
     void set_logic_wrapper(std::function<void(std::function<void()>)> w) {
