@@ -15,10 +15,10 @@
 #include <prism/app/widget_tree_layout.hpp>
 #include <prism/app/widget_tree_traversal.hpp>
 #include <prism/app/table_input.hpp>
+#include <prism/ui/tooltip.hpp>
 #if __cpp_impl_reflection
 #include <prism/core/reflect.hpp>
 #include <prism/core/reflect_annotations.hpp>
-#include <prism/ui/tooltip.hpp>
 #endif
 #include <prism/core/state.hpp>
 
