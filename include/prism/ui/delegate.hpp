@@ -130,6 +130,9 @@ struct TextAreaEditState {
     std::string preedit;
     std::size_t preedit_caret = 0;
     DY scroll_y{0};
+    // Where Up/Down aim, in pixels from the line start: kept across a run of Up/Down so a short
+    // line on the way does not pull the caret left; any other input forgets it.
+    std::optional<float> goal_x;
 };
 
 // Ephemeral scroll state (stored in WidgetNode::edit_state)

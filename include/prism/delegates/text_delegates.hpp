@@ -451,6 +451,20 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
     auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped);
     std::optional<TextEdit> after;
+    auto* key = std::get_if<KeyPress>(&ev);
+    bool vertical = key && (key->key == keys::up || key->key == keys::down);
+    bool hover = std::holds_alternative<MouseMove>(ev) && !es.dragging;
+    if (!vertical && !hover && !std::holds_alternative<KeyRelease>(ev)) es.goal_x.reset();
+    // The caret on line `to`, as near to goal_x as that line allows.
+    auto vertical_target = [&](size_t to) {
+        if (!es.goal_x) {
+            auto text = line_text(value, wrapped[line]);
+            es.goal_x = prefix_width(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
+        }
+        auto text = line_text(value, wrapped[to]);
+        size_t to_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, *es.goal_x, ta_font_role));
+        return line_col_to_cursor(value, to, to_col, wrapped);
+    };
 
     if (auto* co = std::get_if<Composition>(&ev)) {
         set_composition(es, node, *co);
@@ -476,11 +490,10 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
             after = text_edit::move_to(before, wrapped[line].start + wrapped[line].length, shift);
             break;
         case keys::up:
-            if (line > 0) after = text_edit::move_to(before, line_col_to_cursor(value, line - 1, col, wrapped), shift);
+            if (line > 0) after = text_edit::move_to(before, vertical_target(line - 1), shift);
             break;
         case keys::down:
-            if (line + 1 < wrapped.size())
-                after = text_edit::move_to(before, line_col_to_cursor(value, line + 1, col, wrapped), shift);
+            if (line + 1 < wrapped.size()) after = text_edit::move_to(before, vertical_target(line + 1), shift);
             break;
         default: after = common_edit_key(before, *kp);
         }

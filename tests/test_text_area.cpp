@@ -629,6 +629,50 @@ TEST_CASE("TextArea: Down clamps col to shorter line") {
     CHECK(es.cursor == 8);
 }
 
+namespace {
+void press(prism::Field<prism::TextArea<>>& f, prism::WidgetNode& n, int32_t key) {
+    prism::InputEvent ev = prism::KeyPress{.key = key, .mods = 0};
+    prism::Widget<prism::TextArea<>>::handle_input(f, ev, n);
+}
+}
+
+TEST_CASE("TextArea: Down through a short line comes back to the starting column") {
+    prism::Field<prism::TextArea<>> field{{.value = "abcde\nfg\nhijkl"}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.cursor = 4;                       // abcd|e
+    press(field, node, prism::keys::down);
+    CHECK(es.cursor == 8);               // fg| (clamped)
+    press(field, node, prism::keys::down);
+    CHECK(es.cursor == 13);              // hijk|l: column 4 again, not 2
+    press(field, node, prism::keys::up);
+    press(field, node, prism::keys::up);
+    CHECK(es.cursor == 4);
+}
+
+TEST_CASE("TextArea: any other key forgets the remembered column") {
+    prism::Field<prism::TextArea<>> field{{.value = "abcde\nfg\nhijkl"}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.cursor = 4;
+    press(field, node, prism::keys::down);   // fg|, remembering column 4
+    press(field, node, prism::keys::left);   // f|g
+    press(field, node, prism::keys::down);
+    CHECK(es.cursor == 10);                  // h|ijkl: column 1, from where the caret is now
+}
+
+TEST_CASE("TextArea: typing forgets the remembered column") {
+    prism::Field<prism::TextArea<>> field{{.value = "abcde\nfg\nhijkl"}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.cursor = 4;
+    press(field, node, prism::keys::down);   // fg|
+    prism::InputEvent typed = prism::TextInput{"x"};
+    prism::Widget<prism::TextArea<>>::handle_input(field, typed, node);   // fgx|
+    press(field, node, prism::keys::down);
+    CHECK(es.cursor == 13);                  // hij|kl: column 3
+}
+
 TEST_CASE("TextArea: mouse click positions cursor") {
     prism::Field<prism::TextArea<>> field{{.value = "abc\ndef"}};
     auto node = make_node({.focused = true});
