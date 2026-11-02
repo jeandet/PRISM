@@ -33,7 +33,10 @@ struct TreeSource {
     std::function<TreeNodeId(TreeNodeId, size_t)> child_at;
     std::function<std::string(TreeNodeId)> label;
     std::function<bool(TreeNodeId)> has_children;
-    std::function<std::optional<std::string>(TreeNodeId)> icon;
+    std::function<std::optional<std::string>(TreeNodeId)> icon;   // a glyph from the icon font
+    // An image icon (render::load_image reads one from a file); it wins over the glyph. Images
+    // draw the same everywhere, while the web build ships only a few of the font's glyphs.
+    std::function<std::shared_ptr<const Image>(TreeNodeId)> image;
     std::function<std::vector<std::pair<std::string, std::string>>(TreeNodeId)> attributes;
 };
 
@@ -59,6 +62,9 @@ TreeSource wrap_tree_storage(T& data) {
     if constexpr (requires(const T& t, TreeNodeId id) { t.icon(id); }) {
         src.icon = [&data](TreeNodeId id) { return data.icon(id); };
     }
+    if constexpr (requires(const T& t, TreeNodeId id) { t.image(id); }) {
+        src.image = [&data](TreeNodeId id) { return data.image(id); };
+    }
     if constexpr (requires(const T& t, TreeNodeId id) { t.attributes(id); }) {
         src.attributes = [&data](TreeNodeId id) { return data.attributes(id); };
     }
@@ -73,6 +79,7 @@ struct TreeRow {
     bool has_children = false;
     bool expanded = false;
     bool selected = false;
+    std::shared_ptr<const Image> image{};   // drawn in the icon slot instead of `icon`
 
     bool operator==(const TreeRow&) const = default;
 };
@@ -113,7 +120,12 @@ struct Widget<TreeRow> {
         if (row.has_children)
             dl.text(row.expanded ? "v" : ">", delegate_detail::make_point(x, Y{4.f}), font, t.text);
         x = x + DX{marker_slot};
-        if (row.icon) {
+        if (row.image) {
+            constexpr float image_size = 16.f;
+            dl.image(row.image, Rect{delegate_detail::make_point(x, Y{(row_h.raw() - image_size) / 2}),
+                                     Size{Width{image_size}, Height{image_size}}});
+            x = x + DX{icon_slot};
+        } else if (row.icon) {
             dl.text(*row.icon, delegate_detail::make_point(x, Y{4.f}), font, t.text);
             x = x + DX{icon_slot};
         }
@@ -170,6 +182,7 @@ inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
     row.id = id;
     row.label = source.label(id);
     row.icon = source.icon ? source.icon(id) : std::nullopt;
+    row.image = source.image ? source.image(id) : nullptr;
     row.depth = depth;
     row.has_children = source.has_children(id);
     row.expanded = expanded.contains(id);

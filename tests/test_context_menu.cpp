@@ -244,3 +244,22 @@ TEST_CASE("closing a popup any way forgets what it opened from") {
     f.tree.close_popup();
     CHECK_FALSE(owner->popup_opened_from);
 }
+
+TEST_CASE("menu items with icons draw each icon left of its label, labels aligned") {
+    auto dot = *Image::from_rgba(2, 2, std::vector<std::uint8_t>(16, 255));
+    Fixture f;
+    f.model.menu.set({.items = {"Copy", "Paste", "Select all"}, .icons = {dot, nullptr, dot}});
+    f.press(50, 60, buttons::right);
+    f.refresh();
+    std::vector<Rect> icons;
+    std::vector<float> label_x;
+    for (auto& cmd : f.snap->overlay.commands) {
+        if (auto* im = std::get_if<ImageCmd>(&cmd)) icons.push_back(im->rect);
+        if (auto* t = std::get_if<TextCmd>(&cmd)) label_x.push_back(t->origin.x.raw());
+    }
+    REQUIRE(icons.size() == 2);   // the item without one leaves its slot empty
+    REQUIRE(label_x.size() == 3);
+    CHECK(label_x[0] == label_x[1]);   // every label starts after the icon slot
+    CHECK(label_x[0] >= icons[0].origin.x.raw() + icons[0].extent.w.raw());
+    CHECK(icons[1].origin.y.raw() > icons[0].origin.y.raw());   // the third row
+}

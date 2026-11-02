@@ -262,6 +262,9 @@ struct Menu {
     std::vector<std::string> items;
     std::optional<std::size_t> chosen{};
     std::uint64_t activations = 0;
+    // icons[i] is drawn left of items[i] (render::load_image reads one from a file); it may be
+    // shorter than items, or hold nullptr, for items without one.
+    std::vector<std::shared_ptr<const Image>> icons{};
     bool operator==(const Menu&) const = default;
 };
 
@@ -275,6 +278,7 @@ struct ContextMenu {
     std::vector<std::string> items;
     std::optional<std::size_t> chosen{};
     std::uint64_t activations = 0;
+    std::vector<std::shared_ptr<const Image>> icons{};   // as Menu::icons
     bool operator==(const ContextMenu&) const = default;
 };
 

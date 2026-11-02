@@ -302,7 +302,8 @@ void view(app::WidgetTree::ViewBuilder& vb) {
 </tr>
 </table>
 
-Tables and trees are virtualized, so only visible rows cost anything. A tree comes with a pane
+Tables and trees are virtualized, so only visible rows cost anything. A tree source may also give
+each node an `icon(id)` (a glyph) or an `image(id)` (any image). A tree comes with a pane
 showing the selected row's details; `vb.tree(ctrl, /*detail=*/false)` leaves it out, for an app
 that shows the selection its own way, for example with `vb.pages(field, ...)`: tabs without the
 header, where the app picks the page.
@@ -362,7 +363,8 @@ arrow keys or the mouse move to the next. Popups always stay inside the window: 
 menu opens above its title, and a right-click menu opens up or left of the pointer.
 A `&` in a label marks its keyboard shortcut: `"&File"` shows *File* with the F underlined,
 Alt+F opens it, and an item's letter chooses it in an open menu (`ui::menu_text()` gives the
-label without the `&`).
+label without the `&`). `.icons` puts an image before each item (`render::load_image` reads PNG,
+JPEG or SVG files).
 
 A right-click menu belongs to the container it is declared in, and a modal dialog is a field
 the app opens:

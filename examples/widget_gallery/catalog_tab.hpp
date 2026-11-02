@@ -37,7 +37,8 @@ struct Samples {
     prism::core::Field<prism::ui::ProgressBar> busy{{.value = 0.0, .busy = true}};
     prism::core::Field<prism::ui::Button> button{{.text = "Save", .icon = icon("save.svg")}};
     prism::core::Field<prism::ui::Button> quiet{{.text = "Cancel", .primary = false}};
-    prism::core::Field<prism::ui::Menu> menu{{.title = "&Edit", .items = {"&Undo", "&Redo", "&Copy"}}};
+    prism::core::Field<prism::ui::Menu> menu{{.title = "&File", .items = {"&Open…", "&Save", "&Delete"},
+                                              .icons = {icon("folder.svg"), icon("save.svg"), icon("trash.svg")}}};
     prism::core::Field<prism::ui::Button> open_dialog{{"Ask a question…"}};
     prism::core::Field<prism::ui::Dialog> dialog{{.title = "Keep changes?", .message = "You edited this sample.",
                                                   .buttons = {"Keep", "Discard"}}};
@@ -110,8 +111,8 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<ui::Button> save{{.text = \"Save\", .icon = icon}};",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.button); vb.gap(8.f); vb.widget(s.quiet); vb.spacer(); }); }},
         E{"Popups", "", "Things drawn above the window: menus, dialogs, popovers, tooltips.", "", nullptr},
-        E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&Edit\" makes Alt+E open it.",
-          "core::Field<ui::Menu> edit{{.title = \"&Edit\", .items = {\"&Undo\"}}};",
+        E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it; .icons puts an image before each item.",
+          "core::Field<ui::Menu> file{{.title = \"&File\", .items = {\"&Open…\"}, .icons = {open_icon}}};",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.menu); vb.spacer(); }); }},
         E{"Dialog", "Popups", "A modal question with buttons; it can hold a form too (vb.dialog(d, content)).",
           "core::Field<ui::Dialog> ask{{.title = \"Keep?\", .buttons = {\"Keep\", \"Discard\"}}};",
@@ -150,6 +151,11 @@ struct CatalogTree {
     prism::ui::TreeNodeId child_at(prism::ui::TreeNodeId id, std::size_t i) const { return children_of(category_name(id))[i]; }
     std::string label(prism::ui::TreeNodeId id) const { return (*entries)[id].name; }
     bool has_children(prism::ui::TreeNodeId id) const { return child_count(id) > 0; }
+    // Image icons (a tree source may provide image(id)): a folder on each category.
+    std::shared_ptr<const prism::render::Image> image(prism::ui::TreeNodeId id) const {
+        return (*entries)[id].category.empty() ? folder : nullptr;
+    }
+    std::shared_ptr<const prism::render::Image> folder = icon("folder.svg");
 
 private:
     // A category's name, or nothing for a widget (widgets have no children).

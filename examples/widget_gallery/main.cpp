@@ -17,7 +17,8 @@ using namespace prism;
 struct Gallery {
     static constexpr std::array<const char*, 6> tab_names{"Controls", "Catalog", "Text", "Data", "Plot", "Popups"};
 
-    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save as…"}}};
+    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save as…"},
+                                     .icons = {gallery::icon("folder.svg"), gallery::icon("save.svg")}}};
     core::Field<ui::Menu> view_menu{{.title = "&View", .items = {"&Controls", "C&atalog", "&Text", "&Data", "&Plot", "P&opups"}}};
     core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {"&About PRISM"}}};
     core::Field<ui::Dialog> about{{.title = "PRISM Widget Gallery",

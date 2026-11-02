@@ -119,3 +119,35 @@ TEST_CASE("Widget<TreeRow> draws the icon and the label separately, the label cl
     REQUIRE(label_x >= 0.f);
     CHECK(label_x - icon_x >= 1.5f * 13.f);   // a slot wide enough for the icon's ink
 }
+
+TEST_CASE("a tree row with an image icon draws it before its label") {
+    auto dot = *prism::Image::from_rgba(2, 2, std::vector<std::uint8_t>(16, 255));
+    prism::Field<prism::TreeRow> field{{.id = 1, .label = "file.txt", .icon = std::nullopt, .image = dot}};
+    auto node = make_node();
+    prism::DrawList dl;
+    prism::Widget<prism::TreeRow>::record(dl, field, node);
+    std::optional<prism::Rect> image;
+    float label_x = -1.f;
+    for (auto& cmd : dl.commands) {
+        if (auto* im = std::get_if<prism::ImageCmd>(&cmd)) image = im->rect;
+        if (auto* t = std::get_if<prism::TextCmd>(&cmd); t && t->text == "file.txt") label_x = t->origin.x.raw();
+    }
+    REQUIRE(image);
+    CHECK(label_x >= image->origin.x.raw() + image->extent.w.raw());
+}
+
+TEST_CASE("a tree source with image(id) gives its rows images") {
+    struct Files {
+        std::shared_ptr<const prism::Image> icon = *prism::Image::from_rgba(1, 1, {255, 255, 255, 255});
+        std::size_t root_count() const { return 1; }
+        prism::TreeNodeId root_at(std::size_t) const { return 7; }
+        std::size_t child_count(prism::TreeNodeId) const { return 0; }
+        prism::TreeNodeId child_at(prism::TreeNodeId, std::size_t) const { return 0; }
+        std::string label(prism::TreeNodeId) const { return "notes.md"; }
+        bool has_children(prism::TreeNodeId) const { return false; }
+        std::shared_ptr<const prism::Image> image(prism::TreeNodeId) const { return icon; }
+    } files;
+    prism::TreeController ctrl{prism::wrap_tree_storage(files)};
+    REQUIRE(ctrl.rows.size() == 1);
+    CHECK(ctrl.rows[0].image == files.icon);
+}

@@ -14,12 +14,24 @@ constexpr float pad = 8.f;
 constexpr float font_size = 14.f;
 
 using Items = std::vector<std::string>;
+using Icons = std::vector<std::shared_ptr<const Image>>;
 
-inline Size popup_size(const Items& items, const WidgetNode& n, float min_w) {
+constexpr float icon_size = 16.f;
+constexpr float icon_slot = icon_size + 8.f;   // the icon and its gap before the label
+
+// Any icon at all: then every label moves right by the icon slot, so they stay aligned.
+inline bool has_icons(const Icons& icons) {
+    return std::ranges::any_of(icons, [](const auto& i) { return i != nullptr; });
+}
+
+inline float label_offset(const Icons& icons) { return pad + (has_icons(icons) ? icon_slot : 0.f); }
+
+inline Size popup_size(const Items& items, const Icons& icons, const WidgetNode& n, float min_w) {
     float w = 0.f;
     for (const auto& item : items)
         w = std::max(w, text_width(node_theme(n).measurer, parse_mnemonic(item).text, font_size));
-    return Size{Width{std::max(w + 2.f * pad, min_w)}, Height{item_h.raw() * static_cast<float>(items.size())}};
+    return Size{Width{std::max(w + label_offset(icons) + pad, min_w)},
+                Height{item_h.raw() * static_cast<float>(items.size())}};
 }
 
 // Item under a point in the owner's coordinates. The popup may have been moved to stay
@@ -37,9 +49,9 @@ inline std::optional<std::size_t> item_for_key(const Items& items, std::int32_t 
     return std::nullopt;
 }
 
-inline void open_at(const Items& items, WidgetNode& node, Rect anchor, float min_w) {
+inline void open_at(const Items& items, const Icons& icons, WidgetNode& node, Rect anchor, float min_w) {
     Point below{anchor.origin.x, anchor.origin.y + DY{anchor.extent.h.raw()}};
-    node.popup_area = Rect{below, popup_size(items, node, min_w)};
+    node.popup_area = Rect{below, popup_size(items, icons, node, min_w)};
     node.popup_opened_from = anchor;
     node.get_or_create<MenuEditState>().highlighted = 0;
     node.dirty = true;
@@ -73,7 +85,7 @@ inline void draw_label(DrawList& dl, std::string_view label, Point at, Color col
     dl.line(Point{at.x + DX{x0}, under}, Point{at.x + DX{x1}, under}, color, 1.f);
 }
 
-inline void draw_popup(const Items& items, WidgetNode& node) {
+inline void draw_popup(const Items& items, const Icons& icons, WidgetNode& node) {
     const Rect& area = *node.popup_area;
     const auto& t = *node.theme;
     std::size_t hl = node.get_or_create<MenuEditState>().highlighted;
@@ -83,7 +95,10 @@ inline void draw_popup(const Items& items, WidgetNode& node) {
         Y y{area.origin.y.raw() + static_cast<float>(i) * item_h.raw()};
         if (i == hl)
             node.overlay_draws.filled_rect(Rect{Point{area.origin.x, y}, Size{area.extent.w, item_h}}, t.popup_highlight);
-        draw_label(node.overlay_draws, items[i], Point{area.origin.x + DX{pad}, y + DY{6.f}},
+        if (i < icons.size() && icons[i])
+            node.overlay_draws.image(icons[i], Rect{Point{area.origin.x + DX{pad}, y + DY{(item_h.raw() - icon_size) / 2}},
+                                                    Size{Width{icon_size}, Height{icon_size}}});
+        draw_label(node.overlay_draws, items[i], Point{area.origin.x + DX{label_offset(icons)}, y + DY{6.f}},
                    i == hl ? t.text_on_primary : t.text, t.measurer);
     }
 }
@@ -138,7 +153,7 @@ inline void Widget<Menu>::record(DrawList& dl, const Field<Menu>& field, WidgetN
     draw_label(dl, m.title, delegate_detail::make_point(X{pad}, Y{7}), t.text, t.measurer);
     if (vs.focused) delegate_detail::draw_focus_ring(dl, w, title_h, t);
     node.overlay_draws.clear();
-    if (is_open) draw_popup(m.items, node);
+    if (is_open) draw_popup(m.items, m.icons, node);
 }
 
 inline void Widget<Menu>::handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node) {
@@ -146,7 +161,7 @@ inline void Widget<Menu>::handle_input(Field<Menu>& field, const InputEvent& ev,
     const auto& m = field.get();
     auto open = [&] {
         Width w = delegate_detail::widget_w(node);
-        open_at(m.items, node, Rect{Point{X{0}, Y{0}}, Size{w, title_h}}, w.raw());
+        open_at(m.items, m.icons, node, Rect{Point{X{0}, Y{0}}, Size{w, title_h}}, w.raw());
     };
     if (node.popup_area && open_popup_input(field, ev, node)) return;
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
@@ -159,7 +174,7 @@ inline void Widget<Menu>::handle_input(Field<Menu>& field, const InputEvent& ev,
 
 inline void Widget<ContextMenu>::record(DrawList&, const Field<ContextMenu>& field, WidgetNode& node) {
     node.overlay_draws.clear();
-    if (node.popup_area) menu_detail::draw_popup(field.get().items, node);
+    if (node.popup_area) menu_detail::draw_popup(field.get().items, field.get().icons, node);
 }
 
 inline void Widget<ContextMenu>::handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node) {
@@ -169,7 +184,7 @@ inline void Widget<ContextMenu>::handle_input(Field<ContextMenu>& field, const I
         return;
     }
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::right)
-        open_at(field.get().items, node, Rect{mb->position, Size{Width{0}, Height{0}}}, 120.f);
+        open_at(field.get().items, field.get().icons, node, Rect{mb->position, Size{Width{0}, Height{0}}}, 120.f);
 }
 
 } // namespace prism::ui
