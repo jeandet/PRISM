@@ -79,10 +79,12 @@ inline std::vector<std::uint8_t> zlib_stored(std::span<const std::uint8_t> raw) 
 inline std::vector<std::uint8_t> encode_png(int width, int height, std::span<const std::uint8_t> rgba) {
     using namespace png_detail;
     std::vector<std::uint8_t> out{0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
-    std::vector<std::uint8_t> header;
-    put_be32(header, static_cast<std::uint32_t>(width));
-    put_be32(header, static_cast<std::uint32_t>(height));
-    header.insert(header.end(), {8, 6, 0, 0, 0});   // 8 bits per channel, RGBA, deflate, no filter, no interlace
+    // A fixed array, not a vector filled in steps: GCC 14 misreads that as an overflow.
+    auto w = static_cast<std::uint32_t>(width), h = static_cast<std::uint32_t>(height);
+    const std::array<std::uint8_t, 13> header{
+        std::uint8_t(w >> 24), std::uint8_t(w >> 16), std::uint8_t(w >> 8), std::uint8_t(w),
+        std::uint8_t(h >> 24), std::uint8_t(h >> 16), std::uint8_t(h >> 8), std::uint8_t(h),
+        8, 6, 0, 0, 0};   // 8 bits per channel, RGBA, deflate, no filter, no interlace
     put_chunk(out, "IHDR", header);
     std::vector<std::uint8_t> scanlines;   // each row starts with its filter type: 0, none
     std::size_t row = static_cast<std::size_t>(width) * 4;
