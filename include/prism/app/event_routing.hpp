@@ -16,6 +16,7 @@ using namespace prism::ui;
 
 // The open popup's area in window coordinates (its owner stores it in its own coordinates).
 inline std::optional<Rect> popup_area(const WidgetTree& tree, const SceneSnapshot& snap) {
+    if (tree.open_content_popup()) return tree.popup_card();
     const WidgetNode* owner = tree.popup_node();
     if (!owner || !owner->popup_area) return std::nullopt;
     auto origin = find_widget_rect(snap, owner->id);
@@ -191,7 +192,8 @@ inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
         auto rect = find_widget_rect(snap, *id);
         InputEvent ev = ms;
         tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
-        tree.scroll_at(*id, DY{ms.dy.raw() * wheel_multiplier});
+        WidgetId stop = tree.open_content_popup() ? tree.popup_owner() : 0;   // stays in the popup
+        tree.scroll_at(*id, DY{ms.dy.raw() * wheel_multiplier}, stop);
     }
 }
 

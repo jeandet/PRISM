@@ -58,14 +58,23 @@ struct Settings {
 - **Accessibility.** The content's nodes are ordinary widgets. They get real bounds once the
   access tree has bounds (`app/access_tree.hpp`, `simplify:`).
 
+**The builder runs later.** `vb.popup` stores the builder and runs it on each opening, long
+after `view()` returned. So it may capture the model (members, `this`) but never a local of
+`view()`. It also runs once while `view()` runs, into a scratch node, only to learn which fields
+it places; builder code must not have side effects beyond placing widgets.
+
 `Dialog` keeps its self-painted form for the simple "message and buttons" case. A dialog with
 fields is a `Popup` whose subtree has the fields and a row of `Button`s.
 
 ## Not in this step
 
-- **Several popups open at once.** A dropdown or menu *inside* a popup is the first case. The
-  tree tracks one popup owner, so opening one would close the other. Stacking needs a list of
-  owners; add it with the editable combo box, which needs it.
+- **Several popups open at once.** A menu, context menu or dialog *inside* a popup is the first
+  case. The tree tracks one popup owner: inside a modal popup the inner one is never adopted
+  (it draws but gets no input); inside a non-modal one it takes the ownership, and the outer
+  popup's content stops receiving input. Stacking needs a list of owners; add it with the
+  editable combo box, which needs it.
+- **A non-modal popup declared inside a scrolled area** is placed at its anchor's unscrolled
+  position. Modal popups are centred and unaffected.
 - **A popup sized to its anchor** (a combo box's list as wide as the box). It comes with the
   editable combo box (P1 #7).
 - **Animations** for opening and closing.

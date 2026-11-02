@@ -161,3 +161,92 @@ TEST_CASE("a popup's fields count as placed, though its content is built only wh
     CHECK(vb.placed().contains(&model.dark));
     CHECK(vb.placed().contains(&model.ok));
 }
+
+namespace {
+// A modal popup with nothing to focus (a notice), over a field that had the focus.
+struct Notice {
+    Field<TextField<>> behind{{}};
+    Field<Popup> note{{.open = false, .modal = true}};
+    Field<Label<>> text{{"Saved."}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.widget(behind);
+            vb.popup(note, [&](WidgetTree::ViewBuilder& p) { p.widget(text); });
+        });
+    }
+};
+
+// A tall window scrolled inside a scroll area, and a popup holding a short scroll area.
+struct Scrolling {
+    Field<Label<>> rows[30] = {};
+    Field<Popup> pop{{.open = false, .modal = true}};
+    Field<Label<>> inside[3] = {};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.scroll([&] {   // the popup is declared inside the window's scroll area
+            for (auto& r : rows) vb.widget(r);
+            vb.popup(pop, [&](WidgetTree::ViewBuilder& p) {
+                p.scroll([&] { for (auto& r : inside) p.widget(r); });
+            });
+        });
+    }
+};
+}
+
+TEST_CASE("a modal popup with nothing to focus does not let typing reach the window behind") {
+    Notice model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(500, 400, 1);
+    auto r = *find_widget_rect(*snap, tree.leaf_ids()[0]);
+    Point in{r.origin.x + DX{5}, r.origin.y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, false});
+    REQUIRE(tree.focused_id() == tree.leaf_ids()[0]);
+    model.note.set({.open = true, .modal = true});
+    snap = tree.build_snapshot(500, 400, 2);
+    route_event(tree, snap.get(), TextInput{"x"});
+    CHECK(model.behind.get().value.empty());
+}
+
+TEST_CASE("the wheel inside a modal popup never scrolls the window behind it") {
+    Scrolling model;
+    for (int i = 0; i < 30; ++i) model.rows[i].set({"row " + std::to_string(i)});
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(500, 300, 1);
+    auto first_row = *find_widget_rect(*snap, tree.leaf_ids()[0]);
+    model.pop.set({.open = true, .modal = true});
+    snap = tree.build_snapshot(500, 300, 2);
+    auto card = *prism::app::widget_detail::popup_area(tree, *snap);
+    Point inside{card.origin.x + DX{20}, card.origin.y + DY{20}};
+    for (int i = 0; i < 5; ++i) route_event(tree, snap.get(), MouseScroll{inside, DX{0}, DY{3}});
+    model.pop.set({.open = false, .modal = true});
+    snap = tree.build_snapshot(500, 300, 3);
+    auto now = find_widget_rect(*snap, tree.leaf_ids()[0]);
+    REQUIRE(now);                                  // gone: the window scrolled the first row away
+    CHECK(now->origin.y == first_row.origin.y);
+}
+
+TEST_CASE("a popup with no widgets inside is built once, not on every frame") {
+    struct Empty {
+        Field<TextField<>> behind{{}};
+        Field<Popup> pop{{.open = false, .modal = false}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.vstack([&] {
+                vb.widget(behind);
+                vb.popup(pop, [](WidgetTree::ViewBuilder&) {});
+            });
+        }
+    } model;
+    int builds = 0;
+    WidgetTree tree{model};
+    (void)builds;
+    auto snap = tree.build_snapshot(500, 400, 1);
+    auto behind = tree.leaf_ids()[0];
+    auto r = *find_widget_rect(*snap, behind);
+    Point in{r.origin.x + DX{5}, r.origin.y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, false});
+    model.pop.set({.open = true, .modal = false});
+    for (uint64_t v = 2; v < 6; ++v) snap = tree.build_snapshot(500, 400, v);
+    route_event(tree, snap.get(), TextInput{"y"});   // a non-modal empty popup: the field keeps typing
+    CHECK(model.behind.get().value == "y");
+}

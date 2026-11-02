@@ -106,9 +106,11 @@ public:
 
     void close_overlays() { close_overlays_impl(root_); }
 
-    void scroll_at(WidgetId target, DY delta) {
+    // Scrolls the nearest scroll view at or above `target`; at its end the wheel passes to the
+    // next one up, but never past `stop` (a popup: the window behind it does not scroll).
+    void scroll_at(WidgetId target, DY delta, WidgetId stop = 0) {
         WidgetId current = target;
-        while (current != 0) {
+        while (current != 0 && current != stop) {
             auto it = index_.find(current);
             if (it != index_.end()) {
                 auto sv = get_scroll_view(*it->second);
@@ -519,6 +521,10 @@ public:
         return false;
     }
 
+    // That popup's card, in window coordinates, as last laid out. Routing reads it directly:
+    // the anchor may be scrolled out of view, and then has no geometry to offset from.
+    [[nodiscard]] std::optional<Rect> popup_card() const { return popup_card_; }
+
     // The open popup whose content is widgets (ui::Popup), if any.
     [[nodiscard]] const WidgetNode* open_content_popup() const {
         auto it = index_.find(popup_owner_);
@@ -654,6 +660,7 @@ private:
     std::unordered_map<WidgetId, WidgetNode*> index_;
     TooltipState tooltip_;
     bool tooltip_dirty_ = false;
+    std::optional<Rect> popup_card_;   // see popup_card()
     bool swallow_text_ = false;
     std::uint64_t last_built_version_ = 0;
     std::uint64_t input_frame_ = UINT64_MAX;   // none known: as new as it gets   // shown or hidden since the last publish
@@ -1171,10 +1178,8 @@ private:
         widget_detail::refresh_dirty(node.children.back());
         node.focus_before_popup = focused_id_;
         for (WidgetId id : focus_order_)
-            if (within(id, node.id)) {
-                set_focused(id);
-                break;
-            }
+            if (within(id, node.id)) return set_focused(id);
+        if (node.popup_modal) clear_focus();   // nothing to focus inside: keys reach nothing behind
     }
 
     void close_popup_content(WidgetNode& node) {
@@ -1200,6 +1205,7 @@ private:
     // popup_area, which routing reads.
     std::optional<PopupLayout> layout_popup(const LayoutNode& main, Size window) {
         WidgetNode* anchor = find_open_popup(root_);
+        popup_card_.reset();
         if (!anchor) return std::nullopt;
         PopupLayout p{anchor, {}, {}};
         auto& content_wn = anchor->children.front();
@@ -1212,6 +1218,9 @@ private:
         float max_h = std::max(0.f, window.h.raw() - 2 * popup_margin);
         Size size{Width{std::min(max_w, std::max(popup_min_w, p.content.hint.cross + 2 * popup_pad))},
                   Height{std::min(max_h, p.content.hint.preferred + 2 * popup_pad)}};
+        // simplify: the anchor's position before any scroll area above it scrolls; a non-modal
+        // popup declared inside a scrolled area opens off its anchor. Upgrade: offset by the
+        // ancestors' scroll offsets.
         Point at = anchor_origin(main, anchor->id);
         p.card = anchor->popup_modal
             ? Rect{Point{X{(window.w.raw() - size.w.raw()) / 2}, Y{(window.h.raw() - size.h.raw()) / 2}}, size}
@@ -1219,6 +1228,7 @@ private:
         layout_arrange(p.content, Rect{Point{p.card.origin.x + DX{popup_pad}, p.card.origin.y + DY{popup_pad}},
                                        Size{size.w - Width{2 * popup_pad}, size.h - Height{2 * popup_pad}}});
         update_scroll_state(p.content);
+        popup_card_ = p.card;
         anchor->popup_area = Rect{Point{X{p.card.origin.x.raw() - at.x.raw()}, Y{p.card.origin.y.raw() - at.y.raw()}}, size};
         return p;
     }
