@@ -567,6 +567,8 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
 
 namespace combo_detail {
 constexpr float row_h = 24.f;
+// simplify: at most this many suggestions, with no scrolling and no "more" hint; scroll the list
+// when real option lists outgrow it.
 constexpr std::size_t max_rows = 8;
 
 inline std::string lower(std::string_view s) {
@@ -633,6 +635,18 @@ inline void Widget<ComboBox>::record(DrawList& dl, const Field<ComboBox>& field,
 inline void Widget<ComboBox>::handle_input(Field<ComboBox>& field, const InputEvent& ev, WidgetNode& node) {
     using namespace combo_detail;
     auto& es = node.get_or_create<TextEditState>();
+    // A press on the field or Down brings a closed list back (as Qt's combo box does).
+    auto* down = std::get_if<KeyPress>(&ev);
+    bool reopen = (down && down->key == keys::down && es.completion_closed)
+               || (std::holds_alternative<MouseButton>(ev) && std::get<MouseButton>(ev).pressed && es.completion_closed
+                   && !row_at(std::get<MouseButton>(ev).position, 0, node)
+                   && std::get<MouseButton>(ev).position.y.raw() < Widget<TextField<>>::widget_h.raw());
+    if (reopen) {
+        es.completion_closed = false;
+        es.completion_index = 0;
+        node.dirty = true;
+        if (down) return;
+    }
     if (list_open(field.get(), node, es)) {
         auto rows = matches(field.get());
         if (auto* kp = std::get_if<KeyPress>(&ev)) {

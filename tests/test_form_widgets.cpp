@@ -328,3 +328,20 @@ TEST_CASE("a progress bar that is not busy needs no timed frames") {
     auto snap = tree.build_snapshot(300, 100, 1);
     CHECK_FALSE(tree.next_wake());
 }
+
+TEST_CASE("a tick consumes the deadline it acts on") {
+    Loading m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(300, 100, 1);
+    auto wake = *tree.next_wake();
+    tree.tick(wake);
+    CHECK_FALSE(tree.next_wake());   // the next one comes from the redraw, not the old deadline
+}
+
+TEST_CASE("a busy bar reports no percentage to assistive tech") {
+    Field<ProgressBar> f{{.value = 0.3, .busy = true}};
+    AccessInfo a;
+    Widget<ProgressBar>::describe(f, a);
+    CHECK_FALSE(a.numeric_value);
+    CHECK(a.value.find('%') == std::string::npos);
+}

@@ -173,6 +173,10 @@ struct Widget<ProgressBar> {
     static constexpr ExpandAxis expand_axis = ExpandAxis::Horizontal;
     static void describe(const Field<ProgressBar>& f, AccessInfo& a) {
         const auto& p = f.get();
+        if (p.busy) {   // the progress is unknown: no number to report
+            a.value = p.label.empty() ? "busy" : p.label;
+            return;
+        }
         a.numeric_value = p.value;
         a.min_value = p.min;
         a.max_value = p.max;
@@ -190,6 +194,8 @@ struct Widget<ProgressBar> {
         Rect track{Point{X{0}, Y{top + (bar_row_h - track_h) / 2}}, Size{Width{w}, Height{track_h}}};
         dl.rounded_rect(track, t.track, track_h / 2);
         node.redraw_at.reset();
+        // simplify: a busy bar scrolled out of view keeps asking for frames (one cheap redraw
+        // every 33 ms); skip it when the tree knows what is on screen.
         if (p.busy) {
             auto now = std::chrono::steady_clock::now();
             auto [x, seg] = busy_segment(w, std::chrono::duration<double>(now.time_since_epoch()).count());

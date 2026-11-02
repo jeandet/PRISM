@@ -99,3 +99,17 @@ TEST_CASE("leaving the combo box keeps its undo history") {
     f.key(keys::z, mods::ctrl);
     CHECK(f.model.fruit.get().value != "ap");   // the typing could be undone
 }
+
+TEST_CASE("after a pick, clicking the box or pressing Down shows the suggestions again") {
+    Fixture f;
+    f.click(f.centre(f.combo()));
+    f.type("ap");
+    f.key(keys::enter);
+    REQUIRE(f.shown().empty());
+    f.click(f.centre(f.combo()));
+    CHECK_FALSE(f.shown().empty());
+    f.key(keys::escape);
+    REQUIRE(f.shown().empty());
+    f.key(keys::down);
+    CHECK_FALSE(f.shown().empty());
+}

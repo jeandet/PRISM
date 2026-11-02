@@ -359,7 +359,10 @@ public:
     void tick(TooltipState::clock::time_point now) {
         tick_tooltip(now);
         auto due = [&](auto& self, WidgetNode& n) -> void {
-            if (n.redraw_at && *n.redraw_at <= now) n.dirty = true;
+            if (n.redraw_at && *n.redraw_at <= now) {   // its record() sets the next one
+                n.dirty = true;
+                n.redraw_at.reset();
+            }
             for (auto& c : n.children) self(self, c);
         };
         due(due, root_);
