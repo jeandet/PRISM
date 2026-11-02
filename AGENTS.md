@@ -139,6 +139,7 @@ inspector), `backends` (SDL3, headless software/null backends used by tests).
 
 - `README.md` — architecture tour, quick-start examples, roadmap.
 - `doc/design/` — per-subsystem design rationale (one file per major subsystem).
-- `doc/review-2026-11-01.md` — most recent review: goals vs. code, docs drift, and the current
-  prioritized plan. Older reviews (`doc/review-2026-0*.md`, `doc/handover-*.md`) are history;
-  their open items were re-checked there.
+- `doc/review-2026-11-02.md` — most recent review and the current prioritized plan (platform
+  services, popups that hold widgets, icons, text beyond Latin). `doc/review-2026-11-01.md` is
+  the plan before it, done through P2; older reviews (`doc/review-2026-0*.md`,
+  `doc/handover-*.md`) are history, their open items re-checked there.
