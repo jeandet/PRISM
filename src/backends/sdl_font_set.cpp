@@ -30,7 +30,8 @@ bool SdlFontSet::open(const char* ui_path, const char* mono_path, float size) {
         // loop (ui -> mono -> ui) sends SDL_ttf's resize walk around it forever when it starts
         // from a third font, as the script fallbacks do (UpdateFontText only stops at its start).
         TTF_AddFallbackFont(ui_, mono_);
-        if (TTF_Font* ui_copy = open_extra(ui_path, size)) TTF_AddFallbackFont(mono_, ui_copy);
+        ui_copy_ = open_extra(ui_path, size);
+        if (ui_copy_) TTF_AddFallbackFont(mono_, ui_copy_);
     }
     open_script_fallbacks(ui_path ? ui_path : mono_path, size);
     size_ = size;
@@ -43,9 +44,11 @@ void SdlFontSet::open_script_fallbacks(const char* beside, float size) {
     for (const char* name : script_font_files) {
         auto path = (dir / name).string();
         if (!std::filesystem::is_regular_file(path)) continue;
-        if (TTF_Font* f = open_extra(path.c_str(), size))
+        if (TTF_Font* f = open_extra(path.c_str(), size)) {
             for (TTF_Font* primary : {ui_, mono_})
                 if (primary) TTF_AddFallbackFont(primary, f);
+            scripts_.push_back(f);
+        }
     }
 }
 
@@ -63,8 +66,9 @@ void SdlFontSet::close() {
         if (mono_) TTF_CloseFont(mono_);
         for (TTF_Font* f : extra_) TTF_CloseFont(f);
     }
-    ui_ = mono_ = nullptr;
+    ui_ = mono_ = ui_copy_ = nullptr;
     extra_.clear();
+    scripts_.clear();
 }
 
 TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
@@ -105,38 +109,68 @@ render::TextBitmap blank_run(TTF_Font* font, std::string_view text) {
     return {w, h, std::vector<std::uint8_t>(static_cast<size_t>(w) * h * 4, 0)};
 }
 
-// Pieces side by side, left to right, top-aligned (one font, so one baseline).
-render::TextBitmap concat(const std::vector<render::TextBitmap>& pieces) {
+// A run's bitmap and how far down to draw it so its baseline meets the line's.
+struct Piece {
+    render::TextBitmap bitmap;
+    int dy = 0;   // negative: raised (its top rows, empty space above the font's ascent, are cut)
+};
+
+// Pieces side by side, left to right; the line's top is the first font's top.
+render::TextBitmap concat(const std::vector<Piece>& pieces) {
     render::TextBitmap out{0, 0, {}};
     for (const auto& p : pieces) {
-        out.width += p.width;
-        out.height = std::max(out.height, p.height);
+        out.width += p.bitmap.width;
+        out.height = std::max(out.height, p.dy + p.bitmap.height);
     }
     out.rgba.assign(static_cast<size_t>(out.width) * out.height * 4, 0);
     int x = 0;
     for (const auto& p : pieces) {
-        for (int y = 0; y < p.height; ++y)
-            std::memcpy(&out.rgba[(static_cast<size_t>(y) * out.width + x) * 4],
-                        &p.rgba[static_cast<size_t>(y) * p.width * 4], static_cast<size_t>(p.width) * 4);
-        x += p.width;
+        for (int y = std::max(0, -p.dy); y < p.bitmap.height; ++y)
+            std::memcpy(&out.rgba[(static_cast<size_t>(y + p.dy) * out.width + x) * 4],
+                        &p.bitmap.rgba[static_cast<size_t>(y) * p.bitmap.width * 4],
+                        static_cast<size_t>(p.bitmap.width) * 4);
+        x += p.bitmap.width;
     }
     return out;
 }
 
+// The first character of `run` that is not a space (spaces come from any font).
+Uint32 first_letter(std::string_view run) {
+    const char* p = run.data();
+    size_t left = run.size();
+    while (left > 0) {
+        Uint32 cp = SDL_StepUTF8(&p, &left);
+        if (cp != ' ' && cp != '\t') return cp;
+    }
+    return 0;
+}
+} // namespace
+
+// SDL_ttf puts each glyph on the ascent of the font it came from: a run drawn by a fallback with
+// a larger ascent (Noto Sans Arabic) sits lower in its bitmap. Its piece moves up by the difference.
+// Only the script fonts and the UI copy are asked: they have no fallbacks, so "has the glyph" is
+// about them alone (asked of ui_ or mono_, SDL_ttf answers for their fallbacks too).
+int SdlFontSet::baseline_shift(TTF_Font* primary, std::string_view run) const {
+    Uint32 cp = first_letter(run);
+    if (cp == 0 || (ui_copy_ && TTF_FontHasGlyph(ui_copy_, cp))) return 0;
+    for (TTF_Font* f : scripts_)
+        if (TTF_FontHasGlyph(f, cp)) return TTF_GetFontAscent(primary) - TTF_GetFontAscent(f);
+    return 0;
+}
+
 // Mixed-direction text: each run shaped in its own direction, the runs in visual order (UAX #9),
-// as ui::caret_x_at() expects them.
-std::optional<render::TextBitmap> rasterize_bidi(TTF_Font* font, std::string_view text,
-                                                 const std::vector<ui::BidiRun>& runs) {
-    std::vector<render::TextBitmap> pieces;
+// as ui::caret_x_at() expects them, on one baseline.
+std::optional<render::TextBitmap> SdlFontSet::rasterize_bidi(TTF_Font* font, std::string_view text,
+                                                             const std::vector<ui::BidiRun>& runs) {
+    std::vector<Piece> pieces;
     for (const auto& r : runs) {
         TTF_SetFontDirection(font, r.rtl ? TTF_DIRECTION_RTL : TTF_DIRECTION_LTR);
         auto run = text.substr(r.begin, r.end - r.begin);
-        pieces.push_back(rasterize_run(font, run).value_or(blank_run(font, run)));
+        pieces.push_back({rasterize_run(font, run).value_or(blank_run(font, run)), baseline_shift(font, run)});
     }
     TTF_SetFontDirection(font, TTF_DIRECTION_INVALID);   // back to HarfBuzz's guess
     return concat(pieces);
 }
-} // namespace
 
 std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, float px_size, render::FontRole role) {
     TTF_Font* font = get(role, px_size);

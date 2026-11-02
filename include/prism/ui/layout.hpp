@@ -212,8 +212,11 @@ inline void arrange_uniform_rows(LayoutNode& node, Rect available, Height item_h
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
     switch (node.kind) {
     case LayoutNode::Kind::Spacer:
-        node.hint = node.spacer_size > 0.f ? SizeHint{.preferred = node.spacer_size, .expand = false}
-                                           : SizeHint{.preferred = 0, .expand = true};
+        // A stretchy spacer stretches along its row or column only: one at the end of a menu
+        // bar must not make the bar as tall as the window.
+        node.hint = node.spacer_size > 0.f
+            ? SizeHint{.preferred = node.spacer_size, .expand = false}
+            : SizeHint{.preferred = 0, .expand = true, .expand_axis = layout_detail::axis_flag(parent_axis)};
         return;
     case LayoutNode::Kind::Canvas: {
         bool horiz = (parent_axis == LayoutAxis::Horizontal);

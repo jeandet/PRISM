@@ -2,6 +2,7 @@
 
 #include <prism/render/draw_list.hpp>
 #include <prism/render/text_bitmap.hpp>
+#include <prism/ui/text_bidi.hpp>
 
 #include <array>
 #include <optional>
@@ -46,10 +47,15 @@ public:
 private:
     void open_script_fallbacks(const char* beside, float size);
     TTF_Font* open_extra(const char* path, float size);   // a fallback-only font, kept in extra_
+    int baseline_shift(TTF_Font* primary, std::string_view run) const;
+    std::optional<render::TextBitmap> rasterize_bidi(TTF_Font* font, std::string_view text,
+                                                     const std::vector<ui::BidiRun>& runs);
 
     TTF_Font* ui_ = nullptr;
     TTF_Font* mono_ = nullptr;
     std::vector<TTF_Font*> extra_;   // fallbacks only: a copy of the UI font, the script fonts
+    TTF_Font* ui_copy_ = nullptr;      // in extra_: the UI font again, without fallbacks of its own
+    std::vector<TTF_Font*> scripts_;   // in extra_: Hebrew, Arabic
     float size_ = 0.f;
 };
 

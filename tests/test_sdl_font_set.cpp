@@ -5,6 +5,8 @@
 
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <cstdlib>
+
 using prism::render::FontRole;
 
 namespace {
@@ -109,4 +111,59 @@ TEST_CASE("Hebrew and Arabic letters draw from the bundled script fonts, not as 
     };
     CHECK(differ("\xd7\x90", "\xd7\x91"));   // alef, bet
     CHECK(differ("\xd8\xa8", "\xd8\xb3"));   // beh, seen
+}
+
+TEST_CASE("an English word after a Hebrew one keeps its letter order (a right-to-left line)") {
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    auto word = fonts.rasterize("world", 14.f, FontRole::Ui);
+    auto line = fonts.rasterize(hebrew + " world", 14.f, FontRole::Ui);
+    REQUIRE(word);
+    REQUIRE(line);
+    REQUIRE(line->height == word->height);
+    for (int x = 0; x < word->width; ++x) CHECK(column(*line, x) == column(*word, x));
+}
+
+namespace {
+// The lowest row with ink in columns [x0, x1) of a bitmap, or -1.
+int ink_bottom(const prism::render::TextBitmap& b, int x0, int x1) {
+    int bottom = -1;
+    for (int y = 0; y < b.height; ++y)
+        for (int x = x0; x < x1; ++x)
+            if (b.rgba[(static_cast<size_t>(y) * b.width + x) * 4 + 3] > 100) bottom = y;
+    return bottom;
+}
+}
+
+TEST_CASE("a run from another script's font sits on the line's baseline") {
+    // SDL_ttf places a fallback font's glyphs on that font's ascent; Noto Sans Arabic's is
+    // larger, so drawn as is an Arabic word sat lower than the Latin text beside it.
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    auto x = fonts.rasterize("x ", 14.f, FontRole::Ui);
+    auto line = fonts.rasterize("x \xd8\xa7", 14.f, FontRole::Ui);   // x, a space, alef (a stroke on the baseline)
+    REQUIRE(x);
+    REQUIRE(line);
+    int latin = ink_bottom(*line, 0, x->width);
+    int arabic = ink_bottom(*line, x->width, line->width);
+    REQUIRE(latin >= 0);
+    REQUIRE(arabic >= 0);
+    CHECK(std::abs(latin - arabic) <= 1);
+    CHECK(latin == ink_bottom(*x, 0, x->width));   // the Latin text did not move
+}
+
+TEST_CASE("a Hebrew word reads right to left: its first letter is its rightmost") {
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    auto shin = fonts.rasterize("\xd7\xa9", 14.f, FontRole::Ui);   // the word's first letter alone
+    auto word = fonts.rasterize(hebrew, 14.f, FontRole::Ui);
+    REQUIRE(shin);
+    REQUIRE(word);
+    int differing = 0;   // shin's columns are the word's last ones
+    for (int x = 0; x < shin->width; ++x)
+        differing += column(*word, word->width - shin->width + x) != column(*shin, x);
+    CHECK(differing <= 1);   // a glyph edge may touch its neighbour's column
 }

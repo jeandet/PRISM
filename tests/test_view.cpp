@@ -174,6 +174,32 @@ TEST_CASE("vb.gap leaves a fixed space between widgets") {
     CHECK(rb.origin.x.raw() - (ra.origin.x.raw() + ra.extent.w.raw()) == doctest::Approx(12.f));
 }
 
+struct BarOverContent {
+    prism::Field<prism::Button> menu{{"File"}};
+    prism::Field<prism::TextArea<>> body{{.rows = 4}};
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.hstack([&] {
+            vb.widget(menu);
+            vb.spacer();   // pushes along the row only
+        });
+        vb.widget(body);
+    }
+};
+
+TEST_CASE("a spacer in a row stretches the row sideways, not downwards") {
+    BarOverContent model;
+    prism::WidgetTree tree(model);
+    auto snap = tree.build_snapshot(800, 600, 1);
+    auto rect_of = [&](prism::WidgetId id) {
+        for (auto& [gid, r] : snap->geometry) if (gid == id) return r;
+        FAIL("no rect");
+        return prism::Rect{};
+    };
+    auto menu = rect_of(tree.leaf_ids()[0]);
+    auto body = rect_of(tree.leaf_ids()[1]);
+    CHECK(body.origin.y.raw() - (menu.origin.y.raw() + menu.extent.h.raw()) < 4.f);   // right under the bar
+}
+
 // ── Task 7: view() with component() ──────────────────────────────────────────
 
 struct SubComponent {

@@ -261,6 +261,26 @@ void check_icon_clear_of_label(float scale, Via via = Via::Sdl) {
 
 } // namespace
 
+// In a Hebrew text field, an English word after the Hebrew one is drawn first, on the left (a
+// right-to-left line), and in its own left-to-right order. The window's renderer once shaped the
+// whole string as one run, which drew the word backwards.
+void check_english_word_in_hebrew_line(float scale) {
+    Rig rig;
+    const std::string hebrew = "\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d";
+    Frame word = field_frame(rig, "ab", scale);
+    Frame line = field_frame(rig, hebrew + " ab", scale);
+    int s = device_scale(word);
+    auto ab_w = rig.fonts.rasterize("ab", 14.f * s, FontRole::Ui)->width;
+    int x0 = 4 * s, y0 = 6 * s, y1 = 24 * s;   // the field's text, inside its padding
+    int differing = 0;
+    for (int x = x0; x < x0 + ab_w; ++x)
+        for (int y = y0; y < y1; ++y) differing += line.differs(word, x, y) ? 1 : 0;
+    CHECK(differing == 0);
+}
+
+TEST_CASE("an English word in a Hebrew line is drawn on the left, in order, at 1x") { check_english_word_in_hebrew_line(1.f); }
+TEST_CASE("an English word in a Hebrew line is drawn on the left, in order, at 2x") { check_english_word_in_hebrew_line(2.f); }
+
 TEST_CASE("a selection covers exactly its word, at 1x") { check_selection_covers_its_word(1.f); }
 TEST_CASE("a selection covers exactly its word, at 2x (HiDPI)") { check_selection_covers_its_word(2.f); }
 TEST_CASE("a tree row's icon is clear of its label, at 1x") { check_icon_clear_of_label(1.f); }

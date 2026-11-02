@@ -383,15 +383,17 @@ const SdlWindow::CachedText* SdlWindow::text_texture(SdlFontSet& fonts, FontRole
     key += text;
     if (auto* hit = text_cache_.find(key)) return hit;
 
-    TTF_Font* font = fonts.get(role, px_size);
-    if (!font) return nullptr;
-    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), 0, SDL_Color{255, 255, 255, 255});
+    // Through the font set, as the WebGPU renderer does: one place shapes text (bidi runs, the
+    // script fallbacks' baselines), so both renderers draw the same pixels.
+    auto bitmap = fonts.rasterize(text, px_size, role);
+    if (!bitmap) return nullptr;
+    SDL_Surface* surface = SDL_CreateSurfaceFrom(bitmap->width, bitmap->height, SDL_PIXELFORMAT_RGBA32,
+                                                 bitmap->rgba.data(), bitmap->width * 4);
     if (!surface) return nullptr;
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
-    CachedText entry{texture, surface->w, surface->h};
     SDL_DestroySurface(surface);
     if (!texture) return nullptr;
-    return &text_cache_.insert(key, entry);
+    return &text_cache_.insert(key, CachedText{texture, bitmap->width, bitmap->height});
 }
 
 void SdlWindow::render_cmd(const ClipPush& cmd) {
