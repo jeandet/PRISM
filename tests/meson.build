@@ -219,7 +219,11 @@ test_pixels = executable('test_pixels',
            + (prism_webgpu_dep.found() ? ['-DPRISM_TEST_WEBGPU'] : []),
 )
 if can_open_window
-  test('pixels', test_pixels, env : offscreen_env)
+  # No leak report here: the renderer loads the system's graphics driver at run time, which leaks
+  # a little and is unloaded before LeakSanitizer reports, so its frames have no name a
+  # suppression could match. The other suites run with leak detection (the CI ASan lane).
+  pixels_env = environment({'SDL_VIDEODRIVER' : 'offscreen', 'ASAN_OPTIONS' : 'detect_leaks=0'})
+  test('pixels', test_pixels, env : pixels_env)
 endif
 
 test_software_backend_present_stats = executable('test_software_backend_present_stats',

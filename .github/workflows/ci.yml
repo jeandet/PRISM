@@ -207,7 +207,9 @@ jobs:
         run: ninja -C builddir-asan
       - name: Run ASan+UBSan tests (C++ + Python via meson test, SDL flaky suites excluded)
         env:
-          ASAN_OPTIONS: detect_leaks=0
+          # Leaks are errors: an SVG decode leak once slipped past this lane with them off.
+          # The pixel test opts out in tests/meson.build (graphics driver), as do the Python tests.
+          ASAN_OPTIONS: detect_leaks=1
           UBSAN_OPTIONS: halt_on_error=1
         run: xvfb-run -a meson test -C builddir-asan --print-errorlogs --exclude sdl_window --exclude model_app --exclude model_app_chrome_cursor --exclude software_backend_chrome_cursor --exclude app --exclude software_backend_request_window --exclude software_backend_present_stats
       - if: failure()
