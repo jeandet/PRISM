@@ -321,9 +321,9 @@ using namespace prism::app;
 
     draw_series(dl, map, arr);
     CHECK(dl.size() == 1);
-    CHECK(std::holds_alternative<Polyline>(dl.commands[0]));
+    CHECK(std::holds_alternative<prism::render::Polyline>(dl.commands[0]));
 
-    auto& poly = std::get<Polyline>(dl.commands[0]);
+    auto& poly = std::get<prism::render::Polyline>(dl.commands[0]);
     CHECK(poly.points.size() == 3);
 }
 
@@ -345,7 +345,7 @@ TEST_CASE("draw_series emits a filled polygon under the curve when fill is set")
     draw_series(dl, map, arr);
     REQUIRE(dl.size() == 2);
     CHECK(std::holds_alternative<FilledPolygon>(dl.commands[0]));
-    CHECK(std::holds_alternative<Polyline>(dl.commands[1]));
+    CHECK(std::holds_alternative<prism::render::Polyline>(dl.commands[1]));
 
     auto& fp = std::get<FilledPolygon>(dl.commands[0]);
     CHECK(fp.points.size() == 6);  // 3 data points x (curve, baseline)
@@ -380,7 +380,7 @@ TEST_CASE("draw_series emits a filled polygon under the curve when fill is set")
     std::array<Series, 1> arr2 = {std::move(s2)};
     draw_series(dl2, map, arr2);
     CHECK(dl2.size() == 1);
-    CHECK(std::holds_alternative<Polyline>(dl2.commands[0]));
+    CHECK(std::holds_alternative<prism::render::Polyline>(dl2.commands[0]));
 }
 
 TEST_CASE("draw_cursor emits crosshair when visible")
@@ -590,7 +590,7 @@ using namespace prism::app;
     bool has_filled = false, has_polyline = false, has_line = false;
     for (auto& cmd : dl.commands) {
         if (std::holds_alternative<FilledRect>(cmd)) has_filled = true;
-        if (std::holds_alternative<Polyline>(cmd)) has_polyline = true;
+        if (std::holds_alternative<prism::render::Polyline>(cmd)) has_polyline = true;
         if (std::holds_alternative<Line>(cmd)) has_line = true;
     }
     CHECK(has_filled);
@@ -1097,7 +1097,7 @@ TEST_CASE("PlotPanel series management")
     p.canvas(dl, bounds, node);
 
     bool has_polyline = false;
-    for (auto& cmd : dl.commands) if (std::holds_alternative<Polyline>(cmd)) has_polyline = true;
+    for (auto& cmd : dl.commands) if (std::holds_alternative<prism::render::Polyline>(cmd)) has_polyline = true;
     CHECK(!has_polyline);
 }
 

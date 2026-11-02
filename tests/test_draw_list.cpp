@@ -362,3 +362,28 @@ TEST_CASE("TextCmd defaults to the UI font role; text() can ask for mono") {
     CHECK(std::get<prism::TextCmd>(dl.commands[0]).role == prism::FontRole::Ui);
     CHECK(std::get<prism::TextCmd>(dl.commands[1]).role == prism::FontRole::Mono);
 }
+
+TEST_CASE("bounding box: what a clip cuts away does not count") {
+    prism::render::DrawList dl;
+    using prism::core::Point; using prism::core::Size; using prism::core::Rect;
+    using prism::core::X; using prism::core::Y; using prism::core::Width; using prism::core::Height;
+    dl.filled_rect(Rect{Point{X{0}, Y{0}}, Size{Width{100}, Height{50}}}, prism::core::Color::rgba(0, 0, 0));
+    dl.clip_push(Point{X{0}, Y{0}}, Size{Width{100}, Height{50}});
+    dl.filled_rect(Rect{Point{X{10}, Y{-30}}, Size{Width{2}, Height{20}}}, prism::core::Color::rgba(255, 255, 255));   // a caret scrolled away
+    dl.filled_rect(Rect{Point{X{10}, Y{70}}, Size{Width{2}, Height{20}}}, prism::core::Color::rgba(255, 255, 255));
+    dl.clip_pop();
+    auto bb = dl.bounding_box();
+    CHECK(bb.origin.y.raw() == doctest::Approx(0.f));
+    CHECK(bb.extent.h.raw() == doctest::Approx(50.f));
+}
+
+TEST_CASE("bounding box: text inside a clip still counts") {
+    prism::render::DrawList dl;
+    using prism::core::Point; using prism::core::Size;
+    using prism::core::X; using prism::core::Y; using prism::core::Width; using prism::core::Height;
+    dl.clip_push(Point{X{0}, Y{0}}, Size{Width{100}, Height{50}});
+    dl.text("hello", Point{X{10}, Y{5}}, 14.f, prism::core::Color::rgba(255, 255, 255));
+    dl.clip_pop();
+    auto bb = dl.bounding_box();
+    CHECK(bb.extent.h.raw() == doctest::Approx(50.f));   // the clip area, which holds the text
+}

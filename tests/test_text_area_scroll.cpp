@@ -161,3 +161,28 @@ TEST_CASE("an inner scrollbar half out of an outer scroll view is cut at its edg
         CHECK(r.origin.y.raw() + r.extent.h.raw() <= 200.f);
     }
 }
+
+namespace {
+struct EditorWithStatus {
+    Field<TextArea<>> body{{.value = many_lines(60), .rows = 10}};
+    Field<Label<>> status{{"status"}};
+    void view(WidgetTree::ViewBuilder& vb) { vb.vstack(body, status); }
+};
+}
+
+TEST_CASE("scrolling a text area does not move the widget below it") {
+    EditorWithStatus model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 600, 1);
+    auto body = tree.leaf_ids()[0], status = tree.leaf_ids()[1];
+    auto br = *find_widget_rect(*snap, body);
+    Point in{br.origin.x + DX{20}, br.origin.y + DY{20}};
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, true});    // the caret goes on line 1
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, false});
+    snap = tree.build_snapshot(400, 600, 2);
+    auto before = *find_widget_rect(*snap, status);
+    route_event(tree, snap.get(), MouseScroll{in, DX{0}, DY{5}});           // its line scrolls out of view
+    snap = tree.build_snapshot(400, 600, 3);
+    snap = tree.build_snapshot(400, 600, 4);
+    CHECK(find_widget_rect(*snap, status)->origin.y == before.origin.y);
+}

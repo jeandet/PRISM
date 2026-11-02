@@ -12,8 +12,9 @@ else
 endif
 
 # Unicode text boundaries (ui/text_segmentation.hpp): graphemes and line breaks.
+# Static: it links into our libraries, so a wheel needs no extra shared library to bundle.
 unibreak_dep = dependency('libunibreak', fallback : ['libunibreak', 'unibreak_dep'],
-                          default_options : ['tests=disabled'])
+                          default_options : ['tests=disabled', 'default_library=static'])
 
 prism_core_dep = declare_dependency(
   include_directories : prism_inc,

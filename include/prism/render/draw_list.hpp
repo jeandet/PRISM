@@ -11,6 +11,7 @@
 #include <limits>
 #include <string>
 #include <variant>
+#include <optional>
 #include <vector>
 
 namespace prism::render {
@@ -199,13 +200,34 @@ struct DrawList {
     [[nodiscard]] bool empty() const { return commands.empty(); }
     [[nodiscard]] std::size_t size() const { return commands.size(); }
 
+    // `r` cut to `clip`, on closed intervals so a zero-width box (a text origin, a point) inside
+    // the clip survives; nothing when they do not touch.
+    static std::optional<Rect> clip_closed(Rect r, Rect clip) {
+        float x0 = std::max(r.origin.x.raw(), clip.origin.x.raw());
+        float y0 = std::max(r.origin.y.raw(), clip.origin.y.raw());
+        float x1 = std::min(r.origin.x.raw() + r.extent.w.raw(), clip.origin.x.raw() + clip.extent.w.raw());
+        float y1 = std::min(r.origin.y.raw() + r.extent.h.raw(), clip.origin.y.raw() + clip.extent.h.raw());
+        if (x0 > x1 || y0 > y1) return std::nullopt;
+        return Rect{Point{X{x0}, Y{y0}}, Size{Width{x1 - x0}, Height{y1 - y0}}};
+    }
+
     [[nodiscard]] Rect bounding_box() const {
         if (commands.empty()) return {Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
         float min_x = std::numeric_limits<float>::max();
         float min_y = std::numeric_limits<float>::max();
         float max_x = std::numeric_limits<float>::lowest();
         float max_y = std::numeric_limits<float>::lowest();
+        // Inside a clip only what the clip lets through counts: a widget that draws something
+        // scrolled out of its own view (a caret, a selection) must not grow its measured size.
+        std::vector<Rect> clips;
+        bool any = false;
         auto expand = [&](Rect r) {
+            if (!clips.empty()) {
+                auto cut = clip_closed(r, clips.back());
+                if (!cut) return;
+                r = *cut;
+            }
+            any = true;
             min_x = std::min(min_x, r.origin.x.raw());
             min_y = std::min(min_y, r.origin.y.raw());
             max_x = std::max(max_x, r.origin.x.raw() + r.extent.w.raw());
@@ -213,7 +235,13 @@ struct DrawList {
         };
         for (const auto& cmd : commands) {
             std::visit([&](const auto& c) {
-                if constexpr (requires { c.rect; })
+                using C = std::remove_cvref_t<decltype(c)>;
+                if constexpr (std::is_same_v<C, ClipPush>) {
+                    expand(c.rect);   // the clipped area itself is part of the widget
+                    clips.push_back(clips.empty() ? c.rect : clips.back().intersect(c.rect));
+                } else if constexpr (std::is_same_v<C, ClipPop>) {
+                    if (!clips.empty()) clips.pop_back();
+                } else if constexpr (requires { c.rect; })
                     expand(c.rect);
                 else if constexpr (requires { c.center; c.radius; }) {
                     expand({Point{X{c.center.x.raw() - c.radius}, Y{c.center.y.raw() - c.radius}},
@@ -231,6 +259,7 @@ struct DrawList {
                     expand({c.origin, Size{Width{0}, Height{c.size}}});
             }, cmd);
         }
+        if (!any) return {Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
         return {Point{X{min_x}, Y{min_y}},
                 Size{Width{max_x - min_x}, Height{max_y - min_y}}};
     }
