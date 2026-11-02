@@ -36,7 +36,9 @@ decode_image(std::span<const std::byte> bytes, std::optional<core::Size> svg_siz
     if (!io) return std::unexpected(std::string(SDL_GetError()));
     if (svg_size && IMG_isSVG(io)) {
         auto w = static_cast<int>(svg_size->w.raw()), h = static_cast<int>(svg_size->h.raw());
-        return to_image(IMG_LoadSizedSVG_IO(io, w, h));   // does not close io
+        SDL_Surface* svg = IMG_LoadSizedSVG_IO(io, w, h);   // does not close io: we do
+        SDL_CloseIO(io);
+        return to_image(svg);
     }
     return to_image(IMG_Load_IO(io, true));   // closes io
 }

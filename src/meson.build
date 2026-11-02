@@ -36,6 +36,14 @@ if host_machine.system() == 'emscripten'
   sdl_platform_src = 'backends/sdl_platform_web.cpp'
 else
   sdl3_dep = dependency('sdl3', fallback : ['sdl3', 'sdl3_dep'])
+  # Text shaping (right-to-left runs, ligatures, kerning) is HarfBuzz inside SDL_ttf, which only
+  # uses it when it is found: an optional dependency never falls back to our wrap, so without a
+  # system HarfBuzz (Windows) text was laid out unshaped. Required here, before SDL_ttf looks.
+  harfbuzz_dep = dependency('harfbuzz',
+                            default_options : ['freetype=enabled', 'tests=disabled', 'docs=disabled',
+                                               'utilities=disabled', 'introspection=disabled',
+                                               'glib=disabled', 'gobject=disabled', 'cairo=disabled',
+                                               'chafa=disabled', 'icu=disabled'])
   sdl3_ttf_dep = dependency('sdl3_ttf', fallback : ['sdl3_ttf', 'sdl3_ttf_dep'])
   sdl_platform_src = 'backends/sdl_platform_desktop.cpp'
 endif

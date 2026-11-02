@@ -558,8 +558,9 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         });
     }
     // Read-only: the caret and the selection still move (and copy works); a change to the text
-    // is dropped, so a cut only copies.
-    if (after && field.get().read_only && after->text != before.text) after.reset();
+    // is dropped, so a cut only copies. (A return, not after.reset(): GCC 14 then warns that the
+    // reset optional may be read below, a false maybe-uninitialized.)
+    if (after && field.get().read_only && after->text != before.text) return;
     if (after) {
         es.history.record(before, *after, std::holds_alternative<TextInput>(ev)
                                               ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
