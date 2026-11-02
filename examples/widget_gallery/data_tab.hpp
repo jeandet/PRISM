@@ -1,5 +1,5 @@
-// Data: a 10,000-row table sorted by clicking a header, a tree that loads its children when
-// opened, and a list the user adds to.
+// Data: a 10,000-row table sorted by clicking a header, and a list the user adds to. (The Catalog
+// tab shows a tree.)
 #pragma once
 
 #include <prism/prism.hpp>
@@ -43,42 +43,9 @@ private:
     }
 };
 
-// A fixed hierarchy as a hand-written TreeStorage (the tier that needs no reflection).
-struct Catalog {
-    struct Entry {
-        std::string label;
-        std::size_t parent;   // npos: a root
-    };
-    static constexpr std::size_t npos = static_cast<std::size_t>(-1);
-    std::vector<Entry> entries{
-        {"Widgets", npos},  {"Inputs", 0},       {"TextField", 1},  {"ComboBox", 1},  {"SpinBox", 1},
-        {"Slider", 1},      {"Display", 0},      {"Label", 6},      {"ProgressBar", 6}, {"Image", 6},
-        {"Popups", npos},   {"Menu", 10},        {"Dialog", 10},    {"Popup", 10},    {"Tooltip", 10},
-        {"Data", npos},     {"Table", 15},       {"Tree", 15},      {"List", 15},     {"Plot", 15},
-    };
-
-    std::size_t root_count() const { return children_of(npos).size(); }
-    prism::ui::TreeNodeId root_at(std::size_t i) const { return children_of(npos)[i]; }
-    std::size_t child_count(prism::ui::TreeNodeId id) const { return children_of(id).size(); }
-    prism::ui::TreeNodeId child_at(prism::ui::TreeNodeId id, std::size_t i) const { return children_of(id)[i]; }
-    std::string label(prism::ui::TreeNodeId id) const { return entries[id].label; }
-    bool has_children(prism::ui::TreeNodeId id) const { return child_count(id) > 0; }
-
-private:
-    // simplify: a scan per call, fine for twenty entries; index by parent for a real catalog.
-    std::vector<prism::ui::TreeNodeId> children_of(std::size_t parent) const {
-        std::vector<prism::ui::TreeNodeId> out;
-        for (std::size_t i = 0; i < entries.size(); ++i)
-            if (entries[i].parent == parent) out.push_back(i);
-        return out;
-    }
-};
-
 struct DataTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Data", .heading = true}};
     Readings readings;
-    Catalog catalog;
-    prism::ui::TreeController tree{prism::ui::wrap_tree_storage(catalog)};
     prism::core::List<std::string> todo;
     prism::core::Field<prism::ui::TextField<>> new_item{{.placeholder = "New item, then Add"}};
     prism::core::Field<prism::ui::Button> add{{"Add"}};
@@ -86,7 +53,7 @@ struct DataTab {
     std::vector<prism::core::Connection> wiring;
 
     DataTab() {
-        for (auto s : {"Try sorting the table", "Open a branch of the tree", "Add an item here"}) todo.push_back(s);
+        for (auto s : {"Try sorting the table", "Drag the handle between the panes", "Add an item here"}) todo.push_back(s);
         wiring.push_back(add.on_change().connect([this](const auto&) {
             if (new_item.get().value.empty()) return;
             todo.push_back(new_item.get().value);
@@ -103,7 +70,6 @@ struct DataTab {
             vb.table(readings).sort(2, /*descending=*/true);
             vb.handle();
             vb.vstack([&] {
-                vb.tree(tree);
                 vb.hstack([&] {
                     vb.widget(new_item);
                     vb.gap(8.f);

@@ -1,5 +1,6 @@
 // Widget Gallery: every PRISM widget in one window, in five tabs, under a menu bar with Alt
 // shortcuts. The tabs are plain model structs (controls_tab.hpp, ...); this file arranges them.
+#include "catalog_tab.hpp"
 #include "controls_tab.hpp"
 #include "data_tab.hpp"
 #include "plot_tab.hpp"
@@ -14,10 +15,10 @@
 using namespace prism;
 
 struct Gallery {
-    static constexpr std::array<const char*, 5> tab_names{"Controls", "Text", "Data", "Plot", "Popups"};
+    static constexpr std::array<const char*, 6> tab_names{"Controls", "Catalog", "Text", "Data", "Plot", "Popups"};
 
     core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save as…"}}};
-    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {"&Controls", "&Text", "&Data", "&Plot", "P&opups"}}};
+    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {"&Controls", "C&atalog", "&Text", "&Data", "&Plot", "P&opups"}}};
     core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {"&About PRISM"}}};
     core::Field<ui::Dialog> about{{.title = "PRISM Widget Gallery",
                                    .message = "A C++26 GUI framework: model structs, persistent widgets, "
@@ -26,6 +27,7 @@ struct Gallery {
                                    .buttons = {"Close"}}};
     core::Field<ui::TabBar<>> tabs;
     gallery::ControlsTab controls;
+    gallery::CatalogTab catalog;
     gallery::TextTab text;
     gallery::DataTab data;
     gallery::PlotTab plot;
@@ -54,10 +56,11 @@ struct Gallery {
         });
         vb.tabs(tabs, [&] {
             vb.tab(tab_names[0], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(controls); }); });
-            vb.tab(tab_names[1], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(text); }); });
-            vb.tab(tab_names[2], [&](app::WidgetTree::ViewBuilder& t) { t.component(data); });
-            vb.tab(tab_names[3], [&](app::WidgetTree::ViewBuilder& t) { t.component(plot); });
-            vb.tab(tab_names[4], [&](app::WidgetTree::ViewBuilder& t) { t.component(popups); });
+            vb.tab(tab_names[1], [&](app::WidgetTree::ViewBuilder& t) { t.component(catalog); });
+            vb.tab(tab_names[2], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(text); }); });
+            vb.tab(tab_names[3], [&](app::WidgetTree::ViewBuilder& t) { t.component(data); });
+            vb.tab(tab_names[4], [&](app::WidgetTree::ViewBuilder& t) { t.component(plot); });
+            vb.tab(tab_names[5], [&](app::WidgetTree::ViewBuilder& t) { t.component(popups); });
         });
         vb.dialog(about);
     }

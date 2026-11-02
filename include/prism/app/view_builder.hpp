@@ -545,7 +545,9 @@ public:
         current_parent().children.push_back(std::move(container));
     }
 
-    void tree(TreeController& ctrl) {
+    // A tree, with a pane beside it showing the selected row's details; `detail = false` places
+    // the tree alone (the app shows the selection its own way, through ctrl.selected).
+    void tree(TreeController& ctrl, bool detail = true) {
         hstack([&] {
             Node container;
             container.id = tree_.next_id_++;
@@ -597,6 +599,7 @@ public:
             view_builder_detail::wire_list_signals(container, ctrl.rows);
 
             current_parent().children.push_back(std::move(container));
+            if (!detail) return;
             handle();
             widget(ctrl.detail);
         });
@@ -656,7 +659,15 @@ public:
     }
 #endif // __cpp_impl_reflection
 
-    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) {
+    // Tabs: a header to pick a page, and the page; only the selected page is built.
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true); }
+
+    // Pages: tabs without the header, the app picks the page through `field.selected` (a
+    // detail view that follows a selection, a wizard's steps). Pages are declared with tab().
+    void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false); }
+
+private:
+    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header) {
         placed_.insert(&field);
 
         auto state = std::make_shared<TabsState>();
@@ -673,15 +684,24 @@ public:
         tabs_node.layout_kind = LayoutKind::Tabs;
         tabs_node.tabs_state = state;
 
-        // Tab bar leaf (child 0)
-        auto bar = node_leaf(field, tree_.next_id_);
-        auto bar_build = bar.build_widget;
-        auto names_ptr = state->tab_names;
-        bar.build_widget = [bar_build, names_ptr](WidgetNode& wn) {
-            wn.tab_names = names_ptr;
-            if (bar_build) bar_build(wn);
-        };
-        tabs_node.children.push_back(std::move(bar));
+        // Child 0: the tab bar, or for pages an empty spacer (the layout gives it no height).
+        if (header) {
+            auto bar = node_leaf(field, tree_.next_id_);
+            auto bar_build = bar.build_widget;
+            auto names_ptr = state->tab_names;
+            bar.build_widget = [bar_build, names_ptr](WidgetNode& wn) {
+                wn.tab_names = names_ptr;
+                if (bar_build) bar_build(wn);
+            };
+            tabs_node.children.push_back(std::move(bar));
+        } else {
+            Node none;
+            none.id = tree_.next_id_++;
+            none.is_leaf = true;
+            none.layout_kind = LayoutKind::Spacer;
+            none.on_change = view_builder_detail::adapt_on_change(field);   // a new pick redraws
+            tabs_node.children.push_back(std::move(none));
+        }
 
         // Content container (child 1) — filled by materialize_tabs on first frame
         Node content;
@@ -693,6 +713,7 @@ public:
         current_parent().children.push_back(std::move(tabs_node));
     }
 
+public:
     template <typename F>
         requires std::invocable<F, ViewBuilder&>
     void tab(std::string_view name, F&& content_builder) {

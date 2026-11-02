@@ -292,3 +292,41 @@ TEST_CASE("a non-ASCII tab name is not sized per byte") {
     CHECK((es.header_x_ranges[0].second - es.header_x_ranges[0].first).raw()
           == doctest::Approx(32.f + 2.f * 0.6f * 14.f));
 }
+
+// --- pages: tabs without the header, the app picks the page ---
+
+struct PagesModel {
+    prism::Field<prism::TabBar<>> page;
+    prism::Field<prism::Label<>> first{{"first page"}};
+    prism::Field<prism::Label<>> second{{"second page"}};
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.pages(page, [&] {
+            vb.tab("First", [&](prism::WidgetTree::ViewBuilder& p) { p.widget(first); });
+            vb.tab("Second", [&](prism::WidgetTree::ViewBuilder& p) { p.widget(second); });
+        });
+    }
+};
+
+namespace {
+bool draws_text(const prism::SceneSnapshot& s, std::string_view text) {
+    for (auto& dl : s.draw_lists)
+        if (dl) for (auto& c : dl->commands)
+            if (auto* t = std::get_if<prism::TextCmd>(&c); t && t->text == text) return true;
+    return false;
+}
+}
+
+TEST_CASE("pages show only the selected page, with no tab header") {
+    PagesModel model;
+    prism::WidgetTree tree(model);
+    auto snap = tree.build_snapshot(400, 300, 1);
+    CHECK(draws_text(*snap, "first page"));
+    CHECK_FALSE(draws_text(*snap, "second page"));
+    CHECK_FALSE(draws_text(*snap, "First"));   // no header
+    model.page.set({.selected = 1});
+    snap = tree.build_snapshot(400, 300, 2);
+    CHECK(draws_text(*snap, "second page"));
+    CHECK_FALSE(draws_text(*snap, "first page"));
+    // the page starts at the top: no room left for a header
+    for (auto& [id, r] : snap->geometry) if (id != 0) CHECK(r.origin.y.raw() < 2.f);
+}

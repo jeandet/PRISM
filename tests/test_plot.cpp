@@ -1,5 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
+#include <algorithm>
+#include <cmath>
 #include <prism/widgets/plot_render.hpp>
 #include <prism/widgets/plot.hpp>
 #include <array>
@@ -1648,4 +1650,11 @@ TEST_CASE("tick labels are placed using the theme's text measurer")
     REQUIRE(text_x.size() == 2);
     CHECK(text_x[0] == doctest::Approx(x_tick - 50.f));                    // x label centred
     CHECK(text_x[1] == doctest::Approx(60.f - tick_len - 2.f - 100.f));    // y label right-aligned
+}
+
+TEST_CASE("nice_ticks lands exactly on zero when the range crosses it") {
+    // Adding the step tick after tick drifted: a zero tick read 5.5e-17 on the axis.
+    auto ticks = prism::plot::nice_ticks(-0.65, 0.88, 5);
+    REQUIRE(std::find(ticks.begin(), ticks.end(), 0.0) != ticks.end());
+    for (double t : ticks) CHECK(std::abs(t / 0.2 - std::round(t / 0.2)) < 1e-12);   // exact multiples
 }

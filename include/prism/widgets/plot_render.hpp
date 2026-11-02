@@ -89,10 +89,12 @@ inline std::vector<double> nice_ticks(double min, double max, int target_count)
     else
         nice_step = 10.0 * magnitude;
 
-    double tick_min = std::ceil(min / nice_step) * nice_step;
+    // Each tick is a whole multiple of the step, not a running sum: adding the step tick after
+    // tick drifts, and the zero tick came out as 5.5e-17 on the axis.
+    double first = std::ceil(min / nice_step);
     std::vector<double> ticks;
-    for (double v = tick_min; v <= max + nice_step * 1e-9; v += nice_step)
-        ticks.push_back(v);
+    for (double k = first; k * nice_step <= max + nice_step * 1e-9; k += 1.0)
+        ticks.push_back(k * nice_step);
 
     return ticks;
 }

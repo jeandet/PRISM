@@ -302,7 +302,10 @@ void view(app::WidgetTree::ViewBuilder& vb) {
 </tr>
 </table>
 
-Tables and trees are virtualized, so only visible rows cost anything.
+Tables and trees are virtualized, so only visible rows cost anything. A tree comes with a pane
+showing the selected row's details; `vb.tree(ctrl, /*detail=*/false)` leaves it out, for an app
+that shows the selection its own way, for example with `vb.pages(field, ...)`: tabs without the
+header, where the app picks the page.
 Click a table header to sort (numbers sort by value), drag a header edge to resize a column,
 and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
 A sorted table re-sorts when it hears about a change: a `List<T>` notifies it, and column

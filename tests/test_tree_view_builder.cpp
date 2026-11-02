@@ -316,3 +316,24 @@ TEST_CASE("keyboard navigation scrolls the newly selected row into view") {
                 if (t->text.find("n219") != std::string_view::npos) found = true;
     CHECK(found); // scroll_row_into_view should have brought it into the materialized range
 }
+
+TEST_CASE("a tree placed without its detail pane is the tree alone") {
+    struct Flat {
+        std::size_t root_count() const { return 1; }
+        prism::ui::TreeNodeId root_at(std::size_t) const { return 0; }
+        std::size_t child_count(prism::ui::TreeNodeId) const { return 0; }
+        prism::ui::TreeNodeId child_at(prism::ui::TreeNodeId, std::size_t) const { return 0; }
+        std::string label(prism::ui::TreeNodeId) const { return "only"; }
+        bool has_children(prism::ui::TreeNodeId) const { return false; }
+    };
+    struct Model {
+        Flat data;
+        prism::ui::TreeController ctrl{prism::ui::wrap_tree_storage(data)};
+        void view(prism::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl, /*detail=*/false); }
+    } model;
+    prism::WidgetTree tree(model);
+    auto snap = tree.build_snapshot(400, 300, 1);
+    for (auto& dl : snap->draw_lists)
+        if (dl) for (auto& c : dl->commands)
+            if (auto* t = std::get_if<prism::TextCmd>(&c)) CHECK(t->text != "No selection");
+}
