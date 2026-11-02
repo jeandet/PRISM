@@ -325,10 +325,50 @@ inline std::string_view line_text(std::string_view text, LineSpan line) {
     return text.substr(std::min(line.start, text.size()), line.length);
 }
 
+// How a wrapped line sits: its paragraph's direction (every line of a paragraph shares it, where
+// alone a line would guess from its own first letter), and where it starts: a right-to-left
+// paragraph's lines are right-aligned.
+struct LinePlace {
+    TextDirection dir = TextDirection::Ltr;
+    float x0 = 0.f;
+};
+
+// The text of the paragraph line `span` starts, up to its newline.
+inline std::string_view paragraph_from(std::string_view value, LineSpan span) {
+    auto rest = value.substr(std::min(span.start, value.size()));
+    return rest.substr(0, rest.find('\n'));
+}
+
+// The line as drawn: a direction mark first (U+200F right-to-left, U+200E left-to-right) when
+// the renderer, which reads one line at a time and guesses its direction, would guess wrong.
+inline std::string drawn_line(std::string_view text, TextDirection dir) {
+    if (text.empty() || paragraph_direction(text) == dir) return std::string(text);
+    return (dir == TextDirection::Rtl ? "\xE2\x80\x8F" : "\xE2\x80\x8E") + std::string(text);
+}
+
 // `col` is a character column within the wrapped line; cursors are byte offsets.
 // Whether line i ends where the next begins: a wrap inside a paragraph, not a newline.
 inline bool soft_wrap_after(std::span<const LineSpan> lines, size_t i) {
     return i + 1 < lines.size() && lines[i + 1].start == lines[i].start + lines[i].length;
+}
+
+// Each wrapped line's place. A paragraph's direction is worked out once, at its first line.
+inline std::vector<LinePlace> place_lines(std::string_view value, std::span<const LineSpan> lines, Width area_w,
+                                          const TextMeasurer* m, float size, FontRole role) {
+    std::vector<LinePlace> places;
+    places.reserve(lines.size());
+    TextDirection dir = TextDirection::Ltr;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (i == 0 || !soft_wrap_after(lines, i - 1)) dir = paragraph_direction(paragraph_from(value, lines[i]));
+        float x0 = 0.f;
+        if (dir == TextDirection::Rtl) {
+            auto text = value.substr(std::min(lines[i].start, value.size()), lines[i].length);
+            while (!text.empty() && is_wrap_space(text.back())) text.remove_suffix(1);   // hanging spaces
+            x0 = std::max(0.f, area_w.raw() - text_width(m, text, size, role));
+        }
+        places.push_back({dir, x0});
+    }
+    return places;
 }
 
 // `upstream`: at a soft wrap, the caret is at the end of the line above (see
@@ -418,6 +458,7 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
 
     // Calls fn(x0, x1, line_top) for the part of [lo, hi) on each visual line: several calls for
     // one line when the range crosses a direction change there.
+    auto places = place_lines(value, wrapped, text_area_w, m, ta_font_size, role);
     auto for_each_span = [&](size_t lo, size_t hi, auto fn) {
         for (size_t i = 0; i < wrapped.size(); ++i) {
             size_t a = std::max(lo, wrapped[i].start), b = std::min(hi, wrapped[i].start + wrapped[i].length);
@@ -425,8 +466,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
             auto text = line_text(value, wrapped[i]);
             Y y{static_cast<float>(i) * ta_line_h(m, role).raw() - es.scroll_y.raw()};
             for (auto [x0, x1] : selection_spans(m, text, a - wrapped[i].start, b - wrapped[i].start,
-                                                 ta_font_size, role))
-                fn(x0, x1, y);
+                                                 ta_font_size, role, places[i].dir))
+                fn(places[i].x0 + x0, places[i].x0 + x1, y);
         }
     };
 
@@ -459,7 +500,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
             if (y.raw() + ta_line_h(m, role).raw() < 0) continue;
             if (y.raw() > text_area_h.raw()) break;
             if (wrapped[i].length > 0) {
-                dl.text(std::string(value.substr(wrapped[i].start, wrapped[i].length)), delegate_detail::make_point(X{0}, y + DY{2.f}), ta_font_size, t.text,
+                dl.text(drawn_line(line_text(value, wrapped[i]), places[i].dir),
+                        delegate_detail::make_point(X{places[i].x0}, y + DY{2.f}), ta_font_size, t.text,
                         0.f, TextAnchor::TopLeft, role);
             }
         }
@@ -470,7 +512,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
         auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped, es.upstream && es.preedit.empty());
         auto text = line_text(value, wrapped[line]);
         // Hanging spaces can run past the edge (see word_break): the caret stops at the edge.
-        float caret_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, role);
+        float caret_x = places[line].x0
+                      + caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, role, places[line].dir);
         X cx{std::min(caret_x, text_area_w.raw() - ta_cursor_w.raw())};
         Y cy{static_cast<float>(line) * ta_line_h(m, role).raw() - es.scroll_y.raw()};
         dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_h(m, role)), t.cursor);
@@ -490,6 +533,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     Width text_area_w = w - ta_padding_x * 2.f;
     Height text_area_h{static_cast<float>(field.get().rows) * ta_line_h(m, role).raw()};
     auto wrapped = ui::wrap_lines(value, text_area_w, m, ta_font_size, role);
+    auto places = place_lines(value, wrapped, text_area_w, m, ta_font_size, role);
     auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped, es.upstream);
     std::optional<TextEdit> after;
     bool upstream_after = false;   // only End and a landing past a line's end keep the line above
@@ -507,10 +551,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto vertical_target = [&](size_t to) {
         if (!es.goal_x) {
             auto text = line_text(value, wrapped[line]);
-            es.goal_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, role);
+            es.goal_x = places[line].x0
+                      + caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, role, places[line].dir);
         }
         auto text = line_text(value, wrapped[to]);
-        size_t to_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, *es.goal_x, role));
+        size_t to_col = core::utf8::count_upto(
+            text, index_at(m, text, ta_font_size, *es.goal_x - places[to].x0, role, places[to].dir));
         return at_line_col(to, to_col);
     };
 
@@ -553,7 +599,8 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
                 std::clamp(rel_y / ta_line_h(m, role).raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
             auto text = line_text(value, wrapped[click_line]);
             size_t click_col = core::utf8::count_upto(
-                text, index_at(m, text, ta_font_size, p.x.raw() - ta_padding_x.raw(), role));
+                text, index_at(m, text, ta_font_size, p.x.raw() - ta_padding_x.raw() - places[click_line].x0, role,
+                               places[click_line].dir));
             return at_line_col(click_line, click_col);
         });
     }

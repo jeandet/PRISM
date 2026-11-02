@@ -99,3 +99,27 @@ TEST_CASE("a left-to-right selection is a single span, as before") {
     CHECK(spans[0].first == doctest::Approx(ch));
     CHECK(spans[0].second == doctest::Approx(3 * ch));
 }
+
+TEST_CASE("a line can be laid out in its paragraph's direction, not its own guess") {
+    std::string line = "ab " + hebrew;   // starts with English, so alone it reads left to right
+    CHECK(bidi_runs(line)[0] == BidiRun{0, 3, false});
+    // In a right-to-left paragraph the Hebrew (and the space before it) comes first on screen.
+    auto runs = bidi_runs(line, TextDirection::Rtl);
+    REQUIRE(runs.size() == 2);
+    CHECK(runs[0] == BidiRun{2, 11, true});
+    CHECK(runs[1] == BidiRun{0, 2, false});
+}
+
+TEST_CASE("a paragraph's direction comes from its first strong letter") {
+    CHECK(paragraph_direction(hebrew + " abc") == TextDirection::Rtl);
+    CHECK(paragraph_direction("abc " + hebrew) == TextDirection::Ltr);
+    CHECK(paragraph_direction("123 ...") == TextDirection::Ltr);   // none: left to right
+    CHECK(paragraph_direction("") == TextDirection::Ltr);
+}
+
+TEST_CASE("the caret follows the paragraph's direction when one is given") {
+    std::string line = "ab " + hebrew;
+    // Right to left: the Hebrew (with the space) takes x 0..30, "ab" 30..42. The caret before
+    // "a" is at the left edge of "ab".
+    CHECK(caret_x_at(nullptr, line, 0, size, FontRole::Ui, TextDirection::Rtl) == doctest::Approx(5 * ch));
+}

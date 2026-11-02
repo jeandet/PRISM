@@ -9,10 +9,11 @@
 // Bidirectional text (UAX #9): where a line's left-to-right and right-to-left runs go on screen.
 // One interface, implemented with SheenBidi (chosen at build time, doc/review-2026-11-02.md §4).
 // UTF-8 in, byte offsets out.
-// simplify: each line is its own paragraph, so a wrapped Hebrew paragraph whose second line
-// starts with an English word lays that line out left to right. Upgrade: resolve the paragraph
-// once and pass its base level to each line (SBParagraphCreateLine on the wrapped ranges).
 namespace prism::ui {
+
+// A paragraph's direction. Auto: from its first strong letter (UAX #9 rules P2-P3), left to
+// right when there is none. A wrapped line passes its paragraph's, not its own guess.
+enum class TextDirection { Auto, Ltr, Rtl };
 
 // A byte range of a line drawn in one direction.
 struct BidiRun {
@@ -22,10 +23,14 @@ struct BidiRun {
 };
 
 namespace bidi_detail {
+inline SBLevel base_level(TextDirection dir) {
+    return dir == TextDirection::Auto ? SBLevelDefaultLTR : dir == TextDirection::Rtl ? 1 : 0;
+}
+
 // Appends the runs of the paragraph starting at `offset`; returns its length.
 inline std::size_t append_paragraph(SBAlgorithmRef algo, std::size_t offset, std::size_t rest,
-                                    std::vector<BidiRun>& runs) {
-    SBParagraphRef para = SBAlgorithmCreateParagraph(algo, offset, rest, SBLevelDefaultLTR);
+                                    TextDirection dir, std::vector<BidiRun>& runs) {
+    SBParagraphRef para = SBAlgorithmCreateParagraph(algo, offset, rest, base_level(dir));
     std::size_t length = SBParagraphGetLength(para);
     SBLineRef line = SBParagraphCreateLine(para, offset, length);
     const SBRun* r = SBLineGetRunsPtr(line);
@@ -37,18 +42,30 @@ inline std::size_t append_paragraph(SBAlgorithmRef algo, std::size_t offset, std
 }
 } // namespace bidi_detail
 
-// The runs of `line`, in visual order (leftmost first). The base direction comes from the first
-// strong character (rules P2-P3), left to right when there is none. A newline starts a new
-// paragraph; their runs follow one another.
-inline std::vector<BidiRun> bidi_runs(std::string_view line) {
+// The runs of `line`, in visual order (leftmost first), laid out in direction `dir`. A newline
+// starts a new paragraph; their runs follow one another.
+inline std::vector<BidiRun> bidi_runs(std::string_view line, TextDirection dir = TextDirection::Auto) {
     std::vector<BidiRun> runs;
     if (line.empty()) return runs;
     SBCodepointSequence seq{SBStringEncodingUTF8, line.data(), line.size()};
     SBAlgorithmRef algo = SBAlgorithmCreate(&seq);
     for (std::size_t at = 0; at < line.size();)
-        at += bidi_detail::append_paragraph(algo, at, line.size() - at, runs);
+        at += bidi_detail::append_paragraph(algo, at, line.size() - at, dir, runs);
     SBAlgorithmRelease(algo);
     return runs;
+}
+
+// The direction of the paragraph `text` starts (up to its first newline): Rtl when its first
+// strong letter is right to left.
+inline TextDirection paragraph_direction(std::string_view text) {
+    if (text.empty()) return TextDirection::Ltr;
+    SBCodepointSequence seq{SBStringEncodingUTF8, text.data(), text.size()};
+    SBAlgorithmRef algo = SBAlgorithmCreate(&seq);
+    SBParagraphRef para = SBAlgorithmCreateParagraph(algo, 0, text.size(), SBLevelDefaultLTR);
+    bool rtl = (SBParagraphGetBaseLevel(para) & 1) != 0;
+    SBParagraphRelease(para);
+    SBAlgorithmRelease(algo);
+    return rtl ? TextDirection::Rtl : TextDirection::Ltr;
 }
 
 // True when every run is left to right: the line draws and measures as it always did.

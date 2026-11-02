@@ -167,3 +167,27 @@ TEST_CASE("a Hebrew word reads right to left: its first letter is its rightmost"
         differing += column(*word, word->width - shin->width + x) != column(*shin, x);
     CHECK(differing <= 1);   // a glyph edge may touch its neighbour's column
 }
+
+TEST_CASE("in a Hebrew sentence, the first word is drawn rightmost") {
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    const std::string olam = "\xd7\xa2\xd7\x95\xd7\x9c\xd7\x9d";   // the second word
+    auto first = fonts.rasterize(hebrew, 14.f, FontRole::Ui);
+    auto second = fonts.rasterize(olam, 14.f, FontRole::Ui);
+    auto line = fonts.rasterize(hebrew + " " + olam, 14.f, FontRole::Ui);
+    REQUIRE(first);
+    REQUIRE(second);
+    REQUIRE(line);
+    // How unlike the line's right end a word is (summed alpha differences): inside the line a
+    // word sits at a fractional pixel, so it never matches exactly; the right word matches best.
+    auto distance = [&](const prism::render::TextBitmap& word) {
+        long d = 0;
+        for (int x = 0; x < word.width; ++x) {
+            auto a = column(*line, line->width - word.width + x), b = column(word, x);
+            for (std::size_t y = 0; y < a.size(); ++y) d += std::abs(int(a[y]) - int(b[y]));
+        }
+        return d / word.width;
+    };
+    CHECK(distance(*first) < distance(*second));
+}

@@ -1143,3 +1143,48 @@ TEST_CASE("a read-only text area still selects and copies; cut only copies") {
     CHECK(cb.text == "fixed");
     CHECK(field.get().value == "fixed");
 }
+
+// --- right-to-left paragraphs ---
+
+namespace {
+const std::string hebrew = "\xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d";   // 4 letters
+std::vector<const prism::TextCmd*> texts(const prism::DrawList& dl) {
+    std::vector<const prism::TextCmd*> out;
+    for (auto& c : dl.commands) if (auto* t = std::get_if<prism::TextCmd>(&c)) out.push_back(t);
+    return out;
+}
+}
+
+TEST_CASE("a right-to-left paragraph's lines are right-aligned") {
+    prism::Field<prism::TextArea<>> field{{.value = hebrew, .rows = 3}};
+    auto node = make_node();
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    auto t = texts(dl);
+    REQUIRE(t.size() == 1);
+    float area_w = 200.f - 2 * 4.f, cw = prism::char_width(14.f).raw();
+    CHECK(t[0]->origin.x.raw() == doctest::Approx(4.f + area_w - 4 * cw));   // padding, then the line flush right
+}
+
+TEST_CASE("a wrapped line keeps its paragraph's direction, even when it starts with English") {
+    prism::Field<prism::TextArea<>> field{{.value = hebrew + " abcdefghijkl mnopqrstuvwxyzab", .rows = 3}};
+    auto node = make_node();
+    prism::DrawList dl;
+    prism::Widget<prism::TextArea<>>::record(dl, field, node);
+    auto t = texts(dl);
+    REQUIRE(t.size() == 2);
+    // The second line alone would read left to right: a right-to-left mark keeps it in the
+    // paragraph's direction when the renderer reads it.
+    CHECK(t[1]->text.starts_with("\xE2\x80\x8F"));
+    CHECK_FALSE(t[0]->text.starts_with("\xE2\x80\x8F"));   // the first already reads right to left
+}
+
+TEST_CASE("a click at the right end of a right-to-left line puts the caret at its start") {
+    prism::Field<prism::TextArea<>> field{{.value = hebrew, .rows = 3}};
+    auto node = make_node({.focused = true});
+    using W = prism::Widget<prism::TextArea<>>;
+    prism::Point right_end{prism::X{4.f + 192.f - 1.f}, prism::Y{8.f}};
+    W::handle_input(field, prism::MouseButton{right_end, 1, true}, node);
+    W::handle_input(field, prism::MouseButton{right_end, 1, false}, node);
+    CHECK(node.get_or_create<prism::TextAreaEditState>().cursor == 0);
+}

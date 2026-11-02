@@ -101,9 +101,9 @@ inline float edge_x(const TextMeasurer* m, std::string_view line, const PlacedRu
 // right-to-left run moves the caret the other way on screen. Upgrade: visual movement, as most
 // editors default to.
 inline float caret_x_at(const TextMeasurer* m, std::string_view line, std::size_t byte, float size,
-                        FontRole role = FontRole::Ui) {
+                        FontRole role = FontRole::Ui, TextDirection dir = TextDirection::Auto) {
     byte = core::utf8::snap(line, byte);
-    auto runs = bidi_runs(line);
+    auto runs = bidi_runs(line, dir);
     if (is_plain_ltr(runs)) return prefix_width(m, line, byte, size, role);
     std::size_t probe = byte == 0 ? 0 : byte - 1;   // a byte of the character before the caret
     for (const auto& p : bidi_detail::place_runs(m, line, runs, size, role))
@@ -113,8 +113,8 @@ inline float caret_x_at(const TextMeasurer* m, std::string_view line, std::size_
 
 // Byte offset of the character boundary nearest to x on one line, right-to-left runs included.
 inline std::size_t index_at(const TextMeasurer* m, std::string_view line, float size, float x,
-                            FontRole role = FontRole::Ui) {
-    auto runs = bidi_runs(line);
+                            FontRole role = FontRole::Ui, TextDirection dir = TextDirection::Auto) {
+    auto runs = bidi_runs(line, dir);
     if (is_plain_ltr(runs)) return logical_index_at(m, line, size, x, role);
     auto placed = bidi_detail::place_runs(m, line, runs, size, role);
     auto hit = std::find_if(placed.begin(), placed.end(), [x](const auto& p) { return x < p.x + p.w; });
@@ -128,9 +128,10 @@ inline std::size_t index_at(const TextMeasurer* m, std::string_view line, float 
 // selection across a direction change can be several pieces.
 inline std::vector<std::pair<float, float>> selection_spans(const TextMeasurer* m, std::string_view line,
                                                             std::size_t lo, std::size_t hi, float size,
-                                                            FontRole role = FontRole::Ui) {
+                                                            FontRole role = FontRole::Ui,
+                                                            TextDirection dir = TextDirection::Auto) {
     std::vector<std::pair<float, float>> spans;
-    for (const auto& p : bidi_detail::place_runs(m, line, bidi_runs(line), size, role)) {
+    for (const auto& p : bidi_detail::place_runs(m, line, bidi_runs(line, dir), size, role)) {
         std::size_t a = std::max(lo, p.run.begin), b = std::min(hi, p.run.end);
         if (a >= b) continue;
         float xa = bidi_detail::edge_x(m, line, p, a, size, role), xb = bidi_detail::edge_x(m, line, p, b, size, role);

@@ -333,8 +333,9 @@ content: buttons and labels take their text width, text fields fill the row.
 
 Text follows Unicode. The caret and Backspace step over whole characters (an `e` plus a combining
 accent is one), lines wrap where the line-breaking rules allow, and Hebrew or Arabic read right
-to left inside English text: the caret, clicks and selections follow the runs on screen. Noto
-Sans Hebrew and Arabic are bundled as fallback fonts. A `TextArea` with `.read_only = true`
+to left inside English text: the caret, clicks and selections follow the runs on screen. In a
+`TextArea`, a paragraph that starts in Hebrew or Arabic is right-aligned, and its wrapped lines keep
+its direction. Noto Sans Hebrew and Arabic are bundled as fallback fonts. A `TextArea` with `.read_only = true`
 can be selected and copied but not changed.
 
 ```cpp
