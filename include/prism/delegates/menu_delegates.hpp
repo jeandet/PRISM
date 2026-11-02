@@ -29,14 +29,18 @@ inline std::optional<std::size_t> item_at(const Items& items, const WidgetNode& 
     return i < items.size() ? std::optional{i} : std::nullopt;
 }
 
-inline void open_at(const Items& items, WidgetNode& node, Point origin, float min_w) {
-    node.popup_area = Rect{origin, popup_size(items, node, min_w)};
+// Below `anchor`, left-aligned; routing flips it near the window edges (place_popup).
+inline void open_at(const Items& items, WidgetNode& node, Rect anchor, float min_w) {
+    Point below{anchor.origin.x, anchor.origin.y + DY{anchor.extent.h.raw()}};
+    node.popup_area = Rect{below, popup_size(items, node, min_w)};
+    node.popup_opened_from = anchor;
     node.get_or_create<MenuEditState>().highlighted = 0;
     node.dirty = true;
 }
 
 inline void close(WidgetNode& node) {
     node.popup_area.reset();
+    node.popup_opened_from.reset();
     node.overlay_draws.clear();
     node.dirty = true;
 }
@@ -118,7 +122,10 @@ inline void Widget<Menu>::record(DrawList& dl, const Field<Menu>& field, WidgetN
 inline void Widget<Menu>::handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node) {
     using namespace menu_detail;
     const auto& m = field.get();
-    auto open = [&] { open_at(m.items, node, Point{X{0}, Y{title_h.raw()}}, delegate_detail::widget_w(node).raw()); };
+    auto open = [&] {
+        Width w = delegate_detail::widget_w(node);
+        open_at(m.items, node, Rect{Point{X{0}, Y{0}}, Size{w, title_h}}, w.raw());
+    };
     if (node.popup_area && open_popup_input(field, ev, node)) return;
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
         if (node.popup_area) close(node);   // the title again: toggle closed
@@ -140,7 +147,7 @@ inline void Widget<ContextMenu>::handle_input(Field<ContextMenu>& field, const I
         return;
     }
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::right)
-        open_at(field.get().items, node, mb->position, 120.f);
+        open_at(field.get().items, node, Rect{mb->position, Size{Width{0}, Height{0}}}, 120.f);
 }
 
 } // namespace prism::ui

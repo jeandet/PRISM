@@ -170,3 +170,67 @@ TEST_CASE("a menu away from the window corner is clamped in window coordinates")
     REQUIRE(a);
     CHECK(a->origin.x.raw() + a->extent.w.raw() <= 400.f + 0.01f);
 }
+
+// --- flipping at the window edges ---------------------------------------------
+
+namespace {
+Rect rect(float x, float y, float w, float h) { return Rect{Point{X{x}, Y{y}}, Size{Width{w}, Height{h}}}; }
+const Size window{Width{400}, Height{300}};
+const Size popup{Width{100}, Height{80}};
+}
+
+TEST_CASE("place_popup: below and left-aligned to its anchor when that fits") {
+    auto r = widget_detail::place_popup(popup, rect(20, 10, 60, 30), window);
+    CHECK(r.origin.x.raw() == doctest::Approx(20.f));
+    CHECK(r.origin.y.raw() == doctest::Approx(40.f));
+}
+
+TEST_CASE("place_popup: above its anchor when it does not fit below") {
+    auto r = widget_detail::place_popup(popup, rect(20, 250, 60, 30), window);
+    CHECK(r.origin.y.raw() + r.extent.h.raw() == doctest::Approx(250.f));   // ends at the anchor's top
+}
+
+TEST_CASE("place_popup: right-aligned to its anchor when it does not fit to the right") {
+    auto r = widget_detail::place_popup(popup, rect(350, 10, 40, 30), window);
+    CHECK(r.origin.x.raw() + r.extent.w.raw() == doctest::Approx(390.f));   // ends at the anchor's right
+}
+
+TEST_CASE("place_popup: fitting on neither side, it takes the roomier side and stays inside") {
+    Size tall{Width{100}, Height{200}};
+    auto r = widget_detail::place_popup(tall, rect(20, 130, 60, 30), window);   // 140 below, 130 above
+    CHECK(r.origin.y.raw() >= 0.f);
+    CHECK(r.origin.y.raw() + r.extent.h.raw() <= 300.f);
+    CHECK(r.origin.y.raw() == doctest::Approx(100.f));   // below, pushed up just enough
+}
+
+TEST_CASE("a context menu near the bottom-right corner opens up and to the left of the click") {
+    Fixture f;
+    f.press(390, 290, buttons::right);
+    auto a = f.area();
+    REQUIRE(a);
+    CHECK(a->origin.x.raw() + a->extent.w.raw() == doctest::Approx(390.f));
+    CHECK(a->origin.y.raw() + a->extent.h.raw() == doctest::Approx(290.f));
+}
+
+namespace {
+struct RightMenuBar {
+    Field<Label<>> pad{{"a long label that pushes the menu to the right edge......."}};
+    Field<Menu> help{{.title = "Help", .items = {"About this application and its many options"}}};
+    void view(WidgetTree::ViewBuilder& vb) { vb.hstack(pad, help); }
+};
+}
+
+TEST_CASE("a menu at the right edge lines up with the right of its title") {
+    RightMenuBar m;
+    WidgetTree tree{m};
+    (void)tree.build_snapshot(400, 300, 1);
+    auto snap = tree.build_snapshot(400, 300, 2);
+    auto title = find_widget_rect(*snap, tree.leaf_ids()[1]);
+    REQUIRE(title);
+    route_event(tree, snap.get(), MouseButton{Point{title->origin.x + DX{5}, Y{10}}, buttons::left, true});
+    auto a = widget_detail::popup_area(tree, *snap);
+    REQUIRE(a);
+    REQUIRE(title->origin.x.raw() + a->extent.w.raw() > 400.f);   // it would overflow to the right
+    float title_right = title->origin.x.raw() + title->extent.w.raw();
+    CHECK(a->origin.x.raw() + a->extent.w.raw() == doctest::Approx(std::min(title_right, 400.f)));
+}

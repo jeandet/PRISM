@@ -341,7 +341,8 @@ auto on_menu = editor.file.on_change().connect([](const ui::Menu& m) {
 
 Menus open on an in-window popup layer that takes input first: a click outside closes the menu
 without reaching the widget underneath. Menus side by side form a menu bar: with one open, the
-arrow keys or the mouse move to the next. Popups always stay inside the window.
+arrow keys or the mouse move to the next. Popups always stay inside the window: near an edge a
+menu opens above its title, and a right-click menu opens up or left of the pointer.
 
 A right-click menu belongs to the container it is declared in, and a modal dialog is a field
 the app opens:

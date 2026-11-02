@@ -34,6 +34,9 @@ struct WidgetNode {
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;
     // while set, the popup gets all input first (see doc/design/menus-and-dialogs.md).
     std::optional<Rect> popup_area;
+    // What the popup opened from (a menu's title, a right click's point), same coordinates:
+    // near a window edge the popup flips to its other side. None: just kept inside the window.
+    std::optional<Rect> popup_opened_from;
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
     bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)
     bool context_menu = false;  // opened by a right click in its parent container

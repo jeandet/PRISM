@@ -100,14 +100,45 @@ inline Rect clamp_into(Rect r, Size window) {
     return Rect{Point{X{x}, Y{y}}, r.extent};
 }
 
-// simplify: slides an overflowing popup back inside the window (it may then cover its menu
-// title) rather than flipping it to the other side of its anchor; add flipping when a popup
-// anchored to a widget looks wrong in practice. A popup taller than the window is pinned to
-// the top and its last rows stay unreachable: menus would need scrolling for that.
+// One axis of place_popup: after the anchor if it fits there, else before it if it fits there,
+// else on the roomier side; then kept inside [0, window].
+inline float place_on_axis(float size, float anchor_start, float anchor_end, float window) {
+    float after = anchor_end, before = anchor_start - size;
+    float pos = after + size <= window ? after
+              : before >= 0.f        ? before
+              : window - anchor_end >= anchor_start ? after : before;
+    return std::clamp(pos, 0.f, std::max(0.f, window - size));
+}
+
+// A popup of `size` next to `anchor` (window coordinates): below it, or above when only that
+// fits; left-aligned with it, or right-aligned when only that fits.
+// simplify: a popup taller than the window is pinned to the top and its last rows stay
+// unreachable: menus would need scrolling for that.
+inline Rect place_popup(Size size, Rect anchor, Size window) {
+    float ax = anchor.origin.x.raw(), aw = anchor.extent.w.raw();
+    // Horizontally the popup starts at the anchor's left (not after its right edge), so the
+    // "anchor" on this axis is the anchor's right edge read backwards: [ax + aw - w, ax].
+    float x = ax + size.w.raw() <= window.w.raw() ? ax
+            : ax + aw - size.w.raw() >= 0.f       ? ax + aw - size.w.raw()
+            : ax;
+    x = std::clamp(x, 0.f, std::max(0.f, window.w.raw() - size.w.raw()));
+    float y = place_on_axis(size.h.raw(), anchor.origin.y.raw(),
+                            anchor.origin.y.raw() + anchor.extent.h.raw(), window.h.raw());
+    return Rect{Point{X{x}, Y{y}}, size};
+}
+
 inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
     auto area = popup_area(tree, snap);
     if (!area || snap.viewport.w.raw() <= 0.f) return;
+    const WidgetNode* owner = tree.popup_node();
     Rect inside = clamp_into(*area, snap.viewport);
+    if (owner->popup_opened_from) {
+        DX ox = area->origin.x - owner->popup_area->origin.x;   // owner -> window
+        DY oy = area->origin.y - owner->popup_area->origin.y;
+        Rect anchor{Point{owner->popup_opened_from->origin.x + ox, owner->popup_opened_from->origin.y + oy},
+                    owner->popup_opened_from->extent};
+        inside = place_popup(area->extent, anchor, snap.viewport);
+    }
     if (inside.origin == area->origin) return;
     DX dx = inside.origin.x - area->origin.x;
     DY dy = inside.origin.y - area->origin.y;
