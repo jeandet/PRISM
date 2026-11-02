@@ -57,6 +57,16 @@ inline std::optional<ScrollView> get_scroll_view(WidgetNode& node) {
     return std::nullopt;
 }
 
+inline void build_layout(WidgetNode& node, LayoutNode& parent);
+
+// Appends the layout nodes of node's children to `into`, allocating once: a LayoutNode is
+// large, and growing the vector one child at a time moved every earlier sibling each time.
+inline void build_children(WidgetNode& node, LayoutNode& into) {
+    into.children.reserve(into.children.size() + node.children.size());
+    for (auto& c : node.children)
+        build_layout(c, into);
+}
+
 inline void build_layout(WidgetNode& node, LayoutNode& parent) {
     using LK = LayoutKind;
 
@@ -72,7 +82,6 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             canvas.kind = LayoutNode::Kind::Canvas;
             canvas.id = node.id;
             canvas.theme = node.theme;
-            canvas.draws = node.draws;
             canvas.overlay_draws = node.overlay_draws;
             canvas.canvas_min_width = node.canvas_min_width;
             canvas.canvas_min_height = node.canvas_min_height;
@@ -83,7 +92,6 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             handle.kind = LayoutNode::Kind::Handle;
             handle.id = node.id;
             handle.theme = node.theme;
-            handle.draws = node.draws;
             handle.overlay_draws = node.overlay_draws;
             handle.widget = &node;
             parent.children.push_back(std::move(handle));
@@ -92,7 +100,6 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             leaf.kind = LayoutNode::Kind::Leaf;
             leaf.id = node.id;
             leaf.theme = node.theme;
-            leaf.draws = node.draws;
             leaf.overlay_draws = node.overlay_draws;
             leaf.hint.expand = node.expand;
             leaf.hint.expand_axis = node.expand_axis;
@@ -107,8 +114,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         container.theme = node.theme;
         if (auto* ss = std::any_cast<ScrollState>(&node.edit_state))
             container.scroll_offset = ss->offset_y;
-        for (auto& c : node.children)
-            build_layout(c, container);
+        build_children(node, container);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::VirtualList) {
         LayoutNode container;
@@ -122,8 +128,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             container.vlist_visible_start = vls->visible_start.raw();
             container.vlist_item_height = vls->item_height;
         }
-        for (auto& c : node.children)
-            build_layout(c, container);
+        build_children(node, container);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Table) {
         LayoutNode container;
@@ -141,16 +146,14 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             container.table_scroll_x = ts->scroll_x;
         }
         container.overlay_draws = node.overlay_draws;
-        for (auto& c : node.children)
-            build_layout(c, container);
+        build_children(node, container);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Tabs) {
         LayoutNode container;
         container.kind = LayoutNode::Kind::Tabs;
         container.id = node.id;
         container.theme = node.theme;
-        for (auto& c : node.children)
-            build_layout(c, container);
+        build_children(node, container);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Row || node.layout_kind == LK::Column) {
         LayoutNode container;
@@ -160,8 +163,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         container.theme = node.theme;
         if (auto* ss = std::any_cast<SplitState>(&node.edit_state); ss && ss->engaged)
             container.split_sizes = ss->pane_sizes;
-        for (auto& c : node.children)
-            build_layout(c, container);
+        build_children(node, container);
         parent.children.push_back(std::move(container));
     } else {
         for (auto& c : node.children)

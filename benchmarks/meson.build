@@ -4,3 +4,7 @@
 executable('bench_stall_latency', 'stall_latency.cpp',
   dependencies : [prism_software_backend_dep],
 )
+
+executable('bench_widget_scale', 'widget_scale.cpp',
+  dependencies : [prism_core_dep, fmt_dep],
+)

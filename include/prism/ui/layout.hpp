@@ -112,6 +112,12 @@ struct LayoutNode {
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis);
 inline void layout_arrange(LayoutNode& node, Rect available);
 
+// What a node draws: its widget's own list, read in place, so building the layout tree each
+// publish copies no draw commands; or the node's list, for a node built without a widget.
+inline const DrawList& content_draws(const LayoutNode& node) {
+    return node.widget ? node.widget->draws : node.draws;
+}
+
 namespace layout_detail {
 
 inline ExpandAxis axis_flag(LayoutAxis a) {
@@ -216,7 +222,7 @@ inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
         return;
     }
     case LayoutNode::Kind::Leaf: {
-        auto bb = node.draws.bounding_box();
+        auto bb = content_draws(node).bounding_box();
         bool horiz = (parent_axis == LayoutAxis::Horizontal);
         node.hint.preferred = horiz ? node.intrinsic_width.value_or(bb.extent.w.raw()) : bb.extent.h.raw();
         node.hint.cross     = horiz ? bb.extent.h.raw() : bb.extent.w.raw();
@@ -491,8 +497,9 @@ inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipp
     // A popup anchor (context menu, dialog) draws nothing in place, but routing needs its
     // origin: its popup is stored in its own coordinates. It gets a zero-size rect there,
     // which nothing can hit.
-    bool anchor_only = node.draws.empty() && node.widget && node.widget->popup_anchor;
-    if (node.draws.empty() && node.kind != LayoutNode::Kind::Canvas && !anchor_only) return;
+    const DrawList& draws = content_draws(node);
+    bool anchor_only = draws.empty() && node.widget && node.widget->popup_anchor;
+    if (draws.empty() && node.kind != LayoutNode::Kind::Canvas && !anchor_only) return;
 
     // Reuse last frame's already-translated+clipped DrawList when this widget's content
     // didn't change (!dirty) AND it's still at the same screen rect -- a widget can be
@@ -517,17 +524,21 @@ inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipp
     } else {
         DX dx{node.allocated.origin.x.raw()};
         DY dy{node.allocated.origin.y.raw()};
-        layout_detail::translate_draw_list(node.draws, dx, dy);
         // Canvas nodes fill their allocation; leaf widgets use drawn content bounds
+        // (bounding_box() moves with the draws, clips included, so it is measured before).
+        Rect drawn = draws.bounding_box();
         hit_rect = node.kind == LayoutNode::Kind::Canvas ? node.allocated
                  : anchor_only ? Rect{node.allocated.origin, Size{Width{0}, Height{0}}}
-                               : node.draws.bounding_box();
+                               : Rect{drawn.origin + Offset{dx, dy}, drawn.extent};
 
+        // Copied here, for the widgets that are on screen, not when the layout tree is built.
         auto clipped = std::make_shared<DrawList>();
+        clipped->commands.reserve(draws.commands.size() + 2);
         clipped->clip_push(node.allocated.origin, node.allocated.extent);
-        clipped->commands.insert(clipped->commands.end(),
-            std::make_move_iterator(node.draws.commands.begin()),
-            std::make_move_iterator(node.draws.commands.end()));
+        for (auto cmd : draws.commands) {
+            layout_detail::translate_cmd(cmd, dx, dy);
+            clipped->commands.push_back(std::move(cmd));
+        }
         clipped->clip_pop();
 
         if (!clipped_by_ancestor && node.widget) {

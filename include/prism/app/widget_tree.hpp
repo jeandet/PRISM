@@ -1141,12 +1141,9 @@ private:
         if (layout_node.kind == LayoutNode::Kind::Leaf ||
             layout_node.kind == LayoutNode::Kind::Canvas ||
             layout_node.kind == LayoutNode::Kind::Handle) {
-            auto it = index_.find(layout_node.id);
-            auto* wn = (it != index_.end()) ? it->second : nullptr;
-            // build_layout() already copied wn->draws/overlay_draws (as of refresh_dirty()'s
-            // output) into layout_node -- nothing between there and here touches wn->draws,
-            // so when we skip re-recording, layout_node's copy is already correct and doesn't
-            // need refreshing.
+            auto* wn = layout_node.widget;   // set by build_layout() for these three kinds
+            // layout_node reads wn->draws in place (ui::content_draws), so a re-record here is
+            // what layout_flatten() sees; overlay_draws is still a copy and is refreshed.
             // Popup anchors place their popup relative to the window, so they also re-record
             // when the window or their position in it changes.
             bool resized = wn && wn->canvas_bounds.extent != layout_node.allocated.extent;
@@ -1156,7 +1153,6 @@ private:
                     layout_node.allocated.extent
                 };
                 wn->record(*wn);
-                layout_node.draws = wn->draws;
                 layout_node.overlay_draws = wn->overlay_draws;
             }
             return;
