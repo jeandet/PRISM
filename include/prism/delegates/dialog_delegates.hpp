@@ -197,6 +197,7 @@ inline void Widget<Dialog>::record(DrawList&, const Field<Dialog>& field, Widget
     node.overlay_draws.clear();
     if (!d.open) {
         node.popup_area.reset();
+        node.edit_state.reset();   // closed by the app: the next opening starts afresh, as after close()
         return;
     }
     auto l = layout(d, node);

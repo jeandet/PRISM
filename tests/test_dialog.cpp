@@ -294,3 +294,18 @@ TEST_CASE("dragging the message's scrollbar thumb scrolls it") {
     CHECK(overlay_draws_text(f.tree, "message line 99"));   // dragged to the end
     CHECK(f.tree.popup_owner() != 0);                       // and the dialog is still open
 }
+
+TEST_CASE("a dialog the app closed and reopened starts at the top of its message") {
+    Fixture f;
+    show_message(f, numbered(100));
+    auto c = *f.card();
+    route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{80}}, DX{0}, DY{3}});
+    f.frame();
+    REQUIRE_FALSE(overlay_draws_text(f.tree, "message line 0"));
+    auto d = f.model.ask.get();
+    d.open = false;   // the app closes it
+    f.model.ask.set(d);
+    f.frame();
+    show_message(f, numbered(100));
+    CHECK(overlay_draws_text(f.tree, "message line 0"));
+}

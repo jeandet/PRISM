@@ -740,18 +740,20 @@ private:
             // Table: connect List<T> signals (RowStorage) and depends_on (ColumnStorage)
             if (node.layout_kind == LayoutKind::Table) {
                 auto id = wn.id;
-                auto data_changed = [this, id, ts = node.table_state.get()]() {
+                // Rows move on a removal, or on any change while sorted (it may re-sort); a cell
+                // update or an append to an unsorted table moves none, and a live feed updating
+                // every frame must not make every click stale.
+                auto changed = [this, id, ts = node.table_state.get()](bool removal) {
                     if (ts) {
                         ts->order_stale = true;
-                        ts->shifted_at = next_frame_version();
+                        if (removal || ts->sort.get()) ts->shifted_at = next_frame_version();
                     }
                     set_dirty(id);
                 };
-                for (auto sig : {&Node::vlist_on_insert, &Node::vlist_on_remove,
-                                 &Node::vlist_on_update}) {
-                    if (node.*sig)
-                        wn.connections.push_back((node.*sig)(0, data_changed));
-                }
+                auto data_changed = [changed] { changed(false); };
+                if (node.vlist_on_insert) wn.connections.push_back(node.vlist_on_insert(0, data_changed));
+                if (node.vlist_on_update) wn.connections.push_back(node.vlist_on_update(0, data_changed));
+                if (node.vlist_on_remove) wn.connections.push_back(node.vlist_on_remove(0, [changed] { changed(true); }));
                 for (auto& dep : node.dependencies)
                     wn.connections.push_back(dep(data_changed));
                 return;

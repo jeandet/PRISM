@@ -237,3 +237,23 @@ TEST_CASE("a table row click from a frame before a re-sort moved the rows is dro
     route_event(tree, f2.get(), MouseButton{Point{X{20}, Y{row_y}}, buttons::left, true});
     CHECK(ts.selected_rows.get().size() == 1);
 }
+
+namespace {
+struct LiveTableDoc {
+    Cols data;
+    Field<int> tick{0};   // a feed updating the cells every frame
+    void view(WidgetTree::ViewBuilder& vb) { vb.table(data).depends_on(tick); }
+};
+}
+
+TEST_CASE("a live table whose cells change every frame stays clickable when unsorted") {
+    LiveTableDoc doc;
+    WidgetTree tree{doc};
+    auto f1 = tree.build_snapshot(400, 300, 1);
+    auto& ts = table_state(tree);
+    float row_y = ts.row_height.raw() * 2.5f;
+    doc.tick.set(1);   // new values, same rows in the same places
+    using prism::app::widget_detail::route_event;
+    route_event(tree, f1.get(), MouseButton{Point{X{20}, Y{row_y}}, buttons::left, true});
+    CHECK(ts.selected_rows.get().size() == 1);
+}
