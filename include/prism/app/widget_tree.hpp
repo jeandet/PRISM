@@ -563,6 +563,7 @@ public:
                 }
             }
         }
+        if (popup_owner_ != 0) tooltip_ = tooltip_dismissed(tooltip_);   // e.g. a dialog the app opened
         if (auto text = tooltip_of(tooltip_.target); tooltip_.shown && !text.empty())
             draw_tooltip(snap->overlay, text, tooltip_.pointer, snap->viewport, theme_);
 
@@ -865,11 +866,15 @@ private:
                 } else if constexpr (is_derived_v<M>) {
                     using Inner = std::remove_cvref_t<decltype(member.get())>;
                     root.children.push_back(node_readonly_leaf<Inner>(member, next_id_));
+                    constexpr auto tip = core::extract_string_annotation<m, core::tooltip_t>();
+                    root.children.back().tooltip = std::string(tip);
                 } else if constexpr (is_shared_v<M>) {
                     using Inner = std::remove_cvref_t<decltype(member.get())>;
                     auto node = node_readonly_leaf<Inner>(member, next_id_);
                     node.drain_fn = [&member] { member.drain_notifications(); };
                     node.bind_waker_fn = [&member](std::function<void()> w) { member.set_waker(std::move(w)); };
+                    constexpr auto tip = core::extract_string_annotation<m, core::tooltip_t>();
+                    node.tooltip = std::string(tip);
                     root.children.push_back(std::move(node));
                 } else if constexpr (is_component_v<M>) {
                     root.children.push_back(build_node_tree(member));

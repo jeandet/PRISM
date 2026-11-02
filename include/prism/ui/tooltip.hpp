@@ -29,6 +29,7 @@ struct TooltipState {
 inline TooltipState tooltip_hovered(TooltipState s, render::WidgetId id, bool has_tooltip, core::Point at,
                                     TooltipState::clock::time_point now) {
     if (id != 0 && id == s.target) {
+        if (!has_tooltip) return {};   // its tooltip went away under the pointer
         if (!s.shown) s.pointer = at;
         return s;
     }
@@ -76,7 +77,7 @@ inline core::Rect tooltip_rect(core::Point pointer, core::Size text, core::Size 
 inline void draw_tooltip(render::DrawList& dl, std::string_view text, core::Point pointer,
                          core::Size window, const Theme& theme) {
     using namespace tooltip_metrics;
-    core::Size size{Width{text_width(theme.measurer, text, font_size)}, Height{font_size + 4.f}};
+    core::Size size{Width{text_width(theme.measurer, text, font_size)}, Height{line_height(theme.measurer, font_size)}};
     auto r = tooltip_rect(pointer, size, window);
     dl.filled_rect(r, theme.popup_bg);
     dl.rect_outline(r, theme.popup_border, 1.f);

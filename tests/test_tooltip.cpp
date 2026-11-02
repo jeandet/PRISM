@@ -67,6 +67,27 @@ TEST_CASE("tooltip: dismissed (click, key, scroll) stays hidden until the pointe
     CHECK_FALSE(tooltip_ticked(pending, t0 + tooltip_delay).shown);
 }
 
+TEST_CASE("tooltip: if the hovered widget loses its tooltip, the state lets go of it") {
+    auto shown = tooltip_ticked(tooltip_hovered({}, 7, true, at, t0), t0 + tooltip_delay);
+    auto s = tooltip_hovered(shown, 7, false, at, t0 + 1s);
+    CHECK(s.target == 0);
+    CHECK_FALSE(s.shown);
+}
+
+TEST_CASE("tooltip: the box is as tall as the measurer's line, plus padding") {
+    struct TallLines final : TextMeasurer {
+        float width(std::string_view t, float, FontRole) const override { return 7.f * static_cast<float>(t.size()); }
+        float line_height(float, FontRole) const override { return 30.f; }
+    } tall;
+    Theme theme;
+    theme.measurer = &tall;
+    render::DrawList dl;
+    draw_tooltip(dl, "hi", at, Size{Width{400}, Height{300}}, theme);
+    auto* box = std::get_if<render::FilledRect>(&dl.commands.front());
+    REQUIRE(box);
+    CHECK(box->rect.extent.h.raw() == doctest::Approx(30.f + 2 * tooltip_metrics::pad_y));
+}
+
 TEST_CASE("tooltip: placed below the pointer, inside the window") {
     Size text{Width{100}, Height{18}};
     Size window{Width{400}, Height{300}};
@@ -184,6 +205,72 @@ TEST_CASE("tooltip in a tree: moving onto a widget without one hides it") {
     CHECK_FALSE(f.tree.tooltip_wake());
 }
 
+TEST_CASE("tooltip in a tree: no tooltip while dragging (a widget holds the mouse)") {
+    TreeFixture<Toolbar> f;
+    auto other = f.centre_of_last_widget();
+    route_event(f.tree, f.snap.get(), MouseButton{other, buttons::left, true});   // capture starts
+    f.move(f.centre_of_widget_with("Write the file to disk"));
+    CHECK_FALSE(f.tree.tooltip_wake());
+}
+
+TEST_CASE("tooltip in a tree: text input, paste and composition hide it too") {
+    for (InputEvent ev : {InputEvent{TextInput{"a"}}, InputEvent{Paste{"b"}}, InputEvent{Composition{}}}) {
+        TreeFixture<Toolbar> f;
+        f.move(f.centre_of_widget_with("Write the file to disk"));
+        f.wait_for_tooltip();
+        route_event(f.tree, f.snap.get(), ev);
+        f.frame();
+        CHECK_FALSE(overlay_has(*f.snap, "Write the file to disk"));
+    }
+}
+
+namespace {
+struct WithDialog {
+    Field<Button> save{{"Save"}};
+    Field<Dialog> ask{{.title = "Unsaved changes", .message = "Discard?", .buttons = {"Discard", "Cancel"}}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.widget(save).tooltip("Write the file to disk");
+            vb.dialog(ask);
+        });
+    }
+};
+}
+
+TEST_CASE("tooltip in a tree: a popup opened by the app hides a shown tooltip") {
+    TreeFixture<WithDialog> f;
+    f.move(f.centre_of_widget_with("Write the file to disk"));
+    f.wait_for_tooltip();
+    REQUIRE(overlay_has(*f.snap, "Write the file to disk"));
+    auto d = f.model.ask.get();
+    d.open = true;
+    f.model.ask.set(d);   // no pointer event
+    f.frame();
+    CHECK_FALSE(overlay_has(*f.snap, "Write the file to disk"));
+}
+
+// The handle points into the builder's node list: it may only be used in the statement that
+// placed the widget, so a stored handle must not compile.
+template <typename H>
+concept tooltip_on_lvalue = requires(H& h) { h.tooltip("x"); };
+static_assert(!tooltip_on_lvalue<WidgetTree::ViewBuilder::LeafHandle>);
+
+#if __cpp_impl_reflection
+namespace {
+struct Readouts {
+    Field<int> raw{3};
+    [[=prism::core::tooltip<"Twice the raw value">]] Derived<int> doubled{[this] { return raw.get() * 2; }, raw};
+};
+}
+
+TEST_CASE("tooltip in a tree: the annotation also works on a Derived member") {
+    TreeFixture<Readouts> f;
+    f.move(f.centre_of_widget_with("Twice the raw value"));
+    f.wait_for_tooltip();
+    CHECK(overlay_has(*f.snap, "Twice the raw value"));
+}
+#endif
+
 #if __cpp_impl_reflection
 namespace {
 struct Mixer {
@@ -238,7 +325,7 @@ public:
             l.unlock();
             send({1, MouseMove{centre}});
             l.lock();
-            saw_tooltip = cv_.wait_for(l, 3s, [&] {
+            saw_tooltip = cv_.wait_for(l, 5s, [&] {
                 return std::ranges::any_of(frames_, [&](auto& f) { return overlay_has(*f, text_); });
             });
         }

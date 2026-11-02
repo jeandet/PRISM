@@ -215,12 +215,15 @@ inline void route_key_release(WidgetTree& tree, const InputEvent& ev) {
 // shows (as the hover highlight stays); add a pointer-leave event to the backend for both.
 inline void route_tooltip(WidgetTree& tree, const InputEvent& ev) {
     if (auto* mm = std::get_if<MouseMove>(&ev)) {
-        WidgetId over = tree.popup_owner() != 0 ? 0 : tree.hovered_id();   // popups hide it
+        bool busy = tree.popup_owner() != 0 || tree.captured_id() != 0;   // a popup, or a drag
+        WidgetId over = busy ? 0 : tree.hovered_id();
         tree.hover_tooltip(over, mm->position, TooltipState::clock::now());
         return;
     }
     auto* mb = std::get_if<MouseButton>(&ev);
-    if ((mb && mb->pressed) || std::holds_alternative<MouseScroll>(ev) || std::holds_alternative<KeyPress>(ev))
+    bool typing = std::holds_alternative<KeyPress>(ev) || std::holds_alternative<TextInput>(ev)
+               || std::holds_alternative<Paste>(ev) || std::holds_alternative<Composition>(ev);
+    if ((mb && mb->pressed) || std::holds_alternative<MouseScroll>(ev) || typing)
         tree.dismiss_tooltip();
 }
 

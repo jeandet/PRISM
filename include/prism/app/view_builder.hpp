@@ -147,7 +147,8 @@ public:
     // the next placement may move the node it points to.
     struct LeafHandle {
         Node& node_ref;
-        LeafHandle& tooltip(std::string text) { node_ref.tooltip = std::move(text); return *this; }
+        // &&: only on the temporary widget() returns, so a stored handle cannot dangle.
+        LeafHandle&& tooltip(std::string text) && { node_ref.tooltip = std::move(text); return std::move(*this); }
     };
 
 public:
