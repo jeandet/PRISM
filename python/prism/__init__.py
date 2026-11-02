@@ -148,6 +148,9 @@ __all__ = [
     "radio",
     "spinbox",
     "progress",
+    "button",
+    "combobox",
+    "popup",
     "shared",
     "channel",
     "derived",
@@ -461,7 +464,13 @@ class _FieldDescriptor(_Descriptor):
             h = alloc(self.default, m["min"], m["max"], m["step"])
         elif self.kind == "progress":
             m = self.meta
-            h = instance._add_progress_internal(self.default, m["min"], m["max"], m["label"])
+            h = instance._add_progress_internal(self.default, m["min"], m["max"], m["label"], m["busy"])
+        elif self.kind == "button":
+            h = instance._add_button_internal(self.meta["text"], self.meta["icon"])
+        elif self.kind == "combobox":
+            h = instance._add_combobox_internal(self.default, self.meta["options"], self.meta["placeholder"])
+        elif self.kind == "popup":
+            h = instance._add_popup_internal(self.meta["modal"])
         else:
             kind = _kind_of(self.default)
             h = getattr(instance, f"_add_{kind}_internal")(self.default)
@@ -574,18 +583,53 @@ def spinbox(default, min=0, max=100, step=1, validator=None, *, tooltip=None):
     ), tooltip)
 
 
-def progress(default=0.0, min=0.0, max=1.0, label="", validator=None, *, tooltip=None):
+def progress(default=0.0, min=0.0, max=1.0, label="", validator=None, *, busy=False, tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     A display-only progress bar (C++ ``ProgressBar``) showing ``value`` within
-    ``[min, max]``, with an optional ``label`` above it.
+    ``[min, max]``, with an optional ``label`` above it. ``busy=True`` (or
+    ``handle.busy = True``) is for work of unknown length: a segment slides
+    back and forth instead of showing the value.
     """
     return _tooltipped(_FieldDescriptor(
         float(default),
         validator=validator,
         kind="progress",
-        meta={"min": float(min), "max": float(max), "label": label},
+        meta={"min": float(min), "max": float(max), "label": label, "busy": bool(busy)},
     ), tooltip)
+
+
+def button(text, icon=None, *, tooltip=None):
+    """A push button (C++ ``Button``). ``.value`` counts the clicks, so
+    ``handle.observe(cb)`` runs ``cb`` on each click. ``icon`` is an image file
+    (PNG, JPEG, SVG) drawn left of the text; one that cannot be read raises
+    ``ValueError`` when the Model is created.
+    """
+    return _tooltipped(_FieldDescriptor(
+        0, kind="button", meta={"text": str(text), "icon": None if icon is None else str(icon)}
+    ), tooltip)
+
+
+def combobox(default="", options=(), placeholder="", validator=None, *, tooltip=None):
+    """Value may be set from any thread (posted to the logic thread).
+
+    A text field that suggests ``options`` as you type (C++ ``ComboBox``).
+    ``.value`` is the text, which need not be one of the options;
+    ``.options`` reads or replaces the suggestions.
+    """
+    return _tooltipped(_FieldDescriptor(
+        str(default), validator=validator, kind="combobox",
+        meta={"options": [str(o) for o in options], "placeholder": str(placeholder)},
+    ), tooltip)
+
+
+def popup(modal=True):
+    """A popup that holds widgets (C++ ``Popup``): place them with
+    ``vb.popup(handle, lambda p: ...)`` in ``view``. ``.open`` (or ``.value``)
+    shows or hides it. A modal popup keeps the focus and the clicks until it
+    closes; Escape closes either kind, and a click outside closes a non-modal one.
+    """
+    return _FieldDescriptor(False, kind="popup", meta={"modal": bool(modal)})
 
 
 class _SharedDescriptor(_Descriptor):

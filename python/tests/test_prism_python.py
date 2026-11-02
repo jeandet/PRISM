@@ -3813,3 +3813,69 @@ def test_tooltips_with_a_custom_view():
             vb.hstack(self.volume, self.copies)
 
     assert sorted(prism._tooltips(Form())) == ["How many", "Output level"]
+
+
+def test_button_counts_clicks_and_takes_an_icon_file(tmp_path):
+    svg = tmp_path / "save.svg"
+    svg.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">'
+                   '<rect width="16" height="16" fill="#fff"/></svg>')
+
+    class Bar(Model):
+        save = prism.button("Save", icon=str(svg), tooltip="Write the file")
+        plain = prism.button("Reload")
+
+    m = Bar()
+    assert m.save.value == 0          # clicks so far
+    assert m.save.text == "Save"
+    assert m.save.has_icon
+    assert not m.plain.has_icon
+    assert "Write the file" in prism._tooltips(m)
+    prism._run_headless(m, delay_ms=50)
+
+
+def test_button_with_a_missing_icon_file_raises(tmp_path):
+    with pytest.raises(ValueError):
+        class Bad(Model):
+            b = prism.button("X", icon=str(tmp_path / "missing.png"))
+        Bad()
+
+
+def test_combobox_holds_free_text_and_its_options():
+    class Form(Model):
+        fruit = prism.combobox("ap", options=["apple", "apricot", "banana"])
+
+    m = Form()
+    seen = []
+    m.fruit.observe(seen.append)
+    assert m.fruit.value == "ap"
+    assert m.fruit.options == ["apple", "apricot", "banana"]
+    m.fruit.value = "kiwi"            # free text: not one of the options
+    assert m.fruit.value == "kiwi"
+    assert seen == ["kiwi"]
+    prism._run_headless(m, delay_ms=50)
+
+
+def test_progress_busy_can_be_switched_on_and_off():
+    class Export(Model):
+        done = prism.progress(0.0, busy=True)
+
+    m = Export()
+    assert m.done.busy
+    m.done.busy = False
+    assert not m.done.busy
+    prism._run_headless(m, delay_ms=50)
+
+
+def test_popup_holds_widgets_while_open():
+    class Settings(Model):
+        prefs = prism.popup(modal=True)
+        name = prism.field("Ada", tooltip="Your name")
+
+        def view(self, vb):
+            vb.popup(self.prefs, lambda p: p.vstack(self.name))
+
+    m = Settings()
+    assert not m.prefs.open
+    assert prism._tooltips(m) == []          # closed: its widgets do not exist
+    m.prefs.open = True
+    assert prism._tooltips(m) == ["Your name"]

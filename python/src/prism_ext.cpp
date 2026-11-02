@@ -2,8 +2,10 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/function.h>
+#include <nanobind/stl/optional.h>
 
 #include <prism/core/field.hpp>
+#include <prism/render/image_decoder.hpp>
 #include <prism/core/shared.hpp>
 #include <prism/core/channel.hpp>
 #include <prism/core/connection.hpp>
@@ -1159,6 +1161,19 @@ struct BoundWidgetValue {
         auto w = write;
         list_op_dispatch(owner, [p, w, v](){ auto s = p->get(); w(s, v); p->set(s); });
     }
+    // The whole widget value and a change to it, for properties beyond .value (a progress
+    // bar's busy, a combo box's options); same thread rules as get()/set().
+    S state() const {
+        if (!field) throw nb::value_error("handle is not bound to a Model");
+        Field<S>* p = field;
+        return dispatch_sync_read<S>([p](){ return p->get(); });
+    }
+    template <typename F>
+    void modify(F fn) {
+        if (!field) throw nb::value_error("handle is not bound to a Model");
+        Field<S>* p = field;
+        list_op_dispatch(owner, [p, fn](){ auto s = p->get(); fn(s); p->set(s); });
+    }
     Connection observe(nb::callable cb) {
         if (!field) throw nb::value_error("observe(): handle is not bound to a Model");
         auto owner_copy = owner;
@@ -1173,6 +1188,36 @@ using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
 using BoundProgress = BoundWidgetValue<ProgressBar, double>;
+using BoundButton = BoundWidgetValue<Button, std::int64_t>;       // .value: clicks so far
+using BoundComboBox = BoundWidgetValue<ComboBox, std::string>;
+using BoundPopup = BoundWidgetValue<Popup, bool>;                 // .value: open
+
+inline BoundButton make_bound_button(std::shared_ptr<SlotBase> owner, Field<Button>* f) {
+    BoundButton h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Button& b) { return static_cast<std::int64_t>(b.click_count); };
+    h.write = [](Button& b, const std::int64_t& v) { b.click_count = static_cast<std::uint64_t>(std::max<std::int64_t>(0, v)); };
+    return h;
+}
+
+inline BoundComboBox make_bound_combobox(std::shared_ptr<SlotBase> owner, Field<ComboBox>* f) {
+    BoundComboBox h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const ComboBox& c) { return c.value; };
+    h.write = [](ComboBox& c, const std::string& v) { c.value = v; };
+    return h;
+}
+
+inline BoundPopup make_bound_popup(std::shared_ptr<SlotBase> owner, Field<Popup>* f) {
+    BoundPopup h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Popup& p) { return p.open; };
+    h.write = [](Popup& p, const bool& v) { p.open = v; };
+    return h;
+}
 
 inline BoundRadio make_bound_radio(std::shared_ptr<SlotBase> owner, Field<RadioGroup>* f) {
     BoundRadio h;
@@ -1661,6 +1706,9 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
     if (connect_field((BoundProgress*)nullptr)) return;
+    if (connect_field((BoundButton*)nullptr)) return;
+    if (connect_field((BoundComboBox*)nullptr)) return;
+    if (connect_field((BoundPopup*)nullptr)) return;
     if (connect_shared((BoundShared<int>*)nullptr)) return;
     if (connect_shared((BoundShared<double>*)nullptr)) return;
     if (connect_shared((BoundShared<std::string>*)nullptr)) return;
@@ -1700,6 +1748,8 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
     else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
+    else if (nb::isinstance<BoundButton>(h)) vb.widget(*nb::cast<BoundButton&>(h).field);
+    else if (nb::isinstance<BoundComboBox>(h)) vb.widget(*nb::cast<BoundComboBox&>(h).field);
     else if (nb::isinstance<BoundDerived<int>>(h)) vb.widget_generic<int>(*nb::cast<BoundDerived<int>&>(h).derived);
     else if (nb::isinstance<BoundDerived<double>>(h)) vb.widget_generic<double>(*nb::cast<BoundDerived<double>&>(h).derived);
     else if (nb::isinstance<BoundDerived<std::string>>(h)) vb.widget_generic<std::string>(*nb::cast<BoundDerived<std::string>&>(h).derived);
@@ -1733,6 +1783,8 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
     if (nb::isinstance<BoundProgress>(h)) return declare(nb::cast<BoundProgress&>(h).field);
+    if (nb::isinstance<BoundButton>(h)) return declare(nb::cast<BoundButton&>(h).field);
+    if (nb::isinstance<BoundComboBox>(h)) return declare(nb::cast<BoundComboBox&>(h).field);
     if (nb::isinstance<BoundDerived<int>>(h)) return declare(nb::cast<BoundDerived<int>&>(h).derived);
     if (nb::isinstance<BoundDerived<double>>(h)) return declare(nb::cast<BoundDerived<double>&>(h).derived);
     if (nb::isinstance<BoundDerived<std::string>>(h)) return declare(nb::cast<BoundDerived<std::string>&>(h).derived);
@@ -2149,8 +2201,8 @@ void validated_set(nb::object self, T v) {
 
 // One registration for each BoundWidgetValue instantiation (radio, spin box, progress).
 template <typename H, typename V>
-void bind_widget_value(nb::module_& m, const char* name, const char* doc) {
-    nb::class_<H>(m, name, nb::dynamic_attr(), nb::is_weak_referenceable(), doc)
+nb::class_<H> bind_widget_value(nb::module_& m, const char* name, const char* doc) {
+    return nb::class_<H>(m, name, nb::dynamic_attr(), nb::is_weak_referenceable(), doc)
         .def_prop_rw("value", &H::get, &validated_set<H, V>, "Any thread. Writes are posted to the logic thread.")
         .def("observe", [](nb::object self, nb::callable cb) {
             return keep_connection(self, nb::cast<H&>(self).observe(cb), cb);
@@ -2510,7 +2562,24 @@ NB_MODULE(_prism_ext, m) {
     bind_widget_value<BoundSpinBoxFloat, double>(m, "BoundSpinBoxFloat",
         "Bound handle for a Model's float spin box. Writes are kept inside [min, max].");
     bind_widget_value<BoundProgress, double>(m, "BoundProgress",
-        "Bound handle for a Model's progress bar: .value, display only.");
+        "Bound handle for a Model's progress bar: .value, display only.")
+        .def_prop_rw("busy", [](const BoundProgress& h) { return h.state().busy; },
+                     [](BoundProgress& h, bool v) { h.modify([v](ProgressBar& p) { p.busy = v; }); },
+                     "The work's length is unknown: a segment slides instead of the value.");
+    bind_widget_value<BoundButton, std::int64_t>(m, "BoundButton",
+        "Bound handle for a Model's button: .value counts the clicks; observe() fires on each.")
+        .def_prop_ro("text", [](const BoundButton& h) { return h.state().text; })
+        .def_prop_ro("has_icon", [](const BoundButton& h) { return h.state().icon != nullptr; });
+    bind_widget_value<BoundComboBox, std::string>(m, "BoundComboBox",
+        "Bound handle for a Model's combo box: .value is the text (free text, not only an option).")
+        .def_prop_rw("options", [](const BoundComboBox& h) { return h.state().options; },
+                     [](BoundComboBox& h, std::vector<std::string> v) {
+                         h.modify([v = std::move(v)](ComboBox& c) { c.options = v; });
+                     });
+    bind_widget_value<BoundPopup, bool>(m, "BoundPopup",
+        "Bound handle for a Model's popup (place its widgets with vb.popup(handle, fn)): .value "
+        "and .open are whether it is open.")
+        .def_prop_rw("open", &BoundPopup::get, &validated_set<BoundPopup, bool>);
 
     bind_list<int>(m, "Int");
     bind_list<double>(m, "Float");
@@ -2593,6 +2662,20 @@ NB_MODULE(_prism_ext, m) {
                             "Passed to Model.view(self, vb); each call appends a widget to "
                             "the view being built. All methods run on the logic thread "
                             "during view (re)builds.")
+        .def("popup", [](ViewBuilder& vb, nb::object h, nb::callable content){
+                if (!nb::isinstance<BoundPopup>(h)) throw nb::type_error("ViewBuilder.popup: needs a prism.popup() handle");
+                auto& b = nb::cast<BoundPopup&>(h);
+                if (!b.field) throw nb::value_error("ViewBuilder.popup: handle is not bound to a Model");
+                // Runs now (to learn the placed fields) and on each opening, on the logic thread:
+                // take the GIL; PyHolder releases the callable safely from any thread.
+                auto holder = std::make_shared<PyHolder>(content);
+                vb.popup(*b.field, [holder](ViewBuilder& inner) {
+                    nb::gil_scoped_acquire gil;
+                    try { holder->obj(nb::cast(&inner, nb::rv_policy::reference)); }
+                    catch (...) { report_python_callback_error(); }
+                });
+            }, nb::arg("handle"), nb::arg("content"),
+             "A popup holding the widgets content(vb) places; built each time it opens.")
         .def("widget", [](ViewBuilder& vb, nb::object h){ py_widget_dispatch(vb, h); }, nb::arg("handle"),
              "Add the widget for a bound scalar/shared/derived/slider/checkbox/list handle.")
         .def("list", [](ViewBuilder& vb, nb::object h){ py_list_dispatch(vb, h); }, nb::arg("handle"),
@@ -2675,10 +2758,29 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(SpinBox<double>{.value = v, .min = mn, .max = mx, .step = step});
                 return make_bound_spinbox<double>(std::move(owner), p);
             }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("step"))
-        .def("_add_progress_internal", [](PyModel& self, double v, double mn, double mx, std::string label){
-                auto [owner, p] = self.add_widget_slot(ProgressBar{.value = v, .min = mn, .max = mx, .label = std::move(label)});
+        .def("_add_progress_internal", [](PyModel& self, double v, double mn, double mx, std::string label, bool busy){
+                auto [owner, p] = self.add_widget_slot(ProgressBar{.value = v, .min = mn, .max = mx, .label = std::move(label), .busy = busy});
                 return make_bound_progress(std::move(owner), p);
-            }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("label"))
+            }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("label"), nb::arg("busy") = false)
+        .def("_add_button_internal", [](PyModel& self, std::string text, std::optional<std::string> icon){
+                std::shared_ptr<const prism::render::Image> img;
+                if (icon) {
+                    auto loaded = prism::render::load_image(*icon, Size{Width{16}, Height{16}});
+                    if (!loaded) throw nb::value_error(("button icon: " + loaded.error()).c_str());
+                    img = *loaded;
+                }
+                auto [owner, p] = self.add_widget_slot(Button{.text = std::move(text), .click_count = 0, .icon = std::move(img)});
+                return make_bound_button(std::move(owner), p);
+            }, nb::arg("text"), nb::arg("icon") = nb::none())
+        .def("_add_combobox_internal", [](PyModel& self, std::string v, std::vector<std::string> options, std::string placeholder){
+                auto [owner, p] = self.add_widget_slot(ComboBox{.value = std::move(v), .placeholder = std::move(placeholder),
+                                                                .max_length = 0, .options = std::move(options)});
+                return make_bound_combobox(std::move(owner), p);
+            }, nb::arg("value"), nb::arg("options"), nb::arg("placeholder"))
+        .def("_add_popup_internal", [](PyModel& self, bool modal){
+                auto [owner, p] = self.add_widget_slot(Popup{.open = false, .modal = modal});
+                return make_bound_popup(std::move(owner), p);
+            }, nb::arg("modal"))
         // Shared internal allocators
         .def("_add_shared_int_internal", [](PyModel& self, int v){
                 auto [owner, p] = self.add_shared_int_slot(v);
@@ -2809,6 +2911,8 @@ NB_MODULE(_prism_ext, m) {
         auto snap = tree.build_snapshot(400, 300, 1);
         std::vector<std::string> out;
         for (auto& [id, r] : snap->geometry)
+            if (auto t = tree.tooltip_of(id); !t.empty()) out.emplace_back(t);
+        for (auto& [id, r] : snap->overlay_geometry)   // an open popup's widgets
             if (auto t = tree.tooltip_of(id); !t.empty()) out.emplace_back(t);
         return out;
     }, nb::arg("model"));
