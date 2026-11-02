@@ -488,6 +488,21 @@ TEST_CASE("hit_test on overlay popup returns dropdown widget, not widget below")
     CHECK(*hit == dropdown_id);
 }
 
+TEST_CASE("Dropdown popup that fits on neither side stays inside the window") {
+    // 3 items = 84 px; window 100 px, box at y=30: 40 px below, 30 above
+    prism::Field<Color> field{Color::Red};
+    auto node = make_node({.focused = true});
+    node.viewport_height = prism::Height{100};
+    node.absolute_y = prism::Y{30};
+    prism::Widget<Color>::handle_input(field, prism::MouseButton{P(10, 10), 1, true}, node);
+    prism::DrawList dl;
+    prism::Widget<Color>::record(dl, field, node);
+    auto& es = *std::any_cast<prism::DropdownEditState>(&node.edit_state);
+    float top = 30.f + es.popup_rect.origin.y.raw();
+    CHECK(top >= 0.f);
+    CHECK(top + es.popup_rect.extent.h.raw() <= 100.f);
+}
+
 TEST_CASE("Dropdown popup flips upward when near bottom of viewport") {
     // Place dropdown near the bottom: viewport_height=100, widget at y=80
     // Popup for 3 items = 3*28 = 84px, would extend to 80+30+84 = 194 > 100

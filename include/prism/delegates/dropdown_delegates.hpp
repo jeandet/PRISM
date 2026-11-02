@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/ui/popup_place.hpp>
 #include <prism/ui/widget_node.hpp>
 
 #include <functional>
@@ -43,11 +44,12 @@ inline void dropdown_record(DrawList& dl, WidgetNode& node,
     if (es.open) {
         Height popup_h{static_cast<float>(resolver.count) * dd_option_h.raw()};
 
-        // Flip upward if popup would extend past viewport bottom
+        // Below the box, above it when only that fits, else the roomier side, inside the window.
         Y popup_y{dd_widget_h.raw()};
-        Y abs_bottom{node.absolute_y.raw() + dd_widget_h.raw() + popup_h.raw()};
-        if (node.viewport_height.raw() > 0 && abs_bottom.raw() > node.viewport_height.raw())
-            popup_y = Y{-popup_h.raw()};
+        if (node.viewport_height.raw() > 0) {
+            float top = node.absolute_y.raw();
+            popup_y = Y{place_on_axis(popup_h.raw(), top, top + dd_widget_h.raw(), node.viewport_height.raw()) - top};
+        }
 
         node.overlay_draws.filled_rect(
             delegate_detail::make_rect(X{0}, popup_y, w, popup_h),

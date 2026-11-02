@@ -487,9 +487,17 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         else switch (kp->key) {
         case keys::enter: after = text_edit::insert(before, "\n", field.get().max_length); break;
         case keys::home: after = text_edit::move_to(before, line_col_to_cursor(value, line, 0, wrapped), shift); break;
-        case keys::end:
-            after = text_edit::move_to(before, wrapped[line].start + wrapped[line].length, shift);
+        case keys::end: {
+            // At a soft wrap the line's end is also the next line's start, where the caret is
+            // drawn: stop one character earlier (before the hanging space) to stay on this line.
+            // simplify: a word broken mid-word loses its last character to this; caret
+            // affinity (a caret that knows which line it belongs to) would fix both cases.
+            size_t end = wrapped[line].start + wrapped[line].length;
+            bool soft_wrap = line + 1 < wrapped.size() && wrapped[line + 1].start == end;
+            if (soft_wrap && end > wrapped[line].start) end = core::utf8::prev(value, end);
+            after = text_edit::move_to(before, end, shift);
             break;
+        }
         case keys::up:
             if (line > 0) after = text_edit::move_to(before, vertical_target(line - 1), shift);
             break;

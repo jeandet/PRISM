@@ -574,6 +574,22 @@ TEST_CASE("TextArea: End moves to end of wrapped line") {
     CHECK(es.cursor == 6);
 }
 
+TEST_CASE("TextArea: End on a soft-wrapped line keeps the caret on that line") {
+    std::string text = "aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj";
+    prism::Field<prism::TextArea<>> field{{.value = text}};
+    auto node = make_node({.focused = true});
+    auto& es = prism::Widget<prism::TextArea<>>::ensure_edit_state(node);
+    es.cursor = 0;
+    prism::InputEvent ev = prism::KeyPress{.key = prism::keys::end, .mods = 0};
+    prism::Widget<prism::TextArea<>>::handle_input(field, ev, node);
+
+    auto w = prism::delegate_detail::widget_w(node) - prism::Width{2 * 4.f};
+    auto lines = prism::text_detail::wrap_lines(text, w, nullptr, 14.f);
+    REQUIRE(lines.size() > 1);                   // it does wrap
+    CHECK(prism::text_detail::cursor_to_line_col(text, es.cursor, lines).line == 0);
+    CHECK(es.cursor > 0);
+}
+
 TEST_CASE("TextArea: Up moves to previous line, same column") {
     prism::Field<prism::TextArea<>> field{{.value = "abcde\nfgh"}};
     auto node = make_node({.focused = true});
