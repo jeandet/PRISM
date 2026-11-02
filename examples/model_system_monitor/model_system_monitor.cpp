@@ -1,7 +1,9 @@
 #include <prism/prism.hpp>
 #include <prism/widgets/plot.hpp>
 #include "proc_metrics.hpp"
+#include "process_table.hpp"
 #include "process_tree_source.hpp"
+#include "sim_metrics.hpp"
 #include "../showcase/showcase_common.hpp"
 
 #include <cmath>
@@ -10,7 +12,6 @@
 
 using namespace prism;
 
-#if __cpp_impl_reflection
 
 // nice_ticks may not always land exactly on 0.0 (floating-point round-off), so "now"
 // is matched within half a sample interval rather than with an exact equality check.
@@ -51,7 +52,10 @@ struct SystemMonitor {
     plot::PlotPanel* mem_plot = &plot_group.add_plot("Mem (MB)");
     plot::PlotPanel* net_plot = &plot_group.add_plot("Net (KB/s)");
 
-    core::List<ProcessInfo> table_rows;
+    ProcessTable process_table;
+    // Bumped per update so the table redraws (it is a dependency, not a widget: the same
+    // "not placed by view()" debug warning as the ingest points above).
+    core::Field<std::uint64_t> process_revision{0};
     FlatProcessTreeSource tree_source;
     ui::TreeController tree_ctrl{ui::wrap_tree_storage(tree_source)};
     core::Field<ui::TabBar<>> tabs;
@@ -86,7 +90,8 @@ struct SystemMonitor {
     }
 
     void ingest_processes(const std::vector<ProcessInfo>& processes) {
-        table_rows.replace_all(processes);
+        process_table.update(processes);
+        process_revision.set(process_revision.get() + 1);
         tree_source.update(processes);
         tree_ctrl.refresh();
     }
@@ -140,7 +145,7 @@ struct SystemMonitor {
             vb.vstack([&] {
                 vb.tabs(tabs, [&] {
                     vb.tab("Table", [&](app::WidgetTree::ViewBuilder& tvb) {
-                        tvb.table(table_rows).sort(2, /*descending=*/true);  // CPU %
+                        tvb.table(process_table).sort(2, /*descending=*/true).depends_on(process_revision);  // CPU %
                     });
                     vb.tab("Tree", [&](app::WidgetTree::ViewBuilder& tvb) {
                         tvb.tree(tree_ctrl);
@@ -193,18 +198,20 @@ int main(int argc, char* argv[]) {
         });
         app.process_events.observe([&app](const ProcessEvent& e) { app.ingest_process_event(e); });
 
-        sys_thread = std::jthread(poll_system_loop, std::ref(app.sys_sample));
-        proc_thread = std::jthread(poll_processes_loop, std::ref(app.proc_list),
-                                    std::ref(app.process_events));
+        // The real /proc on Linux; elsewhere (the web, macOS, Windows) a simulated machine.
+        if (has_proc()) {
+            sys_thread = std::jthread(poll_system_loop, std::ref(app.sys_sample), proc_system_reader());
+            proc_thread = std::jthread(poll_processes_loop, std::ref(app.proc_list), std::ref(app.process_events),
+                                       read_process_list);
+        } else {
+            auto t0 = std::chrono::steady_clock::now();
+            auto since = [t0] { return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(); };
+            sys_thread = std::jthread(poll_system_loop, std::ref(app.sys_sample),
+                                      [since](double) { return simulated_system_sample(since()); });
+            proc_thread = std::jthread(poll_processes_loop, std::ref(app.proc_list), std::ref(app.process_events),
+                                       [since](const std::vector<ProcessInfo>&, double) { return simulated_processes(since()); });
+        }
     });
 
     return 0;
 }
-
-#else
-int main(int argc, char* argv[]) {
-    if (argc < 2) return 1;
-    std::ofstream(argv[1]) << "<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n";
-    return 0;
-}
-#endif

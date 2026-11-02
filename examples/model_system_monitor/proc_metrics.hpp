@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -15,16 +16,8 @@
 #include <vector>
 
 #include <prism/core/channel.hpp>
-#include <prism/core/reflect_annotations.hpp>
 #include <prism/core/shared.hpp>
 
-#if __cpp_impl_reflection
-#define PRISM_SKIP_MEMBER [[=prism::core::skip]]
-#define PRISM_LABEL_MEMBER(s) [[=prism::core::label<s>]]
-#else
-#define PRISM_SKIP_MEMBER
-#define PRISM_LABEL_MEMBER(s)
-#endif
 
 struct SystemSample {
     float cpu_percent = 0.f;
@@ -74,13 +67,13 @@ struct History {
 
 struct ProcessInfo {
     int pid = 0;
-    PRISM_SKIP_MEMBER int ppid = 0;
+    int ppid = 0;
     std::string name;
-    PRISM_SKIP_MEMBER char state = '?';
-    PRISM_LABEL_MEMBER("CPU %") float cpu_percent = 0.f;
-    PRISM_LABEL_MEMBER("Mem %") float mem_percent = 0.f;
-    PRISM_SKIP_MEMBER long rss_kb = 0;
-    PRISM_SKIP_MEMBER long total_jiffies = 0;
+    char state = '?';
+    float cpu_percent = 0.f;
+    float mem_percent = 0.f;
+    long rss_kb = 0;
+    long total_jiffies = 0;
 };
 
 struct ProcessEvent {
@@ -288,8 +281,10 @@ inline std::vector<ProcessInfo> read_process_list(const std::vector<ProcessInfo>
     return result;
 }
 
-inline void poll_system_loop(std::stop_token stop, prism::core::Shared<SystemSample>& out) {
-    SystemTotals prev = read_system_sample({}, 0.0).totals; // prime the delta baseline
+// Reads the machine every second and hands the sample to `out` until stopped. `read(dt)` is the
+// /proc reader below (proc_system_reader) or the simulated machine (sim_metrics.hpp).
+inline void poll_system_loop(std::stop_token stop, prism::core::Shared<SystemSample>& out,
+                             std::function<SystemSample(double dt)> read) {
     auto last = std::chrono::steady_clock::now();
     while (!stop.stop_requested()) {
         // sleep_for is not interruptible by stop_token, so a jthread destructor's
@@ -300,15 +295,25 @@ inline void poll_system_loop(std::stop_token stop, prism::core::Shared<SystemSam
         auto now = std::chrono::steady_clock::now();
         double dt = std::chrono::duration<double>(now - last).count();
         last = now;
-        auto result = read_system_sample(prev, dt);
-        prev = result.totals;
-        out.set(result.sample);
+        out.set(read(dt));
     }
 }
 
+// The /proc reader for poll_system_loop: keeps the previous totals to turn counters into rates.
+inline std::function<SystemSample(double)> proc_system_reader() {
+    return [prev = read_system_sample({}, 0.0).totals](double dt) mutable {   // primes the baseline
+        auto result = read_system_sample(prev, dt);
+        prev = result.totals;
+        return result.sample;
+    };
+}
+
+// Lists the processes every 1.5 s, sending each start and stop to `events`. `read(prev, dt)` is
+// read_process_list or the simulated machine.
 inline void poll_processes_loop(std::stop_token stop,
                                  prism::core::Shared<std::vector<ProcessInfo>>& out,
-                                 prism::core::Channel<ProcessEvent>& events) {
+                                 prism::core::Channel<ProcessEvent>& events,
+                                 std::function<std::vector<ProcessInfo>(const std::vector<ProcessInfo>&, double)> read) {
     std::vector<ProcessInfo> prev;
     auto last = std::chrono::steady_clock::now();
     while (!stop.stop_requested()) {
@@ -316,7 +321,7 @@ inline void poll_processes_loop(std::stop_token stop,
         auto now = std::chrono::steady_clock::now();
         double dt = std::chrono::duration<double>(now - last).count();
         last = now;
-        auto current = read_process_list(prev, dt);
+        auto current = read(prev, dt);
         for (auto& e : diff_process_events(prev, current))
             events.send(std::move(e));
         prev = current;

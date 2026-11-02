@@ -12,7 +12,7 @@ subdir('model_tree_browser')
 subdir('model_notes')
 subdir('widget_gallery')
 subdir('perf_lab')
+subdir('model_system_monitor')   # /proc on Linux, a simulated machine elsewhere
 if not is_wasm
-  subdir('model_system_monitor') # reads /proc
   subdir('showcase')             # headless SVG capture tools, not apps
 endif

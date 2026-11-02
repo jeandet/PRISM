@@ -180,7 +180,7 @@ TEST_CASE("diff_process_events on an empty prev reports every current pid as sta
 
 TEST_CASE("poll_system_loop and poll_processes_loop are jthread-invocable with stop_token "
           "first, and honor jthread-managed cancellation") {
-    // Mirrors Task 7's real call form: std::jthread(poll_system_loop, std::ref(app.sys_sample)).
+    // Mirrors the app's call form: std::jthread(poll_system_loop, std::ref(app.sys_sample), reader).
     // std::jthread only auto-injects its stop_token when the callable takes it as the FIRST
     // parameter -- if either function ever regresses to a trailing stop_token, this test fails
     // to COMPILE (not just fail at runtime), because std::jthread's constructor requires the
@@ -188,7 +188,7 @@ TEST_CASE("poll_system_loop and poll_processes_loop are jthread-invocable with s
     prism::Shared<SystemSample> sys_sample;
     auto t0 = std::chrono::steady_clock::now();
     {
-        std::jthread t(poll_system_loop, std::ref(sys_sample));
+        std::jthread t(poll_system_loop, std::ref(sys_sample), [](double) { return SystemSample{}; });
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         t.request_stop();
     }
@@ -198,9 +198,52 @@ TEST_CASE("poll_system_loop and poll_processes_loop are jthread-invocable with s
     prism::Channel<ProcessEvent> process_events;
     auto t1 = std::chrono::steady_clock::now();
     {
-        std::jthread t(poll_processes_loop, std::ref(proc_list), std::ref(process_events));
+        std::jthread t(poll_processes_loop, std::ref(proc_list), std::ref(process_events),
+                       [](const std::vector<ProcessInfo>&, double) { return std::vector<ProcessInfo>{}; });
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         t.request_stop();
     }
     CHECK(std::chrono::steady_clock::now() - t1 < std::chrono::seconds(3));
+}
+
+// --- the simulated machine (platforms without /proc: the web, macOS, Windows) ---
+
+#include "../examples/model_system_monitor/process_table.hpp"
+#include "../examples/model_system_monitor/process_tree_source.hpp"
+#include "../examples/model_system_monitor/sim_metrics.hpp"
+
+TEST_CASE("the simulated machine's readings stay plausible") {
+    for (double t = 0; t < 600; t += 0.7) {
+        auto s = simulated_system_sample(t);
+        CHECK(s.cpu_percent >= 0.f);
+        CHECK(s.cpu_percent <= 100.f);
+        CHECK(s.mem_used_mb > 0.0);
+        CHECK(s.mem_used_mb < s.mem_total_mb);
+        CHECK(s.net_rx_kbps >= 0.0);
+    }
+}
+
+TEST_CASE("simulated processes start and stop over time, and form a tree") {
+    std::size_t events = 0;
+    auto prev = simulated_processes(0.0);
+    for (double t = 1.5; t < 60.0; t += 1.5) {
+        auto cur = simulated_processes(t);
+        events += diff_process_events(prev, cur).size();
+        prev = cur;
+    }
+    CHECK(events >= 4);
+    auto index = build_process_tree_index(simulated_processes(0.0));
+    CHECK(index.roots.size() == 1);   // everything descends from init
+}
+
+TEST_CASE("the process table shows pid, name, CPU and memory") {
+    ProcessTable table;
+    table.update({ProcessInfo{.pid = 42, .ppid = 1, .name = "prism", .cpu_percent = 3.25f, .mem_percent = 1.5f}});
+    REQUIRE(table.column_count() == 4);
+    REQUIRE(table.row_count() == 1);
+    CHECK(table.header(2) == "CPU %");
+    CHECK(table.cell_text(0, 0) == "42");
+    CHECK(table.cell_text(0, 1) == "prism");
+    CHECK(table.cell_text(0, 2) == "3.2");
+    CHECK(table.cell_text(0, 3) == "1.5");
 }
