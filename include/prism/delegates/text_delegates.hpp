@@ -292,10 +292,7 @@ void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widge
 
 // --- TextArea helpers ---
 
-struct LineSpan {
-    size_t start;
-    size_t length;
-};
+using ui::LineSpan;
 
 struct LineCol {
     size_t line;
@@ -305,58 +302,12 @@ struct LineCol {
 // TextArea text is fixed-width: columns stay aligned for code and tabular content.
 constexpr FontRole ta_font_role = FontRole::Mono;
 
-inline bool is_wrap_space(char c) { return c == ' ' || c == '\t'; }
+using ui::is_wrap_space;
+using ui::word_break;
 
-// Where a visual line ends, given that `fit` bytes of `rest` fit: after the last space or tab
-// within the fit, then past any spaces that follow, which hang off the end of the line instead
-// of starting the next one (as in browsers and word processors). A word too long for a whole
-// line is broken inside it.
-inline size_t word_break(std::string_view rest, size_t fit) {
-    if (fit >= rest.size()) return rest.size();
-    size_t end = fit;
-    if (!is_wrap_space(rest[fit])) {
-        size_t space = rest.substr(0, fit).find_last_of(" \t");
-        if (space != std::string_view::npos) end = space + 1;
-    }
-    while (end < rest.size() && is_wrap_space(rest[end])) ++end;
-    return end;
-}
-
-// Greedy word wrap: each visual line takes the longest run of whole words that fits.
-// A line's span includes its hanging spaces, so Home/End and the caret count them; the caret
-// is drawn at the edge while it is among them.
-// simplify: breaks only at spaces and tabs, not after hyphens or between CJK ideographs
-// (UAX #14); per code point, not grapheme. Cost: O(log n) measured prefixes per visual line,
-// each a distinct string, so very large documents churn the measurer's cache. Upgrade:
-// per-character advances (one linear scan).
 inline std::vector<LineSpan> wrap_lines(std::string_view text, Width text_area_w,
                                         const TextMeasurer* m, float size) {
-    std::vector<LineSpan> result;
-
-    size_t pos = 0;
-    while (pos <= text.size()) {
-        size_t nl = text.find('\n', pos);
-        size_t logical_end = (nl == std::string_view::npos) ? text.size() : nl;
-        size_t logical_len = logical_end - pos;
-
-        if (logical_len == 0) {
-            result.push_back({pos, 0});
-        } else {
-            size_t offset = 0;
-            while (offset < logical_len) {
-                auto rest = text.substr(pos + offset, logical_len - offset);
-                size_t chunk = word_break(rest, fit_bytes(m, rest, size, text_area_w.raw(), ta_font_role));
-                result.push_back({pos + offset, chunk});
-                offset += chunk;
-            }
-        }
-
-        if (nl == std::string_view::npos) break;
-        pos = nl + 1;
-    }
-
-    if (result.empty()) result.push_back({0, 0});
-    return result;
+    return ui::wrap_lines(text, text_area_w, m, size, ta_font_role);
 }
 
 inline std::string_view line_text(std::string_view text, LineSpan line) {

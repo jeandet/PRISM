@@ -3786,3 +3786,30 @@ def test_form_widgets_render_headless():
 
     m = Form()
     prism._run_headless(m, delay_ms=50)
+
+
+def test_tooltips_on_fields_reach_the_widgets():
+    class Form(Model):
+        volume = prism.slider(0.5, tooltip="Output level")
+        name = prism.field("x", tooltip="Your name")
+        units = prism.radio("Metric", options=["Metric", "Imperial"], tooltip="Length units")
+        level = prism.shared(0.0, tooltip="Live level")
+        mute = prism.checkbox(False, label="Mute")   # no tooltip
+
+        @prism.derived("volume", tooltip="Volume, in percent")
+        def percent(self):
+            return round(self.volume.value * 100)
+
+    assert sorted(prism._tooltips(Form())) == [
+        "Length units", "Live level", "Output level", "Volume, in percent", "Your name"]
+
+
+def test_tooltips_with_a_custom_view():
+    class Form(Model):
+        volume = prism.slider(0.5, tooltip="Output level")
+        copies = prism.spinbox(2, min=1, max=9, tooltip="How many")
+
+        def view(self, vb):
+            vb.hstack(self.volume, self.copies)
+
+    assert sorted(prism._tooltips(Form())) == ["How many", "Output level"]

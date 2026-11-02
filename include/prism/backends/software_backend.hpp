@@ -62,6 +62,7 @@ private:
     std::atomic<bool> running_{true};
     std::atomic<bool> ready_{false};
     WindowId pressed_window_ = 0;
+    WindowId pointer_window_ = 0;   // whose content the pointer is over: one MouseLeave per exit
     // Shared by every window drawing with WebGPU (RenderConfig::renderer); render thread only.
     // Owned: released after the windows, whose surfaces belong to it.
     WgpuContext* wgpu_ = nullptr;

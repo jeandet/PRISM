@@ -1709,6 +1709,37 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundList<std::string>>(h)) vb.list(*nb::cast<BoundList<std::string>&>(h).list);
      else throw nb::type_error("ViewBuilder.widget: unsupported handle type");
 }
+// Declares `text` as the tooltip of the widget for handle `h`, wherever the view places it.
+// Same handle kinds as py_widget_dispatch, minus lists (no single widget to hover).
+inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::string text) {
+    auto declare = [&](auto* obs) -> std::function<void(ViewBuilder&)> {
+        if (!obs) return {};
+        return [obs, text = std::move(text)](ViewBuilder& vb) { vb.tooltip_for(*obs, text); };
+    };
+    if (nb::isinstance<BoundField<int>>(h)) return declare(nb::cast<BoundField<int>&>(h).field);
+    if (nb::isinstance<BoundField<double>>(h)) return declare(nb::cast<BoundField<double>&>(h).field);
+    if (nb::isinstance<BoundField<std::string>>(h)) return declare(nb::cast<BoundField<std::string>&>(h).field);
+    if (nb::isinstance<BoundField<bool>>(h)) return declare(nb::cast<BoundField<bool>&>(h).field);
+    if (nb::isinstance<BoundShared<int>>(h)) return declare(nb::cast<BoundShared<int>&>(h).shared);
+    if (nb::isinstance<BoundShared<double>>(h)) return declare(nb::cast<BoundShared<double>&>(h).shared);
+    if (nb::isinstance<BoundShared<std::string>>(h)) return declare(nb::cast<BoundShared<std::string>&>(h).shared);
+    if (nb::isinstance<BoundShared<bool>>(h)) return declare(nb::cast<BoundShared<bool>&>(h).shared);
+    if (nb::isinstance<BoundSliderValue>(h)) {
+        auto& b = nb::cast<BoundSliderValue&>(h);
+        return b.field_h ? declare(b.field_h) : declare(b.field_v);
+    }
+    if (nb::isinstance<BoundCheckboxValue>(h)) return declare(nb::cast<BoundCheckboxValue&>(h).field);
+    if (nb::isinstance<BoundRadio>(h)) return declare(nb::cast<BoundRadio&>(h).field);
+    if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
+    if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
+    if (nb::isinstance<BoundProgress>(h)) return declare(nb::cast<BoundProgress&>(h).field);
+    if (nb::isinstance<BoundDerived<int>>(h)) return declare(nb::cast<BoundDerived<int>&>(h).derived);
+    if (nb::isinstance<BoundDerived<double>>(h)) return declare(nb::cast<BoundDerived<double>&>(h).derived);
+    if (nb::isinstance<BoundDerived<std::string>>(h)) return declare(nb::cast<BoundDerived<std::string>&>(h).derived);
+    if (nb::isinstance<BoundDerived<bool>>(h)) return declare(nb::cast<BoundDerived<bool>&>(h).derived);
+    throw nb::type_error("tooltip: this kind of field has no single widget to hover");
+}
+
 inline void py_list_dispatch(ViewBuilder& vb, nb::object h) {
     if (nb::isinstance<BoundList<int>>(h)) vb.list(*nb::cast<BoundList<int>&>(h).list);
     else if (nb::isinstance<BoundList<double>>(h)) vb.list(*nb::cast<BoundList<double>&>(h).list);
@@ -1739,6 +1770,13 @@ struct SliderAlloc {
 struct PyModel {
     std::vector<std::shared_ptr<SlotBase>> slots;
     std::mutex slots_mutex;
+    std::vector<std::function<void(ViewBuilder&)>> tooltips;   // guarded by slots_mutex
+
+    void set_tooltip(nb::object handle, std::string text) {
+        auto declare = py_tooltip_for(std::move(handle), std::move(text));
+        std::lock_guard<std::mutex> lk(slots_mutex);
+        if (declare) tooltips.push_back(std::move(declare));
+    }
 
     std::pair<std::shared_ptr<SlotBase>, Field<int>*> add_int_slot(int v) {
         auto s = std::make_shared<Slot<int>>(v);
@@ -1921,6 +1959,10 @@ struct PyModel {
     void set_view_callback(nb::object cb) { py_view_cb = std::move(cb); }
 
     void view(ViewBuilder& vb) {
+        {
+            std::lock_guard<std::mutex> lk(slots_mutex);
+            for (auto& declare : tooltips) declare(vb);
+        }
         // Check callback with GIL held — nb::object copy/incref requires GIL.
         {
             nb::gil_scoped_acquire gil;
@@ -2588,6 +2630,7 @@ NB_MODULE(_prism_ext, m) {
     nb::class_<PyModel>(m, "Model", nb::type_slots(pymodel_type_slots))
         .def(nb::init<>())
         .def("_set_view_callback", &PyModel::set_view_callback, nb::arg("callback"))
+        .def("_set_tooltip_internal", &PyModel::set_tooltip, nb::arg("handle"), nb::arg("text"))
         // Single internal allocator set — deduped (public add_* was duplicate dead code)
         .def("_add_int_internal", [](PyModel& self, int v){
                 auto [owner, p] = self.add_int_slot(v);
@@ -2757,6 +2800,15 @@ NB_MODULE(_prism_ext, m) {
         }
         g_headless_cv.notify_all();
     });
+    // Test helper: the tooltips of the widgets the model's view builds, in layout order.
+    m.def("_tooltips", [](PyModel& model) {
+        WidgetTree tree{model};
+        auto snap = tree.build_snapshot(400, 300, 1);
+        std::vector<std::string> out;
+        for (auto& [id, r] : snap->geometry)
+            if (auto t = tree.tooltip_of(id); !t.empty()) out.emplace_back(t);
+        return out;
+    }, nb::arg("model"));
     m.def("_fail_next_run", [](){ g_fail_next_run.store(true, std::memory_order_release); });
     m.def("_run_headless", [](PyModel& model, int delay_ms){
         {

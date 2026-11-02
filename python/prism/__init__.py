@@ -62,6 +62,7 @@ from ._prism_ext import (
     _txn_commit,
     _txn_abort,
     _run_headless as _run_headless_impl,
+    _tooltips,
     _is_running,
     _request_quit,
     _set_error_handler,
@@ -416,6 +417,7 @@ class _Descriptor:
 
     def __init__(self):
         self.name = None
+        self.tooltip = None   # shown when the pointer rests on the field's widget
 
     def __set_name__(self, owner, name):
         self.name = name
@@ -488,15 +490,21 @@ class _FieldDescriptor(_Descriptor):
         self.__set__(instance, value)
 
 
-def field(default, validator=None):
+def _tooltipped(desc, tooltip):
+    """Sets the descriptor's tooltip: shown when the pointer rests on its widget."""
+    desc.tooltip = tooltip
+    return desc
+
+
+def field(default, validator=None, *, tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     Plain scalar field descriptor: ``count = prism.field(0)``.
     """
-    return _FieldDescriptor(default, validator=validator)
+    return _tooltipped(_FieldDescriptor(default, validator=validator), tooltip)
 
 
-def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal"):
+def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal", tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     Float field rendered as a ranged slider widget (C++ ``Slider<double>``
@@ -516,26 +524,26 @@ def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal
         raise ValueError(
             f"slider(): orientation must be 'horizontal' or 'vertical', got {orientation!r}"
         )
-    return _FieldDescriptor(
+    return _tooltipped(_FieldDescriptor(
         float(default),
         validator=validator,
         kind="slider",
         meta={"range": (float(min), float(max)), "orientation": orientation},
-    )
+    ), tooltip)
 
 
-def checkbox(default, label=None, validator=None):
+def checkbox(default, label=None, validator=None, *, tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     Bool field rendered as a checkbox widget (C++ ``Checkbox`` delegate)
     showing ``label``.
     """
-    return _FieldDescriptor(
+    return _tooltipped(_FieldDescriptor(
         bool(default), validator=validator, kind="checkbox", meta={"label": label or ""}
-    )
+    ), tooltip)
 
 
-def radio(default, options, validator=None):
+def radio(default, options, validator=None, *, tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     One of ``options`` (strings), rendered as radio buttons (C++ ``RadioGroup``).
@@ -545,10 +553,10 @@ def radio(default, options, validator=None):
     options = [str(o) for o in options]
     if default not in options:
         raise ValueError(f"radio(): {default!r} is not one of the options {options!r}")
-    return _FieldDescriptor(default, validator=validator, kind="radio", meta={"options": options})
+    return _tooltipped(_FieldDescriptor(default, validator=validator, kind="radio", meta={"options": options}), tooltip)
 
 
-def spinbox(default, min=0, max=100, step=1, validator=None):
+def spinbox(default, min=0, max=100, step=1, validator=None, *, tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     A number with up/down steppers (C++ ``SpinBox<T>``). It holds integers when
@@ -558,26 +566,26 @@ def spinbox(default, min=0, max=100, step=1, validator=None):
     """
     is_int = all(isinstance(v, int) and not isinstance(v, bool) for v in (default, step))
     cast = int if is_int else float
-    return _FieldDescriptor(
+    return _tooltipped(_FieldDescriptor(
         cast(default),
         validator=validator,
         kind="spinbox",
         meta={"int": is_int, "min": cast(min), "max": cast(max), "step": cast(step)},
-    )
+    ), tooltip)
 
 
-def progress(default=0.0, min=0.0, max=1.0, label="", validator=None):
+def progress(default=0.0, min=0.0, max=1.0, label="", validator=None, *, tooltip=None):
     """Value may be set from any thread (posted to the logic thread).
 
     A display-only progress bar (C++ ``ProgressBar``) showing ``value`` within
     ``[min, max]``, with an optional ``label`` above it.
     """
-    return _FieldDescriptor(
+    return _tooltipped(_FieldDescriptor(
         float(default),
         validator=validator,
         kind="progress",
         meta={"min": float(min), "max": float(max), "label": label},
-    )
+    ), tooltip)
 
 
 class _SharedDescriptor(_Descriptor):
@@ -634,12 +642,12 @@ class _ChannelDescriptor(_Descriptor):
         return self._allocate(instance).observe(callback)
 
 
-def shared(default, validator=None):
+def shared(default, validator=None, *, tooltip=None):
     """Value may be set from any thread; writes apply directly, not posted.
 
     Cross-thread latest-value slot. Standalone handles are drained on every app tick while an app runs.
     """
-    return _SharedDescriptor(default, validator=validator)
+    return _tooltipped(_SharedDescriptor(default, validator=validator), tooltip)
 
 
 def channel(type_hint=0):
@@ -717,7 +725,7 @@ class _DerivedDescriptor(_Descriptor):
         return self._allocate(instance).value
 
 
-def derived(fn=None, *deps, type_hint=None):
+def derived(fn=None, *deps, type_hint=None, tooltip=None):
     """Read-only; computed on the logic thread.
 
     Descriptor factory: derived(lambda self: ..., a, b) with descriptor deps
@@ -750,13 +758,13 @@ def derived(fn=None, *deps, type_hint=None):
     ``.value`` — only applies with two or more deps.
     """
     if callable(fn):
-        return _DerivedDescriptor(fn, *deps, type_hint=type_hint)
+        return _tooltipped(_DerivedDescriptor(fn, *deps, type_hint=type_hint), tooltip)
     # called as derived('a','b') -> fn is first dep string, need decorator
     # so fn is actually dep name
     all_deps = (fn,) + deps if fn is not None else deps
 
     def decorator(func):
-        return _DerivedDescriptor(func, *all_deps, type_hint=type_hint)
+        return _tooltipped(_DerivedDescriptor(func, *all_deps, type_hint=type_hint), tooltip)
 
     return decorator
 
@@ -1072,7 +1080,9 @@ class Model(_ModelBase):
         for cls in reversed(type(self).__mro__):
             for name, attr in cls.__dict__.items():
                 if isinstance(attr, _Descriptor):
-                    attr._allocate(self)
+                    h = attr._allocate(self)
+                    if attr.tooltip:
+                        self._set_tooltip_internal(h, attr.tooltip)  # type: ignore[attr-defined]
         # Apply kwargs overrides — each key must name a real descriptor,
         # so a typo'd field name fails loudly instead of silently setting
         # a plain attribute.

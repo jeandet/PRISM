@@ -211,9 +211,11 @@ inline void route_key_release(WidgetTree& tree, const InputEvent& ev) {
 // Top-level dispatcher: switches on the event variant and routes to the
 // per-kind handlers above. `snap` may be null — mouse routing hit-tests
 // against a snapshot; key/text routing doesn't need one.
-// simplify: a pointer that leaves the window sends no event, so a pending tooltip still
-// shows (as the hover highlight stays); add a pointer-leave event to the backend for both.
 inline void route_tooltip(WidgetTree& tree, const InputEvent& ev) {
+    if (std::holds_alternative<MouseLeave>(ev)) {
+        tree.hover_tooltip(0, {}, TooltipState::clock::now());
+        return;
+    }
     if (auto* mm = std::get_if<MouseMove>(&ev)) {
         bool busy = tree.popup_owner() != 0 || tree.captured_id() != 0;   // a popup, or a drag
         WidgetId over = busy ? 0 : tree.hovered_id();
@@ -238,6 +240,7 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
         if (auto* ms = std::get_if<MouseScroll>(&ev))
             route_mouse_scroll(tree, *snap, *ms);
     }
+    if (std::holds_alternative<MouseLeave>(ev)) tree.update_hover(std::nullopt);
     if (auto* kp = std::get_if<KeyPress>(&ev))
         route_key_press(tree, ev, *kp);
     if (std::get_if<TextInput>(&ev) || std::get_if<Paste>(&ev) || std::get_if<Composition>(&ev))

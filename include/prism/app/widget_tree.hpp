@@ -591,8 +591,10 @@ private:
     // tab()'s lazily-materialized content builders (which run well after the initial tree build)
     // can still resolve names. See ViewBuilder::apply_field_name.
     std::unordered_map<const void*, std::string_view> field_names_;   // also accessible names
-    std::unordered_map<const void*, std::string_view> field_tooltips_;   // [[=core::tooltip<...>]]
 #endif
+    // Address -> tooltip, from [[=core::tooltip<...>]] or ViewBuilder::tooltip_for(); applied
+    // when the field is placed, however it is placed.
+    std::unordered_map<const void*, std::string> field_tooltips_;
     WidgetId next_id_ = 1;
     WidgetId popup_owner_ = 0;
     WidgetId hovered_id_ = 0;

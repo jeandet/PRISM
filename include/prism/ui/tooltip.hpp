@@ -58,6 +58,7 @@ constexpr float pad_x = 6.f, pad_y = 4.f;
 constexpr float below = 20.f;   // clears a typical arrow cursor
 constexpr float above = 4.f;
 constexpr float font_size = 13.f;
+constexpr float max_width = 320.f;   // text wider than this wraps
 }
 
 // Below the pointer; flipped above it when it would leave the bottom of the window, then slid
@@ -72,16 +73,30 @@ inline core::Rect tooltip_rect(core::Point pointer, core::Size text, core::Size 
     return core::Rect{core::Point{X{x}, Y{y}}, core::Size{Width{w}, Height{h}}};
 }
 
-// simplify: one line, no wrapping; a long tooltip is as wide as its text (then clamped to the
-// window). Wrap at a max width with the TextArea word breaker when long tooltips show up.
+// Without the spaces that hang off a wrapped line's end (see word_break): they are not drawn.
+inline std::string_view tooltip_line(std::string_view text, LineSpan span) {
+    auto line = text.substr(span.start, span.length);
+    while (!line.empty() && is_wrap_space(line.back())) line.remove_suffix(1);
+    return line;
+}
+
+// Wrapped at max_width and at newlines; the box is as wide as the widest line.
 inline void draw_tooltip(render::DrawList& dl, std::string_view text, core::Point pointer,
                          core::Size window, const Theme& theme) {
     using namespace tooltip_metrics;
-    core::Size size{Width{text_width(theme.measurer, text, font_size)}, Height{line_height(theme.measurer, font_size)}};
+    auto spans = wrap_lines(text, Width{max_width}, theme.measurer, font_size, FontRole::Ui);
+    float widest = 0.f;
+    for (auto span : spans)
+        widest = std::max(widest, text_width(theme.measurer, tooltip_line(text, span), font_size));
+    float line_h = line_height(theme.measurer, font_size);
+    core::Size size{Width{widest}, Height{line_h * static_cast<float>(spans.size())}};
     auto r = tooltip_rect(pointer, size, window);
     dl.filled_rect(r, theme.popup_bg);
     dl.rect_outline(r, theme.popup_border, 1.f);
-    dl.text(std::string(text), core::Point{r.origin.x + DX{pad_x}, r.origin.y + DY{pad_y}}, font_size, theme.text);
+    for (std::size_t i = 0; i < spans.size(); ++i)
+        dl.text(std::string(tooltip_line(text, spans[i])),
+                core::Point{r.origin.x + DX{pad_x}, r.origin.y + DY{pad_y + line_h * static_cast<float>(i)}},
+                font_size, theme.text);
 }
 
 } // namespace prism::ui

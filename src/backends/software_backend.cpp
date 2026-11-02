@@ -201,6 +201,12 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
     // ever dispatched -- flushed whenever a different kind of event (or a motion for a
     // different window) needs to be delivered first, preserving relative event order.
     std::optional<WindowEvent> pending_motion;
+    auto pointer_left = [&](WindowId wid) {
+        if (pointer_window_ != wid) return;
+        pointer_window_ = 0;
+        event_cb(WindowEvent{wid, MouseLeave{}});
+    };
+
     auto flush_pending_motion = [&] {
         if (pending_motion) {
             event_cb(*pending_motion);
@@ -282,6 +288,9 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                     event_cb(WindowEvent{wid, WindowClose{}});
                     running_.store(false, std::memory_order_relaxed);
                     break;
+                case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+                    pointer_left(wid);
+                    break;
                 case SDL_EVENT_WINDOW_RESIZED: {
                     int rh = ev.window.data2;
                     {
@@ -309,9 +318,11 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> event_cb) {
                                 static_cast<int>(ev.motion.x), static_cast<int>(ev.motion.y), ww, wh);
                             if (zone != WindowChrome::HitZone::Client) {
                                 win->set_cursor(WindowChrome::cursor_for(zone));
+                                pointer_left(wid);
                                 break;
                             }
                         }
+                        pointer_window_ = wid;
                         pending_motion = WindowEvent{wid, MouseMove{
                             Point{X{ev.motion.x}, Y{client_y(wid, ev.motion.y)}}, ev.motion.state}};
                     }

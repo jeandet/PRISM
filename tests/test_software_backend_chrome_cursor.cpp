@@ -170,3 +170,61 @@ TEST_CASE("SoftwareBackend coalesces a burst of queued motion events into far fe
     });
     driver.join();
 }
+
+namespace {
+// Moves into the content first (a leave needs a prior entry), then pushes `ev`.
+bool push_until(std::atomic<bool>& seen, SDL_WindowID window_id, const SDL_Event& ev) {
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
+    while (std::chrono::steady_clock::now() < deadline) {
+        push_motion(window_id, 150.f, 150.f);
+        SDL_Event copy = ev;
+        SDL_PushEvent(&copy);
+        if (seen.load()) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    return seen.load();
+}
+
+bool is_mouse_leave(const prism::WindowEvent& we) { return std::holds_alternative<prism::MouseLeave>(we.event); }
+}
+
+TEST_CASE("SoftwareBackend reports the pointer leaving the window") {
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300});
+    auto& sdl_win = static_cast<prism::backends::SdlWindow&>(window);
+    std::atomic<bool> left{false};
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        SDL_Event ev{};
+        ev.type = SDL_EVENT_WINDOW_MOUSE_LEAVE;
+        ev.window.windowID = SDL_GetWindowID(sdl_win.sdl_window());
+        CHECK(push_until(left, SDL_GetWindowID(sdl_win.sdl_window()), ev));
+        backend.quit();
+    });
+
+    backend.run([&](const prism::WindowEvent& we) { if (is_mouse_leave(we)) left = true; });
+    driver.join();
+}
+
+TEST_CASE("SoftwareBackend: moving onto a custom title bar leaves the content") {
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300,
+                                           .decoration = prism::DecorationMode::Custom});
+    auto& sdl_win = static_cast<prism::backends::SdlWindow&>(window);
+    std::atomic<bool> left{false};
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        SDL_Event ev{};
+        ev.type = SDL_EVENT_MOUSE_MOTION;
+        ev.motion.windowID = SDL_GetWindowID(sdl_win.sdl_window());
+        ev.motion.x = 150.f;
+        ev.motion.y = 10.f;   // inside the title bar, away from its buttons
+        CHECK(push_until(left, SDL_GetWindowID(sdl_win.sdl_window()), ev));
+        backend.quit();
+    });
+
+    backend.run([&](const prism::WindowEvent& we) { if (is_mouse_leave(we)) left = true; });
+    driver.join();
+}

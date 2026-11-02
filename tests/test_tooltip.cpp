@@ -88,6 +88,50 @@ TEST_CASE("tooltip: the box is as tall as the measurer's line, plus padding") {
     CHECK(box->rect.extent.h.raw() == doctest::Approx(30.f + 2 * tooltip_metrics::pad_y));
 }
 
+namespace {
+struct FixedAdvance final : TextMeasurer {   // 7 px per byte, 20 px lines
+    float width(std::string_view t, float, FontRole) const override { return 7.f * static_cast<float>(t.size()); }
+    float line_height(float, FontRole) const override { return 20.f; }
+};
+
+std::vector<std::string> drawn_lines(const render::DrawList& dl) {
+    std::vector<std::string> out;
+    for (auto& c : dl.commands)
+        if (auto* t = std::get_if<render::TextCmd>(&c)) out.push_back(t->text);
+    return out;
+}
+}
+
+TEST_CASE("tooltip: long text wraps at the maximum width, the box fits the lines") {
+    FixedAdvance m;
+    Theme theme;
+    theme.measurer = &m;
+    render::DrawList dl;
+    std::string text = "Reads the file again from disk and drops every edit you have not saved yet";
+    draw_tooltip(dl, text, at, Size{Width{800}, Height{600}}, theme);
+    auto lines = drawn_lines(dl);
+    REQUIRE(lines.size() > 1);
+    float widest = 0;
+    for (auto& l : lines) {
+        CHECK(7.f * static_cast<float>(l.size()) <= tooltip_metrics::max_width);
+        CHECK(l.back() != ' ');   // hanging spaces are not drawn
+        widest = std::max(widest, 7.f * static_cast<float>(l.size()));
+    }
+    auto* box = std::get_if<render::FilledRect>(&dl.commands.front());
+    REQUIRE(box);
+    CHECK(box->rect.extent.w.raw() == doctest::Approx(widest + 2 * tooltip_metrics::pad_x));
+    CHECK(box->rect.extent.h.raw() == doctest::Approx(20.f * static_cast<float>(lines.size()) + 2 * tooltip_metrics::pad_y));
+}
+
+TEST_CASE("tooltip: a newline starts a new line") {
+    FixedAdvance m;
+    Theme theme;
+    theme.measurer = &m;
+    render::DrawList dl;
+    draw_tooltip(dl, "Save\nCtrl+S", at, Size{Width{800}, Height{600}}, theme);
+    CHECK(drawn_lines(dl) == std::vector<std::string>{"Save", "Ctrl+S"});
+}
+
 TEST_CASE("tooltip: placed below the pointer, inside the window") {
     Size text{Width{100}, Height{18}};
     Size window{Width{400}, Height{300}};
@@ -348,4 +392,42 @@ TEST_CASE("tooltip in a running app: it appears after the delay with no further 
     auto& window = backend.create_window({});
     prism::app::model_app(backend, window, model);
     CHECK(probe->saw_tooltip);
+}
+
+TEST_CASE("pointer leaving the window: no hover, and no tooltip, pending or shown") {
+    TreeFixture<Toolbar> f;
+    auto p = f.centre_of_widget_with("Write the file to disk");
+    f.move(p);
+    REQUIRE(f.tree.hovered_id() != 0);
+    route_event(f.tree, f.snap.get(), MouseLeave{});
+    CHECK(f.tree.hovered_id() == 0);
+    CHECK_FALSE(f.tree.tooltip_wake());
+
+    f.move(p);
+    f.wait_for_tooltip();
+    REQUIRE(overlay_has(*f.snap, "Write the file to disk"));
+    route_event(f.tree, f.snap.get(), MouseLeave{});
+    f.frame();
+    CHECK_FALSE(overlay_has(*f.snap, "Write the file to disk"));
+    f.move(p);   // coming back starts a fresh wait
+    CHECK(f.tree.tooltip_wake());
+}
+
+namespace {
+// The shape bindings use: the tooltip is declared for a field before (or without) the
+// statement that places it, so automatic layouts get it too.
+struct Declared {
+    Field<Button> save{{"Save"}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.tooltip_for(save, "Write the file to disk");
+        vb.vstack(save);
+    }
+};
+}
+
+TEST_CASE("tooltip in a tree: declared for a field, then placed by a stack") {
+    TreeFixture<Declared> f;
+    f.move(f.centre_of_widget_with("Write the file to disk"));
+    f.wait_for_tooltip();
+    CHECK(overlay_has(*f.snap, "Write the file to disk"));
 }

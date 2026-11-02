@@ -91,13 +91,13 @@ class ViewBuilder {
     // entries recursively) or when this build lacks reflection support.
     template <typename T>
     void apply_field_name([[maybe_unused]] Node& leaf, [[maybe_unused]] T& observable) {
+        if (auto tip = tree_.field_tooltips_.find(static_cast<const void*>(&observable));
+            tip != tree_.field_tooltips_.end())
+            leaf.tooltip = tip->second;
 #if __cpp_impl_reflection
         auto it = tree_.field_names_.find(static_cast<const void*>(&observable));
         if (it == tree_.field_names_.end()) return;
         leaf.name = std::string(it->second);   // accessible name, in every build
-        if (auto tip = tree_.field_tooltips_.find(static_cast<const void*>(&observable));
-            tip != tree_.field_tooltips_.end())
-            leaf.tooltip = std::string(tip->second);
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         leaf.debug_name = leaf.name;
 #endif
@@ -155,6 +155,13 @@ public:
     ViewBuilder(WidgetTree& tree, Node& target)
         : tree_(tree), target_(target) {}
 
+    // The tooltip `observable`'s widget gets wherever it is placed, by widget() or a stack --
+    // for code that does not place the widget itself (automatic layouts, bindings).
+    template <typename Obs>
+    void tooltip_for(Obs& observable, std::string text) {
+        tree_.field_tooltips_[static_cast<const void*>(&observable)] = std::move(text);
+    }
+
     template <typename T>
     LeafHandle widget(Field<T>& field) {
         placed_.insert(&field);
@@ -206,6 +213,7 @@ public:
     void widget_generic(Obs& obs) {
         placed_.insert(static_cast<const void*>(&obs));
         auto leaf = node_readonly_leaf<T>(obs, tree_.next_id_);
+        apply_field_name(leaf, obs);
         current_parent().children.push_back(std::move(leaf));
     }
 

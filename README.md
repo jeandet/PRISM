@@ -358,8 +358,9 @@ core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
 
 <p align="center"><img src="doc/screenshots/dialog.svg" alt="Modal dialog" width="420"/></p>
 
-A tooltip shows when the pointer rests on a widget, and a click, key or scroll hides it. Set it
-where the widget is placed, or annotate the member when the UI comes from reflection:
+A tooltip shows when the pointer rests on a widget, and a click, key or scroll hides it; long
+text wraps. Set it where the widget is placed, or annotate the member when the UI comes from
+reflection:
 
 ```cpp
 vb.widget(save).tooltip("Write the file to disk");                  // in view()
@@ -495,7 +496,8 @@ with prism.transaction():                       # one publish for both changes
 | `prism.run(model)` | `model_app(title, model)` | |
 
 Also: `prism.headless()` and `prism.run(m, headless_seconds=..., until=...)` for tests and CI,
-`field.add(n)` for atomic increments, `plot.replace_series()` / `set_labels()`, and the
+`field.add(n)` for atomic increments, a `tooltip="..."` keyword on every field factory
+(`ViewBuilder::tooltip_for` in C++), `plot.replace_series()` / `set_labels()`, and the
 `@prism.on_change(*deps)` method decorator.
 
 </details>
