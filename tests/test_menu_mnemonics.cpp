@@ -130,3 +130,47 @@ TEST_CASE("menu_text gives a label as shown, for comparing a chosen item") {
     CHECK(menu_text("&Save") == "Save");
     CHECK(menu_text("Save && Quit") == "Save & Quit");
 }
+
+TEST_CASE("a non-letter key in a popup does not drop text that arrives later on its own") {
+    Fixture f;
+    auto r = find_widget_rect(*f.snap, f.id_of(2));
+    REQUIRE(r);
+    Point in_name{r->origin.x + DX{5}, r->origin.y + DY{5}};
+    route_event(f.tree, f.snap.get(), MouseButton{in_name, buttons::left, true});
+    route_event(f.tree, f.snap.get(), MouseButton{in_name, buttons::left, false});
+    route_event(f.tree, f.snap.get(), MouseButton{in_name, buttons::right, true});
+    REQUIRE(f.tree.popup_owner() != 0);
+    f.frame();
+    f.key(keys::escape);                                    // closes the menu
+    route_event(f.tree, f.snap.get(), TextInput{"é"});      // an input method commits text, no key
+    CHECK(f.model.name.get().value == "é");
+}
+
+namespace {
+struct SameLetter {
+    Field<Menu> first{{.title = "&File", .items = {"x"}}};
+    Field<Menu> second{{.title = "&Format", .items = {"y"}}};
+    void view(WidgetTree::ViewBuilder& vb) { vb.hstack(first, second); }
+};
+}
+
+TEST_CASE("two menus with the same letter: the first in the bar opens") {
+    for (int round = 0; round < 5; ++round) {   // the old lookup depended on hash order
+        SameLetter m;
+        WidgetTree tree{m};
+        auto snap = tree.build_snapshot(400, 300, 1);
+        route_event(tree, snap.get(), KeyPress{keys::f, mods::alt});
+        CHECK(tree.popup_owner() == tree.leaf_ids()[0]);
+    }
+}
+
+TEST_CASE("a mnemonic whose key cannot trigger it is not underlined") {
+    DrawList dl;
+    menu_detail::draw_label(dl, "&Über", Point{X{0}, Y{0}}, Color::rgba(255, 255, 255), nullptr);
+    for (auto& c : dl.commands) CHECK_FALSE(std::holds_alternative<Line>(c));
+    DrawList ok;
+    menu_detail::draw_label(ok, "&File", Point{X{0}, Y{0}}, Color::rgba(255, 255, 255), nullptr);
+    bool underlined = false;
+    for (auto& c : ok.commands) underlined |= std::holds_alternative<Line>(c);
+    CHECK(underlined);
+}

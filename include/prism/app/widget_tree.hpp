@@ -250,9 +250,15 @@ public:
     }
 
     // The menu whose title's mnemonic is `key` (Alt+key opens it), if any.
+    // Two menus with the same letter: the first in layout order, as in Qt.
     [[nodiscard]] std::optional<WidgetId> menu_for_key(std::int32_t key) const {
-        for (auto& [id, n] : index_)
-            if (n->opens_menu && n->mnemonic_key && key != 0 && n->mnemonic_key() == key) return id;
+        if (key == 0) return std::nullopt;
+        for (WidgetId id : leaf_ids()) {
+            auto it = index_.find(id);
+            if (it == index_.end()) continue;
+            const WidgetNode& n = *it->second;
+            if (n.opens_menu && n.mnemonic_key && n.mnemonic_key() == key) return id;
+        }
         return std::nullopt;
     }
 

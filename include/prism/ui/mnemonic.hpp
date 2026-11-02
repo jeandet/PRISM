@@ -26,6 +26,10 @@ inline Mnemonic parse_mnemonic(std::string_view label) {
     return m;
 }
 
+inline bool is_mnemonic_key(std::int32_t key) {
+    return (key >= 'a' && key <= 'z') || (key >= '0' && key <= '9');
+}
+
 // The key that triggers the label's mnemonic (SDL key codes are lowercase ASCII), or 0.
 // simplify: ASCII letters and digits only; a non-ASCII mnemonic needs the key's character
 // from the backend (SDL_GetKeyFromScancode with the layout), not the raw key code.
@@ -34,8 +38,7 @@ inline std::int32_t mnemonic_key(std::string_view label) {
     if (m.underline == std::string::npos) return 0;
     char c = m.text[m.underline];
     if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
-    bool alnum = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
-    return alnum ? c : 0;
+    return is_mnemonic_key(c) ? c : 0;
 }
 
 } // namespace prism::ui::menu_detail

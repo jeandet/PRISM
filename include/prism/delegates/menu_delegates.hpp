@@ -65,7 +65,7 @@ void choose(Field<M>& field, WidgetNode& node, std::size_t i) {
 inline void draw_label(DrawList& dl, std::string_view label, Point at, Color color, const TextMeasurer* m) {
     auto mn = parse_mnemonic(label);
     dl.text(mn.text, at, font_size, color);
-    if (mn.underline == std::string::npos) return;
+    if (mnemonic_key(label) == 0) return;   // no key can trigger it: do not promise one
     std::string_view text = mn.text;
     float x0 = text_width(m, text.substr(0, mn.underline), font_size);
     float x1 = text_width(m, text.substr(0, core::utf8::next(text, mn.underline)), font_size);

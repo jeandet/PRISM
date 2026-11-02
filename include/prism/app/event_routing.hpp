@@ -202,7 +202,7 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
         if (kp.key == keys::escape && (!owner || !owner->popup_modal)) tree.close_popup();
         else if (neighbour) tree.switch_menu(*neighbour);
         else if (!bar_step || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
-        tree.swallow_next_text_input(true);
+        tree.swallow_next_text_input(menu_detail::is_mnemonic_key(kp.key));   // only a letter types
         return;
     }
     if (kp.key == keys::tab) {
