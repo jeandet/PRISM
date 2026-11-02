@@ -300,11 +300,13 @@ TEST_CASE("busy progress: the segment slides across the track and comes back") {
 }
 
 namespace {
-struct Loading {
+struct Loading {   // a view(), so the bar is placed in builds without reflection too
     Field<ProgressBar> bar{{.value = 0.0, .busy = true}};
+    void view(WidgetTree::ViewBuilder& vb) { vb.widget(bar); }
 };
 struct Static {
     Field<ProgressBar> bar{{.value = 0.5}};
+    void view(WidgetTree::ViewBuilder& vb) { vb.widget(bar); }
 };
 }
 
