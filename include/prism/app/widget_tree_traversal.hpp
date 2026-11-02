@@ -72,11 +72,15 @@ inline void mark_all_dirty_impl(WidgetNode& node) {
     for (auto& c : node.children) mark_all_dirty_impl(c);
 }
 
+// A widget showing its own overlay: a dropdown's list, a combo box's suggestions. Table and
+// Tabs nodes draw their header in overlay_draws, which is no such thing.
+inline bool has_open_overlay(const WidgetNode& node) {
+    return !node.overlay_draws.empty() && node.layout_kind != LayoutKind::Table
+        && node.layout_kind != LayoutKind::Tabs;
+}
+
 inline void close_overlays_impl(WidgetNode& node) {
-    // Table/Tabs nodes use overlay_draws for their header, not for dropdown overlays
-    if (!node.overlay_draws.empty()
-        && node.layout_kind != LayoutKind::Table
-        && node.layout_kind != LayoutKind::Tabs) {
+    if (has_open_overlay(node)) {
         node.overlay_draws.clear();
         // Only an overlay's own state (a dropdown's or menu's open list): a combo box keeps its
         // text editing state (caret, undo) when its suggestions close.

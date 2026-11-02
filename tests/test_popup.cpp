@@ -297,3 +297,115 @@ TEST_CASE("a click on a scrolling text area inside a popup focuses it, not a scr
     route_event(tree, snap.get(), MouseButton{in, buttons::left, false});
     CHECK(tree.focused_id() == area.first);
 }
+
+// --- popups inside popups: a dropdown, a text field, a menu inside a dialog or popover ---
+
+namespace {
+enum class Kind { Text, Image, Sound };
+
+struct Form {
+    Field<Dialog> ask{{.title = "Export", .message = "", .buttons = {"Export", "Cancel"}}};
+    Field<Kind> kind{Kind::Text};
+    Field<TextField<>> name{{.value = "abcdef"}};
+    Field<Menu> more{{.title = "More", .items = {"First", "Second"}}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.dialog(ask, [&](WidgetTree::ViewBuilder& d) {
+            d.widget(kind).focus_on_open();
+            d.widget(name);
+            d.widget(more);
+        });
+    }
+};
+
+struct FormFixture {
+    Form model;
+    WidgetTree tree{model};
+    std::unique_ptr<SceneSnapshot> snap = tree.build_snapshot(600, 400, 1);
+    uint64_t v = 1;
+    FormFixture() {
+        auto d = model.ask.get();
+        d.open = true;
+        model.ask.set(d);
+        frame();
+    }
+    void frame() { snap = tree.build_snapshot(600, 400, ++v); }
+    void key(int32_t k) { route_event(tree, snap.get(), KeyPress{k, 0}); frame(); }
+    void click(Point p) {
+        route_event(tree, snap.get(), MouseButton{p, buttons::left, true});
+        route_event(tree, snap.get(), MouseButton{p, buttons::left, false});
+        frame();
+    }
+    // The overlay rect (popup content is in the overlay) of the i-th focusable widget in the
+    // dialog: 0 the dropdown, 1 the text field, 2 the menu.
+    Rect rect_of(std::size_t i) const {
+        auto ring = tree.focus_ring();
+        REQUIRE(i < ring.size());
+        auto id = ring[i];
+        for (auto& [oid, r] : snap->overlay_geometry) if (oid == id) return r;
+        FAIL("no rect");
+        return {};
+    }
+};
+}
+
+TEST_CASE("a dropdown inside a dialog: Escape closes the list, not the dialog") {
+    FormFixture f;
+    f.key(keys::enter);    // open the list
+    f.key(keys::escape);   // closes it
+    CHECK(f.model.ask.get().open);
+    f.key(keys::escape);   // now the dialog
+    CHECK_FALSE(f.model.ask.get().open);
+}
+
+TEST_CASE("a dropdown inside a dialog: the keyboard picks an option") {
+    FormFixture f;
+    f.key(keys::enter);
+    f.key(keys::down);
+    f.key(keys::enter);
+    CHECK(f.model.kind.get() == Kind::Image);
+    CHECK(f.model.ask.get().open);
+}
+
+TEST_CASE("a dropdown inside a dialog: a click picks the option under it, even past the card") {
+    FormFixture f;
+    auto box = f.rect_of(0);
+    f.click(Point{box.origin.x + DX{10}, box.origin.y + DY{10}});   // opens the list
+    // The third option, below the box: three option rows of 28 pt.
+    f.click(Point{box.origin.x + DX{10}, box.origin.y + DY{box.extent.h.raw() + 2.5f * 28.f}});
+    CHECK(f.model.kind.get() == Kind::Sound);
+    CHECK(f.model.ask.get().open);
+}
+
+TEST_CASE("a click in a text field inside a dialog puts the caret where it lands") {
+    FormFixture f;
+    auto field = f.rect_of(1);
+    float cw = char_width(14.f).raw();
+    f.click(Point{field.origin.x + DX{4.f + 2.f * cw}, field.origin.y + DY{10}});   // between b and c
+    route_event(f.tree, f.snap.get(), TextInput{"X"});
+    CHECK(f.model.name.get().value == "abXcdef");
+}
+
+TEST_CASE("a menu inside a dialog opens, chooses, and the dialog stays modal") {
+    FormFixture f;
+    auto title = f.rect_of(2);
+    f.click(Point{title.origin.x + DX{10}, title.origin.y + DY{10}});
+    f.key(keys::down);
+    f.key(keys::enter);
+    REQUIRE(f.model.more.get().chosen.has_value());
+    CHECK(*f.model.more.get().chosen == 1);
+    CHECK(f.model.ask.get().open);
+    f.click(Point{X{3}, Y{3}});   // outside the card: still blocked, still open
+    CHECK(f.model.ask.get().open);
+}
+
+TEST_CASE("a menu open inside a dialog: Escape closes the menu, then the dialog") {
+    FormFixture f;
+    auto title = f.rect_of(2);
+    f.click(Point{title.origin.x + DX{10}, title.origin.y + DY{10}});
+    REQUIRE(f.tree.popup_owner() != f.tree.focus_ring().front());   // the menu is on top
+    f.key(keys::escape);
+    CHECK(f.model.ask.get().open);
+    CHECK(f.tree.open_content_popup() != nullptr);   // back to the dialog
+    f.key(keys::escape);
+    CHECK_FALSE(f.model.ask.get().open);
+}

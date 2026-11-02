@@ -42,6 +42,10 @@ inline bool route_content_popup_mouse(WidgetTree& tree, const SceneSnapshot& sna
                                       Point pos, bool is_press) {
     auto area = popup_area(tree, snap);
     if (area && area->contains(pos)) return false;
+    // Outside the card but on the overlay of a widget inside it (a dropdown's list hanging
+    // below): ordinary routing, as inside.
+    if (auto id = hit_test(snap, pos); id && *id != tree.popup_owner() && tree.within(*id, tree.popup_owner()))
+        return false;
     if (tree.captured_id() != 0 && !is_press) return false;
     if (is_press && !tree.popup_node()->popup_modal) {
         tree.dispatch(tree.popup_owner(), KeyPress{keys::escape, 0});
@@ -214,7 +218,9 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
     tree.swallow_next_text_input(false);   // only the text event right after a popup's key
     if (open_menu_by_mnemonic(tree, kp)) return;
     if (tree.open_content_popup() && kp.key == keys::escape) {   // a popup holding widgets
-        tree.dispatch(tree.popup_owner(), ev);
+        // An open list inside it (a dropdown) closes first; then the popup itself.
+        WidgetId f = tree.focused_id();
+        tree.dispatch(f != 0 && tree.has_open_overlay(f) ? f : tree.popup_owner(), ev);
         return;
     }
     if (tree.popup_owner() != 0 && !tree.open_content_popup()) {   // keys belong to the popup; escape closes a plain one

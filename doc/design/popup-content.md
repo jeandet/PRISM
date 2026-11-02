@@ -68,13 +68,16 @@ dialog's title, message and buttons, around the widgets `content` places. When t
 an open dialog, its widget sets `WidgetNode::popup_rebuild` and the tree builds the content again.
 `.focus_on_open()` on a placed widget picks what has the focus when the popup opens.
 
+## Popups inside popups (2026-11-02)
+
+Open popups form a stack (`WidgetTree::popup_stack_`; `popup_owner()` is its top). A popup opened
+inside the top one's content (a menu in a dialog) goes on top; closing it returns to the one
+below, so Escape closes the menu, then the dialog. A dropdown or combo box inside a popup is not
+a popup but an overlay of its own widget: Escape goes to it first while its list is open, and a
+click on its list reaches it even where the list hangs past the card.
+
 ## Not in this step
 
-- **Several popups open at once.** A menu, context menu or dialog *inside* a popup is the first
-  case. The tree tracks one popup owner: inside a modal popup the inner one is never adopted
-  (it draws but gets no input); inside a non-modal one it takes the ownership, and the outer
-  popup's content stops receiving input. Stacking needs a list of owners; add it with the
-  editable combo box, which needs it.
 - **A non-modal popup declared inside a scrolled area** is placed at its anchor's unscrolled
   position. Modal popups are centred and unaffected.
 - **A popup sized to its anchor** (a combo box's list as wide as the box). It comes with the

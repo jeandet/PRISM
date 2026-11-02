@@ -26,10 +26,15 @@ using namespace prism::render;
     return std::nullopt;
 }
 
+// Where a widget is: in the window, or else in the overlay (the widgets of an open popup), so
+// events reach them in their own coordinates too.
 [[nodiscard]] inline std::optional<Rect> find_widget_rect(
     const SceneSnapshot& snap, WidgetId id)
 {
     for (auto& [wid, rect] : snap.geometry) {
+        if (wid == id) return rect;
+    }
+    for (auto& [wid, rect] : snap.overlay_geometry) {
         if (wid == id) return rect;
     }
     return std::nullopt;

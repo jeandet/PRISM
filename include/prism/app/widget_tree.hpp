@@ -175,14 +175,15 @@ public:
         }
     }
 
-    // The widget whose popup is open (0 = none). One popup at a time.
-    [[nodiscard]] WidgetId popup_owner() const { return popup_owner_; }
+    // The widget whose popup is on top (0 = none): it gets the input. Popups stack: one opened
+    // inside another (a menu in a dialog) goes on top, and closing it returns to the one below.
+    [[nodiscard]] WidgetId popup_owner() const { return popup_stack_.empty() ? 0 : popup_stack_.back(); }
     [[nodiscard]] const WidgetNode* popup_node() const {
-        auto it = index_.find(popup_owner_);
+        auto it = index_.find(popup_owner());
         return it != index_.end() ? it->second : nullptr;
     }
     void close_popup() {
-        if (auto it = index_.find(popup_owner_); it != index_.end()) {
+        if (auto it = index_.find(popup_owner()); it != index_.end()) {
             WidgetNode& n = *it->second;
             n.popup_area.reset();
             n.popup_opened_from.reset();
@@ -190,7 +191,7 @@ public:
             n.edit_state.reset();   // the owner's open/highlight state, as close_overlays does
             n.dirty = true;
         }
-        popup_owner_ = 0;
+        if (!popup_stack_.empty()) popup_stack_.pop_back();
     }
 
     // The menu next to `from` in its menu bar (its sibling menus), dir = +1 or -1.
@@ -239,8 +240,8 @@ public:
     // Re-records the popup owner if the app changed it since the last frame (e.g. closed a
     // dialog), so routing acts on the popup as it is now, not as last drawn.
     void refresh_popup_owner() {
-        auto it = index_.find(popup_owner_);
-        if (popup_owner_ == 0 || it == index_.end()) return;
+        auto it = index_.find(popup_owner());
+        if (popup_owner() == 0 || it == index_.end()) return;
         if (it->second->dirty && it->second->record) it->second->record(*it->second);
     }
 
@@ -248,13 +249,13 @@ public:
     // input now, not at the next frame. The event itself still met the popup, as it was drawn.
     void release_closed_popup() {
         refresh_popup_owner();
-        auto it = index_.find(popup_owner_);
-        if (popup_owner_ != 0 && it != index_.end() && !it->second->popup_area) close_popup();
+        auto it = index_.find(popup_owner());
+        if (popup_owner() != 0 && it != index_.end() && !it->second->popup_area) close_popup();
     }
 
     // Moves the open popup (owner coordinates), e.g. to keep it inside the window.
     void move_popup(Rect area) {
-        if (auto it = index_.find(popup_owner_); it != index_.end() && it->second->popup_area) {
+        if (auto it = index_.find(popup_owner()); it != index_.end() && it->second->popup_area) {
             it->second->popup_area = area;
             it->second->dirty = true;
         }
@@ -298,26 +299,52 @@ public:
     // anchors if trees grow large enough for this to show in profiles.
     // A modal popup takes over from a plain one (a dialog opening over an open menu).
     void adopt_popup(WidgetNode& node) {
-        if (auto it = index_.find(popup_owner_); popup_owner_ != 0 && (it == index_.end() || !it->second->popup_area))
-            popup_owner_ = 0;
+        drop_closed_popups();
         adopt_popup_in(node);
     }
 
+    // Popups that closed since the last frame leave the top of the stack.
+    void drop_closed_popups() {
+        while (!popup_stack_.empty()) {
+            auto it = index_.find(popup_stack_.back());
+            if (it != index_.end() && it->second->popup_area) return;
+            popup_stack_.pop_back();
+        }
+    }
+
     void adopt_popup_in(WidgetNode& node) {
-        const WidgetNode* owner = popup_node();
-        if (owner && owner->popup_modal) return;
-        if (node.popup_area && node.id != 0 && node.id != popup_owner_ && (!owner || node.popup_modal)) {
-            if (owner) close_popup();
-            popup_owner_ = node.id;
-            if (node.popup_modal) return;
+        if (node.popup_area && node.id != 0 && !in_popup_stack(node.id) && adopts(node)) {
+            if (!nested_in_top(node.id)) close_popup();   // a modal popup over a plain one
+            popup_stack_.push_back(node.id);
         }
         for (auto& c : node.children) adopt_popup_in(c);
     }
 
-    // id == 0 ("no widget") is a no-op, letting callers skip their own zero checks.
+    // Whether an open popup the tree does not track yet goes on top: the first one, one opened
+    // inside the top popup (a menu in a dialog), or a modal one over a plain popup.
+    [[nodiscard]] bool adopts(const WidgetNode& node) const {
+        const WidgetNode* top = popup_node();
+        return !top || nested_in_top(node.id) || (node.popup_modal && !top->popup_modal);
+    }
+
+    [[nodiscard]] bool nested_in_top(WidgetId id) const {
+        return !popup_stack_.empty() && id != popup_stack_.back() && within(id, popup_stack_.back());
+    }
+
+    [[nodiscard]] bool in_popup_stack(WidgetId id) const {
+        return std::ranges::find(popup_stack_, id) != popup_stack_.end();
+    }
+
+    // After a widget handled an event: a popup it opened goes on top (above the popups it is
+    // inside of, replacing any others); one it closed leaves. id == 0 is a no-op.
     void track_popup(const WidgetNode& n) {
-        if (n.popup_area) popup_owner_ = n.id;
-        else if (popup_owner_ == n.id) popup_owner_ = 0;
+        if (n.popup_area) {
+            if (in_popup_stack(n.id)) return;
+            while (!popup_stack_.empty() && !within(n.id, popup_stack_.back())) popup_stack_.pop_back();
+            popup_stack_.push_back(n.id);
+        } else if (popup_owner() == n.id) {
+            popup_stack_.pop_back();
+        }
     }
 
     void flip_visual_flag(WidgetId id, bool WidgetVisualState::* flag, bool value) {
@@ -544,6 +571,12 @@ public:
         set_focused(ring[static_cast<std::size_t>((i % n + n) % n)]);
     }
 
+    // Whether the widget shows its own overlay (an open dropdown list): it takes Escape first.
+    [[nodiscard]] bool has_open_overlay(WidgetId id) const {
+        auto it = index_.find(id);
+        return it != index_.end() && widget_detail::has_open_overlay(*it->second);
+    }
+
     // Whether `id` is `ancestor` or below it.
     [[nodiscard]] bool within(WidgetId id, WidgetId ancestor) const {
         for (WidgetId cur = id; cur != 0;) {
@@ -560,8 +593,8 @@ public:
 
     // The open popup whose content is widgets (ui::Popup), if any.
     [[nodiscard]] const WidgetNode* open_content_popup() const {
-        auto it = index_.find(popup_owner_);
-        if (popup_owner_ == 0 || it == index_.end()) return nullptr;
+        auto it = index_.find(popup_owner());
+        if (popup_owner() == 0 || it == index_.end()) return nullptr;
         return it->second->popup_builder && !it->second->children.empty() ? it->second : nullptr;
     }
 
@@ -649,7 +682,7 @@ public:
                 }
             }
         }
-        if (popup_owner_ != 0) tooltip_ = tooltip_dismissed(tooltip_);   // e.g. a dialog the app opened
+        if (popup_owner() != 0) tooltip_ = tooltip_dismissed(tooltip_);   // e.g. a dialog the app opened
         if (auto text = tooltip_of(tooltip_.target); tooltip_.shown && !text.empty())
             draw_tooltip(snap->overlay, text, tooltip_.pointer, snap->viewport, theme_);
 
@@ -682,7 +715,7 @@ private:
     // when the field is placed, however it is placed.
     std::unordered_map<const void*, std::string> field_tooltips_;
     WidgetId next_id_ = 1;
-    WidgetId popup_owner_ = 0;
+    std::vector<WidgetId> popup_stack_;   // open popups, bottom to top (see popup_owner())
     WidgetId hovered_id_ = 0;
     WidgetId focused_id_ = 0;
     WidgetId captured_id_ = 0;

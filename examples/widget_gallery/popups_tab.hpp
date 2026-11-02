@@ -11,6 +11,8 @@
 
 namespace gallery {
 
+enum class FileType { Text, Markdown, Csv };
+
 struct PopupsTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Popups", .heading = true}};
     prism::core::Field<prism::ui::Label<>> hint{{"Right-click anywhere on this page for a context menu. "
@@ -30,6 +32,7 @@ struct PopupsTab {
                                                          .buttons = {"Rename", "Cancel"}}};
     prism::core::Field<prism::ui::TextField<>> new_name{{.value = "report.txt"}};
     prism::core::Field<prism::ui::Checkbox> backup{{.checked = true, .label = "Keep a backup"}};
+    prism::core::Field<FileType> file_type{FileType::Text};   // a dropdown inside the dialog
     prism::core::Field<prism::ui::Popup> options_popup{{.open = false, .modal = false}};
     prism::core::Field<prism::ui::Checkbox> grid{{.checked = true, .label = "Show grid"}};
     prism::core::Field<prism::ui::Checkbox> snap{{.checked = false, .label = "Snap to grid"}};
@@ -106,6 +109,7 @@ struct PopupsTab {
         vb.dialog(confirm);
         vb.dialog(rename_dialog, [&](prism::app::WidgetTree::ViewBuilder& d) {
             d.widget(new_name).focus_on_open();
+            d.widget(file_type).tooltip("A dropdown inside a dialog: its list opens over the dialog");
             d.widget(backup);
         });
     }
