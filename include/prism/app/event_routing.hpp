@@ -33,9 +33,27 @@ inline void dispatch_to_popup(WidgetTree& tree, const SceneSnapshot& snap, const
 
 // Returns true if the popup took the event. A press outside closes a plain popup and is
 // swallowed either way, so it never activates what is underneath.
+// A popup holding widgets (ui::Popup): inside its card, ordinary routing (the content's widgets
+// are hit-tested first, in the overlay). Outside, a modal popup swallows the press; a
+// non-modal one is told to close (Escape: it clears its `open`). A drag that started inside
+// keeps going outside.
+inline bool route_content_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev,
+                                      Point pos, bool is_press) {
+    auto area = popup_area(tree, snap);
+    if (area && area->contains(pos)) return false;
+    if (tree.captured_id() != 0 && !is_press) return false;
+    if (is_press && !tree.popup_node()->popup_modal) {
+        tree.dispatch(tree.popup_owner(), KeyPress{keys::escape, 0});
+        tree.close_popup();
+    }
+    if (is_press || std::holds_alternative<MouseMove>(ev)) tree.update_hover(std::nullopt);
+    return true;
+}
+
 inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev, Point pos,
                               bool is_press) {
     if (tree.popup_owner() == 0) return false;
+    if (tree.open_content_popup()) return route_content_popup_mouse(tree, snap, ev, pos, is_press);
     // The release of the click that opened the popup lands here, not in the normal routing:
     // let go of the pressed widget, or it would keep receiving every pointer move.
     if (auto* b = std::get_if<MouseButton>(&ev); b && !b->pressed && tree.captured_id() != 0)
@@ -161,9 +179,11 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
 inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
                                const MouseScroll& ms) {
     if (tree.popup_owner() != 0) {   // inside: the popup; outside: nothing scrolls under it
-        if (auto area = popup_area(tree, snap); area && area->contains(ms.position))
-            dispatch_to_popup(tree, snap, ms);
-        return;
+        auto area = popup_area(tree, snap);
+        bool inside = area && area->contains(ms.position);
+        if (!inside) return;
+        if (!tree.open_content_popup()) return dispatch_to_popup(tree, snap, ms);
+        // a popup holding widgets: its own scroll views scroll, as in the window
     }
     constexpr float wheel_multiplier = 60.f;
     auto id = hit_test(snap, ms.position);
@@ -191,7 +211,11 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
     constexpr float page_delta = 200.f;
     tree.swallow_next_text_input(false);   // only the text event right after a popup's key
     if (open_menu_by_mnemonic(tree, kp)) return;
-    if (tree.popup_owner() != 0) {   // keys belong to the popup; escape closes a plain one
+    if (tree.open_content_popup() && kp.key == keys::escape) {   // a popup holding widgets
+        tree.dispatch(tree.popup_owner(), ev);
+        return;
+    }
+    if (tree.popup_owner() != 0 && !tree.open_content_popup()) {   // keys belong to the popup; escape closes a plain one
         auto bar_step = kp.key == keys::right ? 1 : kp.key == keys::left ? -1 : 0;
         auto neighbour = bar_step ? tree.menu_neighbour(tree.popup_owner(), bar_step) : std::nullopt;
         auto* owner = tree.popup_node();
@@ -222,7 +246,7 @@ inline void route_text_input(WidgetTree& tree, const InputEvent& ev) {
         tree.swallow_next_text_input(false);
         return;
     }
-    WidgetId target = tree.popup_owner() != 0 ? tree.popup_owner() : tree.focused_id();
+    WidgetId target = tree.popup_owner() != 0 && !tree.open_content_popup() ? tree.popup_owner() : tree.focused_id();
     if (target != 0) tree.dispatch(target, ev);
 }
 

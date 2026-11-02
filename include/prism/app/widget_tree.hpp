@@ -15,6 +15,7 @@
 #include <prism/app/widget_tree_layout.hpp>
 #include <prism/app/widget_tree_traversal.hpp>
 #include <prism/app/table_input.hpp>
+#include <prism/ui/popup_place.hpp>
 #include <prism/ui/tooltip.hpp>
 #if __cpp_impl_reflection
 #include <prism/core/reflect.hpp>
@@ -484,30 +485,45 @@ public:
         focused_id_ = 0;
     }
 
-    void focus_next() {
-        if (focus_order_.empty()) return;
-        if (focused_id_ == 0) {
-            set_focused(focus_order_.front());
-            return;
-        }
-        auto it = std::find(focus_order_.begin(), focus_order_.end(), focused_id_);
-        if (it == focus_order_.end() || ++it == focus_order_.end())
-            set_focused(focus_order_.front());
-        else
-            set_focused(*it);
+    // What Tab cycles through: the open popup's content if a popup holds widgets (it keeps the
+    // focus inside), else every focusable widget.
+    [[nodiscard]] std::vector<WidgetId> focus_ring() const {
+        const WidgetNode* p = open_content_popup();
+        if (!p) return focus_order_;
+        std::vector<WidgetId> ring;
+        for (WidgetId id : focus_order_)
+            if (within(id, p->id)) ring.push_back(id);
+        return ring;
     }
 
-    void focus_prev() {
-        if (focus_order_.empty()) return;
-        if (focused_id_ == 0) {
-            set_focused(focus_order_.back());
-            return;
+    void focus_next() { step_focus(+1); }
+    void focus_prev() { step_focus(-1); }
+
+    void step_focus(int dir) {
+        auto ring = focus_ring();
+        if (ring.empty()) return;
+        auto it = std::ranges::find(ring, focused_id_);
+        if (it == ring.end()) return set_focused(dir > 0 ? ring.front() : ring.back());
+        auto i = static_cast<std::ptrdiff_t>(it - ring.begin()) + dir;
+        auto n = static_cast<std::ptrdiff_t>(ring.size());
+        set_focused(ring[static_cast<std::size_t>((i % n + n) % n)]);
+    }
+
+    // Whether `id` is `ancestor` or below it.
+    [[nodiscard]] bool within(WidgetId id, WidgetId ancestor) const {
+        for (WidgetId cur = id; cur != 0;) {
+            if (cur == ancestor) return true;
+            auto it = parent_map_.find(cur);
+            cur = it == parent_map_.end() ? 0 : it->second;
         }
-        auto it = std::find(focus_order_.begin(), focus_order_.end(), focused_id_);
-        if (it == focus_order_.begin())
-            set_focused(focus_order_.back());
-        else
-            set_focused(*std::prev(it));
+        return false;
+    }
+
+    // The open popup whose content is widgets (ui::Popup), if any.
+    [[nodiscard]] const WidgetNode* open_content_popup() const {
+        auto it = index_.find(popup_owner_);
+        if (popup_owner_ == 0 || it == index_.end()) return nullptr;
+        return it->second->popup_builder && !it->second->children.empty() ? it->second : nullptr;
     }
 
     void mark_dirty_by_id(WidgetId id) { set_dirty(id); }
@@ -527,6 +543,7 @@ public:
         refresh_dirty(root_);
         materialize_all_virtual_lists(root_);
 
+        std::optional<PopupLayout> popup;   // the open popup's content, laid out by do_layout
         auto do_layout = [&] {
             LayoutNode layout;
             assert(root_.layout_kind != LayoutKind::Spacer);
@@ -549,6 +566,7 @@ public:
             layout_arrange(layout, {Point{X{0}, Y{0}}, Size{Width{w}, Height{h}}});
             update_scroll_state(layout);
             update_split_state(layout);
+            popup = layout_popup(layout, Size{Width{w}, Height{h}});
             return layout;
         };
 
@@ -575,6 +593,7 @@ public:
         }
 
         update_canvas_bounds(layout, Size{Width{w}, Height{h}});
+        if (popup) update_canvas_bounds(popup->content, Size{Width{w}, Height{h}});
         adopt_popup(root_);
 
         auto snap = std::make_unique<SceneSnapshot>();
@@ -582,6 +601,7 @@ public:
         snap->viewport = Size{Width{w}, Height{h}};
         layout_flatten(layout, *snap);
         resolve_clips(*snap);
+        if (popup) flatten_popup(*popup, *snap);
         if (highlight_id_) {
             for (auto& [id, rect] : snap->geometry) {
                 if (id == *highlight_id_) {
@@ -664,6 +684,7 @@ private:
         wn.theme = &theme_;
         wn.name = node.name;
         wn.tooltip = node.tooltip;
+        wn.popup_builder = node.popup_builder;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -1125,6 +1146,134 @@ private:
             unindex_subtree(c);
     }
 
+    // --- popups that hold widgets (doc/design/popup-content.md) ---
+
+    // Builds the content when the popup opens (focusing its first field, remembering what had
+    // the focus) and drops it when it closes (giving the focus back).
+    void materialize_popup(WidgetNode& node) {
+        bool built = !node.children.empty();
+        if (node.popup_content_open && !built) open_popup_content(node);
+        else if (!node.popup_content_open && built) close_popup_content(node);
+    }
+
+    void open_popup_content(WidgetNode& node) {
+        Node content;
+        content.id = next_id_++;
+        content.is_leaf = false;
+        content.layout_kind = LayoutKind::Column;
+        node.popup_builder(content);
+        auto wn = build_widget_node(content);
+        propagate_theme(wn);
+        connect_dirty(content, wn);
+        parent_map_[wn.id] = node.id;
+        node.children.push_back(std::move(wn));
+        build_index(node.children.back());
+        widget_detail::refresh_dirty(node.children.back());
+        node.focus_before_popup = focused_id_;
+        for (WidgetId id : focus_order_)
+            if (within(id, node.id)) {
+                set_focused(id);
+                break;
+            }
+    }
+
+    void close_popup_content(WidgetNode& node) {
+        for (auto& c : node.children) unindex_subtree(c);
+        node.children.clear();
+        node.popup_area.reset();
+        if (!index_.contains(focused_id_)) focused_id_ = 0;   // it was inside the popup
+        set_focused(std::exchange(node.focus_before_popup, 0));
+    }
+
+    struct PopupLayout {
+        WidgetNode* anchor;
+        LayoutNode content;
+        Rect card;   // window coordinates
+    };
+
+    static constexpr float popup_pad = 16.f;      // between the card's edge and its content
+    static constexpr float popup_margin = 24.f;   // kept free between the card and the window edge
+    static constexpr float popup_min_w = 320.f;
+
+    // The open popup's content, measured, given a card (a modal one centred, a non-modal one
+    // next to its anchor, both within the window) and arranged in it. Also sets the anchor's
+    // popup_area, which routing reads.
+    std::optional<PopupLayout> layout_popup(const LayoutNode& main, Size window) {
+        WidgetNode* anchor = find_open_popup(root_);
+        if (!anchor) return std::nullopt;
+        PopupLayout p{anchor, {}, {}};
+        auto& content_wn = anchor->children.front();
+        p.content.kind = LayoutNode::Kind::Column;
+        p.content.id = content_wn.id;
+        p.content.theme = &theme_;
+        for (auto& c : content_wn.children) build_layout(c, p.content);
+        layout_measure(p.content, LayoutAxis::Vertical);
+        float max_w = std::max(0.f, window.w.raw() - 2 * popup_margin);
+        float max_h = std::max(0.f, window.h.raw() - 2 * popup_margin);
+        Size size{Width{std::min(max_w, std::max(popup_min_w, p.content.hint.cross + 2 * popup_pad))},
+                  Height{std::min(max_h, p.content.hint.preferred + 2 * popup_pad)}};
+        Point at = anchor_origin(main, anchor->id);
+        p.card = anchor->popup_modal
+            ? Rect{Point{X{(window.w.raw() - size.w.raw()) / 2}, Y{(window.h.raw() - size.h.raw()) / 2}}, size}
+            : place_popup(size, Rect{at, Size{Width{0}, Height{0}}}, window);
+        layout_arrange(p.content, Rect{Point{p.card.origin.x + DX{popup_pad}, p.card.origin.y + DY{popup_pad}},
+                                       Size{size.w - Width{2 * popup_pad}, size.h - Height{2 * popup_pad}}});
+        update_scroll_state(p.content);
+        anchor->popup_area = Rect{Point{X{p.card.origin.x.raw() - at.x.raw()}, Y{p.card.origin.y.raw() - at.y.raw()}}, size};
+        return p;
+    }
+
+    static WidgetNode* find_open_popup(WidgetNode& node) {
+        if (node.popup_builder && !node.children.empty()) return &node;
+        for (auto& c : node.children)
+            if (auto* p = find_open_popup(c)) return p;
+        return nullptr;
+    }
+
+    static Point anchor_origin(const LayoutNode& node, WidgetId id) {
+        if (node.id == id) return node.allocated.origin;
+        for (auto& c : node.children) {
+            Point p = anchor_origin(c, id);
+            if (p.x.raw() != -1.f) return p;
+        }
+        return Point{X{-1.f}, Y{-1.f}};
+    }
+
+    // Into the overlay, which draws after and is hit-tested before the window's widgets:
+    // a scrim behind a modal popup, the card, then the content clipped to the card.
+    void flatten_popup(PopupLayout& p, SceneSnapshot& snap) {
+        if (p.anchor->popup_modal) snap.overlay.filled_rect(Rect{Point{X{0}, Y{0}}, snap.viewport}, theme_.scrim);
+        snap.overlay.rounded_rect(p.card, theme_.popup_bg, 8.f);
+        snap.overlay.rounded_rect(p.card, theme_.popup_border, 8.f, 1.f);
+        snap.overlay_geometry.push_back({p.anchor->id, p.card});   // the card's own background
+
+        SceneSnapshot content;
+        content.viewport = snap.viewport;
+        auto add = [&](WidgetId id, Rect r, DrawList dl) {
+            content.geometry.push_back({id, r});
+            content.draw_lists.push_back(std::make_shared<DrawList>(std::move(dl)));
+            content.z_order.push_back(static_cast<uint32_t>(content.geometry.size() - 1));
+        };
+        DrawList open_clip, close_clip;
+        open_clip.clip_push(p.card.origin, p.card.extent);
+        close_clip.clip_pop();
+        add(0, Rect{}, std::move(open_clip));
+        layout_flatten(p.content, content, p.card);
+        add(0, Rect{}, std::move(close_clip));
+        resolve_clips(content);   // nested clips (a scroll area) cut to the card
+
+        for (auto idx : content.z_order)
+            if (content.draw_lists[idx])
+                for (const auto& cmd : content.draw_lists[idx]->commands) snap.overlay.commands.push_back(cmd);
+        for (auto& [id, r] : content.geometry) {
+            Rect visible = p.card.intersect(r);
+            if (id != 0 && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
+                snap.overlay_geometry.push_back({id, visible});
+        }
+        for (const auto& cmd : content.overlay.commands) snap.overlay.commands.push_back(cmd);
+        for (auto& g : content.overlay_geometry) snap.overlay_geometry.push_back(g);
+    }
+
     void materialize_tabs(WidgetNode& node) {
         auto* ts = get_tabs_state_ptr(node);
         if (!ts || !ts->get_selected) return;
@@ -1359,6 +1508,7 @@ private:
     }
 
     void materialize_all_virtual_lists(WidgetNode& node) {
+        if (node.popup_builder) materialize_popup(node);
         if (node.layout_kind == LayoutKind::VirtualList)
             materialize_virtual_list(node);
         else if (node.layout_kind == LayoutKind::Table)

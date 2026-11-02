@@ -232,4 +232,24 @@ inline void Widget<Dialog>::handle_input(Field<Dialog>& field, const InputEvent&
     }
 }
 
+// --- Popup: its content is ordinary widgets the tree builds, lays out and draws; the widget only
+// says whether it should be open and closes itself on Escape. ---
+
+inline void Widget<Popup>::record(DrawList&, const Field<Popup>& field, WidgetNode& node) {
+    node.overlay_draws.clear();
+    node.popup_content_open = field.get().open;
+    node.popup_modal = field.get().modal;
+    if (!field.get().open) node.popup_area.reset();
+}
+
+inline void Widget<Popup>::handle_input(Field<Popup>& field, const InputEvent& ev, WidgetNode& node) {
+    auto* kp = std::get_if<KeyPress>(&ev);
+    if (!kp || kp->key != keys::escape || !field.get().open) return;
+    auto p = field.get();
+    p.open = false;
+    field.set(p);
+    node.popup_area.reset();
+    node.dirty = true;
+}
+
 } // namespace prism::ui

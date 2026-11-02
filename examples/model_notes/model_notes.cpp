@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 struct NotesApp {
     FileTreeSource source;
     ui::TreeController files{ui::wrap_tree_storage(source)};
-    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save", "Save &As…", "&Reload"}}};
+    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save", "Save &As…", "Re&name…", "&Reload"}}};
     core::Field<ui::Menu> search_menu{{.title = "&Search", .items = {"&Clear search"}}};
     core::Field<ui::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
     core::Field<ui::Dialog> discard{{.title = "Unsaved changes",
@@ -27,6 +27,10 @@ struct NotesApp {
     core::Field<ui::Button> reload{{"Reload"}};
     core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
     core::Field<ui::Label<>> status{{"No file open"}};
+    // File > Rename…: a popup holding a field and a button (ui::Popup)
+    core::Field<ui::Popup> rename_popup{{.open = false, .modal = true}};
+    core::Field<ui::TextField<>> new_name{{.placeholder = "New file name"}};
+    core::Field<ui::Button> rename_ok{{"Rename"}};
 
     fs::path current;
     fs::path pending_reload;   // the file the "Unsaved changes" dialog is about
@@ -47,6 +51,7 @@ struct NotesApp {
         wiring.push_back(search_menu.on_change().connect(on_choice));
         wiring.push_back(editor_menu.on_change().connect(on_choice));
         wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
+        wiring.push_back(rename_ok.on_change().connect([this](const auto&) { rename_current(); }));
         wiring.push_back(discard.on_change().connect([this](const ui::Dialog& d) {
             if (!d.open && d.chosen == 0 && !pending_reload.empty()) open(pending_reload);
         }));
@@ -58,6 +63,10 @@ struct NotesApp {
     void run(std::string_view command) {
         if (command == "Open…") ask_for_file(app::FileDialogKind::Open);
         else if (command == "Save As…") ask_for_file(app::FileDialogKind::Save);
+        else if (command == "Rename…" && !current.empty()) {
+            new_name.set({.value = current.filename().string(), .placeholder = new_name.get().placeholder});
+            rename_popup.set({.open = true, .modal = true});
+        }
         else if (command == "Save") write();
         else if (command == "Reload" && !current.empty()) confirm_reload();
         else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
@@ -79,6 +88,7 @@ struct NotesApp {
                 vb.widget(status);
                 vb.context_menu(editor_menu);
                 vb.dialog(discard);
+                vb.popup(rename_popup, [&](app::WidgetTree::ViewBuilder& p) { p.vstack(new_name, rename_ok); });
             });
         });
     }
@@ -116,6 +126,21 @@ struct NotesApp {
                 open(r.paths.front());
             }
         });
+    }
+
+    void rename_current() {
+        rename_popup.set({.open = false, .modal = true});
+        const auto& name = new_name.get().value;
+        if (current.empty() || name.empty() || name == current.filename().string()) return;
+        auto to = current.parent_path() / name;
+        std::error_code ec;
+        fs::rename(current, to, ec);
+        if (ec) error = "rename failed: " + ec.message();
+        else {
+            current = to;
+            error.clear();
+        }
+        refresh_status();
     }
 
     // Writes to `path` and makes it the current file -- only if the write succeeded.

@@ -284,6 +284,15 @@ struct Dialog {
     bool operator==(const Dialog&) const = default;
 };
 
+// A popup that holds widgets (doc/design/popup-content.md): `vb.popup(field, builder)` places
+// the builder's widgets in it. The app opens and closes it with `open`; Escape, or a press
+// outside a non-modal one, closes it. A modal one is centred and blocks the window behind it.
+struct Popup {
+    bool open = false;
+    bool modal = true;
+    bool operator==(const Popup&) const = default;
+};
+
 struct DialogEditState {
     std::size_t highlighted = 0;
     float scroll = 0.f;   // of a message taller than the window allows
@@ -810,6 +819,15 @@ struct Widget<ContextMenu> {
     static constexpr bool popup_anchor = true;
     static void record(DrawList& dl, const Field<ContextMenu>& field, WidgetNode& node);
     static void handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+template <>
+struct Widget<Popup> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr Role access_role = Role::Dialog;
+    static constexpr bool popup_anchor = true;
+    static void record(DrawList& dl, const Field<Popup>& field, WidgetNode& node);
+    static void handle_input(Field<Popup>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <>

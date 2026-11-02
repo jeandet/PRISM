@@ -178,6 +178,25 @@ public:
     // A modal dialog, shown when the app sets its `open` (see ui::Dialog).
     void dialog(Field<Dialog>& d) { widget(d); }
 
+    // A popup holding the widgets `content` places (see ui::Popup and
+    // doc/design/popup-content.md). They are built when the popup opens and dropped when it
+    // closes, so `content` runs again on each opening.
+    template <typename F>
+    void popup(Field<Popup>& state, F&& content) {
+        widget(state);
+        // Run once into a scratch node only to learn which fields the content places, so the
+        // unplaced-field check doesn't flag them; the real content is built on each opening.
+        Node scratch;
+        ViewBuilder probe{tree_, scratch};
+        content(probe);
+        placed_.insert(probe.placed().begin(), probe.placed().end());
+        current_parent().children.back().popup_builder =
+            [&tree = tree_, cb = std::forward<F>(content)](Node& target) mutable {
+                ViewBuilder vb{tree, target};
+                cb(vb);
+            };
+    }
+
     // Renders like widget(Field<T>&) but without focus/input wiring --
     // for prism::inspector's [[=prism::inspector::readonly]] annotation.
     template <typename T>

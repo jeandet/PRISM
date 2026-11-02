@@ -41,6 +41,11 @@ struct WidgetNode {
     // container's. viewport is in the widget's coordinates.
     struct InnerScroll { Rect viewport; Height content_h; DY offset; };
     std::optional<InnerScroll> inner_scroll;
+    // A popup holding widgets (ui::Popup): builds its content when it opens (the tree calls it
+    // with a column node to fill); `popup_content_open` is what the widget asks for.
+    std::function<void(Node&)> popup_builder;
+    bool popup_content_open = false;
+    WidgetId focus_before_popup = 0;   // given back when the popup closes
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
     bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)
     std::function<std::int32_t()> mnemonic_key;   // a menu title's Alt+key (0: none); read live

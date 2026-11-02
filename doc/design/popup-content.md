@@ -1,6 +1,8 @@
 # Popups that hold widgets
 
-**Status:** design (plan item P1 #5 in `doc/review-2026-11-02.md`). Builds on
+**Status:** implemented 2026-11-02 (plan item P1 #5 in `doc/review-2026-11-02.md`): `ui::Popup`,
+`ViewBuilder::popup`, `WidgetTree::layout_popup`/`flatten_popup`/`focus_ring`, routing in
+`app/event_routing.hpp`; `model_notes` uses it for File > Rename…. Builds on
 `doc/design/menus-and-dialogs.md`. Revised after an opencode challenge: a second layout pass and
 drawing in the normal geometry were dropped. Hit testing checks the overlay first (scrollbar
 thumbs live there), and a second pass would fight the per-widget draw cache.
@@ -25,7 +27,7 @@ struct Settings {
     Field<ui::Checkbox> dark{{.checked = false, .label = "Dark theme"}};
     Field<ui::Button> ok{{"OK"}};
     void view(app::WidgetTree::ViewBuilder& vb) {
-        vb.popup(prefs, [&] { vb.vstack(name, dark, ok); });
+        vb.popup(prefs, [&](app::WidgetTree::ViewBuilder& p) { p.vstack(name, dark, ok); });
     }
 };
 ```

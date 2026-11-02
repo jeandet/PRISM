@@ -360,6 +360,15 @@ core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
 // the answer arrives through ask.on_change(): d.chosen is the button, or empty on Escape.
 ```
 
+A popup can also hold ordinary widgets: a form, a list, a row of buttons. Focus moves into it
+when it opens, Tab stays inside, and it comes back when it closes:
+
+```cpp
+core::Field<ui::Popup> rename{{.open = false, .modal = true}};
+// in view(): vb.popup(rename, [&](auto& p) { p.vstack(new_name, ok); });
+// to open:   rename.set({.open = true, .modal = true});
+```
+
 <p align="center"><img src="doc/screenshots/dialog.svg" alt="Modal dialog" width="420"/></p>
 
 A tooltip shows when the pointer rests on a widget, and a click, key or scroll hides it; long
