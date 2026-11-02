@@ -9,12 +9,7 @@
 #include <chrono>
 #include <thread>
 
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
+using namespace prism;
 
 // The perf lab workload: a 1 kHz synthetic telemetry stream ingested through a
 // coalescing Shared<double> (intermediate samples are dropped by design), a 1M-point
@@ -22,12 +17,12 @@ using namespace ui; using namespace app; using namespace plot;
 // line at the bottom shows what that costs: present FPS, present/build times, dirty
 // counts, snapshot bytes, snapshot age.
 struct PerfLab {
-    prism::Shared<double> telemetry{};
+    core::Shared<double> telemetry{};
 
     perf_lab::RingBuffer ring;
     perf_lab::LabTable table;
-    prism::plot::PlotModel plot;
-    prism::Field<std::string> stats_line{"warming up"};
+    plot::PlotModel plot;
+    core::Field<std::string> stats_line{"warming up"};
 
     uint64_t tick_count = 0;
 
@@ -40,7 +35,7 @@ struct PerfLab {
         plot.y_label.set("value");
         // The series source reads the live ring buffer at record() time — added once,
         // never rebuilt; revision bumps drive re-recording.
-        plot.add_series(perf_lab::RingPlotSource{&ring}, prism::plot::SeriesStyle{});
+        plot.add_series(perf_lab::RingPlotSource{&ring}, plot::SeriesStyle{});
         // Pre-fill the ring to capacity: --points is the number of points the plot
         // RENDERS (the record() stress this lab exists to measure), not a capacity the
         // 1 kHz stream would need ~points/rate seconds to reach. Negative t = history.
@@ -59,7 +54,7 @@ struct PerfLab {
     }
 
     // Throttled to ~2 Hz; called from the perpetual AnimationClock callback in setup.
-    void update_stats(prism::AppContext& ctx, std::chrono::steady_clock::time_point now) {
+    void update_stats(app::AppContext& ctx, std::chrono::steady_clock::time_point now) {
         if (stats_window_at_ == std::chrono::steady_clock::time_point{}) {
             stats_window_at_ = now;
             return;
@@ -101,7 +96,7 @@ struct PerfLab {
         plot.notify();
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack([&] {
                 vb.table(table);
@@ -119,7 +114,7 @@ struct PerfLab {
 
 // Drift-free fixed-rate producer: posts the telemetry value at wall time t into the
 // coalescing Shared — the logic thread drains whatever is latest.
-static void produce_loop(std::stop_token st, prism::Shared<double>& out, double rate_hz) {
+static void produce_loop(std::stop_token st, core::Shared<double>& out, double rate_hz) {
     perf_lab::TelemetryGenerator gen;
     const auto t0 = std::chrono::steady_clock::now();
     const auto period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
@@ -152,16 +147,16 @@ int main(int argc, char* argv[]) {
     if (cfg->headless_seconds > 0) {
         auto lab_backend = std::make_unique<perf_lab::HeadlessLabBackend>(cfg->headless_seconds);
         auto* stats_source = lab_backend.get();
-        auto backend = prism::Backend{std::move(lab_backend)};
+        auto backend = app::Backend{std::move(lab_backend)};
         auto& window = backend.create_window({.title = "perf_lab", .width = 1280, .height = 800});
 
         std::jthread producer;
         const auto started = std::chrono::steady_clock::now();
-        prism::model_app(backend, window, app, [&](prism::AppContext& ctx) {
+        app::model_app(backend, window, app, [&](app::AppContext& ctx) {
             app.telemetry.observe([&app](const double& v) { app.ingest(v); });
             // Perpetual tick: keeps Shared<T> draining with zero input events (same
             // rationale as model_system_monitor's heartbeat callback).
-            ctx.clock().add([](prism::AnimationClock::time_point) { return true; });
+            ctx.clock().add([](ui::AnimationClock::time_point) { return true; });
             producer = std::jthread(produce_loop, std::ref(app.telemetry), cfg->rate_hz);
         });
         producer.request_stop();
@@ -186,10 +181,10 @@ int main(int argc, char* argv[]) {
     }
 
     std::jthread producer;
-    prism::model_app({.title = "PRISM Perf Lab", .width = 1280, .height = 800}, app,
-                     [&](prism::AppContext& ctx) {
+    app::model_app({.title = "PRISM Perf Lab", .width = 1280, .height = 800}, app,
+                     [&](app::AppContext& ctx) {
         app.telemetry.observe([&app](const double& v) { app.ingest(v); });
-        ctx.clock().add([&app, &ctx](prism::AnimationClock::time_point now) {
+        ctx.clock().add([&app, &ctx](ui::AnimationClock::time_point now) {
             app.update_stats(ctx, now);
             return true; // perpetual — also what keeps Shared<T> draining with zero input
         });

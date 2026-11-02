@@ -8,12 +8,7 @@
 #include <numbers>
 #include <thread>
 
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
+using namespace prism;
 
 #if __cpp_impl_reflection
 
@@ -40,44 +35,44 @@ struct SystemMonitor {
     // Background-thread ingest points. Never placed via vb.widget() -- they are read only
     // through .observe(), which fires during drain via the void drain() opt-in below. A
     // harmless "not placed by view()" debug-build warning is expected for these fields.
-    prism::Shared<SystemSample> sys_sample{};
-    prism::Shared<std::vector<ProcessInfo>> proc_list{};
+    core::Shared<SystemSample> sys_sample{};
+    core::Shared<std::vector<ProcessInfo>> proc_list{};
     // Ordered/lossless, unlike the two Shared<T> above: every process start/stop between two
     // drains must show up in the log, not just the latest one -- the reason this is a
     // Channel<T> rather than another Shared<T>.
-    prism::Channel<ProcessEvent> process_events{};
+    core::Channel<ProcessEvent> process_events{};
 
     History cpu_history;
     History mem_history;
     History net_history;
 
-    prism::plot::PlotGroup plot_group;
-    prism::plot::PlotPanel* cpu_plot = &plot_group.add_plot("CPU %");
-    prism::plot::PlotPanel* mem_plot = &plot_group.add_plot("Mem (MB)");
-    prism::plot::PlotPanel* net_plot = &plot_group.add_plot("Net (KB/s)");
+    plot::PlotGroup plot_group;
+    plot::PlotPanel* cpu_plot = &plot_group.add_plot("CPU %");
+    plot::PlotPanel* mem_plot = &plot_group.add_plot("Mem (MB)");
+    plot::PlotPanel* net_plot = &plot_group.add_plot("Net (KB/s)");
 
-    prism::List<ProcessInfo> table_rows;
+    core::List<ProcessInfo> table_rows;
     FlatProcessTreeSource tree_source;
-    prism::TreeController tree_ctrl{prism::wrap_tree_storage(tree_source)};
-    prism::Field<prism::TabBar<>> tabs;
+    ui::TreeController tree_ctrl{ui::wrap_tree_storage(tree_source)};
+    core::Field<ui::TabBar<>> tabs;
 
     static constexpr size_t max_event_log_lines = 200;
-    prism::List<std::string> event_log;
+    core::List<std::string> event_log;
 
-    prism::Field<float> heartbeat_phase{0.f};
+    core::Field<float> heartbeat_phase{0.f};
 
     SystemMonitor() { plot_group.x_tick_format = format_seconds_ago; }
 
-    static void rebuild_plot(prism::plot::PlotPanel& plot, const History& h, bool fill = false) {
+    static void rebuild_plot(plot::PlotPanel& plot, const History& h, bool fill = false) {
         std::vector<double> xs(h.values.size());
         std::vector<double> ys(h.values.begin(), h.values.end());
         double newest_index = static_cast<double>(xs.size()) - 1.0;
         for (size_t i = 0; i < xs.size(); ++i)
             xs[i] = (static_cast<double>(i) - newest_index) * History::sample_interval_seconds;
-        auto colors = prism::plot::default_series_colors(prism::default_theme());
+        auto colors = plot::default_series_colors(ui::default_theme());
         plot.clear_series();
-        plot.add_series(prism::plot::XYData{std::move(xs), std::move(ys)},
-                        prism::plot::SeriesStyle{colors[0], 2.f, fill, 0.0});
+        plot.add_series(plot::XYData{std::move(xs), std::move(ys)},
+                        plot::SeriesStyle{colors[0], 2.f, fill, 0.0});
         plot.notify();
     }
 
@@ -128,15 +123,15 @@ struct SystemMonitor {
         process_events.drain_notifications();
     }
 
-    void canvas(prism::DrawList& dl, prism::Rect bounds, const prism::WidgetNode& node) {
+    void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         auto& t = *node.theme;
         float size = 8.f + 4.f * std::sin(heartbeat_phase.get());
         dl.rounded_rect(
-            prism::Rect{bounds.origin, prism::Size{prism::Width{size}, prism::Height{size}}},
+            core::Rect{bounds.origin, core::Size{core::Width{size}, core::Height{size}}},
             t.accent_hover, size * 0.5f);
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             plot_group.view(vb);
             vb.handle();
@@ -144,17 +139,17 @@ struct SystemMonitor {
             // whole process view as one pane, not just with its first flat sibling.
             vb.vstack([&] {
                 vb.tabs(tabs, [&] {
-                    vb.tab("Table", [&](prism::WidgetTree::ViewBuilder& tvb) {
+                    vb.tab("Table", [&](app::WidgetTree::ViewBuilder& tvb) {
                         tvb.table(table_rows).sort(2, /*descending=*/true);  // CPU %
                     });
-                    vb.tab("Tree", [&](prism::WidgetTree::ViewBuilder& tvb) {
+                    vb.tab("Tree", [&](app::WidgetTree::ViewBuilder& tvb) {
                         tvb.tree(tree_ctrl);
                     });
-                    vb.tab("Events", [&](prism::WidgetTree::ViewBuilder& tvb) {
+                    vb.tab("Events", [&](app::WidgetTree::ViewBuilder& tvb) {
                         tvb.list(event_log);
                     });
                 });
-                vb.canvas(*this).depends_on(heartbeat_phase).min_size(prism::Height{24});
+                vb.canvas(*this).depends_on(heartbeat_phase).min_size(core::Height{24});
             });
         });
     }
@@ -171,10 +166,10 @@ int main(int argc, char* argv[]) {
     std::jthread sys_thread;
     std::jthread proc_thread;
 
-    prism::model_app({.title = "PRISM System Monitor", .width = 900, .height = 700,
-                       .decoration = prism::DecorationMode::Custom},
-                      app, [&](prism::AppContext& ctx) {
-        ctx.clock().add([&app](prism::AnimationClock::time_point now) {
+    app::model_app({.title = "PRISM System Monitor", .width = 900, .height = 700,
+                       .decoration = app::DecorationMode::Custom},
+                      app, [&](app::AppContext& ctx) {
+        ctx.clock().add([&app](ui::AnimationClock::time_point now) {
             double t = std::chrono::duration<double>(now.time_since_epoch()).count();
             // now.time_since_epoch() is steady_clock's time since boot, which on a machine
             // with real uptime is huge -- wrap into [0, 2pi) with fmod (double precision)

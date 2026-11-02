@@ -77,9 +77,9 @@ The `ProxyWidget` sentinel would look like:
 
 ```cpp
 struct MyApp {
-    prism::Field<prism::ProxyWidget> plots{/* ... */};
-    prism::Field<prism::ProxyWidget> viewport_3d{/* ... */};
-    prism::Field<prism::ProxyWidget> terminal{/* ... */};
+    core::Field<prism::ProxyWidget> plots{/* ... */};
+    core::Field<prism::ProxyWidget> viewport_3d{/* ... */};
+    core::Field<prism::ProxyWidget> terminal{/* ... */};
 };
 ```
 

@@ -9,7 +9,7 @@ Good first stop for the reactive `Field<T>` + `PlotModel` combination before the
 ## Overview
 
 `PlotDemo` holds a frequency slider, an amplitude slider, a "show cosine" checkbox, and a
-`prism::plot::PlotModel`. `update_data()` recomputes both series from the sliders' current
+`plot::PlotModel`. `update_data()` recomputes both series from the sliders' current
 values and pushes them into the plot; every control's `.observe()` callback just calls
 `update_data()` again. There's no manual redraw bookkeeping — placing the plot with `canvas()`
 and declaring which of its fields it `.depends_on(...)` is what tells PRISM to repaint it
@@ -21,20 +21,20 @@ whenever any of those fields change.
 
 ```cpp
 struct PlotDemo {
-    prism::Field<prism::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
-    prism::Field<prism::Slider<>> amplitude{{.value = 1.0, .min = 0.1, .max = 5.0}};
-    prism::Field<prism::Checkbox> show_cos{{.checked = false, .label = "Show cosine"}};
-    prism::plot::PlotModel plot;
+    core::Field<ui::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
+    core::Field<ui::Slider<>> amplitude{{.value = 1.0, .min = 0.1, .max = 5.0}};
+    core::Field<ui::Checkbox> show_cos{{.checked = false, .label = "Show cosine"}};
+    plot::PlotModel plot;
 
     void update_data() {
         double f = frequency.get().value;
         double a = amplitude.get().value;
         // ... sample xs/ys_sin/ys_cos over N points ...
         plot.clear_series();
-        plot.add_series(prism::plot::XYData{xs, ys_sin}, prism::plot::SeriesStyle{colors[0], 2.f});
+        plot.add_series(plot::XYData{xs, ys_sin}, plot::SeriesStyle{colors[0], 2.f});
         if (show_cos.get().checked) {
-            plot.add_series(prism::plot::XYData{std::move(xs), std::move(ys_cos)},
-                            prism::plot::SeriesStyle{colors[2], 2.f});
+            plot.add_series(plot::XYData{std::move(xs), std::move(ys_cos)},
+                            plot::SeriesStyle{colors[2], 2.f});
         }
         plot.notify();
     }
@@ -49,7 +49,7 @@ next step hooks into.
 through the canvas escape hatch) and declares every field a repaint should react to:
 
 ```cpp
-void view(prism::WidgetTree::ViewBuilder& vb) {
+void view(app::WidgetTree::ViewBuilder& vb) {
     vb.canvas(plot)
         .depends_on(plot.x_range)
         .depends_on(plot.y_range)
@@ -72,15 +72,15 @@ canvas repaints.
 ```cpp
 demo.update_data();   // seed the very first frame — see "Headless capture" below
 
-auto setup = [&](prism::AppContext&) {
-    demo.frequency.observe([&](const prism::Slider<>&) { demo.update_data(); });
-    demo.amplitude.observe([&](const prism::Slider<>&) { demo.update_data(); });
-    demo.show_cos.observe([&](const prism::Checkbox&) { demo.update_data(); });
+auto setup = [&](app::AppContext&) {
+    demo.frequency.observe([&](const ui::Slider<>&) { demo.update_data(); });
+    demo.amplitude.observe([&](const ui::Slider<>&) { demo.update_data(); });
+    demo.show_cos.observe([&](const ui::Checkbox&) { demo.update_data(); });
 };
 ```
 
 `.observe()` is fire-and-forget — no `Connection` to store or manage, unlike the
-`.on_change() | prism::on(sched) | prism::then(...)` pipeline `model_dashboard` uses when it
+`.on_change() | core::on(sched) | core::then(...)` pipeline `model_dashboard` uses when it
 needs to run on a specific scheduler.
 
 **Headless capture.** Calling `demo.update_data()` *before* `model_app()` runs at all (rather
@@ -92,7 +92,7 @@ curves.
 ## Key concepts
 
 - `canvas()` + `.depends_on(...)` — the escape hatch for drawing an object that isn't itself a `Widget<T>`, repainting only when its declared dependencies change. See the root README's [Canvas escape hatch](../../README.md#canvas-escape-hatch) section.
-- `Field<T>::observe()` — fire-and-forget reactive callback; no `Connection` to store or disconnect, unlike `.on_change() | prism::on(sched) | prism::then(...)`.
+- `Field<T>::observe()` — fire-and-forget reactive callback; no `Connection` to store or disconnect, unlike `.on_change() | core::on(sched) | core::then(...)`.
 - `PlotModel` — per-axis zoom/pan/crosshair state, driven entirely through `Field<T>` members.
 
 ## Building and running

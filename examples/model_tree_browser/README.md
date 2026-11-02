@@ -11,13 +11,13 @@ happens in a static screenshot.)*
 
 ## Overview
 
-PRISM's tree widget (`prism::TreeController` + `vb.tree(...)`) has three tiers for supplying
+PRISM's tree widget (`ui::TreeController` + `vb.tree(...)`) has three tiers for supplying
 data, from richest-supported to most manual:
 
 1. **Tier 3** — a reflectable struct tree, no adapter code at all.
 2. **Tier 2** — hand-implement the `TreeStorage` concept over data that isn't a struct (a
    filesystem, a database, any existing model). **This example.**
-3. **Tier 1** — build a `prism::ui::TreeSource` (the underlying `std::function`-based vtable)
+3. **Tier 1** — build a `ui::TreeSource` (the underlying `std::function`-based vtable)
    directly, for the most control.
 
 A filesystem is the canonical case for Tier 2: directories don't know their children ahead of
@@ -37,8 +37,8 @@ public:
     }
 
     size_t root_count() const { return 1; }
-    prism::ui::TreeNodeId root_at(size_t) const { return path_id(root_); }
-    size_t child_count(prism::ui::TreeNodeId id) const { return children_of(id).size(); }
+    ui::TreeNodeId root_at(size_t) const { return path_id(root_); }
+    size_t child_count(ui::TreeNodeId id) const { return children_of(id).size(); }
     ...
 };
 ```
@@ -52,7 +52,7 @@ of the path (`path_id()`), with a `by_id_` map on the side to recover the actual
 last-modified time — shown whenever a row is selected:
 
 ```cpp
-std::vector<std::pair<std::string, std::string>> attributes(prism::ui::TreeNodeId id) const {
+std::vector<std::pair<std::string, std::string>> attributes(ui::TreeNodeId id) const {
     ...
     attrs.emplace_back("type", is_dir ? "directory" : "file");
     if (is_dir) attrs.emplace_back("entries", fmt::to_string(children_of(id).size()));
@@ -68,9 +68,9 @@ std::vector<std::pair<std::string, std::string>> attributes(prism::ui::TreeNodeI
 ```cpp
 struct BrowserModel {
     FileTreeSource source;
-    prism::TreeController ctrl{prism::wrap_tree_storage(source)};
+    ui::TreeController ctrl{ui::wrap_tree_storage(source)};
 
-    void view(prism::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
 };
 ```
 

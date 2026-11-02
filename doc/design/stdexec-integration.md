@@ -37,26 +37,26 @@ This replaces the previous manual `atomic_wait` + `input_pending` + `mpsc_queue`
 
 ## Implemented
 
-### Pipe Composition (`prism::then`)
+### Pipe Composition (`core::then`)
 
-`SenderHub` supports pipe syntax via `prism::then`. This is NOT a P2300 sender — it's syntactic sugar over `.connect()`:
+`SenderHub` supports pipe syntax via `core::then`. This is NOT a P2300 sender — it's syntactic sugar over `.connect()`:
 
 ```cpp
 // These are equivalent:
 auto conn = field.on_change().connect([](const T& val) { /* ... */ });
-auto conn = field.on_change() | prism::then([](const T& val) { /* ... */ });
+auto conn = field.on_change() | core::then([](const T& val) { /* ... */ });
 ```
 
 Defined in `include/prism/core/connection.hpp`. Returns `[[nodiscard]] Connection` (RAII).
 
-### Scheduler Adaptor (`prism::on`)
+### Scheduler Adaptor (`core::on`)
 
-`prism::on(scheduler)` wraps the downstream callback to execute on a specific scheduler's thread:
+`core::on(scheduler)` wraps the downstream callback to execute on a specific scheduler's thread:
 
 ```cpp
 auto conn = field.on_change()
-          | prism::on(sched)
-          | prism::then([&](const T& val) { /* runs on scheduler thread */ });
+          | core::on(sched)
+          | core::then([&](const T& val) { /* runs on scheduler thread */ });
 ```
 
 Defined in `include/prism/core/on.hpp`. Uses `exec::start_detached(schedule(sched) | then(...))` internally.
@@ -66,17 +66,17 @@ Defined in `include/prism/core/on.hpp`. Uses `exec::start_detached(schedule(sche
 `model_app()` accepts an optional setup callback that receives an `AppContext`:
 
 ```cpp
-prism::model_app("Dashboard", dashboard, [&](prism::AppContext& ctx) {
+app::model_app("Dashboard", dashboard, [&](app::AppContext& ctx) {
     auto sched = ctx.scheduler();
     dashboard.search.on_change()
-        | prism::on(sched)
-        | prism::then([&](auto& q) { filter(dashboard.tasks, q); });
+        | core::on(sched)
+        | core::then([&](auto& q) { filter(dashboard.tasks, q); });
 });
 ```
 
 ### All Event Loops Migrated
 
-`model_app`, `App::run()`, and `prism::app<State>()` all use `run_loop`. No manual `atomic_wait` / `mpsc_queue` drain loops remain.
+`model_app`, `App::run()`, and `app<State>()` all use `run_loop`. No manual `atomic_wait` / `mpsc_queue` drain loops remain.
 
 ## Roadmap
 
@@ -86,10 +86,10 @@ Add an `io_scheduler` for background work, composable with the app scheduler:
 
 ```cpp
 field.on_change()
-    | prism::on(io_scheduler)
-    | prism::then([](const std::string& path) { return load_file(path); })
-    | prism::on(app_scheduler)
-    | prism::then([&](auto data) { result.set(std::move(data)); });
+    | core::on(io_scheduler)
+    | core::then([](const std::string& path) { return load_file(path); })
+    | core::on(app_scheduler)
+    | core::then([&](auto data) { result.set(std::move(data)); });
 ```
 
 ## Design Decisions
@@ -117,5 +117,5 @@ stdexec's constexpr-exceptions code path uses an incomplete type (`completion_si
 ## Open Questions
 
 - Should the app scheduler be a `run_loop` or a custom scheduler with batching (process all pending events, then publish once)?
-- Should `Field<T>` pipe syntax be `prism::then` or `stdexec::then` with a custom sender adapter?
+- Should `Field<T>` pipe syntax be `core::then` or `stdexec::then` with a custom sender adapter?
 - How does `run_loop::finish()` interact with pending scheduled work during shutdown? (Currently: unprocessed items are dropped.)

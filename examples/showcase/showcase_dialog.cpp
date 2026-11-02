@@ -1,14 +1,16 @@
 #include "showcase_common.hpp"
 
+using namespace prism;
+
 struct DialogShowcase {
-    prism::Field<prism::Menu> file{{.title = "File", .items = {"Save", "Reload"}}};
-    prism::Field<prism::Label<>> text{{"Some edited text..."}};
-    prism::Field<prism::Dialog> ask{{.title = "Unsaved changes",
+    core::Field<ui::Menu> file{{.title = "File", .items = {"Save", "Reload"}}};
+    core::Field<ui::Label<>> text{{"Some edited text..."}};
+    core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
                                      .message = "Reloading discards your edits.",
                                      .buttons = {"Discard", "Cancel"},
                                      .open = true}};
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.widget(file);
             vb.widget(text);

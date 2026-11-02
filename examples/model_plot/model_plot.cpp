@@ -5,20 +5,14 @@
 #include <cmath>
 #include <numbers>
 #include <vector>
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
 
-
+using namespace prism;
 
 struct PlotDemo {
-    prism::Field<prism::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
-    prism::Field<prism::Slider<>> amplitude{{.value = 1.0, .min = 0.1, .max = 5.0}};
-    prism::Field<prism::Checkbox> show_cos{{.checked = false, .label = "Show cosine"}};
-    prism::plot::PlotModel plot;
+    core::Field<ui::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
+    core::Field<ui::Slider<>> amplitude{{.value = 1.0, .min = 0.1, .max = 5.0}};
+    core::Field<ui::Checkbox> show_cos{{.checked = false, .label = "Show cosine"}};
+    plot::PlotModel plot;
 
     void update_data()
     {
@@ -34,21 +28,21 @@ struct PlotDemo {
             ys_cos[i] = a * std::cos(f * t);
         }
 
-        auto colors = prism::plot::default_series_colors(prism::default_theme());
+        auto colors = plot::default_series_colors(ui::default_theme());
 
         plot.clear_series();
-        plot.add_series(prism::plot::XYData{xs, ys_sin},
-                        prism::plot::SeriesStyle{colors[0], 2.f});
+        plot.add_series(plot::XYData{xs, ys_sin},
+                        plot::SeriesStyle{colors[0], 2.f});
         if (show_cos.get().checked) {
-            plot.add_series(prism::plot::XYData{std::move(xs), std::move(ys_cos)},
-                            prism::plot::SeriesStyle{colors[2], 2.f});
+            plot.add_series(plot::XYData{std::move(xs), std::move(ys_cos)},
+                            plot::SeriesStyle{colors[2], 2.f});
         }
         plot.x_label.set("Time (rad)");
         plot.y_label.set("Amplitude");
         plot.notify();
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb)
+    void view(app::WidgetTree::ViewBuilder& vb)
     {
         vb.canvas(plot)
             .depends_on(plot.x_range)
@@ -67,17 +61,17 @@ int main(int argc, char* argv[])
     PlotDemo demo;
     demo.update_data();
 
-    auto setup = [&](prism::AppContext& /*ctx*/) {
-        demo.frequency.observe([&](const prism::Slider<>&) { demo.update_data(); });
-        demo.amplitude.observe([&](const prism::Slider<>&) { demo.update_data(); });
-        demo.show_cos.observe([&](const prism::Checkbox&) { demo.update_data(); });
+    auto setup = [&](app::AppContext& /*ctx*/) {
+        demo.frequency.observe([&](const ui::Slider<>&) { demo.update_data(); });
+        demo.amplitude.observe([&](const ui::Slider<>&) { demo.update_data(); });
+        demo.show_cos.observe([&](const ui::Checkbox&) { demo.update_data(); });
     };
 
     if (argc >= 2) {
-        return showcase(argc, argv, demo, 800, 600, std::function<void(prism::AppContext&)>(setup));
+        return showcase(argc, argv, demo, 800, 600, std::function<void(app::AppContext&)>(setup));
     }
 
-    prism::model_app({.title = "Plot Demo", .width = 800, .height = 600,
-                       .decoration = prism::DecorationMode::Custom},
+    app::model_app({.title = "Plot Demo", .width = 800, .height = 600,
+                       .decoration = app::DecorationMode::Custom},
                      demo, setup);
 }

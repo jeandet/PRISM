@@ -20,13 +20,16 @@
 > PRISM is an R&D project. Nothing here is production-ready yet.
 
 ```cpp
+#include <prism/prism.hpp>
+using namespace prism;   // the snippets below assume it: names read core::Field, ui::Slider, app::model_app
+
 struct Counter {
-    prism::Field<int> count{42};
-    prism::Field<std::string> label{"Hello, PRISM!"};
+    core::Field<int> count{42};
+    core::Field<std::string> label{"Hello, PRISM!"};
 };
 
 Counter counter;
-prism::model_app("My App", counter);   // C++26 reflection builds the UI
+app::model_app("My App", counter);   // C++26 reflection builds the UI
 ```
 
 <p align="center"><img src="doc/screenshots/counter.svg" alt="Counter app" width="400"/></p>
@@ -110,7 +113,7 @@ headlessly and exported as SVG (`scripts/update_screenshots.sh`).
 On C++23, or on Clang and WebAssembly, add a `view()` method. Same result:
 
 ```cpp
-void view(prism::WidgetTree::ViewBuilder& vb) { vb.vstack(count, label); }
+void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(count, label); }
 ```
 
 ### The field type picks the widget
@@ -119,9 +122,9 @@ No registration. The type inside `Field<T>` decides:
 
 ```cpp
 struct AudioMixer {
-    prism::Field<prism::Slider<>> volume{{.value = 0.75, .min = 0.0, .max = 1.0}};
-    prism::Field<prism::Slider<int>> quality{{.value = 3, .min = 1, .max = 5, .step = 1}};
-    prism::Field<prism::Checkbox> mute{{.checked = false, .label = "Mute"}};
+    core::Field<ui::Slider<>> volume{{.value = 0.75, .min = 0.0, .max = 1.0}};
+    core::Field<ui::Slider<int>> quality{{.value = 3, .min = 1, .max = 5, .step = 1}};
+    core::Field<ui::Checkbox> mute{{.checked = false, .label = "Mute"}};
 };
 ```
 
@@ -134,21 +137,21 @@ struct AudioMixer {
 enum class Theme { Light, Dark, System };
 
 struct Editor {
-    prism::Field<std::string>         title{""};                                    // read-only text
-    prism::Field<prism::Label<>>      status{{"OK"}};                               // read-only label
-    prism::Field<prism::TextField<>>  search{{.placeholder = "Search..."}};         // editable text
-    prism::Field<prism::Password<>>   secret{{.placeholder = "API key"}};           // masked input
-    prism::Field<prism::Slider<>>     volume{{.value = 0.8}};                       // continuous slider
-    prism::Field<prism::Slider<int>>  quality{{.value = 3, .min = 1,
+    core::Field<std::string>         title{""};                                    // read-only text
+    core::Field<ui::Label<>>      status{{"OK"}};                               // read-only label
+    core::Field<ui::TextField<>>  search{{.placeholder = "Search..."}};         // editable text
+    core::Field<ui::Password<>>   secret{{.placeholder = "API key"}};           // masked input
+    core::Field<ui::Slider<>>     volume{{.value = 0.8}};                       // continuous slider
+    core::Field<ui::Slider<int>>  quality{{.value = 3, .min = 1,
                                                .max = 5, .step = 1}};               // discrete slider
-    prism::Field<prism::Button>       save{{"Save"}};                               // button
-    prism::Field<bool>                dark_mode{true};                              // checkbox
-    prism::Field<prism::Checkbox>     notify{{.checked = true, .label = "Enable"}}; // labelled checkbox
-    prism::Field<Theme>               theme{Theme::Dark};                           // dropdown, from the enum
-    prism::Field<prism::Radio<Theme>> look{{Theme::Dark}};                          // the same enum, as radio buttons
-    prism::Field<prism::RadioGroup>   units{{.options = {"Metric", "Imperial"}}};   // radio buttons, from strings
-    prism::Field<prism::SpinBox<int>> copies{{.value = 1, .min = 1, .max = 99}};    // number with steppers
-    prism::Field<prism::ProgressBar>  done{{.value = 0.4, .label = "Exporting"}};   // progress, display only
+    core::Field<ui::Button>       save{{"Save"}};                               // button
+    core::Field<bool>                dark_mode{true};                              // checkbox
+    core::Field<ui::Checkbox>     notify{{.checked = true, .label = "Enable"}}; // labelled checkbox
+    core::Field<Theme>               theme{Theme::Dark};                           // dropdown, from the enum
+    core::Field<ui::Radio<Theme>> look{{Theme::Dark}};                          // the same enum, as radio buttons
+    core::Field<ui::RadioGroup>   units{{.options = {"Metric", "Imperial"}}};   // radio buttons, from strings
+    core::Field<ui::SpinBox<int>> copies{{.value = 1, .min = 1, .max = 99}};    // number with steppers
+    core::Field<ui::ProgressBar>  done{{.value = 0.4, .label = "Exporting"}};   // progress, display only
 };
 ```
 
@@ -165,16 +168,16 @@ Models are plain structs. Nest them. No inheritance, no macros:
 
 ```cpp
 struct Settings {
-    prism::Field<std::string> username{"jeandet"};
-    prism::Field<bool> dark_mode{true};
+    core::Field<std::string> username{"jeandet"};
+    core::Field<bool> dark_mode{true};
 };
 
 struct Dashboard {
     Settings settings;                      // nested group, reflection recurses into it
-    prism::Field<prism::Slider<>> brightness{{.value = 0.6, .min = 0.0, .max = 1.0}};
-    prism::Field<prism::Button> apply{{"Apply"}};
+    core::Field<ui::Slider<>> brightness{{.value = 0.6, .min = 0.0, .max = 1.0}};
+    core::Field<ui::Button> apply{{"Apply"}};
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {   // optional: only for a custom layout
+    void view(app::WidgetTree::ViewBuilder& vb) {   // optional: only for a custom layout
         vb.vstack([&] {
             vb.component(settings);
             vb.hstack(brightness, apply);
@@ -193,20 +196,20 @@ Drop to raw drawing when you need it:
 
 ```cpp
 struct Waveform {
-    prism::Field<prism::Slider<>> frequency{{.value = 3.0, .min = 0.5, .max = 8.0}};
+    core::Field<ui::Slider<>> frequency{{.value = 3.0, .min = 0.5, .max = 8.0}};
 
-    void canvas(prism::DrawList& dl, prism::Rect bounds, const prism::WidgetNode& node) {
+    void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         // polylines, shapes, theme colors...
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.canvas(*this).depends_on(frequency);   // repaint only when frequency changes
         vb.widget(frequency);
     }
 };
 ```
 
-Canvases can also draw images: `dl.image(img, rect)` with `prism::Image::from_rgba(w, h, pixels)`.
+Canvases can also draw images: `dl.image(img, rect)` with `render::Image::from_rgba(w, h, pixels)`.
 
 <p align="center"><img src="doc/screenshots/canvas.svg" alt="Canvas" width="400"/></p>
 
@@ -216,9 +219,9 @@ Scientific plots with zoom, pan, crosshair, stacking and decimation for large se
 
 ```cpp
 struct PlotShowcase {
-    prism::plot::PlotModel plot;   // add XYData series to it
+    plot::PlotModel plot;   // add XYData series to it
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.canvas(plot)
             .depends_on(plot.x_range).depends_on(plot.y_range)
             .depends_on(plot.view).depends_on(plot.cursor)
@@ -237,14 +240,14 @@ struct PlotShowcase {
 
 ```cpp
 struct Reading {
-    prism::Field<std::string> sensor{""};
-    prism::Field<double> value{0.0};
+    core::Field<std::string> sensor{""};
+    core::Field<double> value{0.0};
 };
 
 struct TableShowcase {
-    prism::List<Reading> readings;
+    core::List<Reading> readings;
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.table(readings).headers({"Sensor", "Value"}).sort(1, /*descending=*/true);
     }
 };
@@ -263,9 +266,9 @@ struct Device  { std::string name = "Controller";
 
 struct TreeShowcase {
     Device device;
-    prism::TreeController ctrl{prism::wrap_struct_tree(device)};
+    ui::TreeController ctrl{ui::wrap_struct_tree(device)};
 
-    void view(prism::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
 };
 ```
 
@@ -276,7 +279,7 @@ struct TreeShowcase {
 <td>
 
 ```cpp
-void view(prism::WidgetTree::ViewBuilder& vb) {
+void view(app::WidgetTree::ViewBuilder& vb) {
     vb.tabs(tabs, [&] {
         vb.tab("Account", [&](auto& tvb) {
             tvb.vstack(username, dark_mode);
@@ -318,11 +321,11 @@ their text width, text fields fill the row.
 
 ```cpp
 struct Editor {
-    prism::Field<prism::Menu> file{{.title = "File", .items = {"Open", "Save", "Quit"}}};
-    prism::Field<prism::TextField<>> find{{.placeholder = "Find..."}};
-    prism::Field<prism::TextArea<>> body{{.rows = 20}};
+    core::Field<ui::Menu> file{{.title = "File", .items = {"Open", "Save", "Quit"}}};
+    core::Field<ui::TextField<>> find{{.placeholder = "Find..."}};
+    core::Field<ui::TextArea<>> body{{.rows = 20}};
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack(file, find);
             vb.widget(body);
@@ -331,7 +334,7 @@ struct Editor {
 };
 
 Editor editor;
-auto on_menu = editor.file.on_change().connect([](const prism::Menu& m) {
+auto on_menu = editor.file.on_change().connect([](const ui::Menu& m) {
     if (m.chosen == 1) { /* save */ }
 });
 ```
@@ -344,8 +347,8 @@ A right-click menu belongs to the container it is declared in, and a modal dialo
 the app opens:
 
 ```cpp
-prism::Field<prism::ContextMenu> actions{{.items = {"Copy", "Paste"}}};
-prism::Field<prism::Dialog> ask{{.title = "Unsaved changes",
+core::Field<ui::ContextMenu> actions{{.items = {"Copy", "Paste"}}};
+core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
                                  .message = "Reloading discards your edits.",
                                  .buttons = {"Discard", "Cancel"}}};
 // in view(): vb.context_menu(actions); vb.dialog(ask);
@@ -373,9 +376,9 @@ struct DeviceState {
     bool enabled = true;
 };
 
-prism::Shared<DeviceState> device_state{DeviceState{}};   // updated by some other thread
-prism::inspector::Inspector<DeviceState> inspector(device_state);
-prism::model_app("Device Control", inspector);            // or embed it with vb.component()
+core::Shared<DeviceState> device_state{DeviceState{}};   // updated by some other thread
+inspector::Inspector<DeviceState> inspector(device_state);
+app::model_app("Device Control", inspector);            // or embed it with vb.component()
 ```
 
 <p align="center"><img src="doc/screenshots/inspector.svg" alt="Inspector" width="300"/></p>
@@ -384,10 +387,10 @@ C++26 annotations tune individual fields without changing their type:
 
 ```cpp
 struct Settings {
-    [[=prism::inspector::skip]]                  int internal_version;   // hidden
-    [[=prism::inspector::readonly]]              std::string device_id;  // shown, not editable
-    [[=prism::inspector::label<"Sample Rate">]]  int sample_rate;        // custom caption
-    [[=prism::inspector::section<"Audio">]]      float volume;           // header row above
+    [[=inspector::skip]]                  int internal_version;   // hidden
+    [[=inspector::readonly]]              std::string device_id;  // shown, not editable
+    [[=inspector::label<"Sample Rate">]]  int sample_rate;        // custom caption
+    [[=inspector::section<"Audio">]]      float volume;           // header row above
 };
 ```
 
@@ -412,7 +415,7 @@ its text-heavy counterpart: a small editor with a file tree, search, a File menu
 | `Channel<T>` | every value, in order | no | **any thread** | event streams where nothing may be lost |
 
 ```cpp
-prism::Derived<double> total{[&]{ return price.get() * quantity.get(); }, price, quantity};
+core::Derived<double> total{[&]{ return price.get() * quantity.get(); }, price, quantity};
 
 auto conn = price.on_change().connect([](const double& p) { /* ... */ });   // RAII handle
 
@@ -430,7 +433,7 @@ A few rules worth knowing:
 - Other threads talk to it through `Shared<T>::set()`, `Channel<T>::send()` or a posted closure.
 - A `Shared<T>::set()` or `Channel<T>::send()` wakes an idle app. Members the widget tree sees are
   wired automatically; for others, call `member.set_waker(ctx.waker())` in the setup.
-- An exception in a callback goes to `prism::core::set_unhandled_error_handler` and never stops the loop.
+- An exception in a callback goes to `core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
 
 ## Python SDK
@@ -522,7 +525,7 @@ meson test -C builddir
 | Feature | Used for | Required |
 |---|---|---|
 | Static reflection (P2996) | UI generated from structs | no, `view()` is the fallback |
-| `std::execution` (P2300) | `run_loop` event loop, `prism::then` / `prism::on` adaptors | yes, via stdexec |
+| `std::execution` (P2300) | `run_loop` event loop, `core::then` / `core::on` adaptors | yes, via stdexec |
 | Concepts | widget resolution, strong geometry types | yes |
 | `std::expected` | fallible APIs, no exceptions at the boundary | yes |
 | Designated initialisers | named-parameter widget construction | yes |
@@ -534,15 +537,15 @@ meson test -C builddir
 
 | Entry point | You get | Example |
 |---|---|---|
-| `prism::model_app(title, model)` | UI from your model structs (the main API) | most of [`examples/`](examples/) |
-| `prism::app<State>(title, state, view, update)` | manual `row()` / `column()` layout | [`hello_rect`](examples/hello_rect/) |
-| `prism::App` + `Frame` | a raw `DrawList`, nothing else | |
+| `app::model_app(title, model)` | UI from your model structs (the main API) | most of [`examples/`](examples/) |
+| `app<State>(title, state, view, update)` | manual `row()` / `column()` layout | [`hello_rect`](examples/hello_rect/) |
+| `app::App` + `Frame` | a raw `DrawList`, nothing else | |
 
 All three take a `WindowConfig`. Its `decoration` picks the window chrome:
 
 ```cpp
-prism::model_app({.title = "My App", .width = 900, .height = 600,
-                  .decoration = prism::DecorationMode::Custom}, dashboard);
+app::model_app({.title = "My App", .width = 900, .height = 600,
+                  .decoration = app::DecorationMode::Custom}, dashboard);
 ```
 
 - `Custom` (default): PRISM draws the title bar and resize edges. Looks the same everywhere, including Wayland.
@@ -561,9 +564,9 @@ PRISM_RENDERER=webgpu ./builddir/examples/model_notes/model_notes
 ```
 
 ```cpp
-auto backend = prism::Backend::software({.renderer = prism::Renderer::WebGpu});
+auto backend = app::Backend::software({.renderer = app::Renderer::WebGpu});
 auto& window = backend.create_window({.title = "Notes"});
-prism::model_app(backend, window, notes);
+app::model_app(backend, window, notes);
 ```
 
 Windows, input and the clipboard stay SDL's; only the drawing changes. Without a GPU, Mesa's
@@ -603,7 +606,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 1**: DrawList, SceneSnapshot, SDL3 backend, event-driven loop.
 - **Phase 2**: layout engine, hit testing, `Connection`/`SenderHub`, `Field<T>`, `List<T>`, P2996 reflection, `WidgetTree`, `model_app()`.
 - **Phase 3**: widget dispatch, SDL_Renderer + SDL3_ttf, all basic widgets, overlays and popups, keyboard focus, `view()` override, `canvas()`, strong coordinate types.
-- **Phase 3.5**: stdexec `run_loop` event loops, `prism::then`/`prism::on`, `AppContext`.
+- **Phase 3.5**: stdexec `run_loop` event loops, `core::then`/`core::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
 - **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus and modal dialogs, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes and progress bars; pixel tests through SDL. Plan and status: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md).

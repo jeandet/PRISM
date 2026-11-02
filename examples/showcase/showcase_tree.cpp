@@ -3,6 +3,8 @@
 #if __cpp_impl_reflection
 #include <prism/ui/tree.hpp>
 
+using namespace prism;
+
 struct Sensors {
     float battery_v = 3.7f;
     float bus_v = 12.1f;
@@ -16,14 +18,14 @@ struct Device {
 
 struct TreeShowcase {
     Device device;
-    prism::TreeController ctrl{prism::wrap_struct_tree(device)};
+    ui::TreeController ctrl{ui::wrap_struct_tree(device)};
 
     TreeShowcase() {
         ctrl.on_row_clicked(0, ctrl.rows[0]); // expand root
         ctrl.on_row_clicked(1, ctrl.rows[1]); // expand "sensors"
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
 };
 
 int main(int argc, char* argv[]) {

@@ -61,10 +61,10 @@ graph TB
 | [layout engine](../../docs/superpowers/specs/2026-03-27-layout-hit-regions-design.md) | row/column/spacer, two-pass layout solver, hit testing | **Implemented** |
 | [field/sender/widget](../../docs/superpowers/specs/2026-03-27-field-sender-widget-design.md) | Field<T>, SenderHub, WidgetTree, model_app() | **Implemented** |
 | [input routing](../../docs/superpowers/specs/2026-03-27-input-routing-design.md) | hit_test → dispatch → on_input SenderHub → field mutation | **Implemented** |
-| [app-facade.md](app-facade.md) | `prism::app<State>()` + `Ui<State>` retained entry point | **Implemented** — secondary API |
+| [app-facade.md](app-facade.md) | `app<State>()` + `Ui<State>` retained entry point | **Implemented** — secondary API |
 | [styling.md](styling.md) | Theme as data, context propagation, per-instance overrides | **Partial** — `Theme`/`Context` implemented (`ui/context.hpp`); per-widget style structs and overrides not yet |
 | [widgets-and-sentinels.md](widgets-and-sentinels.md) | Widget<T> + WidgetVisualState, all sentinels (Label/Slider/Button/Checkbox/TextField/Password/TextArea/Dropdown), overlay system | **Implemented** |
-| [stdexec integration](stdexec-integration.md) | run_loop event loops, prism::then/on pipe adaptors, AppContext | **Implemented** |
+| [stdexec integration](stdexec-integration.md) | run_loop event loops, core::then/on pipe adaptors, AppContext | **Implemented** |
 | [canvas escape hatch](../../docs/superpowers/specs/2026-03-29-canvas-escape-hatch-design.md) | `vb.canvas(model)` — custom DrawList rendering in expandable area | **Implemented** |
 | [dynamic-node-tree.md](dynamic-node-tree.md) | Node intermediate layer, vstack/hstack variadic API, pre-C++26 support | **Implemented** (public API for runtime tree mutation: future) |
 | widget-tree (`widget_tree.hpp` + `widget_tree_layout.hpp`/`widget_tree_traversal.hpp` + `view_builder.hpp`) | Persistent tree, per-field Widget<T> wiring; builder DSL, layout and traversal split out (1189 + 168 + 98 + 657 lines). No dedicated doc | **Implemented** |

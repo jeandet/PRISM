@@ -3,13 +3,15 @@
 #if __cpp_impl_reflection
 #include <prism/ui/table.hpp>
 
+using namespace prism;
+
 struct Reading {
-    prism::Field<std::string> sensor{""};
-    prism::Field<double> value{0.0};
+    core::Field<std::string> sensor{""};
+    core::Field<double> value{0.0};
 };
 
 struct TableShowcase {
-    prism::List<Reading> readings;
+    core::List<Reading> readings;
 
     TableShowcase() {
         readings.push_back(Reading{.sensor = {"battery"}, .value = {3.7}});
@@ -17,7 +19,7 @@ struct TableShowcase {
         readings.push_back(Reading{.sensor = {"temp"}, .value = {41.2}});
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.table(readings).headers({"Sensor", "Value"}).sort(1, /*descending=*/true);
     }
 };

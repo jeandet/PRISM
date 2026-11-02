@@ -1,6 +1,6 @@
 # hello_rect Example
 
-Demonstrates PRISM's **retained layout** entry point — `prism::app<State>` — building a small
+Demonstrates PRISM's **retained layout** entry point — `app<State>` — building a small
 keyboard-driven panel selector out of `row()`/`column()`/`spacer()` containers and raw
 `filled_rect()` draws, with no `Field<T>`/reflection involved anywhere.
 
@@ -8,7 +8,7 @@ keyboard-driven panel selector out of `row()`/`column()`/`spacer()` containers a
 
 ## Overview
 
-Every other example in this directory uses the model-driven entry point, `prism::model_app`,
+Every other example in this directory uses the model-driven entry point, `app::model_app`,
 where a plain struct's fields become the UI automatically (reflection) or via a `view()` method.
 `hello_rect` instead uses PRISM's second, lower-level entry point: you hold your own `State`
 struct, draw into a `Ui<State>&` each frame, and mutate `State` by hand in response to raw
@@ -62,8 +62,8 @@ rebuild.
 no reactive graph, just a direct mutation:
 
 ```cpp
-[](State& s, const prism::InputEvent& ev) {
-    if (auto* key = std::get_if<prism::KeyPress>(&ev)) {
+[](State& s, const input::InputEvent& ev) {
+    if (auto* key = std::get_if<input::KeyPress>(&ev)) {
         switch (key->key) {
         case SDLK_1: s.selected_panel = 0; break;
         case SDLK_2: s.selected_panel = 1; break;
@@ -79,7 +79,7 @@ and repaints the corresponding nav item in the accent color.
 
 **Headless capture.** Run with an output path (`hello_rect out.svg`) and `main()` takes a
 different branch: it builds a `Backend` around a `CapturingBackend` instead of the real SDL
-backend, calls the `(Backend&, Window&, State, view, update)` overload of `prism::app<State>`
+backend, calls the `(Backend&, Window&, State, view, update)` overload of `app<State>`
 (the same overload `model_app` mirrors for the model-driven entry point), and writes the one
 captured frame to SVG. This is what the screenshot above was generated from, and what the
 `svg_hello_rect` build target regenerates automatically.

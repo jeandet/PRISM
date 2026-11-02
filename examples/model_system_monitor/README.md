@@ -24,8 +24,8 @@ graph on the UI thread's turn:
 struct SystemMonitor {
     // Background-thread ingest points. Never placed via vb.widget() -- they are read only
     // through .observe(), which fires during drain via the void drain() opt-in below.
-    prism::Shared<SystemSample> sys_sample{};
-    prism::Shared<std::vector<ProcessInfo>> proc_list{};
+    core::Shared<SystemSample> sys_sample{};
+    core::Shared<std::vector<ProcessInfo>> proc_list{};
     ...
 
     void drain() {
@@ -72,7 +72,7 @@ void ingest_processes(const std::vector<ProcessInfo>& processes) {
 }
 ```
 
-`table_rows` is a `prism::List<ProcessInfo>` — `ProcessInfo` is a plain reflectable struct, so the
+`table_rows` is a `core::List<ProcessInfo>` — `ProcessInfo` is a plain reflectable struct, so the
 table widget derives its columns and cell rendering from its fields directly, no `ProcessRow`
 twin struct needed. `tree_source` (`FlatProcessTreeSource`, in `process_tree_source.hpp`) builds
 a parent→children index from the same flat `ProcessInfo` list via `build_process_tree_index()`,
@@ -84,7 +84,7 @@ giving the "Tree" tab a hierarchical view of the exact same data the "Table" tab
 vb.canvas(cpu_plot)
     .depends_on(cpu_plot.x_range, cpu_plot.y_range, cpu_plot.view,
                 cpu_plot.cursor, cpu_plot.revision)
-    .min_size(prism::Height{120});
+    .min_size(core::Height{120});
 ```
 
 **The heartbeat** — a third `canvas()`, this one driven purely by the animation clock rather
@@ -92,7 +92,7 @@ than any data at all, proving the same `canvas()` + `.depends_on()` pattern cove
 because a clock ticked" just as well as "redraw because a field changed":
 
 ```cpp
-ctx.clock().add([&app](prism::AnimationClock::time_point now) {
+ctx.clock().add([&app](ui::AnimationClock::time_point now) {
     double phase = std::fmod(t * 4.0, 2.0 * std::numbers::pi); // ~4 rad/s
     app.heartbeat_phase.set(static_cast<float>(phase));
     return true; // the heartbeat runs forever by design

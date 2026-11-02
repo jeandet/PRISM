@@ -22,12 +22,12 @@ canvas escape hatch, spring animation, and SVG export in one model.
 member and declares its redraw dependencies explicitly:
 
 ```cpp
-void canvas(prism::DrawList& dl, prism::Rect bounds, const prism::WidgetNode& node) {
+void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
     auto& t = *node.theme;
     draw_waveform(dl, bounds, current_params(), t.surface, t.track, t.accent, t.accent_hover);
 }
 
-void view(prism::WidgetTree::ViewBuilder& vb) {
+void view(app::WidgetTree::ViewBuilder& vb) {
     vb.hstack([&] {
         vb.widget(amplitude);
         vb.canvas(*this)
@@ -62,13 +62,13 @@ Placed with `.depends_on(waveform.frequency, waveform.amplitude, waveform.shape)
 repaints whenever those change, even though it never stores a copy of the data.
 
 **A second canvas driven by animation**, not a field change — `ProgressBar` repaints because its
-one dependency (`progress`) is itself being driven by `prism::animate()`, not a user edit:
+one dependency (`progress`) is itself being driven by `ui::animate()`, not a user edit:
 
 ```cpp
 struct ProgressBar {
-    prism::Field<float> progress{0.f};
-    void canvas(prism::DrawList& dl, prism::Rect bounds, const prism::WidgetNode& node) { ... }
-    void view(prism::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(progress); }
+    core::Field<float> progress{0.f};
+    void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) { ... }
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(progress); }
 };
 ```
 
@@ -83,30 +83,30 @@ auto update_stats = [&app] {
 };
 update_stats();   // seed the label before the first frame, not just react to future changes
 
-auto setup = [&](prism::AppContext& ctx) {
+auto setup = [&](app::AppContext& ctx) {
     auto sched = ctx.scheduler();
     connections.push_back(
         app.waveform.frequency.on_change()
-        | prism::on(sched)
-        | prism::then([update_stats](const prism::Slider<>&) { update_stats(); })
+        | core::on(sched)
+        | core::then([update_stats](const ui::Slider<>&) { update_stats(); })
     );
     ...
 };
 ```
 
-Unlike `model_plot`'s `.observe()`, these reactions go through `.on_change() | prism::on(sched) |
-prism::then(...)` — a `Connection`-returning pipeline run explicitly on the app's scheduler,
+Unlike `model_plot`'s `.observe()`, these reactions go through `.on_change() | core::on(sched) |
+core::then(...)` — a `Connection`-returning pipeline run explicitly on the app's scheduler,
 which is what the export button's spring animation needs (`ctx.clock()`) and what makes the
 `then()` callbacks capture `update_stats` *by value*: the `Connection`s they belong to outlive
-`setup()` itself, held in a `main()`-scope `std::vector<prism::Connection>`.
+`setup()` itself, held in a `main()`-scope `std::vector<core::Connection>`.
 
 **The export button's SVG output** reuses `draw_waveform()` directly against a throwaway
 `DrawList`, entirely outside the normal render pass:
 
 ```cpp
-prism::DrawList dl;
+render::DrawList dl;
 draw_waveform(dl, bounds, app.waveform.current_params(), ...);
-std::ofstream(fname) << prism::to_svg(dl);
+std::ofstream(fname) << render::to_svg(dl);
 ```
 
 **Headless capture.** The same `setup` lambda used for the interactive `model_app()` call is
@@ -115,18 +115,18 @@ which now has an overload accepting a setup callback:
 
 ```cpp
 if (argc >= 2) {
-    return showcase(argc, argv, app, 1024, 768, std::function<void(prism::AppContext&)>(setup));
+    return showcase(argc, argv, app, 1024, 768, std::function<void(app::AppContext&)>(setup));
 }
-prism::model_app({.title = "PRISM Signal Generator", ...}, app, setup);
+app::model_app({.title = "PRISM Signal Generator", ...}, app, setup);
 ```
 
 ## Key concepts
 
 - `canvas()` + `.depends_on(...)` — draw-your-own-widget escape hatch; see [model_plot](../model_plot/) for the simplest possible use of it.
 - Computed-on-read table data — a table source doesn't need to store rows, only compute them.
-- `.on_change() | prism::on(sched) | prism::then(...)` — the `Connection`-based reaction pipeline, for when a reaction needs a specific scheduler (vs. `.observe()`'s fire-and-forget).
-- `prism::animate()` + `AppContext::clock()` — spring-driven `Field<float>` animation feeding a `canvas()` redraw.
-- `prism::to_svg(DrawList)` — rendering a `DrawList` to SVG outside the normal window render pass.
+- `.on_change() | core::on(sched) | core::then(...)` — the `Connection`-based reaction pipeline, for when a reaction needs a specific scheduler (vs. `.observe()`'s fire-and-forget).
+- `ui::animate()` + `AppContext::clock()` — spring-driven `Field<float>` animation feeding a `canvas()` redraw.
+- `render::to_svg(DrawList)` — rendering a `DrawList` to SVG outside the normal window render pass.
 
 ## Building and running
 

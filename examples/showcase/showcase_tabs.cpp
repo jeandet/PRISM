@@ -1,17 +1,19 @@
 #include "showcase_common.hpp"
 
-struct TabsShowcase {
-    prism::Field<prism::TextField<>> username{{.value = "jeandet"}};
-    prism::Field<bool> dark_mode{true};
-    prism::Field<prism::Slider<>> volume{{.value = 0.6}};
-    prism::Field<prism::TabBar<>> tabs;
+using namespace prism;
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+struct TabsShowcase {
+    core::Field<ui::TextField<>> username{{.value = "jeandet"}};
+    core::Field<bool> dark_mode{true};
+    core::Field<ui::Slider<>> volume{{.value = 0.6}};
+    core::Field<ui::TabBar<>> tabs;
+
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.tabs(tabs, [&] {
-            vb.tab("Account", [&](prism::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Account", [&](app::WidgetTree::ViewBuilder& tvb) {
                 tvb.vstack(username, dark_mode);
             });
-            vb.tab("Audio", [&](prism::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Audio", [&](app::WidgetTree::ViewBuilder& tvb) {
                 tvb.widget(volume);
             });
         });

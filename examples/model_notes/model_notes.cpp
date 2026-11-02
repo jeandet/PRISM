@@ -8,35 +8,31 @@
 
 #include <filesystem>
 #include <vector>
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
+
+using namespace prism;
 
 namespace fs = std::filesystem;
 
 struct NotesApp {
     FileTreeSource source;
-    prism::TreeController files{prism::wrap_tree_storage(source)};
-    prism::Field<prism::Menu> file_menu{{.title = "File", .items = {"Save", "Reload"}}};
-    prism::Field<prism::Menu> search_menu{{.title = "Search", .items = {"Clear search"}}};
-    prism::Field<prism::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
-    prism::Field<prism::Dialog> discard{{.title = "Unsaved changes",
+    ui::TreeController files{ui::wrap_tree_storage(source)};
+    core::Field<ui::Menu> file_menu{{.title = "File", .items = {"Save", "Reload"}}};
+    core::Field<ui::Menu> search_menu{{.title = "Search", .items = {"Clear search"}}};
+    core::Field<ui::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
+    core::Field<ui::Dialog> discard{{.title = "Unsaved changes",
                                          .message = "Reloading discards your edits.",
                                          .buttons = {"Discard", "Cancel"}}};
-    prism::Field<prism::TextField<>> search{{.placeholder = "Find in file..."}};
-    prism::Field<prism::Button> save{{"Save"}};
-    prism::Field<prism::Button> reload{{"Reload"}};
-    prism::Field<prism::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
-    prism::Field<prism::Label<>> status{{"No file open"}};
+    core::Field<ui::TextField<>> search{{.placeholder = "Find in file..."}};
+    core::Field<ui::Button> save{{"Save"}};
+    core::Field<ui::Button> reload{{"Reload"}};
+    core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
+    core::Field<ui::Label<>> status{{"No file open"}};
 
     fs::path current;
     fs::path pending_reload;   // the file the "Unsaved changes" dialog is about
     std::string saved;   // the file as last loaded or saved: tells whether `body` was modified
     std::string error;   // last load/save problem, shown in the status line
-    std::vector<prism::Connection> wiring;   // captures `this`: NotesApp is never moved
+    std::vector<core::Connection> wiring;   // captures `this`: NotesApp is never moved
 
     explicit NotesApp(fs::path root) : source(std::move(root)) {
         wiring.push_back(files.selected.on_change().connect([this](const auto& id) {
@@ -51,7 +47,7 @@ struct NotesApp {
         wiring.push_back(search_menu.on_change().connect(on_choice));
         wiring.push_back(editor_menu.on_change().connect(on_choice));
         wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
-        wiring.push_back(discard.on_change().connect([this](const prism::Dialog& d) {
+        wiring.push_back(discard.on_change().connect([this](const ui::Dialog& d) {
             if (!d.open && d.chosen == 0 && !pending_reload.empty()) open(pending_reload);
         }));
     }
@@ -63,7 +59,7 @@ struct NotesApp {
         else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.tree(files);
             vb.handle();
@@ -112,7 +108,7 @@ struct NotesApp {
     // the second pass finds identical highlights and stops.
     void update_matches() {
         const auto& query = search.get().value;
-        std::vector<prism::TextRange> hits;
+        std::vector<ui::TextRange> hits;
         for (auto pos : notes::find_all(body.get().value, query)) hits.push_back({pos, pos + query.size()});
         if (hits != body.get().highlights) {
             auto b = body.get();
@@ -141,7 +137,7 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 1000, 640);
     }
     NotesApp app{argc >= 2 ? fs::path(argv[1]) : fs::current_path()};
-    prism::model_app({.title = "PRISM Notes", .width = 1000, .height = 640,
-                      .decoration = prism::DecorationMode::Custom},
+    app::model_app({.title = "PRISM Notes", .width = 1000, .height = 640,
+                      .decoration = app::DecorationMode::Custom},
                      app);
 }

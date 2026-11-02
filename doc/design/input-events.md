@@ -195,16 +195,16 @@ No OS, no window, no presenter. Just data in, state out.
 
 ## std::execution Integration — **Implemented**
 
-Event dispatch uses stdexec's `run_loop` scheduler. The **Behavior** layer (user-written reactions) uses `prism::on(scheduler)` + `prism::then()` pipe syntax:
+Event dispatch uses stdexec's `run_loop` scheduler. The **Behavior** layer (user-written reactions) uses `core::on(scheduler)` + `core::then()` pipe syntax:
 
 ```cpp
-prism::model_app("Dashboard", dashboard, [&](prism::AppContext& ctx) {
+app::model_app("Dashboard", dashboard, [&](app::AppContext& ctx) {
     auto sched = ctx.scheduler();
     // Behavior: domain logic reacting to field changes
     connections.push_back(
         dashboard.volume.on_change()
-        | prism::on(sched)
-        | prism::then([&](const Slider<>& s) {
+        | core::on(sched)
+        | core::then([&](const Slider<>& s) {
               if (s.value > 0.9) dashboard.status.set({"Volume is very high!"});
           })
     );

@@ -26,13 +26,6 @@
 #define PRISM_LABEL_MEMBER(s)
 #endif
 
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
-
 struct SystemSample {
     float cpu_percent = 0.f;
     double mem_used_mb = 0.0;
@@ -295,7 +288,7 @@ inline std::vector<ProcessInfo> read_process_list(const std::vector<ProcessInfo>
     return result;
 }
 
-inline void poll_system_loop(std::stop_token stop, prism::Shared<SystemSample>& out) {
+inline void poll_system_loop(std::stop_token stop, prism::core::Shared<SystemSample>& out) {
     SystemTotals prev = read_system_sample({}, 0.0).totals; // prime the delta baseline
     auto last = std::chrono::steady_clock::now();
     while (!stop.stop_requested()) {
@@ -314,8 +307,8 @@ inline void poll_system_loop(std::stop_token stop, prism::Shared<SystemSample>& 
 }
 
 inline void poll_processes_loop(std::stop_token stop,
-                                 prism::Shared<std::vector<ProcessInfo>>& out,
-                                 prism::Channel<ProcessEvent>& events) {
+                                 prism::core::Shared<std::vector<ProcessInfo>>& out,
+                                 prism::core::Channel<ProcessEvent>& events) {
     std::vector<ProcessInfo> prev;
     auto last = std::chrono::steady_clock::now();
     while (!stop.stop_requested()) {

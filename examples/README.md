@@ -15,13 +15,13 @@ reference app.
 <tr>
 <td><a href="hello_rect/">hello_rect</a></td>
 <td><img src="../doc/screenshots/hello_rect.svg" width="180"/></td>
-<td>Retained layout<br/><code>prism::app&lt;State&gt;</code></td>
+<td>Retained layout<br/><code>app&lt;State&gt;</code></td>
 <td>Manual <code>row()</code>/<code>column()</code>/<code>spacer()</code> composition, keyboard-driven state</td>
 </tr>
 <tr>
 <td><a href="model_plot/">model_plot</a></td>
 <td><img src="../doc/screenshots/model_plot.svg" width="180"/></td>
-<td>Model-driven<br/><code>prism::model_app</code></td>
+<td>Model-driven<br/><code>app::model_app</code></td>
 <td><code>PlotModel</code>, sliders driving a live chart via <code>.observe()</code></td>
 </tr>
 <tr>

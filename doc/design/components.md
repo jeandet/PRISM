@@ -12,10 +12,10 @@ Without Component, a reusable "gas sensor panel" requires the consumer to know a
 
 ```cpp
 // Without Component — consumer must wire internals
-prism::model_app("Dashboard", dashboard, [&](AppContext& ctx) {
+app::model_app("Dashboard", dashboard, [&](AppContext& ctx) {
     // repeated per sensor instance, must know GasSensor internals
-    dashboard.sensor_a.pressure.on_change() | prism::on(ctx.scheduler())
-        | prism::then([&](const Slider<>& s) {
+    dashboard.sensor_a.pressure.on_change() | core::on(ctx.scheduler())
+        | core::then([&](const Slider<>& s) {
             if (s.value > 0.9) dashboard.sensor_a.status.set({"WARNING"});
         });
     // ... same for sensor_b, sensor_c, ...
@@ -29,8 +29,8 @@ struct Dashboard : prism::Component {
 
     void setup(AppContext& ctx) override {
         // only wire the interface — connect child outputs
-        connect(sensor_a.status.on_change() | prism::on(ctx.scheduler())
-            | prism::then([this](const Label<>& l) {
+        connect(sensor_a.status.on_change() | core::on(ctx.scheduler())
+            | core::then([this](const Label<>& l) {
                 if (l.text == "WARNING") summary.set({"Check sensor A!"});
             }));
     }
@@ -108,8 +108,8 @@ struct GasSensor : prism::Component {
     Field<Label<>> status{{"OK"}};
 
     void setup(AppContext& ctx) override {
-        connect(pressure.on_change() | prism::on(ctx.scheduler())
-            | prism::then([this](const Slider<>& s) {
+        connect(pressure.on_change() | core::on(ctx.scheduler())
+            | core::then([this](const Slider<>& s) {
                 if (s.value > 0.9) status.set({"WARNING"});
             }));
     }
@@ -168,7 +168,7 @@ A `TextEdit` delegate (atomic widget) can be used inside a `TextEditor` componen
 ```cpp
 int main() {
     Dashboard dashboard;
-    prism::model_app("Dashboard", dashboard);  // setup() called automatically
+    app::model_app("Dashboard", dashboard);  // setup() called automatically
 }
 ```
 

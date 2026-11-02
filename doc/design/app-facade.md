@@ -1,10 +1,10 @@
 # App Facade
 
-> **Status: Implemented — secondary API.** The primary entry point is now `prism::model_app()` which drives the MVB architecture. `prism::app<State>()` remains available as a lower-level alternative.
+> **Status: Implemented — secondary API.** The primary entry point is now `app::model_app()` which drives the MVB architecture. `app<State>()` remains available as a lower-level alternative.
 
 ## Overview
 
-`prism::app<State>()` is a zero-boilerplate entry point. The user provides a state type and a view function. The framework handles everything else: threading, event loop, snapshot building, hit testing, event dispatch.
+`app<State>()` is a zero-boilerplate entry point. The user provides a state type and a view function. The framework handles everything else: threading, event loop, snapshot building, hit testing, event dispatch.
 
 ## Target API
 
@@ -19,7 +19,7 @@ struct State {
 };
 
 int main() {
-    prism::app<State>("Todo", [](auto& ui) {
+    app<State>("Todo", [](auto& ui) {
         task_input(ui);
         for (auto&& [i, task] : ui->tasks | enumerate) {
             task_row(ui, task, i);
@@ -30,7 +30,7 @@ int main() {
 
 The view lambda receives `Ui<State>&` — read-only state access via `ui->`, component methods on `ui`, event handlers via `.on_X()` chaining. `app()` blocks until the window is closed.
 
-## prism::app<State>()
+## app<State>()
 
 ```cpp
 template <typename State>
@@ -48,15 +48,15 @@ Internally:
 5. Event loop: backend forwards InputEvents → framework resolves hits → dispatches `.on_X()` handlers (mutating state) → re-runs view lambda → submits new snapshot.
 6. On window close, joins backend thread and returns.
 
-## Low-Level API (prism::App)
+## Low-Level API (app::App)
 
-For advanced use cases, `prism::App` provides direct control:
+For advanced use cases, `app::App` provides direct control:
 
 ```cpp
-prism::App app({.title = "Hello", .width = 800, .height = 600});
+app::App app({.title = "Hello", .width = 800, .height = 600});
 
-app.run([](prism::Frame& frame) {
-    frame.filled_rect({10, 10, 200, 100}, prism::Color::rgba(0, 120, 215));
+app.run([](app::Frame& frame) {
+    frame.filled_rect({10, 10, 200, 100}, core::Color::rgba(0, 120, 215));
 });
 ```
 
@@ -119,6 +119,6 @@ The view lambda is functionally pure — same state produces same UI. Mutation i
 
 ## Open Questions
 
-- Should `prism::app<State>()` accept a `BackendConfig` for window size/title customisation?
+- Should `app<State>()` accept a `BackendConfig` for window size/title customisation?
 - Animation: how does the framework handle animation-driven repaints (no input, but state changing over time)?
-- Should there be a `prism::app()` variant that takes an `on_update(State&, Event)` function for centralised event handling (Elm-style `update` function) as an alternative to inline `.on_X()`?
+- Should there be a `app()` variant that takes an `on_update(State&, Event)` function for centralised event handling (Elm-style `update` function) as an alternative to inline `.on_X()`?

@@ -7,14 +7,8 @@
 #include <cmath>
 #include <fstream>
 #include <string>
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
 
-
+using namespace prism;
 
 // --- Domain types ---
 
@@ -54,17 +48,17 @@ struct WaveParams {
     bool harmonics;
 };
 
-static void draw_waveform(prism::DrawList& dl, prism::Rect bounds, WaveParams p,
-                           prism::Color bg, prism::Color track,
-                           prism::Color curve, prism::Color marker) {
+static void draw_waveform(render::DrawList& dl, core::Rect bounds, WaveParams p,
+                           core::Color bg, core::Color track,
+                           core::Color curve, core::Color marker) {
     auto w = bounds.extent.w.raw();
     auto h = bounds.extent.h.raw();
     float cy = h * 0.5f;
 
     dl.rounded_rect(bounds, bg, 6.f);
 
-    dl.line(prism::Point{prism::X{0}, prism::Y{cy}},
-            prism::Point{prism::X{w}, prism::Y{cy}},
+    dl.line(core::Point{core::X{0}, core::Y{cy}},
+            core::Point{core::X{w}, core::Y{cy}},
             track, 1.f);
 
     int steps = std::max(2, static_cast<int>(w));
@@ -80,10 +74,10 @@ static void draw_waveform(prism::DrawList& dl, prism::Rect bounds, WaveParams p,
         return cy - y_val * h * 0.45f;
     };
 
-    std::vector<prism::Point> pts(static_cast<size_t>(steps));
+    std::vector<core::Point> pts(static_cast<size_t>(steps));
     for (int i = 0; i < steps; ++i) {
         float x = static_cast<float>(i);
-        pts[static_cast<size_t>(i)] = {prism::X{x}, prism::Y{sample(x)}};
+        pts[static_cast<size_t>(i)] = {core::X{x}, core::Y{sample(x)}};
     }
     dl.polyline(pts, curve, 2.f);
 
@@ -92,20 +86,20 @@ static void draw_waveform(prism::DrawList& dl, prism::Rect bounds, WaveParams p,
         float x = static_cast<float>(i);
         float y = sample(x);
         if (std::abs(y - cy) > h * 0.3f)
-            dl.circle(prism::Point{prism::X{x}, prism::Y{y}}, 3.f, marker);
+            dl.circle(core::Point{core::X{x}, core::Y{y}}, 3.f, marker);
     }
 }
 
 // --- Waveform editor (Tab 1) ---
 
 struct Waveform {
-    prism::Field<WaveShape> shape{WaveShape::Sine};
-    prism::Field<prism::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
-    prism::Field<prism::Slider<double, prism::Orientation::Vertical>> amplitude{
+    core::Field<WaveShape> shape{WaveShape::Sine};
+    core::Field<ui::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
+    core::Field<ui::Slider<double, ui::Orientation::Vertical>> amplitude{
         {.value = 0.8, .min = 0.0, .max = 1.0}};
-    prism::Field<prism::Checkbox> harmonics{{.checked = false, .label = "Show harmonics"}};
-    prism::Field<prism::Label<>> stats{{""}};
-    prism::Field<prism::Button> export_svg{{"Export SVG"}};
+    core::Field<ui::Checkbox> harmonics{{.checked = false, .label = "Show harmonics"}};
+    core::Field<ui::Label<>> stats{{""}};
+    core::Field<ui::Button> export_svg{{"Export SVG"}};
 
     WaveParams current_params() const {
         return {shape.get(),
@@ -114,12 +108,12 @@ struct Waveform {
                 harmonics.get().checked};
     }
 
-    void canvas(prism::DrawList& dl, prism::Rect bounds, const prism::WidgetNode& node) {
+    void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         auto& t = *node.theme;
         draw_waveform(dl, bounds, current_params(), t.surface, t.track, t.accent, t.accent_hover);
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.widget(amplitude);
             vb.canvas(*this)
@@ -170,22 +164,22 @@ struct SignalTable {
 // --- Export progress bar ---
 
 struct ProgressBar {
-    prism::Field<float> progress{0.f};
+    core::Field<float> progress{0.f};
 
-    void canvas(prism::DrawList& dl, prism::Rect bounds, const prism::WidgetNode& node) {
+    void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         auto& t = *node.theme;
         dl.rounded_rect(bounds, t.surface, 4.f);
         dl.rounded_rect(bounds, t.border, 4.f, 1.f);
         float fill_w = bounds.extent.w.raw() * std::clamp(progress.get(), 0.f, 1.f);
         if (fill_w > 0.f) {
             dl.rounded_rect(
-                prism::Rect{bounds.origin,
-                            prism::Size{prism::Width{fill_w}, bounds.extent.h}},
+                core::Rect{bounds.origin,
+                            core::Size{core::Width{fill_w}, bounds.extent.h}},
                 t.accent_hover, 4.f);
         }
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.canvas(*this).depends_on(progress);
     }
 };
@@ -197,18 +191,18 @@ struct SignalGenerator {
     SignalTable signal_table{.wf = waveform};
     ProgressBar export_progress;
 
-    prism::Field<prism::TextField<>> filename{{.value = "signal_001", .placeholder = "Filename..."}};
-    prism::Field<prism::Button> generate{{"Export"}};
-    prism::Field<prism::TextArea<>> notes{{.placeholder = "Annotations...", .rows = 4}};
-    prism::List<std::string> export_log;
-    prism::Field<prism::TabBar<>> tabs;
+    core::Field<ui::TextField<>> filename{{.value = "signal_001", .placeholder = "Filename..."}};
+    core::Field<ui::Button> generate{{"Export"}};
+    core::Field<ui::TextArea<>> notes{{.placeholder = "Annotations...", .rows = 4}};
+    core::List<std::string> export_log;
+    core::Field<ui::TabBar<>> tabs;
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.tabs(tabs, [&] {
-            vb.tab("Waveform", [&](prism::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Waveform", [&](app::WidgetTree::ViewBuilder& tvb) {
                 tvb.component(waveform);
             });
-            vb.tab("Data", [&](prism::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Data", [&](app::WidgetTree::ViewBuilder& tvb) {
                 tvb.scroll([&] {
                     tvb.table(signal_table)
                         .depends_on(waveform.frequency)
@@ -216,7 +210,7 @@ struct SignalGenerator {
                         .depends_on(waveform.shape);
                 });
             });
-            vb.tab("Export", [&](prism::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Export", [&](app::WidgetTree::ViewBuilder& tvb) {
                 tvb.vstack(filename, generate);
                 tvb.component(export_progress);
                 tvb.widget(notes);
@@ -240,8 +234,8 @@ static std::string shape_name(WaveShape s) {
 
 int main(int argc, char* argv[]) {
     SignalGenerator app;
-    std::vector<prism::Connection> connections;
-    prism::Animation<float> export_anim;
+    std::vector<core::Connection> connections;
+    ui::Animation<float> export_anim;
     int export_count = 0;
 
     // then() callbacks below capture update_stats BY VALUE, not by [&] -- they outlive
@@ -257,41 +251,41 @@ int main(int argc, char* argv[]) {
     };
     update_stats();
 
-    auto setup = [&](prism::AppContext& ctx) {
+    auto setup = [&](app::AppContext& ctx) {
         auto sched = ctx.scheduler();
 
         connections.push_back(
             app.waveform.frequency.on_change()
-            | prism::on(sched)
-            | prism::then([update_stats](const prism::Slider<>&) { update_stats(); })
+            | core::on(sched)
+            | core::then([update_stats](const ui::Slider<>&) { update_stats(); })
         );
         connections.push_back(
             app.waveform.amplitude.on_change()
-            | prism::on(sched)
-            | prism::then([update_stats](const prism::Slider<double, prism::Orientation::Vertical>&) {
+            | core::on(sched)
+            | core::then([update_stats](const ui::Slider<double, ui::Orientation::Vertical>&) {
                   update_stats();
               })
         );
         connections.push_back(
             app.waveform.shape.on_change()
-            | prism::on(sched)
-            | prism::then([update_stats](const WaveShape&) { update_stats(); })
+            | core::on(sched)
+            | core::then([update_stats](const WaveShape&) { update_stats(); })
         );
 
         // SVG export button: render waveform to SVG file
         connections.push_back(
             app.waveform.export_svg.on_change()
-            | prism::on(sched)
-            | prism::then([&app](const prism::Button&) {
-                  prism::DrawList dl;
-                  prism::Rect bounds{prism::Point{prism::X{0}, prism::Y{0}},
-                                     prism::Size{prism::Width{800}, prism::Height{300}}};
+            | core::on(sched)
+            | core::then([&app](const ui::Button&) {
+                  render::DrawList dl;
+                  core::Rect bounds{core::Point{core::X{0}, core::Y{0}},
+                                     core::Size{core::Width{800}, core::Height{300}}};
                   draw_waveform(dl, bounds, app.waveform.current_params(),
-                                prism::Color::rgba(30, 30, 46),
-                                prism::Color::rgba(88, 91, 112),
-                                prism::Color::rgba(137, 180, 250),
-                                prism::Color::rgba(166, 209, 255));
-                  auto svg = prism::to_svg(dl);
+                                core::Color::rgba(30, 30, 46),
+                                core::Color::rgba(88, 91, 112),
+                                core::Color::rgba(137, 180, 250),
+                                core::Color::rgba(166, 209, 255));
+                  auto svg = render::to_svg(dl);
                   auto fname = app.filename.get().value + ".svg";
                   std::ofstream(fname) << svg;
                   app.export_log.push_back("SVG exported -> " + fname);
@@ -304,8 +298,8 @@ int main(int argc, char* argv[]) {
         auto& clock = ctx.clock();
         connections.push_back(
             app.generate.on_change()
-            | prism::on(sched)
-            | prism::then([&app, &export_count, &export_anim, &win, &clock](const prism::Button&) {
+            | core::on(sched)
+            | core::then([&app, &export_count, &export_anim, &win, &clock](const ui::Button&) {
                   ++export_count;
                   auto sh = app.waveform.shape.get();
                   float freq = static_cast<float>(app.waveform.frequency.get().value);
@@ -319,18 +313,18 @@ int main(int argc, char* argv[]) {
                   win.set_title("Signal Generator — exported " + fname);
 
                   app.export_progress.progress.set(0.f);
-                  export_anim = prism::animate(clock,
+                  export_anim = ui::animate(clock,
                       app.export_progress.progress, 1.f,
-                      prism::SpringConfig{.spring = {.stiffness = 80.f, .damping = 10.f}});
+                      ui::SpringConfig{.spring = {.stiffness = 80.f, .damping = 10.f}});
               })
         );
     };
 
     if (argc >= 2) {
-        return showcase(argc, argv, app, 1024, 768, std::function<void(prism::AppContext&)>(setup));
+        return showcase(argc, argv, app, 1024, 768, std::function<void(app::AppContext&)>(setup));
     }
 
-    prism::model_app({.title = "PRISM Signal Generator", .width = 1024, .height = 768,
-                       .decoration = prism::DecorationMode::Custom},
+    app::model_app({.title = "PRISM Signal Generator", .width = 1024, .height = 768,
+                       .decoration = app::DecorationMode::Custom},
                      app, setup);
 }

@@ -1,11 +1,13 @@
 #include "showcase_common.hpp"
 
-struct AudioMixer {
-    prism::Field<prism::Slider<>> volume{{.value = 0.75, .min = 0.0, .max = 1.0}};
-    prism::Field<prism::Slider<int>> quality{{.value = 3, .min = 1, .max = 5, .step = 1}};
-    prism::Field<prism::Checkbox> mute{{.checked = false, .label = "Mute"}};
+using namespace prism;
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+struct AudioMixer {
+    core::Field<ui::Slider<>> volume{{.value = 0.75, .min = 0.0, .max = 1.0}};
+    core::Field<ui::Slider<int>> quality{{.value = 3, .min = 1, .max = 5, .step = 1}};
+    core::Field<ui::Checkbox> mute{{.checked = false, .label = "Mute"}};
+
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack(volume, quality, mute);
     }
 };

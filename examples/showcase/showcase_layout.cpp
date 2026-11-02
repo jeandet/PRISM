@@ -1,20 +1,22 @@
 #include "showcase_common.hpp"
 
-struct Settings {
-    prism::Field<std::string> username{"jeandet"};
-    prism::Field<bool> dark_mode{true};
+using namespace prism;
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+struct Settings {
+    core::Field<std::string> username{"jeandet"};
+    core::Field<bool> dark_mode{true};
+
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack(username, dark_mode);
     }
 };
 
 struct Dashboard {
     Settings settings;
-    prism::Field<prism::Slider<>> brightness{{.value = 0.6, .min = 0.0, .max = 1.0}};
-    prism::Field<prism::Button> apply{{"Apply"}};
+    core::Field<ui::Slider<>> brightness{{.value = 0.6, .min = 0.0, .max = 1.0}};
+    core::Field<ui::Button> apply{{"Apply"}};
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.component(settings);
             vb.hstack(brightness, apply);

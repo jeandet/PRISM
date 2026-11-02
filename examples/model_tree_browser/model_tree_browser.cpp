@@ -3,21 +3,17 @@
 #include "../showcase/showcase_common.hpp"
 
 #include <filesystem>
-namespace prism::core {} namespace prism::render {} namespace prism::input {}
-namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
-namespace prism {
-using namespace core; using namespace render; using namespace input;
-using namespace ui; using namespace app; using namespace plot;
-}
+
+using namespace prism;
 
 struct BrowserModel {
     FileTreeSource source;
-    prism::TreeController ctrl{prism::wrap_tree_storage(source)};
+    ui::TreeController ctrl{ui::wrap_tree_storage(source)};
 
     explicit BrowserModel(std::filesystem::path root = std::filesystem::current_path())
         : source(std::move(root)) {}
 
-    void view(prism::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
 };
 
 int main(int argc, char* argv[]) {
@@ -34,7 +30,7 @@ int main(int argc, char* argv[]) {
     }
 
     BrowserModel model;
-    prism::model_app({.title = "PRISM Tree Browser -- Filesystem", .width = 900, .height = 600,
-                       .decoration = prism::DecorationMode::Custom},
+    app::model_app({.title = "PRISM Tree Browser -- Filesystem", .width = 900, .height = 600,
+                       .decoration = app::DecorationMode::Custom},
                       model);
 }

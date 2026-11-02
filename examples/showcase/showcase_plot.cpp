@@ -4,8 +4,10 @@
 #include <cmath>
 #include <numbers>
 
+using namespace prism;
+
 struct PlotShowcase {
-    prism::plot::PlotModel plot;
+    plot::PlotModel plot;
 
     void setup_data() {
         constexpr int N = 200;
@@ -16,15 +18,15 @@ struct PlotShowcase {
             ys[static_cast<size_t>(i)] = std::sin(t) * std::exp(-t * 0.1);
         }
 
-        auto colors = prism::plot::default_series_colors(prism::default_theme());
-        plot.add_series(prism::plot::XYData{std::move(xs), std::move(ys)},
-                        prism::plot::SeriesStyle{colors[0], 2.f});
+        auto colors = plot::default_series_colors(ui::default_theme());
+        plot.add_series(plot::XYData{std::move(xs), std::move(ys)},
+                        plot::SeriesStyle{colors[0], 2.f});
         plot.x_label.set("Time (s)");
         plot.y_label.set("Amplitude");
         plot.notify();
     }
 
-    void view(prism::WidgetTree::ViewBuilder& vb) {
+    void view(app::WidgetTree::ViewBuilder& vb) {
         vb.canvas(plot)
             .depends_on(plot.x_range)
             .depends_on(plot.y_range)
