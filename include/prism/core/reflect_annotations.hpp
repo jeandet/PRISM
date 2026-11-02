@@ -15,6 +15,7 @@ namespace prism::core {
 //       [[=prism::core::readonly]]              std::string device_id;
 //       [[=prism::core::label<"Sample Rate">]]  int sample_rate;
 //       [[=prism::core::section<"Audio">]]      float volume;
+//       [[=prism::core::tooltip<"In dB">]]      Field<Slider<>> gain;   // model_app views
 //   };
 //
 // prism::inspector still exposes these under their original names
@@ -26,8 +27,10 @@ constexpr inline struct {} readonly{};
 
 template <fixed_string S> struct label_t   { static constexpr auto value = S; };
 template <fixed_string S> struct section_t { static constexpr auto value = S; };
+template <fixed_string S> struct tooltip_t { static constexpr auto value = S; };
 template <fixed_string S> constexpr inline label_t<S>   label{};
 template <fixed_string S> constexpr inline section_t<S> section{};
+template <fixed_string S> constexpr inline tooltip_t<S> tooltip{};
 
 template <std::meta::info M, typename Tag>
 consteval bool has_annotation() {

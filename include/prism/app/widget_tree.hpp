@@ -17,6 +17,8 @@
 #include <prism/app/table_input.hpp>
 #if __cpp_impl_reflection
 #include <prism/core/reflect.hpp>
+#include <prism/core/reflect_annotations.hpp>
+#include <prism/ui/tooltip.hpp>
 #endif
 #include <prism/core/state.hpp>
 
@@ -69,10 +71,13 @@ public:
     [[nodiscard]] const WidgetNode& root() const { return root_; }
 
     [[nodiscard]] size_t leaf_count() const { return count_leaves(root_); }
-    [[nodiscard]] bool any_dirty() const { return check_dirty(root_); }
+    [[nodiscard]] bool any_dirty() const { return tooltip_dirty_ || check_dirty(root_); }
     [[nodiscard]] std::size_t dirty_count() const { return count_dirty(root_); }
 
-    void clear_dirty() { clear_dirty_impl(root_); }
+    void clear_dirty() {
+        tooltip_dirty_ = false;
+        clear_dirty_impl(root_);
+    }
 
     void drain_shared() {
         for (auto& fn : drain_callbacks_)
@@ -292,6 +297,21 @@ public:
         flip_visual_flag(hovered_id_, &WidgetVisualState::hovered, false);
         hovered_id_ = new_id;
         flip_visual_flag(hovered_id_, &WidgetVisualState::hovered, true);
+    }
+
+    // Tooltips (ui/tooltip.hpp): routing reports hover and dismissal, the app calls
+    // tick_tooltip() at tooltip_wake(), and build_snapshot() draws a shown one.
+    [[nodiscard]] std::string_view tooltip_of(WidgetId id) const {
+        auto it = index_.find(id);
+        return it == index_.end() ? std::string_view{} : std::string_view{it->second->tooltip};
+    }
+    void hover_tooltip(WidgetId id, Point at, TooltipState::clock::time_point now) {
+        set_tooltip(tooltip_hovered(tooltip_, id, !tooltip_of(id).empty(), at, now));
+    }
+    void dismiss_tooltip() { set_tooltip(tooltip_dismissed(tooltip_)); }
+    void tick_tooltip(TooltipState::clock::time_point now) { set_tooltip(tooltip_ticked(tooltip_, now)); }
+    [[nodiscard]] std::optional<TooltipState::clock::time_point> tooltip_wake() const {
+        return ui::tooltip_wake(tooltip_);
     }
 
     void set_pressed(WidgetId id, bool pressed) {
@@ -543,6 +563,8 @@ public:
                 }
             }
         }
+        if (auto text = tooltip_of(tooltip_.target); tooltip_.shown && !text.empty())
+            draw_tooltip(snap->overlay, text, tooltip_.pointer, snap->viewport, theme_);
 
         snap->dirty_widget_count = dirty_widgets;
         snap->layout_pass_count = layout_passes;
@@ -568,6 +590,7 @@ private:
     // tab()'s lazily-materialized content builders (which run well after the initial tree build)
     // can still resolve names. See ViewBuilder::apply_field_name.
     std::unordered_map<const void*, std::string_view> field_names_;   // also accessible names
+    std::unordered_map<const void*, std::string_view> field_tooltips_;   // [[=core::tooltip<...>]]
 #endif
     WidgetId next_id_ = 1;
     WidgetId popup_owner_ = 0;
@@ -579,6 +602,13 @@ private:
     SplitDrag split_drag_;
     std::vector<WidgetId> focus_order_;
     std::unordered_map<WidgetId, WidgetNode*> index_;
+    TooltipState tooltip_;
+    bool tooltip_dirty_ = false;   // shown or hidden since the last publish
+
+    void set_tooltip(TooltipState s) {
+        if (s.shown != tooltip_.shown) tooltip_dirty_ = true;
+        tooltip_ = s;
+    }
     std::unordered_map<WidgetId, WidgetId> parent_map_;
     std::vector<std::function<void()>> drain_callbacks_;
     std::vector<std::function<void(std::function<void()>)>> waker_binders_;
@@ -600,6 +630,7 @@ private:
         wn.layout_kind = node.layout_kind;
         wn.theme = &theme_;
         wn.name = node.name;
+        wn.tooltip = node.tooltip;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -783,6 +814,8 @@ private:
                 if constexpr (is_field_v<M> || is_derived_v<M> || is_shared_v<M>) {
                     field_names_.emplace(static_cast<const void*>(&member),
                                          std::meta::identifier_of(m));
+                    if constexpr (constexpr auto tip = core::extract_string_annotation<m, core::tooltip_t>(); !tip.empty())
+                        field_tooltips_.emplace(static_cast<const void*>(&member), tip);
                 }
             }
 #endif
@@ -824,6 +857,7 @@ private:
                 } else if constexpr (is_field_v<M>) {
                     auto leaf = node_leaf(member, next_id_);
                     leaf.name = std::string(std::meta::identifier_of(m));
+                    leaf.tooltip = std::string(core::extract_string_annotation<m, core::tooltip_t>());
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
                     leaf.debug_name = leaf.name;
 #endif

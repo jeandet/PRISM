@@ -24,6 +24,7 @@ struct Node {
     WidgetId id = 0;
     bool is_leaf = false;
     std::string name;   // accessible name (reflected member name); copied to WidgetNode::name
+    std::string tooltip;   // shown when the pointer rests on the widget; copied to WidgetNode
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif

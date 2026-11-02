@@ -8,6 +8,7 @@
 #include <prism/ui/window_chrome.hpp>
 #include <prism/app/event_routing.hpp>
 #include <prism/app/window_registry.hpp>
+#include <prism/app/deadline_timer.hpp>
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
 #include <prism/widgets/debug/tree_inspector.hpp>
 #endif
@@ -330,6 +331,22 @@ void model_app(Backend& backend, Window& window, Model& model,
     registry.set_waker(ctx_holder->waker());
     registry.set_text_measurer(backend.text_measurer());
     registry.set_clipboard(backend.clipboard());
+
+    // Timed wakes of the logic thread (a tooltip's delay). The timer thread only posts; the
+    // ticks run on the logic thread, which then publishes and arms the next deadline.
+    std::optional<DeadlineTimer> deadline_timer;
+    auto arm_deadlines = [&] {
+        registry.for_each([&](WindowId, WindowRegistry::Entry& e) {
+            if (auto due = e.tree->tooltip_wake()) deadline_timer->arm(*due);
+        });
+    };
+    deadline_timer.emplace([&, ctx = ctx_holder.get()] {
+        ctx->post_deferred([&] {
+            auto now = DeadlineTimer::clock::now();
+            registry.for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->tick_tooltip(now); });
+            arm_deadlines();
+        });
+    });
     std::thread logic_thread([&, ctx_holder, mutation_queue, mutation_scheduled, mutation_closed, mutation_drain_publish] {
         detail_is_logic_thread = true;
         backend.wait_ready();
@@ -429,6 +446,7 @@ void model_app(Backend& backend, Window& window, Model& model,
                         if (needs_publish) publish_entry(wid, *entry);
                         publish_dirty();
                         schedule_tick();
+                        arm_deadlines();
                     };
                     AppContext::apply_wrapper(wrapper_for_dispatch, do_dispatch);
                 })
@@ -439,9 +457,10 @@ void model_app(Backend& backend, Window& window, Model& model,
     // after quit(), and each one schedules onto this loop (see app.hpp). Close the gate
     // first: after this, no cross-thread post() or wake can reach the finishing run_loop.
     // (Python's PostHandle path does not go through the gate -- see prism_ext.cpp.)
-    ctx_holder->close_waker();
+    ctx_holder->close_waker();   // a deadline firing from here on posts nothing
     loop.finish();
     logic_thread.join();
+    deadline_timer.reset();   // after the join: the logic thread arms it until then
 }
 
 template <typename Model>

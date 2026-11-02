@@ -64,7 +64,13 @@ struct NotesApp {
             vb.tree(files);
             vb.handle();
             vb.vstack([&] {
-                vb.hstack(file_menu, search_menu, search, save, reload);
+                vb.hstack([&] {
+                    vb.widget(file_menu);
+                    vb.widget(search_menu);
+                    vb.widget(search).tooltip("Highlights every match in the file");
+                    vb.widget(save).tooltip("Write the file to disk");
+                    vb.widget(reload).tooltip("Read the file again, dropping unsaved edits");
+                });
                 vb.widget(body);
                 vb.widget(status);
                 vb.context_menu(editor_menu);

@@ -79,6 +79,7 @@ headless_tests = {
   'menu' : files('test_menu.cpp'),
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),
+  'deadline_timer' : files('test_deadline_timer.cpp'),
   'form_widgets' : files('test_form_widgets.cpp'),
   'tessellate' : files('test_tessellate.cpp'),
   'channel' : files('test_channel.cpp'),
@@ -120,6 +121,7 @@ backend_base_tests = {
   'model_app' : files('test_model_app.cpp'),
   'golden_snapshot' : files('test_golden_snapshot.cpp'),
   'mutation_queue' : files('test_mutation_queue.cpp'),
+  'tooltip' : files('test_tooltip.cpp'),
 }
 
 foreach name, src : backend_base_tests

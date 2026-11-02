@@ -4,7 +4,9 @@
 (`WidgetNode::popup_area`/`popup_modal`, `WidgetTree::popup_owner`/`close_popup`/`adopt_popup`,
 routing in `app/event_routing.hpp`), `Menu` with menu bar navigation, `ContextMenu`
 (`delegates/menu_delegates.hpp`) and a modal `Dialog` with a scrim (`delegates/dialog_delegates.hpp`).
-Popups slide back inside the window; they don't flip yet. Not yet: tooltips, popovers anchored
+Tooltips (`ui/tooltip.hpp`) are drawn in the snapshot overlay and never take input; their
+delay is the one timed wake of the logic thread (`app/deadline_timer.hpp`).
+Popups slide back inside the window; they don't flip yet. Not yet: popovers anchored
 to arbitrary widgets, keyboard mnemonics, a scrollable widget inside a dialog (scrolling is
 blocked while a popup is open).
 

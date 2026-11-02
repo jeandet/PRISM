@@ -211,6 +211,19 @@ inline void route_key_release(WidgetTree& tree, const InputEvent& ev) {
 // Top-level dispatcher: switches on the event variant and routes to the
 // per-kind handlers above. `snap` may be null — mouse routing hit-tests
 // against a snapshot; key/text routing doesn't need one.
+// simplify: a pointer that leaves the window sends no event, so a pending tooltip still
+// shows (as the hover highlight stays); add a pointer-leave event to the backend for both.
+inline void route_tooltip(WidgetTree& tree, const InputEvent& ev) {
+    if (auto* mm = std::get_if<MouseMove>(&ev)) {
+        WidgetId over = tree.popup_owner() != 0 ? 0 : tree.hovered_id();   // popups hide it
+        tree.hover_tooltip(over, mm->position, TooltipState::clock::now());
+        return;
+    }
+    auto* mb = std::get_if<MouseButton>(&ev);
+    if ((mb && mb->pressed) || std::holds_alternative<MouseScroll>(ev) || std::holds_alternative<KeyPress>(ev))
+        tree.dismiss_tooltip();
+}
+
 inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
                         const InputEvent& ev) {
     tree.refresh_popup_owner();
@@ -229,6 +242,7 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
     if (std::get_if<KeyRelease>(&ev))
         route_key_release(tree, ev);
     if (snap) keep_popup_in_window(tree, *snap);
+    route_tooltip(tree, ev);
 }
 
 } // namespace prism::app::widget_detail

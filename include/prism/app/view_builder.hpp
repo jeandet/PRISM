@@ -95,6 +95,9 @@ class ViewBuilder {
         auto it = tree_.field_names_.find(static_cast<const void*>(&observable));
         if (it == tree_.field_names_.end()) return;
         leaf.name = std::string(it->second);   // accessible name, in every build
+        if (auto tip = tree_.field_tooltips_.find(static_cast<const void*>(&observable));
+            tip != tree_.field_tooltips_.end())
+            leaf.tooltip = std::string(tip->second);
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         leaf.debug_name = leaf.name;
 #endif
@@ -140,16 +143,24 @@ public:
         CanvasHandle& min_size(Width w) { node_ref.canvas_min_width = w.raw(); return *this; }
     };
 
+    // Returned by widget(): settings for the leaf just placed. Use it in the same statement --
+    // the next placement may move the node it points to.
+    struct LeafHandle {
+        Node& node_ref;
+        LeafHandle& tooltip(std::string text) { node_ref.tooltip = std::move(text); return *this; }
+    };
+
 public:
     ViewBuilder(WidgetTree& tree, Node& target)
         : tree_(tree), target_(target) {}
 
     template <typename T>
-    void widget(Field<T>& field) {
+    LeafHandle widget(Field<T>& field) {
         placed_.insert(&field);
         auto leaf = node_leaf(field, tree_.next_id_);
         apply_field_name(leaf, field);
         current_parent().children.push_back(std::move(leaf));
+        return {current_parent().children.back()};
     }
 
     // A right click anywhere in the current container opens this menu at the pointer.
@@ -161,29 +172,32 @@ public:
     // Renders like widget(Field<T>&) but without focus/input wiring --
     // for prism::inspector's [[=prism::inspector::readonly]] annotation.
     template <typename T>
-    void widget_readonly(Field<T>& field) {
+    LeafHandle widget_readonly(Field<T>& field) {
         placed_.insert(&field);
         auto leaf = node_readonly_leaf<T>(field, tree_.next_id_);
         apply_field_name(leaf, field);
         current_parent().children.push_back(std::move(leaf));
+        return {current_parent().children.back()};
     }
 
     template <typename T>
-    void widget(Derived<T>& derived) {
+    LeafHandle widget(Derived<T>& derived) {
         placed_.insert(&derived);
         auto leaf = node_readonly_leaf<T>(derived, tree_.next_id_);
         apply_field_name(leaf, derived);
         current_parent().children.push_back(std::move(leaf));
+        return {current_parent().children.back()};
     }
 
     template <typename T>
-    void widget(Shared<T>& shared) {
+    LeafHandle widget(Shared<T>& shared) {
         placed_.insert(&shared);
         auto node = node_readonly_leaf<T>(shared, tree_.next_id_);
         apply_field_name(node, shared);
         node.drain_fn = [&shared] { shared.drain_notifications(); };
         node.bind_waker_fn = [&shared](std::function<void()> w) { shared.set_waker(std::move(w)); };
         current_parent().children.push_back(std::move(node));
+        return {current_parent().children.back()};
     }
 
     // Generic read-only widget for custom observables (e.g. Python Derived).

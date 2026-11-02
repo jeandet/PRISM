@@ -28,6 +28,7 @@ using namespace prism::input;
 struct WidgetNode {
     WidgetId id = 0;
     std::string name;                     // accessible name: the field's member name, if known
+    std::string tooltip;                  // empty: none (see ui/tooltip.hpp)
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;
