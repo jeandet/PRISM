@@ -32,6 +32,9 @@ namespace scrollbar {
     // callers read [0] as the moving thumb), then the full-height track gutter,
     // so a press anywhere on the track starts a drag for every scrollable kind.
     // No-op when the content fits the viewport.
+    // simplify: the overlay is unclipped, so a scrollbar inside another scroll view that is
+    // scrolled out of sight still draws (a TextArea or a nested Scroll in a ScrollArea).
+    // Upgrade: carry the ancestors' clip rect down layout_flatten and clip or skip the thumb.
     inline void emit_thumb(SceneSnapshot& snap, WidgetId id, Rect viewport,
                            Height content_h, DY scroll_offset, const Theme& theme) {
         Height viewport_h = viewport.extent.h;
