@@ -33,58 +33,72 @@
 <text xml:space="preserve" x="38" y="92" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
 <text xml:space="preserve" x="58.8" y="92" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes.cpp</text>
 </g>
-</g>
-<clipPath id="clip-6"><rect x="291" y="0" width="6" height="608"/></clipPath>
+<clipPath id="clip-6"><rect x="0" y="110" width="291" height="22"/></clipPath>
 <g clip-path="url(#clip-6)">
+<rect x="0" y="110" width="291" height="22" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="38" y="114" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="58.8" y="114" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">file_tree_source.hpp</text>
+</g>
+<clipPath id="clip-7"><rect x="0" y="132" width="291" height="22"/></clipPath>
+<g clip-path="url(#clip-7)">
+<rect x="0" y="132" width="291" height="22" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="38" y="136" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging"></text>
+<text xml:space="preserve" x="58.8" y="136" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">web_pre.js</text>
+</g>
+</g>
+<clipPath id="clip-8"><rect x="291" y="0" width="6" height="608"/></clipPath>
+<g clip-path="url(#clip-8)">
 <rect x="291" y="0" width="6" height="608" fill="rgba(90,90,100,0.627451)"/>
 </g>
-<clipPath id="clip-7"><rect x="297" y="0" width="200" height="608"/></clipPath>
-<g clip-path="url(#clip-7)">
+<clipPath id="clip-9"><rect x="297" y="0" width="200" height="608"/></clipPath>
+<g clip-path="url(#clip-9)">
 <rect x="297" y="0" width="200" height="608" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="305" y="8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes</text>
 <text xml:space="preserve" x="305" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">type: directory</text>
-<text xml:space="preserve" x="305" y="44" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">entries: 4</text>
-<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-01 19:17:46</text>
+<text xml:space="preserve" x="305" y="44" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">entries: 6</text>
+<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-02 19:12:56</text>
 </g>
-<clipPath id="clip-8"><rect x="497" y="0" width="6" height="608"/></clipPath>
-<g clip-path="url(#clip-8)">
+<clipPath id="clip-10"><rect x="497" y="0" width="6" height="608"/></clipPath>
+<g clip-path="url(#clip-10)">
 <rect x="497" y="0" width="6" height="608" fill="rgba(90,90,100,0.627451)"/>
 </g>
-<clipPath id="clip-9"><rect x="503" y="0" width="49.6" height="32"/></clipPath>
-<g clip-path="url(#clip-9)">
+<clipPath id="clip-11"><rect x="503" y="0" width="49.6" height="32"/></clipPath>
+<g clip-path="url(#clip-11)">
 <rect x="503" y="0" width="49.6" height="30" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="511" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">File</text>
+<line x1="511" y1="23" x2="519.4" y2="23" stroke="rgba(220,220,220,1)" stroke-width="1"/>
 </g>
-<clipPath id="clip-10"><rect x="552.6" y="0" width="66.4" height="32"/></clipPath>
-<g clip-path="url(#clip-10)">
+<clipPath id="clip-12"><rect x="552.6" y="0" width="66.4" height="32"/></clipPath>
+<g clip-path="url(#clip-12)">
 <rect x="552.6" y="0" width="66.4" height="30" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="560.6" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Search</text>
+<line x1="560.6" y1="23" x2="569" y2="23" stroke="rgba(220,220,220,1)" stroke-width="1"/>
 </g>
-<clipPath id="clip-11"><rect x="619" y="0" width="265" height="32"/></clipPath>
-<g clip-path="url(#clip-11)">
+<clipPath id="clip-13"><rect x="619" y="0" width="265" height="32"/></clipPath>
+<g clip-path="url(#clip-13)">
 <rect x="619" y="0" width="265" height="30" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-12"><rect x="623" y="0" width="257" height="30"/></clipPath>
-<g clip-path="url(#clip-12)">
+<clipPath id="clip-14"><rect x="623" y="0" width="257" height="30"/></clipPath>
+<g clip-path="url(#clip-14)">
 <text xml:space="preserve" x="623" y="6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">include</text>
 </g>
 </g>
-<clipPath id="clip-13"><rect x="884" y="0" width="49.6" height="32"/></clipPath>
-<g clip-path="url(#clip-13)">
+<clipPath id="clip-15"><rect x="884" y="0" width="49.6" height="32"/></clipPath>
+<g clip-path="url(#clip-15)">
 <rect x="884" y="0" width="49.6" height="32" fill="rgba(40,105,180,1)"/>
 <rect x="884" y="0" width="49.6" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
 <text xml:space="preserve" x="892" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Save</text>
 </g>
-<clipPath id="clip-14"><rect x="933.6" y="0" width="66.4" height="32"/></clipPath>
-<g clip-path="url(#clip-14)">
+<clipPath id="clip-16"><rect x="933.6" y="0" width="66.4" height="32"/></clipPath>
+<g clip-path="url(#clip-16)">
 <rect x="933.6" y="0" width="66.4" height="32" fill="rgba(40,105,180,1)"/>
 <rect x="933.6" y="0" width="66.4" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
 <text xml:space="preserve" x="941.6" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Reload</text>
 </g>
-<clipPath id="clip-15"><rect x="503" y="32" width="497" height="517.6"/></clipPath>
-<g clip-path="url(#clip-15)">
+<clipPath id="clip-17"><rect x="503" y="32" width="497" height="517.6"/></clipPath>
+<g clip-path="url(#clip-17)">
 <rect x="503" y="32" width="497" height="517.6" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-16"><rect x="507" y="36" width="489" height="509.6"/></clipPath>
-<g clip-path="url(#clip-16)">
+<clipPath id="clip-18"><rect x="507" y="36" width="489" height="509.6"/></clipPath>
+<g clip-path="url(#clip-18)">
 <rect x="515.4" y="173.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
 <rect x="515.4" y="212.4" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
 <rect x="515.4" y="232" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
@@ -120,15 +134,19 @@
 <text xml:space="preserve" x="507" y="547.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">    std::error_code ec;</text>
 </g>
 </g>
-<clipPath id="clip-17"><rect x="503" y="549.6" width="497" height="24"/></clipPath>
-<g clip-path="url(#clip-17)">
+<clipPath id="clip-19"><rect x="503" y="549.6" width="497" height="24"/></clipPath>
+<g clip-path="url(#clip-19)">
 <rect x="503" y="549.6" width="497" height="24" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="507" y="553.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  73 lines, 2814 characters  |  11 matches</text>
 </g>
-<clipPath id="clip-18"><rect x="503" y="573.6" width="497" height="0"/></clipPath>
-<g clip-path="url(#clip-18)">
+<clipPath id="clip-20"><rect x="503" y="573.6" width="497" height="0"/></clipPath>
+<g clip-path="url(#clip-20)">
 </g>
-<clipPath id="clip-19"><rect x="503" y="573.6" width="497" height="0"/></clipPath>
-<g clip-path="url(#clip-19)">
+<clipPath id="clip-21"><rect x="503" y="573.6" width="497" height="0"/></clipPath>
+<g clip-path="url(#clip-21)">
 </g>
+<clipPath id="clip-22"><rect x="503" y="573.6" width="497" height="0"/></clipPath>
+<g clip-path="url(#clip-22)">
+</g>
+<rect x="988" y="36" width="6" height="136.594" fill="rgba(120,120,130,0.627451)"/>
 </svg>

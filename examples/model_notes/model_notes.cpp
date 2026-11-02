@@ -2,7 +2,7 @@
 // reference app: it exercises editing, selection, clipboard, undo, IME and text measurement the
 // way a dashboard never does. Logic lives in notes_logic.hpp (tested); this file only wires it.
 #include <prism/prism.hpp>
-#include "../model_tree_browser/file_tree_source.hpp"
+#include "file_tree_source.hpp"
 #include "../showcase/showcase_common.hpp"
 #include "notes_logic.hpp"
 
@@ -27,10 +27,9 @@ struct NotesApp {
     core::Field<ui::Button> reload{{"Reload"}};
     core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
     core::Field<ui::Label<>> status{{"No file open"}};
-    // File > Rename…: a popup holding a field and a button (ui::Popup)
-    core::Field<ui::Popup> rename_popup{{.open = false, .modal = true}};
+    // File > Rename…: a dialog holding a field
+    core::Field<ui::Dialog> rename_dialog{{.title = "Rename", .message = "", .buttons = {"Rename", "Cancel"}}};
     core::Field<ui::TextField<>> new_name{{.placeholder = "New file name"}};
-    core::Field<ui::Button> rename_ok{{"Rename"}};
 
     fs::path current;
     fs::path pending_reload;   // the file the "Unsaved changes" dialog is about
@@ -51,7 +50,9 @@ struct NotesApp {
         wiring.push_back(search_menu.on_change().connect(on_choice));
         wiring.push_back(editor_menu.on_change().connect(on_choice));
         wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
-        wiring.push_back(rename_ok.on_change().connect([this](const auto&) { rename_current(); }));
+        wiring.push_back(rename_dialog.on_change().connect([this](const ui::Dialog& d) {
+            if (!d.open && d.chosen == 0) rename_current();
+        }));
         wiring.push_back(discard.on_change().connect([this](const ui::Dialog& d) {
             if (!d.open && d.chosen == 0 && !pending_reload.empty()) open(pending_reload);
         }));
@@ -65,7 +66,9 @@ struct NotesApp {
         else if (command == "Save As…") ask_for_file(app::FileDialogKind::Save);
         else if (command == "Rename…" && !current.empty()) {
             new_name.set({.value = current.filename().string(), .placeholder = new_name.get().placeholder});
-            rename_popup.set({.open = true, .modal = true});
+            auto d = rename_dialog.get();
+            d.open = true;
+            rename_dialog.set(d);
         }
         else if (command == "Save") write();
         else if (command == "Reload" && !current.empty()) confirm_reload();
@@ -88,7 +91,7 @@ struct NotesApp {
                 vb.widget(status);
                 vb.context_menu(editor_menu);
                 vb.dialog(discard);
-                vb.popup(rename_popup, [&](app::WidgetTree::ViewBuilder& p) { p.vstack(new_name, rename_ok); });
+                vb.dialog(rename_dialog, [&](app::WidgetTree::ViewBuilder& d) { d.widget(new_name).focus_on_open(); });
             });
         });
     }
@@ -129,7 +132,6 @@ struct NotesApp {
     }
 
     void rename_current() {
-        rename_popup.set({.open = false, .modal = true});
         const auto& name = new_name.get().value;
         if (current.empty() || name.empty() || name == current.filename().string()) return;
         auto to = current.parent_path() / name;

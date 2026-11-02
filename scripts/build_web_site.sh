@@ -5,7 +5,8 @@ set -euo pipefail
 
 builddir="${1:-builddir-wasm}"
 outdir="${2:-_site}"
-examples=(model_notes model_dashboard perf_lab model_plot model_tree_browser)
+# page:screenshot (the system monitor's capture keeps its README name)
+examples=(widget_gallery:widget_gallery model_notes:model_notes model_system_monitor:system_monitor perf_lab:perf_lab)
 
 coi_version=0.1.7
 coi_sha256=03d2f35be3249f5eeb4e214c5daf2be8067e2b24630aaef26a1247b723f2d05d
@@ -18,9 +19,10 @@ curl -sfL "https://cdn.jsdelivr.net/npm/coi-serviceworker@${coi_version}/coi-ser
     -o "$outdir/coi-serviceworker.js"
 echo "${coi_sha256}  $outdir/coi-serviceworker.js" | sha256sum -c --quiet
 
-for name in "${examples[@]}"; do
+for entry in "${examples[@]}"; do
+    name="${entry%%:*}" shot="${entry##*:}"
     cp "$builddir/examples/$name/$name".{html,js,wasm,data} "$outdir/"
-    cp "doc/screenshots/$name.svg" "$outdir/screenshots/"
+    cp "doc/screenshots/$shot.svg" "$outdir/screenshots/"
 done
 
 echo "Site assembled in $outdir/"

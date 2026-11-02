@@ -5,10 +5,6 @@ example_suffix = is_wasm ? 'html' : []
 example_shell = is_wasm ? files('web/shell.html') : []
 example_link_args = is_wasm ? ['--shell-file', meson.current_source_dir() / 'web' / 'shell.html'] : []
 
-subdir('hello_rect')
-subdir('model_dashboard')
-subdir('model_plot')
-subdir('model_tree_browser')
 subdir('model_notes')
 subdir('widget_gallery')
 subdir('perf_lab')

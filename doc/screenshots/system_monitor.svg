@@ -152,12 +152,12 @@
 <rect x="0" y="760" width="900" height="2" fill="rgba(74,74,106,1)"/>
 <clipPath id="clip-9"><rect x="0" y="369" width="225" height="24"/></clipPath>
 <g clip-path="url(#clip-9)">
-<text xml:space="preserve" x="4" y="373" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">pid</text>
+<text xml:space="preserve" x="4" y="373" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">PID</text>
 </g>
 <rect x="225" y="373" width="1" height="16" fill="rgba(74,74,106,1)"/>
 <clipPath id="clip-10"><rect x="225" y="369" width="225" height="24"/></clipPath>
 <g clip-path="url(#clip-10)">
-<text xml:space="preserve" x="229" y="373" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">name</text>
+<text xml:space="preserve" x="229" y="373" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">Name</text>
 </g>
 <rect x="450" y="373" width="1" height="16" fill="rgba(74,74,106,1)"/>
 <clipPath id="clip-11"><rect x="450" y="369" width="225" height="24"/></clipPath>

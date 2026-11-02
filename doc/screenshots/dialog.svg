@@ -14,12 +14,34 @@
 <g clip-path="url(#clip-2)">
 </g>
 <rect x="0" y="0" width="480" height="228" fill="rgba(0,0,0,0.54902)"/>
-<rect x="80" y="49" width="320" height="130" rx="8" fill="rgba(50,50,62,1)"/>
-<rect x="80" y="49" width="320" height="130" rx="8" stroke="rgba(80,80,95,1)" fill="none" stroke-width="1"/>
-<text xml:space="preserve" x="100" y="69" font-family="Noto Sans, sans-serif" font-size="16" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Unsaved changes</text>
-<text xml:space="preserve" x="100" y="99" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reloading discards your edits.</text>
-<rect x="198.8" y="129" width="90.8" height="30" rx="4" fill="rgba(40,105,180,1)"/>
-<text xml:space="preserve" x="214.8" y="136" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Discard</text>
-<rect x="297.6" y="129" width="82.4" height="30" rx="4" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="313.6" y="136" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cancel</text>
+<rect x="80" y="53.2" width="320" height="121.6" rx="8" fill="rgba(50,50,62,1)"/>
+<rect x="80" y="53.2" width="320" height="121.6" rx="8" stroke="rgba(80,80,95,1)" fill="none" stroke-width="1"/>
+<clipPath id="clip-3"><rect x="80" y="53.2" width="320" height="121.6"/></clipPath>
+<g clip-path="url(#clip-3)">
+<clipPath id="clip-4"><rect x="96" y="69.2" width="288" height="30"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="96" y="69.2" width="288" height="30" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="100" y="73.2" font-family="Noto Sans, sans-serif" font-size="17" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Unsaved changes</text>
+</g>
+<clipPath id="clip-5"><rect x="96" y="99.2" width="288" height="27.6"/></clipPath>
+<g clip-path="url(#clip-5)">
+<rect x="96" y="99.2" width="288" height="27.6" fill="rgba(0,0,0,0)"/>
+<clipPath id="clip-6"><rect x="100" y="103.2" width="280" height="19.6"/></clipPath>
+<g clip-path="url(#clip-6)">
+<text xml:space="preserve" x="100" y="105.2" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reloading discards your edits.</text>
+</g>
+</g>
+<clipPath id="clip-7"><rect x="234.8" y="126.8" width="74.8" height="32"/></clipPath>
+<g clip-path="url(#clip-7)">
+<rect x="234.8" y="126.8" width="74.8" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="234.8" y="126.8" width="74.8" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="242.8" y="133.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Discard</text>
+<rect x="235.8" y="127.8" width="72.8" height="30" stroke="rgba(80,160,240,1)" fill="none" stroke-width="2"/>
+</g>
+<clipPath id="clip-8"><rect x="317.6" y="126.8" width="66.4" height="32"/></clipPath>
+<g clip-path="url(#clip-8)">
+<rect x="317.6" y="126.8" width="66.4" height="32" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="325.6" y="133.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cancel</text>
+</g>
+</g>
 </svg>
