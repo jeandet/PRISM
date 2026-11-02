@@ -63,6 +63,7 @@ enum class ScrollEventPolicy : uint8_t { ConsumeAlways, BubbleAtBounds };
 template <StringLike T = std::string>
 struct Label {
     T value{};
+    bool heading = false;   // a title: larger and brighter, with no box behind it
     bool operator==(const Label&) const = default;
 };
 
@@ -104,6 +105,8 @@ struct TextArea {
     size_t max_length = 0;   // 0 = unlimited
     size_t rows = 6;         // visible lines, determines widget height
     std::vector<TextRange> highlights{};   // e.g. search matches; drawn under the text
+    bool read_only = false;   // selectable and copyable, but the user cannot change the text
+    FontRole font = FontRole::Mono;   // Ui for prose (a dialog's message), Mono for code
     bool operator==(const TextArea&) const = default;
 };
 
@@ -297,11 +300,6 @@ struct Popup {
     bool operator==(const Popup&) const = default;
 };
 
-struct DialogEditState {
-    std::size_t highlighted = 0;
-    float scroll = 0.f;   // of a message taller than the window allows
-    std::optional<std::pair<float, float>> drag;   // the scrollbar's: pointer y and scroll at the press
-};
 
 template <ScopedEnum T>
 struct Dropdown {
@@ -565,8 +563,11 @@ struct Widget<bool> {
 template <StringLike T>
 struct Widget<Label<T>> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    static constexpr float body_size = 14.f, heading_size = 17.f;
+    static float size_of(const Label<T>& l) { return l.heading ? heading_size : body_size; }
     static float intrinsic_width(const Field<Label<T>>& f, const WidgetNode& n) {
-        return 8.f + text_width(node_theme(n).measurer, std::string_view(f.get().value.data(), f.get().value.size()), 14.f);
+        return 8.f + text_width(node_theme(n).measurer, std::string_view(f.get().value.data(), f.get().value.size()),
+                                size_of(f.get()));
     }
     static constexpr Role access_role = Role::Label;
     static void describe(const Field<Label<T>>& f, AccessInfo& a) {
@@ -576,9 +577,12 @@ struct Widget<Label<T>> {
     static void record(DrawList& dl, const Field<Label<T>>& field, WidgetNode& node) {
         auto& t = node_theme(node);
         Width w = delegate_detail::widget_w(node);
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{24}), t.surface);
-        dl.text(std::string(field.get().value.data(), field.get().value.size()),
-                delegate_detail::make_point(X{4}, Y{4}), 14, t.text_muted);
+        const auto& l = field.get();
+        // A heading's box is clear: it still gives the widget its height.
+        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{l.heading ? 30.f : 24.f}),
+                       l.heading ? Color::rgba(0, 0, 0, 0) : t.surface);
+        dl.text(std::string(l.value.data(), l.value.size()), delegate_detail::make_point(X{4}, Y{4}), size_of(l),
+                l.heading ? t.text : t.text_muted);
     }
 
     static void handle_input(Field<Label<T>>&, const InputEvent&, WidgetNode&) {}
@@ -687,6 +691,7 @@ struct Button {
     // Drawn 16 pt square left of the text (render/image_decoder.hpp loads one from a file). An
     // icon-only button has empty text: give it a tooltip so it still has a name.
     std::shared_ptr<const Image> icon{};
+    bool primary = true;   // false: a quieter button beside the main one (a dialog's Cancel)
     bool operator==(const Button&) const = default;
 };
 
@@ -708,18 +713,17 @@ struct Widget<Button> {
         auto& vs = node_vs(node);
         auto& t = node_theme(node);
         Width w = delegate_detail::widget_w(node);
-        Color bg = vs.pressed ? t.primary_active
-                 : vs.hovered ? t.primary_hover
-                 : t.primary;
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), bg);
-        dl.rect_outline(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), t.primary_outline, 1.0f);
         const auto& b = field.get();
+        Color bg = b.primary ? (vs.pressed ? t.primary_active : vs.hovered ? t.primary_hover : t.primary)
+                             : (vs.pressed ? t.surface_active : vs.hovered ? t.surface_hover : t.surface);
+        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), bg);
+        if (b.primary) dl.rect_outline(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), t.primary_outline, 1.0f);
         float x = 8.f;
         if (b.icon) {
             dl.image(b.icon, Rect{Point{X{x}, Y{(32.f - icon_size) / 2}}, Size{Width{icon_size}, Height{icon_size}}});
             x += icon_size + icon_gap;
         }
-        if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, t.text_on_primary);
+        if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, b.primary ? t.text_on_primary : t.text);
         if (vs.focused)
             delegate_detail::draw_focus_ring(dl, w, Height{32}, t);
     }

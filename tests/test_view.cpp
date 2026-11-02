@@ -151,6 +151,29 @@ TEST_CASE("view() with spacer pushes widgets apart") {
     CHECK(gap > 0);
 }
 
+struct GapModel {
+    prism::Field<prism::Button> a{{"A"}};
+    prism::Field<prism::Button> b{{"B"}};
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.hstack([&] {
+            vb.widget(a);
+            vb.gap(12.f);
+            vb.widget(b);
+            vb.spacer();
+        });
+    }
+};
+
+TEST_CASE("vb.gap leaves a fixed space between widgets") {
+    GapModel model;
+    prism::WidgetTree tree(model);
+    auto snap = tree.build_snapshot(800, 600, 1);
+    REQUIRE(snap->geometry.size() == 2);   // the gap, like a spacer, has no geometry
+    auto& ra = snap->geometry[0].second;
+    auto& rb = snap->geometry[1].second;
+    CHECK(rb.origin.x.raw() - (ra.origin.x.raw() + ra.extent.w.raw()) == doctest::Approx(12.f));
+}
+
 // ── Task 7: view() with component() ──────────────────────────────────────────
 
 struct SubComponent {

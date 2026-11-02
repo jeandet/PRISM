@@ -311,7 +311,7 @@ struct LineCol {
 };
 
 // TextArea text is fixed-width: columns stay aligned for code and tabular content.
-constexpr FontRole ta_font_role = FontRole::Mono;
+constexpr FontRole ta_font_role = FontRole::Mono;   // the default; TextArea::font picks
 
 using ui::is_wrap_space;
 using ui::word_break;
@@ -366,8 +366,8 @@ inline size_t line_col_to_cursor(std::string_view text, size_t line, size_t col,
 constexpr Width ta_padding_x{4.f};
 constexpr Height ta_padding_y{4.f};
 constexpr float ta_font_size = 14.f;
-inline Height ta_line_h(const TextMeasurer* m) {
-    return Height{line_height(m, ta_font_size, ta_font_role)};
+inline Height ta_line_h(const TextMeasurer* m, FontRole role = ta_font_role) {
+    return Height{line_height(m, ta_font_size, role)};
 }
 constexpr Width ta_cursor_w{2.f};
 
@@ -389,13 +389,16 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
     auto& sf = field.get();
     auto& es = node.get_or_create<TextAreaEditState>();
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
+    const FontRole role = field.get().font;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
-    Height text_area_h{static_cast<float>(sf.rows) * ta_line_h(m).raw()};
+    Height text_area_h{static_cast<float>(sf.rows) * ta_line_h(m, role).raw()};
     Height widget_h = ta_padding_y * 2.f + text_area_h;
 
     auto& t = *node.theme;
-    auto bg = vs.focused ? t.surface_active
+    // Read-only text reads as plain text: its box is clear (it still sizes the widget).
+    auto bg = sf.read_only ? Color::rgba(0, 0, 0, 0)
+            : vs.focused ? t.surface_active
             : vs.hovered ? t.surface_hover
             : t.surface;
     dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, widget_h), bg);
@@ -410,8 +413,8 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
     // What is drawn: the value, with an input-method preedit inserted at the caret.
     std::string shown = es.preedit.empty() ? std::string(raw) : with_preedit(raw, caret, es.preedit);
     std::string_view value = shown;
-    auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
-    publish_scroll(node, es, Height{static_cast<float>(wrapped.size()) * ta_line_h(m).raw()}, text_area_w, text_area_h);
+    auto wrapped = ui::wrap_lines(value, text_area_w, m, ta_font_size, role);
+    publish_scroll(node, es, Height{static_cast<float>(wrapped.size()) * ta_line_h(m, role).raw()}, text_area_w, text_area_h);
 
     // Calls fn(x0, x1, line_top) for the part of [lo, hi) on each visual line: several calls for
     // one line when the range crosses a direction change there.
@@ -420,9 +423,9 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
             size_t a = std::max(lo, wrapped[i].start), b = std::min(hi, wrapped[i].start + wrapped[i].length);
             if (a >= b) continue;
             auto text = line_text(value, wrapped[i]);
-            Y y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()};
+            Y y{static_cast<float>(i) * ta_line_h(m, role).raw() - es.scroll_y.raw()};
             for (auto [x0, x1] : selection_spans(m, text, a - wrapped[i].start, b - wrapped[i].start,
-                                                 ta_font_size, ta_font_role))
+                                                 ta_font_size, role))
                 fn(x0, x1, y);
         }
     };
@@ -431,33 +434,33 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
     if (es.anchor && *es.anchor != es.cursor && es.preedit.empty()) {
         auto [lo, hi] = std::minmax(*es.anchor, es.cursor);
         for_each_span(lo, hi, [&](float x0, float x1, Y y) {
-            dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_selection);
+            dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m, role)), t.text_selection);
         });
     }
     // Highlights (e.g. search matches) are in value offsets: skipped while composing.
     if (es.preedit.empty())
         for (const auto& h : sf.highlights)
             for_each_span(std::min(h.begin, raw.size()), std::min(h.end, raw.size()), [&](float x0, float x1, Y y) {
-                dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m)), t.text_match);
+                dl.filled_rect(delegate_detail::make_rect(X{x0}, y, Width{x1 - x0}, ta_line_h(m, role)), t.text_match);
             });
     if (!es.preedit.empty()) {   // underline the composition
         for_each_span(caret, caret + es.preedit.size(), [&](float x0, float x1, Y y) {
-            Y under = y + DY{ta_line_h(m).raw() - 2.f};
+            Y under = y + DY{ta_line_h(m, role).raw() - 2.f};
             dl.line(Point{X{x0}, under}, Point{X{x1}, under}, t.text, 1.f);
         });
     }
 
     if (sf.value.empty() && !vs.focused) {
         dl.text(sf.placeholder, delegate_detail::make_point(X{0}, Y{2}), ta_font_size, t.text_placeholder,
-                0.f, TextAnchor::TopLeft, ta_font_role);
+                0.f, TextAnchor::TopLeft, role);
     } else {
         for (size_t i = 0; i < wrapped.size(); ++i) {
-            Y y{static_cast<float>(i) * ta_line_h(m).raw() - es.scroll_y.raw()};
-            if (y.raw() + ta_line_h(m).raw() < 0) continue;
+            Y y{static_cast<float>(i) * ta_line_h(m, role).raw() - es.scroll_y.raw()};
+            if (y.raw() + ta_line_h(m, role).raw() < 0) continue;
             if (y.raw() > text_area_h.raw()) break;
             if (wrapped[i].length > 0) {
                 dl.text(std::string(value.substr(wrapped[i].start, wrapped[i].length)), delegate_detail::make_point(X{0}, y + DY{2.f}), ta_font_size, t.text,
-                        0.f, TextAnchor::TopLeft, ta_font_role);
+                        0.f, TextAnchor::TopLeft, role);
             }
         }
     }
@@ -467,10 +470,10 @@ void text_area_record(DrawList& dl, const Field<Sentinel>& field, WidgetNode& no
         auto [line, col] = cursor_to_line_col(value, shown_caret, wrapped, es.upstream && es.preedit.empty());
         auto text = line_text(value, wrapped[line]);
         // Hanging spaces can run past the edge (see word_break): the caret stops at the edge.
-        float caret_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
+        float caret_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, role);
         X cx{std::min(caret_x, text_area_w.raw() - ta_cursor_w.raw())};
-        Y cy{static_cast<float>(line) * ta_line_h(m).raw() - es.scroll_y.raw()};
-        dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_h(m)), t.cursor);
+        Y cy{static_cast<float>(line) * ta_line_h(m, role).raw() - es.scroll_y.raw()};
+        dl.filled_rect(delegate_detail::make_rect(cx, cy, ta_cursor_w, ta_line_h(m, role)), t.cursor);
     }
 
     dl.clip_pop();
@@ -480,12 +483,13 @@ template <typename Sentinel>
 void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node) {
     auto& es = node.get_or_create<TextAreaEditState>();
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
+    const FontRole role = field.get().font;
     const TextEdit before = current_edit(field, es);
     std::string_view value = before.text;
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - ta_padding_x * 2.f;
-    Height text_area_h{static_cast<float>(field.get().rows) * ta_line_h(m).raw()};
-    auto wrapped = wrap_lines(value, text_area_w, m, ta_font_size);
+    Height text_area_h{static_cast<float>(field.get().rows) * ta_line_h(m, role).raw()};
+    auto wrapped = ui::wrap_lines(value, text_area_w, m, ta_font_size, role);
     auto [line, col] = cursor_to_line_col(value, before.cursor, wrapped, es.upstream);
     std::optional<TextEdit> after;
     bool upstream_after = false;   // only End and a landing past a line's end keep the line above
@@ -503,15 +507,15 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     auto vertical_target = [&](size_t to) {
         if (!es.goal_x) {
             auto text = line_text(value, wrapped[line]);
-            es.goal_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, ta_font_role);
+            es.goal_x = caret_x_at(m, text, core::utf8::offset(text, col), ta_font_size, role);
         }
         auto text = line_text(value, wrapped[to]);
-        size_t to_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, *es.goal_x, ta_font_role));
+        size_t to_col = core::utf8::count_upto(text, index_at(m, text, ta_font_size, *es.goal_x, role));
         return at_line_col(to, to_col);
     };
 
     if (auto* co = std::get_if<Composition>(&ev)) {
-        set_composition(es, node, *co);
+        if (!field.get().read_only) set_composition(es, node, *co);
         return;
     }
     if (std::holds_alternative<TextInput>(ev) || std::holds_alternative<Paste>(ev)) es.preedit.clear();
@@ -546,13 +550,16 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         after = mouse_edit(before, es, ev, [&](Point p) {
             float rel_y = p.y.raw() - ta_padding_y.raw() + es.scroll_y.raw();
             size_t click_line = static_cast<size_t>(
-                std::clamp(rel_y / ta_line_h(m).raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
+                std::clamp(rel_y / ta_line_h(m, role).raw(), 0.f, static_cast<float>(wrapped.size() - 1)));
             auto text = line_text(value, wrapped[click_line]);
             size_t click_col = core::utf8::count_upto(
-                text, index_at(m, text, ta_font_size, p.x.raw() - ta_padding_x.raw(), ta_font_role));
+                text, index_at(m, text, ta_font_size, p.x.raw() - ta_padding_x.raw(), role));
             return at_line_col(click_line, click_col);
         });
     }
+    // Read-only: the caret and the selection still move (and copy works); a change to the text
+    // is dropped, so a cut only copies.
+    if (after && field.get().read_only && after->text != before.text) after.reset();
     if (after) {
         es.history.record(before, *after, std::holds_alternative<TextInput>(ev)
                                               ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
@@ -563,12 +570,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
 
     if (!after) return;   // only a moved caret or an edit brings the caret into view (not a hover)
     auto new_value = std::string_view(field.get().value.data(), field.get().value.size());
-    auto new_wrapped = wrap_lines(new_value, text_area_w, m, ta_font_size);
+    auto new_wrapped = ui::wrap_lines(new_value, text_area_w, m, ta_font_size, role);
     auto [cur_line, cur_col] = cursor_to_line_col(new_value, es.cursor, new_wrapped, es.upstream);
-    Y cursor_y{static_cast<float>(cur_line) * ta_line_h(m).raw()};
+    Y cursor_y{static_cast<float>(cur_line) * ta_line_h(m, role).raw()};
 
-    if (cursor_y.raw() - es.scroll_y.raw() > text_area_h.raw() - ta_line_h(m).raw())
-        es.scroll_y = DY{cursor_y.raw() - text_area_h.raw() + ta_line_h(m).raw()};
+    if (cursor_y.raw() - es.scroll_y.raw() > text_area_h.raw() - ta_line_h(m, role).raw())
+        es.scroll_y = DY{cursor_y.raw() - text_area_h.raw() + ta_line_h(m, role).raw()};
     if (cursor_y.raw() < es.scroll_y.raw())
         es.scroll_y = DY{cursor_y.raw()};
 }

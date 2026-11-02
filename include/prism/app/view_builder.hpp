@@ -22,6 +22,7 @@
 #endif
 
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <type_traits>
 #include <vector>
@@ -70,6 +71,54 @@ auto adapt_on_change(Observable& obs) {
         return obs.on_change().connect([cb = std::move(cb)](const auto&) { cb(); });
     };
 }
+
+// The widgets a dialog is made of (see ViewBuilder::dialog). Created once and changed in place:
+// an open dialog's widgets point at them, and the content builder also runs while the view is
+// built, so they must never be replaced under it.
+struct DialogParts {
+    static constexpr float message_wrap_w = 520.f;   // a message wider than this wraps
+    static constexpr std::size_t max_message_rows = 10;   // a longer one scrolls
+
+    Field<Label<>> title{{.heading = true}};
+    Field<TextArea<>> message{{.read_only = true, .font = FontRole::Ui}};
+    std::vector<std::unique_ptr<Field<Button>>> buttons;
+    std::vector<Connection> clicks;
+    bool syncing = false;   // updating a button's text is not a click
+
+    // The parts as the dialog now says; a new button closes the dialog with its index.
+    void sync(Field<Dialog>& d, const TextMeasurer* m) {
+        syncing = true;
+        const Dialog& v = d.get();
+        title.set({.value = v.title, .heading = true});
+        auto msg = message.get();
+        msg.value = v.message;
+        msg.rows = std::clamp<std::size_t>(
+            ui::wrap_lines(v.message, Width{message_wrap_w}, m, 14.f, FontRole::Ui).size(), 1, max_message_rows);
+        message.set(msg);
+        while (buttons.size() < v.buttons.size()) add_button(d);
+        for (std::size_t i = 0; i < v.buttons.size(); ++i) {
+            auto b = buttons[i]->get();
+            b.text = v.buttons[i];
+            b.primary = i == 0;   // the default one (Enter); the others are quieter
+            buttons[i]->set(b);
+        }
+        syncing = false;
+    }
+
+private:
+    void add_button(Field<Dialog>& d) {
+        std::size_t i = buttons.size();
+        buttons.push_back(std::make_unique<Field<Button>>(Button{}));
+        clicks.push_back(buttons.back()->on_change().connect([this, &d, i](const Button&) {
+            if (syncing || !d.get().open) return;
+            auto v = d.get();
+            v.open = false;
+            v.chosen = i;
+            ++v.activations;
+            d.set(v);
+        }));
+    }
+};
 
 } // namespace view_builder_detail
 
@@ -149,6 +198,9 @@ public:
         Node& node_ref;
         // &&: only on the temporary widget() returns, so a stored handle cannot dangle.
         LeafHandle&& tooltip(std::string text) && { node_ref.tooltip = std::move(text); return std::move(*this); }
+        // Inside a popup: this widget, not the first one, has the focus when the popup opens
+        // (a dialog's default button, a form's most useful field).
+        LeafHandle&& focus_on_open() && { node_ref.focus_on_open = true; return std::move(*this); }
     };
 
 public:
@@ -175,8 +227,30 @@ public:
     // A right click anywhere in the current container opens this menu at the pointer.
     void context_menu(Field<ContextMenu>& menu) { widget(menu); }
 
-    // A modal dialog, shown when the app sets its `open` (see ui::Dialog).
-    void dialog(Field<Dialog>& d) { widget(d); }
+    // A modal dialog, shown when the app sets its `open` (see ui::Dialog): its title, its message
+    // (selectable, scrolling when long), the widgets `content` places (a form; none by default)
+    // and a row of its buttons. The first button has the focus, so Enter picks it.
+    void dialog(Field<Dialog>& d) { dialog(d, [](ViewBuilder&) {}); }
+
+    template <typename F>
+    void dialog(Field<Dialog>& d, F&& content) {
+        widget(d);
+        auto parts = std::make_shared<view_builder_detail::DialogParts>();
+        attach_popup_content([&tree = tree_, &d, parts, cb = std::forward<F>(content)](ViewBuilder& vb) mutable {
+            parts->sync(d, tree.theme().measurer);
+            vb.widget(parts->title);
+            if (!d.get().message.empty()) vb.widget(parts->message);
+            cb(vb);
+            vb.hstack([&] {
+                vb.spacer();
+                for (std::size_t i = 0; i < d.get().buttons.size(); ++i) {
+                    if (i > 0) vb.gap(8.f);
+                    auto b = vb.widget(*parts->buttons[i]);
+                    if (i == 0) std::move(b).focus_on_open();
+                }
+            });
+        });
+    }
 
     // A popup holding the widgets `content` places (see ui::Popup and
     // doc/design/popup-content.md). They are built when the popup opens and dropped when it
@@ -184,17 +258,7 @@ public:
     template <typename F>
     void popup(Field<Popup>& state, F&& content) {
         widget(state);
-        // Run once into a scratch node only to learn which fields the content places, so the
-        // unplaced-field check doesn't flag them; the real content is built on each opening.
-        Node scratch;
-        ViewBuilder probe{tree_, scratch};
-        content(probe);
-        placed_.insert(probe.placed().begin(), probe.placed().end());
-        current_parent().children.back().popup_builder =
-            [&tree = tree_, cb = std::forward<F>(content)](Node& target) mutable {
-                ViewBuilder vb{tree, target};
-                cb(vb);
-            };
+        attach_popup_content(std::forward<F>(content));
     }
 
     // Renders like widget(Field<T>&) but without focus/input wiring --
@@ -251,6 +315,31 @@ public:
     WidgetId vstack(std::invocable auto&& fn) { return push_container(LayoutKind::Column, fn).id; }
 
 private:
+    // Gives the widget just placed a popup built from `content` on each opening. It also runs
+    // once now, into a scratch node, only to learn which fields it places, so the unplaced-field
+    // check doesn't flag them.
+    void add_spacer(float size) {
+        Node s;
+        s.id = tree_.next_id_++;
+        s.is_leaf = true;
+        s.layout_kind = LayoutKind::Spacer;
+        s.spacer_size = size;
+        current_parent().children.push_back(std::move(s));
+    }
+
+    template <typename F>
+    void attach_popup_content(F&& content) {
+        Node scratch;
+        ViewBuilder probe{tree_, scratch};
+        content(probe);
+        placed_.insert(probe.placed().begin(), probe.placed().end());
+        current_parent().children.back().popup_builder =
+            [&tree = tree_, cb = std::forward<F>(content)](Node& target) mutable {
+                ViewBuilder vb{tree, target};
+                cb(vb);
+            };
+    }
+
     void item(field_type auto& field) { widget(field); }
     template <typename T>
     void item(Derived<T>& d) { widget(d); }
@@ -334,13 +423,10 @@ private:
 
 public:
 
-    void spacer() {
-        Node s;
-        s.id = tree_.next_id_++;
-        s.is_leaf = true;
-        s.layout_kind = LayoutKind::Spacer;
-        current_parent().children.push_back(std::move(s));
-    }
+    void spacer() { add_spacer(0.f); }
+
+    // A fixed gap of `points` along the current row or column (between buttons, around groups).
+    void gap(float points) { add_spacer(points); }
 
     void handle() {
         Node h;

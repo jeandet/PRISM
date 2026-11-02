@@ -4,13 +4,15 @@
 (`WidgetNode::popup_area`/`popup_modal`, `WidgetTree::popup_owner`/`close_popup`/`adopt_popup`,
 routing in `app/event_routing.hpp`), `Menu` with menu bar navigation, `ContextMenu`
 (`delegates/menu_delegates.hpp`) and a modal `Dialog` with a scrim (`delegates/dialog_delegates.hpp`).
+Since 2026-11-02 a dialog is a popup holding widgets (`doc/design/popup-content.md`):
+`ViewBuilder::dialog` builds its title (a heading `Label`), its message (a read-only `TextArea`,
+which wraps, scrolls and can be selected and copied), the app's own widgets (a form, through
+`vb.dialog(d, content)`) and a row of `Button`s, the first one focused so Enter picks it.
 Tooltips (`ui/tooltip.hpp`) are drawn in the snapshot overlay and never take input; their
 delay is the one timed wake of the logic thread (`app/deadline_timer.hpp`).
 Popups open below what they came from (a menu title, a right click) and flip above it, or
-right-align with it, near a window edge. Not yet: popovers anchored
-to arbitrary widgets, keyboard mnemonics, a scrollable widget inside a dialog (scrolling is
-blocked while a popup is open). A long dialog message wraps, and scrolls inside a card kept
-within the window (wheel, Up/Down, PageUp/PageDown, Home/End, or its scrollbar).
+right-align with it, near a window edge. Menus have keyboard mnemonics (`"&File"`, Alt+F).
+Not yet: popovers anchored to arbitrary widgets.
 
 ## Decision
 

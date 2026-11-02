@@ -74,6 +74,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         if (node.layout_kind == LK::Spacer) {
             LayoutNode spacer;
             spacer.kind = LayoutNode::Kind::Spacer;
+            spacer.spacer_size = node.spacer_size;
             spacer.id = node.id;
             spacer.theme = node.theme;
             parent.children.push_back(std::move(spacer));

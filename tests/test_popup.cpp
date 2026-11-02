@@ -250,3 +250,50 @@ TEST_CASE("a popup with no widgets inside is built once, not on every frame") {
     route_event(tree, snap.get(), TextInput{"y"});   // a non-modal empty popup: the field keeps typing
     CHECK(model.behind.get().value == "y");
 }
+
+TEST_CASE("a widget marked focus_on_open has the focus when its popup opens") {
+    struct Form {
+        Field<Popup> pop{{.open = false, .modal = true}};
+        Field<TextField<>> first{{}};
+        Field<TextField<>> wanted{{}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.popup(pop, [&](WidgetTree::ViewBuilder& p) {
+                p.widget(first);
+                p.widget(wanted).focus_on_open();
+            });
+        }
+    } model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(500, 400, 1);
+    model.pop.set({.open = true, .modal = true});
+    snap = tree.build_snapshot(500, 400, 2);
+    route_event(tree, snap.get(), TextInput{"x"});
+    CHECK(model.wanted.get().value == "x");
+    CHECK(model.first.get().value.empty());
+}
+
+TEST_CASE("a click on a scrolling text area inside a popup focuses it, not a scrollbar drag") {
+    // The popup's widgets share the overlay hit list with scrollbars; only a scrollbar starts a drag.
+    struct Pad {
+        Field<Popup> pop{{.open = false, .modal = true}};
+        Field<TextArea<>> text{{.rows = 3}};
+        Field<Button> ok{{"OK"}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.popup(pop, [&](WidgetTree::ViewBuilder& p) { p.widget(text); p.widget(ok).focus_on_open(); });
+        }
+    } model;
+    std::string lines;
+    for (int i = 0; i < 30; ++i) lines += "line\n";
+    model.text.set({.value = lines, .rows = 3});
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(500, 400, 1);
+    model.pop.set({.open = true, .modal = true});
+    snap = tree.build_snapshot(500, 400, 2);
+    auto area = *std::ranges::find_if(snap->overlay_geometry, [&](auto& g) {
+        return g.first != tree.popup_owner() && g.second.extent.h.raw() > 40.f;   // the text area, not the card
+    });
+    Point in{area.second.origin.x + DX{10}, area.second.origin.y + DY{10}};
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{in, buttons::left, false});
+    CHECK(tree.focused_id() == area.first);
+}

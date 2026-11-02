@@ -63,8 +63,10 @@ after `view()` returned. So it may capture the model (members, `this`) but never
 `view()`. It also runs once while `view()` runs, into a scratch node, only to learn which fields
 it places; builder code must not have side effects beyond placing widgets.
 
-`Dialog` keeps its self-painted form for the simple "message and buttons" case. A dialog with
-fields is a `Popup` whose subtree has the fields and a row of `Button`s.
+`Dialog` is built on this too (2026-11-02): `vb.dialog(d, content)` makes its content from the
+dialog's title, message and buttons, around the widgets `content` places. When the app changes
+an open dialog, its widget sets `WidgetNode::popup_rebuild` and the tree builds the content again.
+`.focus_on_open()` on a placed widget picks what has the focus when the popup opens.
 
 ## Not in this step
 

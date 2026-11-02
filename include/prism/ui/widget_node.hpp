@@ -30,6 +30,7 @@ struct WidgetNode {
     WidgetId id = 0;
     std::string name;                     // accessible name: the field's member name, if known
     std::string tooltip;                  // empty: none (see ui/tooltip.hpp)
+    bool focus_on_open = false;           // focused when the popup holding it opens
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;
@@ -46,6 +47,7 @@ struct WidgetNode {
     // with a column node to fill); `popup_content_open` is what the widget asks for.
     std::function<void(Node&)> popup_builder;
     bool popup_content_open = false;
+    bool popup_rebuild = false;   // the widget asks for its open content anew (what it shows changed)
     // An animating widget's next frame (set by its record(); see WidgetTree::next_wake).
     std::optional<std::chrono::steady_clock::time_point> redraw_at;
     WidgetId focus_before_popup = 0;   // given back when the popup closes
@@ -92,6 +94,7 @@ struct WidgetNode {
     std::function<void(WidgetNode&)> wire;
     std::function<void(WidgetNode&)> record;
     LayoutKind layout_kind = LayoutKind::Default;
+    float spacer_size = 0.f;   // see Node::spacer_size
     Rect canvas_bounds{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
     Size arranged_extent{Width{0}, Height{0}};  // last-arranged main-axis extent, populated for every node kind
 

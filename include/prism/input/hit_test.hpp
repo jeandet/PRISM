@@ -35,6 +35,13 @@ using namespace prism::render;
     return std::nullopt;
 }
 
+// The scroll view whose scrollbar is under `pos` (a press there drags its thumb).
+[[nodiscard]] inline std::optional<WidgetId> hit_test_scrollbar(const SceneSnapshot& snap, Point pos) {
+    for (auto it = snap.scrollbar_geometry.rbegin(); it != snap.scrollbar_geometry.rend(); ++it)
+        if (it->second.contains(pos)) return it->first;
+    return std::nullopt;
+}
+
 [[nodiscard]] inline std::optional<WidgetId> hit_test_overlay(
     const SceneSnapshot& snap, Point pos)
 {

@@ -1110,3 +1110,36 @@ TEST_CASE("TextArea: a caret among hanging spaces stays inside the visible area"
     float text_right = 4.f + 200.f - 2 * 4.f;   // clip origin x + text width (absolute)
     CHECK(caret->origin.x.raw() + caret->extent.w.raw() <= text_right + 0.01f);
 }
+
+namespace {
+struct RecordingClipboard : prism::Clipboard {
+    mutable std::string text;
+    void set_text(std::string utf8) const override { text = std::move(utf8); }
+};
+}
+
+TEST_CASE("a read-only text area ignores typing, pasting, deleting and Enter") {
+    prism::Field<prism::TextArea<>> field{{.value = "fixed", .read_only = true}};
+    auto node = make_node({.focused = true});
+    using W = prism::Widget<prism::TextArea<>>;
+    W::handle_input(field, prism::TextInput{"x"}, node);
+    W::handle_input(field, prism::Paste{"pasted"}, node);
+    W::handle_input(field, prism::KeyPress{prism::keys::backspace, 0}, node);
+    W::handle_input(field, prism::KeyPress{prism::keys::enter, 0}, node);
+    W::handle_input(field, prism::Composition{"ka", 2}, node);
+    CHECK(field.get().value == "fixed");
+}
+
+TEST_CASE("a read-only text area still selects and copies; cut only copies") {
+    prism::Field<prism::TextArea<>> field{{.value = "fixed", .read_only = true}};
+    RecordingClipboard cb;
+    prism::Theme theme;
+    theme.clipboard = &cb;
+    auto node = make_node({.focused = true});
+    node.theme = &theme;
+    using W = prism::Widget<prism::TextArea<>>;
+    W::handle_input(field, prism::KeyPress{prism::keys::a, prism::mods::ctrl}, node);
+    W::handle_input(field, prism::KeyPress{prism::keys::x, prism::mods::ctrl}, node);
+    CHECK(cb.text == "fixed");
+    CHECK(field.get().value == "fixed");
+}

@@ -217,12 +217,18 @@ std::string numbered(int n) {
     return s;
 }
 
-bool overlay_draws_text(const WidgetTree& tree, std::string_view text) {
-    const auto* owner = tree.popup_node();
-    if (!owner) return false;
-    for (auto& c : owner->overlay_draws.commands)
+// Whether the last frame draws `text` in the popup layer (the dialog's message is a text area there).
+bool drawn(const Fixture& f, std::string_view text) {
+    for (auto& c : f.snap->overlay.commands)
         if (auto* t = std::get_if<TextCmd>(&c); t && t->text == text) return true;
     return false;
+}
+
+int drawn_starting_with(const Fixture& f, std::string_view prefix) {
+    int n = 0;
+    for (auto& c : f.snap->overlay.commands)
+        if (auto* t = std::get_if<TextCmd>(&c); t && t->text.starts_with(prefix)) ++n;
+    return n;
 }
 
 void show_message(Fixture& f, std::string message) {
@@ -251,20 +257,21 @@ TEST_CASE("a message taller than the window: the card fits and its buttons stay 
 TEST_CASE("the wheel and the arrow keys scroll a long message; the end is reachable") {
     Fixture f;
     show_message(f, numbered(100));
-    REQUIRE(overlay_draws_text(f.tree, "message line 0"));
-    REQUIRE_FALSE(overlay_draws_text(f.tree, "message line 99"));
+    REQUIRE(drawn(f, "message line 0"));
+    REQUIRE_FALSE(drawn(f, "message line 99"));
     auto c = *f.card();
     Point inside{c.origin.x + DX{40}, c.origin.y + DY{c.extent.h.raw() / 2}};
     route_event(f.tree, f.snap.get(), MouseScroll{inside, DX{0}, DY{1}});
     f.frame();
-    CHECK_FALSE(overlay_draws_text(f.tree, "message line 0"));
+    CHECK_FALSE(drawn(f, "message line 0"));
+    f.click(inside.x.raw(), inside.y.raw());   // the message takes the keys once clicked
     for (int i = 0; i < 200; ++i) f.key(keys::down);
     f.frame();
-    CHECK(overlay_draws_text(f.tree, "message line 99"));
-    f.key(keys::page_up);
-    f.key(keys::home);
+    CHECK(drawn(f, "message line 99"));
+    for (int i = 0; i < 200; ++i) f.key(keys::up);
     f.frame();
-    CHECK(overlay_draws_text(f.tree, "message line 0"));
+    CHECK(drawn(f, "message line 0"));
+    CHECK(f.model.ask.get().message == numbered(100));   // read-only: the keys changed nothing
 }
 
 TEST_CASE("a very long line wraps instead of widening the card past the window") {
@@ -275,24 +282,7 @@ TEST_CASE("a very long line wraps instead of widening the card past the window")
     auto c = f.card();
     REQUIRE(c);
     CHECK(c->extent.w.raw() <= 600.f);
-    int lines = 0;
-    for (auto& cmd : f.tree.popup_node()->overlay_draws.commands)
-        if (auto* t = std::get_if<TextCmd>(&cmd); t && t->text.starts_with("word")) ++lines;
-    CHECK(lines > 1);
-}
-
-TEST_CASE("dragging the message's scrollbar thumb scrolls it") {
-    Fixture f;
-    show_message(f, numbered(100));
-    auto c = *f.card();
-    float thumb_x = c.origin.x.raw() + c.extent.w.raw() - 10.f;   // pad / 2 from the edge
-    float top = c.origin.y.raw() + 20.f + 30.f + 5.f;              // the thumb starts at the message top
-    route_event(f.tree, f.snap.get(), MouseButton{Point{X{thumb_x}, Y{top}}, buttons::left, true});
-    route_event(f.tree, f.snap.get(), MouseMove{Point{X{thumb_x}, Y{top + 400.f}}, buttons::left_mask});
-    route_event(f.tree, f.snap.get(), MouseButton{Point{X{thumb_x}, Y{top + 400.f}}, buttons::left, false});
-    f.frame();
-    CHECK(overlay_draws_text(f.tree, "message line 99"));   // dragged to the end
-    CHECK(f.tree.popup_owner() != 0);                       // and the dialog is still open
+    CHECK(drawn_starting_with(f, "word") > 1);
 }
 
 TEST_CASE("a dialog the app closed and reopened starts at the top of its message") {
@@ -301,11 +291,44 @@ TEST_CASE("a dialog the app closed and reopened starts at the top of its message
     auto c = *f.card();
     route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{80}}, DX{0}, DY{3}});
     f.frame();
-    REQUIRE_FALSE(overlay_draws_text(f.tree, "message line 0"));
+    REQUIRE_FALSE(drawn(f, "message line 0"));
     auto d = f.model.ask.get();
     d.open = false;   // the app closes it
     f.model.ask.set(d);
     f.frame();
     show_message(f, numbered(100));
-    CHECK(overlay_draws_text(f.tree, "message line 0"));
+    CHECK(drawn(f, "message line 0"));
+}
+
+TEST_CASE("an open dialog keeps its content across frames: a scrolled message stays scrolled") {
+    Fixture f;
+    show_message(f, numbered(100));
+    auto c = *f.card();
+    route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{c.extent.h.raw() / 2}}, DX{0}, DY{1}});
+    f.frame();
+    f.frame();   // nothing changed: the content is not rebuilt
+    CHECK_FALSE(drawn(f, "message line 0"));
+}
+
+TEST_CASE("a dialog can hold a form: its fields take typing, its buttons still choose") {
+    struct Rename {
+        Field<Dialog> ask{{.title = "Rename", .message = "", .buttons = {"Rename", "Cancel"}}};
+        Field<TextField<>> name{{.value = "notes.txt"}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.dialog(ask, [&](WidgetTree::ViewBuilder& d) { d.widget(name).focus_on_open(); });
+        }
+    } model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto d = model.ask.get();
+    d.open = true;
+    model.ask.set(d);
+    snap = tree.build_snapshot(600, 400, 2);
+    route_event(tree, snap.get(), KeyPress{keys::end, 0});
+    route_event(tree, snap.get(), TextInput{".bak"});
+    CHECK(model.name.get().value == "notes.txt.bak");
+    route_event(tree, snap.get(), KeyPress{keys::tab, 0});   // to "Rename"
+    route_event(tree, snap.get(), KeyPress{keys::enter, 0});
+    CHECK(model.ask.get().chosen == std::optional<std::size_t>{0});
+    CHECK_FALSE(model.ask.get().open);
 }

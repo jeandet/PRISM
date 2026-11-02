@@ -151,7 +151,7 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
         return;
     }
     if (mb.pressed) {
-        if (auto oid = hit_test_overlay(snap, mb.position)) {
+        if (auto oid = hit_test_scrollbar(snap, mb.position)) {
             tree.begin_scrollbar_drag(*oid, mb.position.y);
             if (tree.in_scrollbar_drag()) return;
         }
@@ -321,6 +321,7 @@ inline void route_event(WidgetTree& tree, const SceneSnapshot* snap,
     if (std::get_if<KeyRelease>(&ev))
         route_key_release(tree, ev);
     if (snap) keep_popup_in_window(tree, *snap);
+    tree.release_closed_popup();   // a widget inside a popup may have closed it (a dialog's button)
     route_tooltip(tree, ev);
 }
 

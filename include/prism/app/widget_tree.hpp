@@ -244,6 +244,14 @@ public:
         if (it->second->dirty && it->second->record) it->second->record(*it->second);
     }
 
+    // After an event: a popup that closed during it (a dialog's button, the app) lets go of the
+    // input now, not at the next frame. The event itself still met the popup, as it was drawn.
+    void release_closed_popup() {
+        refresh_popup_owner();
+        auto it = index_.find(popup_owner_);
+        if (popup_owner_ != 0 && it != index_.end() && !it->second->popup_area) close_popup();
+    }
+
     // Moves the open popup (owner coordinates), e.g. to keep it inside the window.
     void move_popup(Rect area) {
         if (auto it = index_.find(popup_owner_); it != index_.end() && it->second->popup_area) {
@@ -713,9 +721,11 @@ private:
         WidgetNode wn;
         wn.id = node.id;
         wn.layout_kind = node.layout_kind;
+        wn.spacer_size = node.spacer_size;
         wn.theme = &theme_;
         wn.name = node.name;
         wn.tooltip = node.tooltip;
+        wn.focus_on_open = node.focus_on_open;
         wn.popup_builder = node.popup_builder;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
@@ -1180,6 +1190,11 @@ private:
     // the focus) and drops it when it closes (giving the focus back).
     void materialize_popup(WidgetNode& node) {
         bool built = !node.children.empty();
+        bool rebuild = std::exchange(node.popup_rebuild, false);   // consumed even when not built yet
+        if (built && node.popup_content_open && rebuild) {
+            close_popup_content(node);
+            built = false;
+        }
         if (node.popup_content_open && !built) open_popup_content(node);
         else if (!node.popup_content_open && built) close_popup_content(node);
     }
@@ -1198,8 +1213,12 @@ private:
         build_index(node.children.back());
         widget_detail::refresh_dirty(node.children.back());
         node.focus_before_popup = focused_id_;
+        auto inside = [&](WidgetId id) { return within(id, node.id); };
+        auto asks = [&](WidgetId id) { auto it = index_.find(id); return it != index_.end() && it->second->focus_on_open; };
+        if (auto it = std::ranges::find_if(focus_order_, [&](WidgetId id) { return inside(id) && asks(id); });
+            it != focus_order_.end()) return set_focused(*it);
         for (WidgetId id : focus_order_)
-            if (within(id, node.id)) return set_focused(id);
+            if (inside(id)) return set_focused(id);
         if (node.popup_modal) clear_focus();   // nothing to focus inside: keys reach nothing behind
     }
 
@@ -1303,6 +1322,7 @@ private:
         }
         for (const auto& cmd : content.overlay.commands) snap.overlay.commands.push_back(cmd);
         for (auto& g : content.overlay_geometry) snap.overlay_geometry.push_back(g);
+        for (auto& g : content.scrollbar_geometry) snap.scrollbar_geometry.push_back(g);
     }
 
     void materialize_tabs(WidgetNode& node) {

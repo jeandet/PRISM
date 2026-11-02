@@ -58,6 +58,7 @@ namespace scrollbar {
         if (!empty(thumb_rect)) snap.overlay.filled_rect(thumb_rect, theme.scrollbar_thumb);
         snap.overlay_geometry.push_back({id, thumb_rect});   // [0]: the thumb, even if cut away
         snap.overlay_geometry.push_back({id, track_rect});
+        snap.scrollbar_geometry.push_back({id, track_rect});
     }
 }
 
@@ -101,6 +102,7 @@ struct LayoutNode {
     Height table_header_h{0};
     std::vector<float> split_sizes;  // main-axis size per pane; meaningful only for Kind::Row/Column when split mode is engaged
     const Theme* theme = &layout_detail::layout_default_theme;
+    float spacer_size = 0.f;   // Kind::Spacer: 0 stretches, more is a fixed gap
     std::optional<float> canvas_min_width;   // only meaningful for Kind::Canvas
     std::optional<float> canvas_min_height;  // only meaningful for Kind::Canvas
     // Set by prism::app::widget_layout_detail::build_layout() for Leaf/Canvas/Handle nodes -- lets
@@ -210,7 +212,8 @@ inline void arrange_uniform_rows(LayoutNode& node, Rect available, Height item_h
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
     switch (node.kind) {
     case LayoutNode::Kind::Spacer:
-        node.hint = {.preferred = 0, .expand = true};
+        node.hint = node.spacer_size > 0.f ? SizeHint{.preferred = node.spacer_size, .expand = false}
+                                           : SizeHint{.preferred = 0, .expand = true};
         return;
     case LayoutNode::Kind::Canvas: {
         bool horiz = (parent_axis == LayoutAxis::Horizontal);

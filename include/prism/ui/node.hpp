@@ -25,11 +25,13 @@ struct Node {
     bool is_leaf = false;
     std::string name;   // accessible name (reflected member name); copied to WidgetNode::name
     std::string tooltip;   // shown when the pointer rests on the widget; copied to WidgetNode
+    bool focus_on_open = false;   // takes the focus when the popup holding it opens; copied too
     std::function<void(Node&)> popup_builder;   // ui::Popup content; copied to WidgetNode
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
     LayoutKind layout_kind = LayoutKind::Default;
+    float spacer_size = 0.f;   // a Spacer: 0 stretches, more is a fixed gap of that many points
     std::vector<Node> children;
 
     // Type-erased WidgetNode builder (leaf nodes only)
