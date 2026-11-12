@@ -29,11 +29,11 @@ TEST_CASE("parse_mnemonic: & marks the letter, && is a literal &") {
 
 namespace {
 struct Doc {
-    Field<Menu> file{{.title = "&File", .items = {"&Open", "&Save", "Plain"}}};
-    Field<Menu> edit{{.title = "&Edit", .items = {"&Copy"}}};
+    Field<Menu> file{{.title = "&File", .items = {{"&Open"}, {"&Save"}, {"Plain"}}}};
+    Field<Menu> edit{{.title = "&Edit", .items = {{"&Copy"}}}};
     Field<TextField<>> name{{}};
     Field<Dialog> ask{{.title = "Sure?", .message = "", .buttons = {"Yes", "No"}}};
-    Field<ContextMenu> ctx{{.items = {"&Select all"}}};
+    Field<ContextMenu> ctx{{.items = {{"&Select all"}}}};
     void view(WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack(file, edit);
@@ -148,8 +148,8 @@ TEST_CASE("a non-letter key in a popup does not drop text that arrives later on 
 
 namespace {
 struct SameLetter {
-    Field<Menu> first{{.title = "&File", .items = {"x"}}};
-    Field<Menu> second{{.title = "&Format", .items = {"y"}}};
+    Field<Menu> first{{.title = "&File", .items = {{"x"}}}};
+    Field<Menu> second{{.title = "&Format", .items = {{"y"}}}};
     void view(WidgetTree::ViewBuilder& vb) { vb.hstack(first, second); }
 };
 }

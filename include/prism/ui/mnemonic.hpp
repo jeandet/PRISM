@@ -46,4 +46,6 @@ inline std::int32_t mnemonic_key(std::string_view label) {
 namespace prism::ui {
 // A menu label as shown, without its "&" marker: compare a chosen item against this.
 inline std::string menu_text(std::string_view label) { return menu_detail::parse_mnemonic(label).text; }
+template <typename Item> requires requires(const Item& i) { i.text; }
+std::string menu_text(const Item& item) { return menu_text(item.text); }
 }

@@ -17,10 +17,12 @@ using namespace prism;
 struct Gallery {
     static constexpr std::array<const char*, 6> tab_names{"Controls", "Catalog", "Text", "Data", "Plot", "Popups"};
 
-    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save as…"},
-                                     .icons = {gallery::icon("folder.svg"), gallery::icon("save.svg")}}};
-    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {"&Controls", "C&atalog", "&Text", "&Data", "&Plot", "P&opups"}}};
-    core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {"&About PRISM"}}};
+    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {
+        {.text = "&Open…", .shortcut = {ui::keys::o, ui::mods::ctrl}, .icon = gallery::icon("folder.svg")},
+        {.text = "&Save as…", .shortcut = {ui::keys::s, ui::mods::ctrl | ui::mods::shift}, .icon = gallery::icon("save.svg")},
+    }}};
+    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"&Data"}, {"&Plot"}, {"P&opups"}}}};
+    core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {{"&About PRISM"}}}};
     core::Field<ui::Dialog> about{{.title = "PRISM Widget Gallery",
                                    .message = "A C++26 GUI framework: model structs, persistent widgets, "
                                               "reactive fields. This page is the same C++ as the desktop "

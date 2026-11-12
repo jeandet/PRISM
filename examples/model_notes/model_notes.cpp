@@ -16,9 +16,17 @@ namespace fs = std::filesystem;
 struct NotesApp {
     FileTreeSource source;
     ui::TreeController files{ui::wrap_tree_storage(source)};
-    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {"&Open…", "&Save", "Save &As…", "Re&name…", "&Reload"}}};
-    core::Field<ui::Menu> search_menu{{.title = "&Search", .items = {"&Clear search"}}};
-    core::Field<ui::ContextMenu> editor_menu{{.items = {"Save", "Reload", "Clear search"}}};
+    core::Field<ui::Menu> file_menu{{.title = "&File", .items = {
+        {.text = "&Open…", .shortcut = {ui::keys::o, ui::mods::ctrl}},
+        {.text = "&Save", .shortcut = {ui::keys::s, ui::mods::ctrl}, .enabled = false},
+        {.text = "Save &As…", .shortcut = {ui::keys::s, ui::mods::ctrl | ui::mods::shift}},
+        {.separator = true},
+        {.text = "Re&name…", .shortcut = {ui::keys::f2, 0}},
+        {.text = "&Reload", .shortcut = {ui::keys::f5, 0}},
+    }}};
+    core::Field<ui::Menu> search_menu{{.title = "&Search", .items = {{"&Clear search"}}}};
+    core::Field<ui::ContextMenu> editor_menu{{.items = {{.text = "Save", .enabled = false}, {"Reload"}, {"Clear search"}}}};
+    core::Field<bool> modified{false};   // the text differs from the file: Save is enabled
     core::Field<ui::Dialog> discard{{.title = "Unsaved changes",
                                          .message = "Reloading discards your edits.",
                                          .buttons = {"Discard", "Cancel"}}};
@@ -45,10 +53,16 @@ struct NotesApp {
         wiring.push_back(body.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(search.on_change().connect([this](const auto&) { update_matches(); }));
         wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
-        auto on_choice = [this](const auto& m) { if (m.chosen) run(ui::menu_text(m.items[*m.chosen])); };
-        wiring.push_back(file_menu.on_change().connect(on_choice));
-        wiring.push_back(search_menu.on_change().connect(on_choice));
-        wiring.push_back(editor_menu.on_change().connect(on_choice));
+        auto run_from = [this](auto& menu) {
+            return ui::on_choice(menu, [this, &menu](std::size_t i) { run(ui::menu_text(menu.get().items[i])); });
+        };
+        wiring.push_back(run_from(file_menu));
+        wiring.push_back(run_from(search_menu));
+        wiring.push_back(run_from(editor_menu));
+        wiring.push_back(modified.on_change().connect([this](bool on) {
+            enable_item(file_menu, "Save", on);
+            enable_item(editor_menu, "Save", on);
+        }));
         wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
         wiring.push_back(rename_dialog.on_change().connect([this](const ui::Dialog& d) {
             if (!d.open && d.chosen == 0) rename_current();
@@ -84,7 +98,7 @@ struct NotesApp {
                     vb.widget(file_menu);
                     vb.widget(search_menu);
                     vb.widget(search).tooltip("Highlights every match in the file");
-                    vb.widget(save).tooltip("Write the file to disk");
+                    vb.widget(save).enabled(modified).tooltip("Write the file to disk (Ctrl+S)");
                     vb.widget(reload).tooltip("Read the file again, dropping unsaved edits");
                 });
                 vb.widget(body);
@@ -195,6 +209,15 @@ struct NotesApp {
         if (!query.empty()) matches = notes::find_all(text, query).size();
         auto line = notes::status_line(current.filename().string(), notes::stats(text), text != saved, matches);
         status.set({error.empty() ? line : error});
+        modified.set(!current.empty() && text != saved);
+    }
+
+    template <typename M>
+    static void enable_item(core::Field<M>& menu, std::string_view text, bool on) {
+        auto m = menu.get();
+        for (auto& item : m.items)
+            if (ui::menu_text(item) == text) item.enabled = on;
+        menu.set(m);
     }
 };
 

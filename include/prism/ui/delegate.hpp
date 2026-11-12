@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/ui/mnemonic.hpp>
+#include <prism/ui/shortcut.hpp>
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/context.hpp>
 #include <prism/ui/text_metrics.hpp>
@@ -255,16 +256,27 @@ T enum_from_index(size_t index) {
 #endif
 
 // Sentinel: dropdown with optional custom labels
+// One entry of a menu or context menu. Plain data: the app changes an item (greys it out,
+// ticks it) by setting the menu field again.
+struct MenuItem {
+    std::string text{};          // "&Save": Alt+S opens it, see ui/mnemonic.hpp
+    Shortcut shortcut{};         // chooses the item from anywhere in the window, shown on its right
+    // Drawn left of the text (render::load_image reads one from a file).
+    std::shared_ptr<const Image> icon{};
+    bool enabled = true;         // false: shown greyed, cannot be chosen
+    std::optional<bool> checked{};   // set: a check item; choosing it flips the mark
+    bool separator = false;      // a thin line between groups; the other fields are ignored
+    bool operator==(const MenuItem&) const = default;
+};
+
 // A menu: a title that opens a popup list of items (see doc/design/menus-and-dialogs.md).
 // `activations` bumps on every choice, so choosing the same item again still notifies.
+// simplify: no submenus; an item that opens another menu needs nested menu popups.
 struct Menu {
     std::string title;
-    std::vector<std::string> items;
+    std::vector<MenuItem> items;
     std::optional<std::size_t> chosen{};
     std::uint64_t activations = 0;
-    // icons[i] is drawn left of items[i] (render::load_image reads one from a file); it may be
-    // shorter than items, or hold nullptr, for items without one.
-    std::vector<std::shared_ptr<const Image>> icons{};
     bool operator==(const Menu&) const = default;
 };
 
@@ -275,10 +287,9 @@ struct MenuEditState {
 // A popup menu with no title, opened by a right click anywhere in the container it is
 // declared in (vb.context_menu). It takes no layout space.
 struct ContextMenu {
-    std::vector<std::string> items;
+    std::vector<MenuItem> items;
     std::optional<std::size_t> chosen{};
     std::uint64_t activations = 0;
-    std::vector<std::shared_ptr<const Image>> icons{};   // as Menu::icons
     bool operator==(const ContextMenu&) const = default;
 };
 
@@ -857,6 +868,7 @@ struct Widget<Menu> {
     static float intrinsic_width(const Field<Menu>& f, const WidgetNode& n);
     static void record(DrawList& dl, const Field<Menu>& field, WidgetNode& node);
     static void handle_input(Field<Menu>& field, const InputEvent& ev, WidgetNode& node);
+    static bool try_shortcut(Field<Menu>& f, const KeyPress& kp, WidgetNode& n);
 };
 
 template <>
@@ -867,6 +879,7 @@ struct Widget<ContextMenu> {
     static constexpr bool popup_anchor = true;
     static void record(DrawList& dl, const Field<ContextMenu>& field, WidgetNode& node);
     static void handle_input(Field<ContextMenu>& field, const InputEvent& ev, WidgetNode& node);
+    static bool try_shortcut(Field<ContextMenu>& f, const KeyPress& kp, WidgetNode& n);
 };
 
 template <>

@@ -12,7 +12,11 @@ Tooltips (`ui/tooltip.hpp`) are drawn in the snapshot overlay and never take inp
 delay is the one timed wake of the logic thread (`app/deadline_timer.hpp`).
 Popups open below what they came from (a menu title, a right click) and flip above it, or
 right-align with it, near a window edge. Menus have keyboard mnemonics (`"&File"`, Alt+F).
-Not yet: popovers anchored to arbitrary widgets.
+Since 2026-11-12 an item is a `ui::MenuItem` (text, `Shortcut`, icon, enabled, check mark,
+separator). Menus are the app's actions: on a key press with no popup open,
+`WidgetTree::trigger_shortcut` chooses the first enabled item with that shortcut, unless the
+focused text widget keeps the key (`ui/shortcut.hpp`, `text_widget_keeps`).
+Not yet: popovers anchored to arbitrary widgets, submenus.
 
 ## Decision
 

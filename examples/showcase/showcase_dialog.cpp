@@ -3,7 +3,7 @@
 using namespace prism;
 
 struct DialogShowcase {
-    core::Field<ui::Menu> file{{.title = "File", .items = {"Save", "Reload"}}};
+    core::Field<ui::Menu> file{{.title = "File", .items = {{"Save"}, {"Reload"}}}};
     core::Field<ui::Label<>> text{{"Some edited text..."}};
     core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
                                      .message = "Reloading discards your edits.",

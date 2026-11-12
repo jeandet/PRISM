@@ -575,6 +575,15 @@ public:
         set_focused(ring[static_cast<std::size_t>((i % n + n) % n)]);
     }
 
+    // Chooses the menu item whose shortcut `kp` is, unless the focused text widget keeps the
+    // key (Ctrl+C copies there). Disabled menus and items never match.
+    // simplify: every menu in the tree matches, also one in a tab that is not shown; scope
+    // shortcuts to visible widgets when two tabs give the same shortcut different meanings.
+    bool trigger_shortcut(const KeyPress& kp) {
+        if (focused_edits_text() && text_widget_keeps(kp)) return false;
+        return trigger_shortcut_in(root_, kp);
+    }
+
     // Whether the widget shows its own overlay (an open dropdown list): it takes Escape first.
     [[nodiscard]] bool has_open_overlay(WidgetId id) const {
         auto it = index_.find(id);
@@ -855,6 +864,24 @@ private:
             n.visual_state.hovered = n.visual_state.pressed = false;
             while (std::ranges::find(popup_stack_, n.id) != popup_stack_.end()) close_popup();
         });
+    }
+
+    bool trigger_shortcut_in(WidgetNode& n, const KeyPress& kp) {
+        if (!is_enabled(n)) return false;
+        if (n.try_shortcut && n.try_shortcut(kp, n)) return true;
+        return std::ranges::any_of(n.children, [&](WidgetNode& c) { return trigger_shortcut_in(c, kp); });
+    }
+
+    [[nodiscard]] bool focused_edits_text() const {
+        auto it = index_.find(focused_id_);
+        if (it == index_.end() || !it->second->access) return false;
+        switch (it->second->access().role) {
+        case Role::TextInput: case Role::MultilineTextInput: case Role::PasswordInput:
+        case Role::ComboBox: case Role::SpinButton:
+            return true;
+        default:
+            return false;
+        }
     }
 
     void connect_dirty(Node& node, WidgetNode& wn) {

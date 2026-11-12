@@ -16,8 +16,8 @@ namespace {
 struct Doc {
     Field<Label<>> title{{"title"}};
     Field<Label<>> body{{"body"}};
-    Field<ContextMenu> menu{{.items = {"Copy", "Paste", "Select all"}}};
-    Field<Menu> file{{.title = "File", .items = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}}};
+    Field<ContextMenu> menu{{.items = {{"Copy"}, {"Paste"}, {"Select all"}}}};
+    Field<Menu> file{{.title = "File", .items = {{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}, {"I"}, {"J"}}}};
     void view(WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.widget(file);
@@ -132,7 +132,7 @@ TEST_CASE("empty space in a nested container opens that container's menu, not a 
     struct TwoPanes {
         Field<Label<>> left{{"left"}};
         Field<Label<>> right{{"right"}};
-        Field<ContextMenu> left_menu{{.items = {"L"}}};
+        Field<ContextMenu> left_menu{{.items = {{"L"}}}};
         void view(WidgetTree::ViewBuilder& vb) {
             vb.hstack([&] {
                 vb.vstack([&] {
@@ -156,7 +156,7 @@ TEST_CASE("empty space in a nested container opens that container's menu, not a 
 TEST_CASE("a menu away from the window corner is clamped in window coordinates") {
     struct Bar {
         Field<Label<>> pad{{"a long label that pushes the menu to the right edge......."}};
-        Field<Menu> help{{.title = "Help", .items = {"About this application and its many options"}}};
+        Field<Menu> help{{.title = "Help", .items = {{"About this application and its many options"}}}};
         void view(WidgetTree::ViewBuilder& vb) { vb.hstack(pad, help); }
     } m;
     WidgetTree tree{m};
@@ -215,7 +215,7 @@ TEST_CASE("a context menu near the bottom-right corner opens up and to the left 
 namespace {
 struct RightMenuBar {
     Field<Label<>> pad{{"a long label that pushes the menu to the right edge......."}};
-    Field<Menu> help{{.title = "Help", .items = {"About this application and its many options"}}};
+    Field<Menu> help{{.title = "Help", .items = {{"About this application and its many options"}}}};
     void view(WidgetTree::ViewBuilder& vb) { vb.hstack(pad, help); }
 };
 }
@@ -248,7 +248,7 @@ TEST_CASE("closing a popup any way forgets what it opened from") {
 TEST_CASE("menu items with icons draw each icon left of its label, labels aligned") {
     auto dot = *Image::from_rgba(2, 2, std::vector<std::uint8_t>(16, 255));
     Fixture f;
-    f.model.menu.set({.items = {"Copy", "Paste", "Select all"}, .icons = {dot, nullptr, dot}});
+    f.model.menu.set({.items = {{.text = "Copy", .icon = dot}, {"Paste"}, {.text = "Select all", .icon = dot}}});
     f.press(50, 60, buttons::right);
     f.refresh();
     std::vector<Rect> icons;

@@ -81,6 +81,7 @@ headless_tests = {
   'text_bidi' : files('test_text_bidi.cpp'),
   'combo_box' : files('test_combo_box.cpp'),
   'menu' : files('test_menu.cpp'),
+  'menu_items' : files('test_menu_items.cpp'),
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),
   'deadline_timer' : files('test_deadline_timer.cpp'),

@@ -37,15 +37,20 @@ struct Samples {
     prism::core::Field<prism::ui::ProgressBar> busy{{.value = 0.0, .busy = true}};
     prism::core::Field<prism::ui::Button> button{{.text = "Save", .icon = icon("save.svg")}};
     prism::core::Field<prism::ui::Button> quiet{{.text = "Cancel", .primary = false}};
-    prism::core::Field<prism::ui::Menu> menu{{.title = "&File", .items = {"&Open…", "&Save", "&Delete"},
-                                              .icons = {icon("folder.svg"), icon("save.svg"), icon("trash.svg")}}};
+    prism::core::Field<prism::ui::Menu> menu{{.title = "&File", .items = {
+        {.text = "&Open…", .icon = icon("folder.svg")},
+        {.text = "&Save", .shortcut = {prism::input::keys::s, prism::input::mods::ctrl}, .icon = icon("save.svg")},
+        {.separator = true},
+        {.text = "&Delete", .icon = icon("trash.svg"), .enabled = false},
+        {.text = "&Word wrap", .checked = true},
+    }}};
     prism::core::Field<prism::ui::Button> open_dialog{{"Ask a question…"}};
     prism::core::Field<prism::ui::Dialog> dialog{{.title = "Keep changes?", .message = "You edited this sample.",
                                                   .buttons = {"Keep", "Discard"}}};
     prism::core::Field<prism::ui::Button> open_popup{{.text = "Options", .primary = false}};
     prism::core::Field<prism::ui::Popup> popup{{.open = false, .modal = false}};
     prism::core::Field<prism::ui::Checkbox> in_popup{{.checked = true, .label = "Inside the popover"}};
-    prism::core::Field<prism::ui::ContextMenu> context{{.items = {"Cut", "Copy", "Paste"}}};
+    prism::core::Field<prism::ui::ContextMenu> context{{.items = {{"Cut"}, {"Copy"}, {"Paste"}}}};
     prism::core::Field<prism::ui::Label<>> right_click{{"Right-click here"}};
     prism::core::Field<prism::ui::Button> hover_me{{"Rest the pointer here"}};
     prism::core::List<std::string> list;
@@ -111,8 +116,8 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<ui::Button> save{{.text = \"Save\", .icon = icon}};",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.button); vb.gap(8.f); vb.widget(s.quiet); vb.spacer(); }); }},
         E{"Popups", "", "Things drawn above the window: menus, dialogs, popovers, tooltips.", "", nullptr},
-        E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it; .icons puts an image before each item.",
-          "core::Field<ui::Menu> file{{.title = \"&File\", .items = {\"&Open…\"}, .icons = {open_icon}}};",
+        E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it. An item can have an icon, a shortcut (Ctrl+S works from anywhere), a check mark, or be greyed out; {.separator = true} draws a line.",
+          "core::Field<ui::Menu> file{{.title = \"&File\", .items = {\n    {.text = \"&Save\", .shortcut = {keys::s, mods::ctrl}},\n    {.separator = true},\n    {.text = \"&Word wrap\", .checked = true}}}};",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.menu); vb.spacer(); }); }},
         E{"Dialog", "Popups", "A modal question with buttons; it can hold a form too (vb.dialog(d, content)).",
           "core::Field<ui::Dialog> ask{{.title = \"Keep?\", .buttons = {\"Keep\", \"Discard\"}}};",
@@ -127,7 +132,7 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
               });
           }},
         E{"ContextMenu", "Popups", "A menu on right-click anywhere in the container it is declared in.",
-          "core::Field<ui::ContextMenu> actions{{.items = {\"Copy\"}}};",
+          "core::Field<ui::ContextMenu> actions{{.items = {{\"Copy\"}}}};",
           [&s](Vb& vb) { vb.vstack([&] { vb.widget(s.right_click); vb.context_menu(s.context); }); }},
         E{"Tooltip", "Popups", "A hint shown when the pointer rests on a widget.",
           "vb.widget(save).tooltip(\"Write the file to disk\");",

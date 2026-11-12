@@ -154,7 +154,7 @@ TEST_CASE("the app closing the dialog frees input immediately, before the next f
 
 TEST_CASE("a dialog opened while a menu is open takes over") {
     struct WithMenu {
-        Field<Menu> file{{.title = "File", .items = {"A", "B"}}};
+        Field<Menu> file{{.title = "File", .items = {{"A"}, {"B"}}}};
         Field<Dialog> ask{{.title = "T", .message = "M", .buttons = {"OK", "No"}}};
         void view(WidgetTree::ViewBuilder& vb) { vb.vstack([&] { vb.widget(file); vb.dialog(ask); }); }
     } m;

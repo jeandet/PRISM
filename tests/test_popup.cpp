@@ -307,7 +307,7 @@ struct Form {
     Field<Dialog> ask{{.title = "Export", .message = "", .buttons = {"Export", "Cancel"}}};
     Field<Kind> kind{Kind::Text};
     Field<TextField<>> name{{.value = "abcdef"}};
-    Field<Menu> more{{.title = "More", .items = {"First", "Second"}}};
+    Field<Menu> more{{.title = "More", .items = {{"First"}, {"Second"}}}};
     void view(WidgetTree::ViewBuilder& vb) {
         vb.dialog(ask, [&](WidgetTree::ViewBuilder& d) {
             d.widget(kind).focus_on_open();

@@ -15,7 +15,7 @@ using prism::app::widget_detail::route_event;
 
 namespace {
 struct Bar {
-    prism::Field<prism::Menu> file{{.title = "File", .items = {"Open", "Save", "Quit"}}};
+    prism::Field<prism::Menu> file{{.title = "File", .items = {{"Open"}, {"Save"}, {"Quit"}}}};
     prism::Field<prism::Label<>> below{{"content"}};
     void view(prism::WidgetTree::ViewBuilder& vb) { vb.vstack(file, below); }
 };
@@ -82,8 +82,8 @@ TEST_CASE("choosing the same item twice notifies twice") {
 
 namespace {
 struct MenuBar {
-    prism::Field<prism::Menu> file{{.title = "File", .items = {"Open", "Save"}}};
-    prism::Field<prism::Menu> edit{{.title = "Edit", .items = {"Undo", "Redo", "Cut"}}};
+    prism::Field<prism::Menu> file{{.title = "File", .items = {{"Open"}, {"Save"}}}};
+    prism::Field<prism::Menu> edit{{.title = "Edit", .items = {{"Undo"}, {"Redo"}, {"Cut"}}}};
     prism::Field<prism::Label<>> status{{"ready"}};
     void view(prism::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {

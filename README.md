@@ -341,7 +341,12 @@ can be selected and copied but not changed.
 
 ```cpp
 struct Editor {
-    core::Field<ui::Menu> file{{.title = "File", .items = {"Open", "Save", "Quit"}}};
+    core::Field<ui::Menu> file{{.title = "&File", .items = {
+        {.text = "&Open…", .shortcut = {input::keys::o, input::mods::ctrl}},
+        {.text = "&Save", .shortcut = {input::keys::s, input::mods::ctrl}},
+        {.separator = true},
+        {.text = "&Word wrap", .checked = true},
+    }}};
     core::Field<ui::TextField<>> find{{.placeholder = "Find..."}};
     core::Field<ui::TextArea<>> body{{.rows = 20}};
 
@@ -354,8 +359,8 @@ struct Editor {
 };
 
 Editor editor;
-auto on_menu = editor.file.on_change().connect([](const ui::Menu& m) {
-    if (m.chosen == 1) { /* save */ }
+auto on_menu = ui::on_choice(editor.file, [](std::size_t i) {
+    if (i == 1) { /* save */ }
 });
 ```
 
@@ -365,14 +370,20 @@ arrow keys or the mouse move to the next. Popups always stay inside the window: 
 menu opens above its title, and a right-click menu opens up or left of the pointer.
 A `&` in a label marks its keyboard shortcut: `"&File"` shows *File* with the F underlined,
 Alt+F opens it, and an item's letter chooses it in an open menu (`ui::menu_text()` gives the
-label without the `&`). `.icons` puts an image before each item (`render::load_image` reads PNG,
-JPEG or SVG files).
+label without the `&`).
+
+An item can also have a keyboard shortcut. It is shown on the item's right, and it chooses the
+item from anywhere in the window, the menu closed. A focused text field keeps its own keys:
+Ctrl+C there copies, even if a menu item says Ctrl+C. An item can have an `.icon`
+(`render::load_image` reads PNG, JPEG or SVG files) or a check mark (`.checked`, flipped when
+chosen), and `.enabled = false` greys it out. `ui::on_choice` reports what the user chose, and
+not the app's own changes to the menu, such as greying out Save after saving.
 
 A right-click menu belongs to the container it is declared in, and a modal dialog is a field
 the app opens:
 
 ```cpp
-core::Field<ui::ContextMenu> actions{{.items = {"Copy", "Paste"}}};
+core::Field<ui::ContextMenu> actions{{.items = {{"Copy"}, {"Paste"}}}};
 core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
                              .message = "Reloading discards your edits.",
                              .buttons = {"Discard", "Cancel"}}};

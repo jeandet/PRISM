@@ -57,6 +57,8 @@ struct WidgetNode {
     bool popup_modal = false;   // outside presses are swallowed instead of closing the popup
     bool opens_menu = false;    // a menu title: sibling menus form a bar (arrows, hover switch)
     std::function<std::int32_t()> mnemonic_key;   // a menu title's Alt+key (0: none); read live
+    // A menu's keyboard shortcuts: chooses the item `kp` triggers, if any (see ui/shortcut.hpp).
+    std::function<bool(const KeyPress&, WidgetNode& self)> try_shortcut;
     bool context_menu = false;  // opened by a right click in its parent container
     bool popup_anchor = false;  // draws nothing in place, only popups (context menu, dialog)
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
@@ -259,6 +261,8 @@ Node node_leaf(Field<T>& field, WidgetId& next_id) {
                 wn.expand = Widget<T>::expand;
             if constexpr (requires { Widget<T>::opens_menu; })
                 wn.opens_menu = Widget<T>::opens_menu;
+            if constexpr (requires(const KeyPress& kp) { Widget<T>::try_shortcut(field, kp, wn); })
+                wn.try_shortcut = [&field](const KeyPress& kp, WidgetNode& self) { return Widget<T>::try_shortcut(field, kp, self); };
             if constexpr (requires { Widget<T>::mnemonic_key(field); })
                 wn.mnemonic_key = [&field] { return Widget<T>::mnemonic_key(field); };
             if constexpr (requires { Widget<T>::context_menu; })

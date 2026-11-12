@@ -36,7 +36,7 @@ struct PopupsTab {
     prism::core::Field<prism::ui::Popup> options_popup{{.open = false, .modal = false}};
     prism::core::Field<prism::ui::Checkbox> grid{{.checked = true, .label = "Show grid"}};
     prism::core::Field<prism::ui::Checkbox> snap{{.checked = false, .label = "Snap to grid"}};
-    prism::core::Field<prism::ui::ContextMenu> edit_menu{{.items = {"Cut", "Copy", "Paste"}}};
+    prism::core::Field<prism::ui::ContextMenu> edit_menu{{.items = {{"Cut"}, {"Copy"}, {"Paste"}}}};
 
     prism::app::AppContext* ctx = nullptr;   // set while the app runs: file dialogs, message boxes
     std::vector<prism::core::Connection> wiring;   // captures `this`: the tab never moves
@@ -60,7 +60,7 @@ struct PopupsTab {
                                            : "Rename cancelled");
         }));
         wiring.push_back(edit_menu.on_change().connect([this](const prism::ui::ContextMenu& m) {
-            if (m.chosen) say("Context menu: " + m.items[*m.chosen]);
+            if (m.chosen) say("Context menu: " + m.items[*m.chosen].text);
         }));
     }
 
