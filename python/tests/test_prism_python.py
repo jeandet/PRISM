@@ -4061,3 +4061,24 @@ def test_an_unknown_shortcut_is_a_clear_error():
             m = prism.menu("&File", [{"text": "Go", "shortcut": "Ctrl+Banana"}])
 
         Bad().m
+
+
+# --- themes -----------------------------------------------------------------------------
+
+
+def test_set_theme_switches_a_running_app():
+    class M(Model):
+        x = prism.field(0)
+
+    with prism.headless(M()) as app:
+        prism.set_theme("light")
+        app.wait_until(lambda: prism._theme() == "light", timeout=5)
+        prism.set_theme("dark")
+        app.wait_until(lambda: prism._theme() == "dark", timeout=5)
+        prism.set_theme("system")   # the headless backend reports no preference: dark
+        app.wait_until(lambda: prism._theme() == "dark", timeout=5)
+
+
+def test_set_theme_names_are_checked():
+    with pytest.raises(ValueError, match="light"):
+        prism.set_theme("sepia")

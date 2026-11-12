@@ -3141,6 +3141,35 @@ NB_MODULE(_prism_ext, m) {
         g_ctx->show_message(k->second, std::move(title), std::move(text));
     }, nb::arg("text"), nb::arg("title") = "", nb::arg("kind") = "info",
        "Any thread, while an app runs. The platform's message box (ignored where there is none).");
+    m.def("set_theme", [](std::string name) {
+        if (name != "light" && name != "dark" && name != "system")
+            throw nb::value_error("set_theme: 'light', 'dark' or 'system'");
+        wait_for_context("prism.set_theme");
+        // Posted outside g_handle_mutex: posting takes it too.
+        try_post_any_thread([name] {
+            AppContext* ctx = nullptr;
+            {
+                std::lock_guard<std::mutex> lk(g_handle_mutex);
+                ctx = g_ctx;
+            }
+            if (!ctx) return;
+            if (name == "system") ctx->follow_system_theme();
+            else ctx->set_theme(name == "light" ? light_theme() : dark_theme());
+        });
+    }, nb::arg("name"),
+       "Any thread, while an app runs: 'light', 'dark', or 'system' (follow the OS, also when "
+       "it changes). Every window repaints.");
+    m.def("_theme", []() -> std::string {
+        return dispatch_sync_read<std::string>([] {
+            AppContext* ctx = nullptr;
+            {
+                std::lock_guard<std::mutex> lk(g_handle_mutex);
+                ctx = g_ctx;
+            }
+            if (!ctx) return std::string{};
+            return ctx->theme().canvas_bg == light_theme().canvas_bg ? std::string{"light"} : std::string{"dark"};
+        });
+    }, "Test-only: the running app's theme, 'light' or 'dark'.");
     m.def("on_file_drop", [](nb::object fn) {
         auto holder = fn.is_none() ? nullptr : std::make_shared<PyHolder>(std::move(fn));
         std::lock_guard<std::mutex> lk(g_file_drop_mutex);

@@ -124,6 +124,7 @@ public:
         apply_theme(system_dark_ ? dark_theme() : light_theme());
     }
     [[nodiscard]] bool system_prefers_dark() const { return system_dark_; }
+    [[nodiscard]] const Theme& theme() const { return theme_; }   // the windows' current one
 
     // Keeps `g` at the main window's size as the user resizes it (whole window, title bar
     // included, as WindowConfig takes it). `g` must outlive the run.
