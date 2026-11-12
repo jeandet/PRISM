@@ -77,7 +77,8 @@ graph TB
 | Document | Subsystem | Status |
 |---|---|---|
 | [components.md](components.md) | `prism::Component` base class — self-wiring reusable UI + logic bundles | **Design only** |
-| [menus-and-dialogs.md](menus-and-dialogs.md) | In-window popup layer and modality for menus, context menus, dialogs | **Implemented** — menu bar, context menus, modal dialog; no tooltips yet |
+| [menus-and-dialogs.md](menus-and-dialogs.md) | In-window popup layer and modality for menus, context menus, dialogs | **Implemented** — menu bar, context menus (shortcuts, separators, check items), modal dialog, tooltips |
+| [drag-and-docking.md](drag-and-docking.md) | Dragging inside the app (lists, trees, tabs), then docking panels with a saved layout | **Proposal** — for review before code |
 | [accessibility.md](accessibility.md) | Widget accessibility metadata (AccessKit roles) and what a screen-reader bridge needs | **Partial** — metadata only; bridge deferred |
 | [proxy-widget.md](proxy-widget.md) | Composite foreign renderers (CEF, VTK, mpv, etc.) as regular widgets via shared surfaces | **Concept** |
 | testing-strategy | doctest, synchronous scheduler, headless rendering, golden snapshots (`tests/test_golden_snapshot.cpp`) | **Not written** |
