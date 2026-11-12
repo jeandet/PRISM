@@ -20,6 +20,9 @@ TEST_CASE("the settings folder is the app's own, under XDG_DATA_HOME on Linux, a
 }
 #endif
 
+// Not in the browser: Emscripten's SDL has no settings folder there (the path is empty, and
+// an app's settings file then lands in its in-memory working directory).
+#if !defined(__EMSCRIPTEN__)
 TEST_CASE("two apps get two folders") {
     auto a = prism::backends::settings_dir("prism-test", "a");
     auto b = prism::backends::settings_dir("prism-test", "b");
@@ -27,3 +30,4 @@ TEST_CASE("two apps get two folders") {
     CHECK(a != b);
     fs::remove_all(a.parent_path());
 }
+#endif
