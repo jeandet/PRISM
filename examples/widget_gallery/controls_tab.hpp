@@ -4,6 +4,7 @@
 #include "gallery_icons.hpp"
 
 #include <prism/prism.hpp>
+#include <prism/app/window_geometry.hpp>
 
 #include <fmt/format.h>
 
@@ -18,6 +19,7 @@ enum class Theme { System, Light, Dark };
 // What the gallery remembers between runs (app/settings.hpp): saved as settings.toml.
 struct Prefs {
     prism::core::Field<Theme> theme{Theme::System};   // a bare enum: a dropdown; applied by main.cpp
+    prism::app::WindowGeometry window;
 };
 
 struct ControlsTab {

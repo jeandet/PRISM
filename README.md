@@ -461,6 +461,15 @@ theme = "System"
 font_size = 12
 ```
 
+The window's size and a splitter's pane sizes are settings like any other. Put an
+`app::WindowGeometry` and a `core::Field<ui::SplitSizes>` in the struct, then:
+
+```cpp
+auto& window = backend.create_window(prefs.window.applied_to({.title = "My app", .width = 1000, .height = 640}));
+// in view(), inside the split container: vb.remember_split(prefs.sidebar);
+// in model_app's setup:                  ctx.remember_window_size(prefs.window);
+```
+
 Unknown keys are skipped, so a file from another version still loads. It is built on
 [Glaze](https://github.com/stephenberry/glaze), which also works without `-freflection`.
 `app::to_toml`, `from_toml`, `load_settings` and `save_settings` are there for one-off use.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/app/window_geometry.hpp>
 #include <prism/core/connection.hpp>
 #include <prism/core/field.hpp>
 #include <prism/core/traits.hpp>

@@ -256,6 +256,16 @@ public:
             view_builder_detail::add_enabler(parent.children[i], e);
     }
 
+    // The current split container (a row or column with handles) starts at the pane sizes in
+    // `sizes` and writes them back when the user drags a handle; keep the field in the app's
+    // settings to reopen as the user left it.
+    void remember_split(Field<SplitSizes>& sizes) {
+        placed_.insert(&sizes);
+        auto& c = current_parent();
+        c.split_get = [&sizes] { return sizes.get().value; };
+        c.split_set = [&sizes](std::vector<float> v) { sizes.set({std::move(v)}); };
+    }
+
     // A right click anywhere in the current container opens this menu at the pointer.
     void context_menu(Field<ContextMenu>& menu) { widget(menu); }
 
@@ -858,6 +868,8 @@ public:
                 // right here, and begin_split_drag(container_id, ...) would
                 // silently fail to find it.
                 target_.id = target_.children[0].id;
+                target_.split_get = std::move(target_.children[0].split_get);   // vb.remember_split
+                target_.split_set = std::move(target_.children[0].split_set);
                 // Detach first: move-assigning a vector from a member of its own element is UB
                 // (libc++ frees the old buffer, which holds the source, before reading it).
                 auto grandchildren = std::move(target_.children[0].children);

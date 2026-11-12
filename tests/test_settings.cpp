@@ -126,3 +126,28 @@ TEST_CASE("a settings file loads at start and saves what changed, at the latest 
     }   // closing writes the last change
     CHECK(read_file(file).find("theme = \"System\"") != std::string::npos);
 }
+
+namespace settings_test {
+struct Layout {
+    app::WindowGeometry window;
+    Field<SplitSizes> sidebar{{{240.f, 760.f}}};
+};
+}
+
+TEST_CASE("window geometry and pane sizes are settings too") {
+    settings_test::Layout l;
+    l.window.width.set(1200);
+    l.window.height.set(800);
+    auto toml = app::to_toml(l);
+    CHECK(toml.find("[window]") != std::string::npos);
+    CHECK(toml.find("width = 1200") != std::string::npos);
+    CHECK(toml.find("sidebar = [240") != std::string::npos);
+    settings_test::Layout back;
+    REQUIRE(app::from_toml(back, toml));
+    CHECK(back.sidebar.get().value == std::vector<float>{240.f, 760.f});
+    auto cfg = back.window.applied_to({.title = "x", .width = 640, .height = 480});
+    CHECK(cfg.width == 1200);
+    CHECK(cfg.height == 800);
+    settings_test::Layout first_run;   // nothing remembered: the app's defaults stay
+    CHECK(first_run.window.applied_to({.width = 640, .height = 480}).width == 640);
+}

@@ -527,6 +527,9 @@ public:
     }
 
     void end_split_drag() {
+        if (auto it = index_.find(split_drag_.container_id); it != index_.end() && it->second->split_changed)
+            if (auto* ss = std::any_cast<SplitState>(&it->second->edit_state))
+                it->second->split_changed(ss->pane_sizes);
         split_drag_ = {};
     }
 
@@ -791,7 +794,18 @@ private:
 #endif
         build_widget_kind(node, wn);
         if (!node.enablers.empty()) make_disableable(wn, node.enablers);
+        if (node.split_get) restore_split(node, wn);
         return wn;
+    }
+
+    // Starts the panes at their remembered sizes; sizes for another number of panes (an older
+    // layout) are ignored.
+    static void restore_split(const Node& node, WidgetNode& wn) {
+        wn.split_changed = node.split_set;
+        auto sizes = node.split_get();
+        auto panes = std::ranges::count_if(node.children, [](const Node& c) { return c.layout_kind != LayoutKind::Handle; });
+        bool usable = std::ssize(sizes) == panes && std::ranges::all_of(sizes, [](float s) { return s > 0.f; });
+        if (usable) wn.edit_state = SplitState{.engaged = true, .pane_sizes = std::move(sizes)};
     }
 
     void build_widget_kind(Node& node, WidgetNode& wn) {

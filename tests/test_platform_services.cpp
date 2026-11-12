@@ -220,3 +220,18 @@ TEST_CASE("a theme the app chose stays when the OS changes") {
     REQUIRE(b->last);
     CHECK(b->last->window.background == ui::light_theme().canvas_bg);
 }
+
+TEST_CASE("remember_window_size keeps the window's size in the app's settings") {
+    Form model;
+    auto impl = std::make_unique<DropBackend>();
+    impl->events = {WindowResize{900, 650}};
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    WindowGeometry geometry;
+    model_app(backend, window, model, [&](AppContext& ctx) { ctx.remember_window_size(geometry); });
+    CHECK(geometry.width.get() == 900);
+    // The event gives the content; this window draws its own title bar above it, and the size
+    // to reopen at is the whole window, as WindowConfig takes it.
+    REQUIRE(window.decoration_mode() == DecorationMode::Custom);
+    CHECK(geometry.height.get() == 650 + static_cast<int>(ui::WindowChrome::title_bar_h.raw()));
+}

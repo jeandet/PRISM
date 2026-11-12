@@ -35,6 +35,10 @@ struct Node {
     bool focus_on_open = false;   // takes the focus when the popup holding it opens; copied too
     std::function<void(Node&)> popup_builder;   // ui::Popup content; copied to WidgetNode
     std::vector<Enabler> enablers;   // all true: enabled (none: always)
+    // A split container's remembered pane sizes (vb.remember_split): read when built, written
+    // when a drag ends.
+    std::function<std::vector<float>()> split_get;
+    std::function<void(std::vector<float>)> split_set;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif

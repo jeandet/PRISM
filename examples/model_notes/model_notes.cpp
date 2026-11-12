@@ -18,6 +18,8 @@ namespace fs = std::filesystem;
 // What the app remembers between runs (app/settings.hpp): saved as settings.toml.
 struct NotesPrefs {
     core::Field<std::string> last_file{""};
+    core::Field<ui::SplitSizes> sidebar{};   // the file tree's width and the editor's
+    app::WindowGeometry window;
 };
 
 struct NotesApp {
@@ -99,6 +101,7 @@ struct NotesApp {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.hstack([&] {
+            vb.remember_split(prefs.sidebar);
             vb.tree(files);
             vb.handle();
             vb.vstack([&] {
@@ -243,10 +246,11 @@ int main(int argc, char* argv[]) {
     app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "notes") / "settings.toml"};
     if (std::error_code ec; fs::is_regular_file(app.prefs.last_file.get(), ec)) app.open(app.prefs.last_file.get());
     auto backend = app::Backend::software(app::RenderConfig{});
-    auto& window = backend.create_window({.title = "PRISM Notes", .width = 1000, .height = 640,
-                                          .decoration = app::DecorationMode::Custom});
+    auto& window = backend.create_window(app.prefs.window.applied_to(
+        {.title = "PRISM Notes", .width = 1000, .height = 640, .decoration = app::DecorationMode::Custom}));
     app::model_app(backend, window, app, [&app](app::AppContext& ctx) {
         app.ctx = &ctx;
+        ctx.remember_window_size(app.prefs.window);
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.open(drop.paths.front()); });
     });
     app.ctx = nullptr;   // the context ended with model_app

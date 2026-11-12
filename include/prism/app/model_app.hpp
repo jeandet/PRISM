@@ -8,6 +8,7 @@
 #include <prism/ui/window_chrome.hpp>
 #include <prism/app/event_routing.hpp>
 #include <prism/app/window_registry.hpp>
+#include <prism/app/window_geometry.hpp>
 #include <prism/app/deadline_timer.hpp>
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
 #include <prism/widgets/debug/tree_inspector.hpp>
@@ -104,6 +105,17 @@ public:
         apply_theme(system_dark_ ? dark_theme() : light_theme());
     }
     [[nodiscard]] bool system_prefers_dark() const { return system_dark_; }
+
+    // Keeps `g` at the main window's size as the user resizes it (whole window, title bar
+    // included, as WindowConfig takes it). `g` must outlive the run.
+    void remember_window_size(WindowGeometry& g) { geometry_ = &g; }
+    // From the event loop, on the main window's WindowResize (its content size).
+    void main_window_resized(int w, int content_h) {
+        if (!geometry_) return;
+        bool custom = window_->decoration_mode() == DecorationMode::Custom;
+        geometry_->width.set(w);
+        geometry_->height.set(content_h + (custom ? static_cast<int>(WindowChrome::title_bar_h.raw()) : 0));
+    }
     // From the event loop, on a SystemTheme event.
     void system_theme_changed(bool dark) {
         system_dark_ = dark;
@@ -243,6 +255,7 @@ private:
     scheduler_type sched_;
     std::function<void(const FileDrop&)> file_drop_;
     bool follow_system_theme_ = false;
+    WindowGeometry* geometry_ = nullptr;
     bool system_dark_ = true;
     void apply_theme(const Theme& t) { registry_->for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->set_theme(t); }); }
     AnimationClock* clock_;
@@ -480,6 +493,7 @@ void model_app(Backend& backend, Window& window, Model& model,
                             entry->width = resize->width;
                             entry->height = resize->height;
                             needs_publish = true;
+                            if (wid == primary_id) ctx_holder->main_window_resized(resize->width, resize->height);
                         }
                         if (auto* kp = std::get_if<KeyPress>(&ev)) {
                             // Sees every key, shortcuts included (e.g. Ctrl+V, which the focused

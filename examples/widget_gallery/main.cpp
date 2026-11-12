@@ -80,8 +80,8 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 900, 640);
     }
     auto backend = app::Backend::software(app::RenderConfig{});
-    auto& window = backend.create_window({.title = "PRISM Widget Gallery", .width = 1000, .height = 700,
-                                          .decoration = app::DecorationMode::Custom});
+    auto& window = backend.create_window(app.prefs.window.applied_to(
+        {.title = "PRISM Widget Gallery", .width = 1000, .height = 700, .decoration = app::DecorationMode::Custom}));
     // Loads the last session's preferences, and saves them as they change.
     app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "widget-gallery") / "settings.toml"};
     core::Connection theme_link;   // follows the Theme dropdown; ends with model_app
@@ -93,6 +93,7 @@ int main(int argc, char* argv[]) {
             else ctx.set_theme(t == gallery::Theme::Light ? ui::light_theme() : ui::dark_theme());
         };
         apply(app.prefs.theme.get());
+        ctx.remember_window_size(app.prefs.window);
         theme_link = app.prefs.theme.on_change().connect(apply);
     });
     theme_link.disconnect();

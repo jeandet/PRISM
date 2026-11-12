@@ -171,6 +171,13 @@ struct SplitState {
     std::vector<float> pane_sizes;  // main-axis size per pane (excludes Handle thickness); valid when engaged
 };
 
+// The pane sizes of a split container, along its axis (vb.remember_split): kept in the app's
+// settings so the panes reopen as the user left them.
+struct SplitSizes {
+    std::vector<float> value;
+    bool operator==(const SplitSizes&) const = default;
+};
+
 // Sentinel: scroll container with observable position
 struct ScrollArea {
     ScrollBarPolicy scrollbar = ScrollBarPolicy::Auto;

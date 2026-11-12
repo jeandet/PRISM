@@ -576,3 +576,70 @@ TEST_CASE("Dragging a tree row's splitter does not collapse the widgets above it
     CHECK(rect_of(*snap2, ids[3]).extent.h.raw() == doctest::Approx(status_h0));
     CHECK(rect_of(*snap2, ids[4]).extent.h.raw() == doctest::Approx(canvas_h0));
 }
+
+// --- remembered pane sizes ---------------------------------------------------------------
+
+struct RememberedSplit {
+    Field<int> a{0};
+    Field<int> b{0};
+    Field<SplitSizes> sizes{{{150.f, 250.f}}};
+    WidgetId container_id = 0;
+    void view(WidgetTree::ViewBuilder& vb) {
+        container_id = vb.hstack([&] {
+            vb.remember_split(sizes);
+            vb.widget(a);
+            vb.handle();
+            vb.widget(b);
+        });
+    }
+};
+
+struct NestedRememberedSplit {   // not the lone top-level container: not hoisted into the root
+    Field<Label<>> title{{"title"}};
+    Field<int> a{0};
+    Field<int> b{0};
+    Field<SplitSizes> sizes{{{100.f, 300.f}}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.widget(title);
+        vb.hstack([&] {
+            vb.remember_split(sizes);
+            vb.widget(a);
+            vb.handle();
+            vb.widget(b);
+        });
+    }
+};
+
+TEST_CASE("remembered pane sizes apply when the view is built, hoisted or not") {
+    RememberedSplit top;
+    WidgetTree t1(top);
+    auto s1 = t1.build_snapshot(406, 100, 1);
+    CHECK(find_widget_rect(*s1, t1.leaf_ids()[0])->extent.w.raw() == doctest::Approx(150.f));
+
+    NestedRememberedSplit nested;
+    WidgetTree t2(nested);
+    auto s2 = t2.build_snapshot(406, 100, 1);
+    CHECK(find_widget_rect(*s2, t2.leaf_ids()[1])->extent.w.raw() == doctest::Approx(100.f));
+}
+
+TEST_CASE("the end of a drag writes the pane sizes back to the field") {
+    RememberedSplit model;
+    WidgetTree tree(model);
+    auto snap = tree.build_snapshot(406, 100, 1);
+    auto handle = find_widget_rect(*snap, tree.leaf_ids()[1]);
+    REQUIRE(handle);
+    float anchor = handle->origin.x.raw() + 3.f;
+    tree.begin_split_drag(model.container_id, 0, anchor);
+    tree.update_split_drag(anchor + 30.f);
+    CHECK(model.sizes.get().value == std::vector<float>{150.f, 250.f});   // not during the drag
+    tree.end_split_drag();
+    CHECK(model.sizes.get().value == std::vector<float>{180.f, 220.f});
+}
+
+TEST_CASE("sizes for another number of panes are ignored, not misapplied") {
+    RememberedSplit model;
+    model.sizes.set({{50.f, 60.f, 70.f}});   // a file from a layout with three panes
+    WidgetTree tree(model);
+    auto snap = tree.build_snapshot(406, 100, 1);
+    CHECK(find_widget_rect(*snap, tree.leaf_ids()[0])->extent.w.raw() == doctest::Approx(200.f));
+}
