@@ -2,8 +2,13 @@
 
 #include <prism/input/input_event.hpp>
 
+#include <algorithm>
+#include <cctype>
+#include <charconv>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 
 // Keyboard shortcuts: Ctrl+S on a menu item chooses it from anywhere in the window.
 namespace prism::ui {
@@ -26,34 +31,82 @@ inline std::uint16_t normalized(std::uint16_t m) {
     return out;
 }
 
+struct NamedKey {
+    std::int32_t key;
+    std::string_view name;
+};
+
+// Keys known by name, as shown beside menu items and read back by parse_shortcut.
+inline constexpr NamedKey named_keys[] = {
+    {input::keys::delete_, "Delete"}, {input::keys::backspace, "Backspace"}, {input::keys::enter, "Enter"},
+    {input::keys::escape, "Esc"},     {input::keys::tab, "Tab"},             {input::keys::space, "Space"},
+    {input::keys::home, "Home"},      {input::keys::end, "End"},             {input::keys::page_up, "PgUp"},
+    {input::keys::page_down, "PgDown"}, {input::keys::left, "Left"},        {input::keys::right, "Right"},
+    {input::keys::up, "Up"},          {input::keys::down, "Down"},
+};
+
+inline bool same_letters(std::string_view a, std::string_view b) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+        return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y));
+    });
+}
+
 inline std::string key_name(std::int32_t key) {
-    namespace k = input::keys;
-    if ((key >= 'a' && key <= 'z')) return std::string(1, static_cast<char>(key - 'a' + 'A'));
+    if (key >= 'a' && key <= 'z') return std::string(1, static_cast<char>(key - 'a' + 'A'));
     if (key >= '0' && key <= '9') return std::string(1, static_cast<char>(key));
-    if (key >= k::f1 && key <= k::f12) return "F" + std::to_string(key - k::f1 + 1);
-    switch (key) {
-    case k::delete_: return "Delete";
-    case k::backspace: return "Backspace";
-    case k::enter: return "Enter";
-    case k::escape: return "Esc";
-    case k::tab: return "Tab";
-    case k::space: return "Space";
-    case k::home: return "Home";
-    case k::end: return "End";
-    case k::page_up: return "PgUp";
-    case k::page_down: return "PgDown";
-    case k::left: return "Left";
-    case k::right: return "Right";
-    case k::up: return "Up";
-    case k::down: return "Down";
-    default: return key > 32 && key < 127 ? std::string(1, static_cast<char>(key)) : "?";
+    if (key >= input::keys::f1 && key <= input::keys::f12) return "F" + std::to_string(key - input::keys::f1 + 1);
+    for (auto& k : named_keys)
+        if (k.key == key) return std::string(k.name);
+    return key > 32 && key < 127 ? std::string(1, static_cast<char>(key)) : "?";
+}
+
+inline std::optional<std::int32_t> key_from_name(std::string_view name) {
+    if (name.size() == 1) {
+        auto c = static_cast<unsigned char>(name[0]);
+        if (std::isalpha(c)) return static_cast<std::int32_t>(std::tolower(c));
+        if (std::isdigit(c)) return static_cast<std::int32_t>(c);
     }
+    if (name.size() >= 2 && (name[0] == 'F' || name[0] == 'f')) {
+        int n = 0;
+        auto [end, ec] = std::from_chars(name.data() + 1, name.data() + name.size(), n);
+        if (ec == std::errc{} && end == name.data() + name.size() && n >= 1 && n <= 12) return input::keys::f1 + n - 1;
+    }
+    for (auto& k : named_keys)
+        if (same_letters(k.name, name)) return k.key;
+    return std::nullopt;
+}
+
+inline std::optional<std::uint16_t> modifier_from_name(std::string_view name) {
+    if (same_letters(name, "Ctrl") || same_letters(name, "Cmd")) return input::mods::ctrl;   // Cmd: the Mac's Ctrl
+    if (same_letters(name, "Shift")) return input::mods::shift;
+    if (same_letters(name, "Alt")) return input::mods::alt;
+    return std::nullopt;
 }
 } // namespace shortcut_detail
 
 inline bool matches(Shortcut s, const input::KeyPress& kp) {
     return s.key != 0 && kp.key == s.key
         && shortcut_detail::normalized(kp.mods) == shortcut_detail::normalized(s.mods);
+}
+
+// Reads "Ctrl+Shift+S", "Cmd+O" or "F5" (any letter case): modifiers, then one key. Nothing for
+// a name it does not know.
+inline std::optional<Shortcut> parse_shortcut(std::string_view text) {
+    Shortcut out;
+    while (true) {
+        auto plus = text.find('+');
+        auto part = text.substr(0, plus);
+        if (plus == std::string_view::npos) {
+            auto key = shortcut_detail::key_from_name(part);
+            if (!key) return std::nullopt;
+            out.key = *key;
+            return out;
+        }
+        auto mod = shortcut_detail::modifier_from_name(part);
+        if (!mod) return std::nullopt;
+        out.mods |= *mod;
+        text.remove_prefix(plus + 1);
+    }
 }
 
 // "Ctrl+Shift+S", as shown beside a menu item.

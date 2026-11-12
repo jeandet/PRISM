@@ -182,3 +182,19 @@ TEST_CASE("on_choice fires on choices only, not when the app changes an item") {
     f.key(keys::c, mods::ctrl);
     CHECK(seen == std::vector<std::size_t>{1, 3});
 }
+
+TEST_CASE("a shortcut parses from the way people write it, and back") {
+    CHECK(parse_shortcut("Ctrl+S") == ctrl_s);
+    CHECK(parse_shortcut("ctrl+shift+s") == Shortcut{keys::s, mods::ctrl | mods::shift});
+    CHECK(parse_shortcut("Cmd+O") == Shortcut{keys::o, mods::ctrl});   // Cmd is the Mac's Ctrl
+    CHECK(parse_shortcut("F5") == Shortcut{keys::f5, 0});
+    CHECK(parse_shortcut("Alt+1") == Shortcut{'1', mods::alt});
+    CHECK(parse_shortcut("Delete") == Shortcut{keys::delete_, 0});
+    CHECK(parse_shortcut("Ctrl+PgDown") == Shortcut{keys::page_down, mods::ctrl});
+    for (auto s : {"Ctrl+S", "Ctrl+Shift+Z", "F12", "Alt+Left", "Esc"})
+        CHECK(shortcut_text(*parse_shortcut(s)) == s);
+    CHECK_FALSE(parse_shortcut(""));
+    CHECK_FALSE(parse_shortcut("Ctrl+"));
+    CHECK_FALSE(parse_shortcut("Ctrl+Banana"));
+    CHECK_FALSE(parse_shortcut("Hyper+S"));
+}

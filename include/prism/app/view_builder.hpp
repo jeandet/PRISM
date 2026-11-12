@@ -72,10 +72,14 @@ auto adapt_on_change(Observable& obs) {
     };
 }
 
-// A widget is enabled while `flag` (a Field<bool>, a Derived<bool>, ...) holds true.
+// A widget is enabled while `flag` holds true: a Field<bool>, a Derived<bool>, or a checkbox
+// (ticked: enabled; "Advanced options" enabling the group below it).
 template <typename Flag>
 Enabler enabler_of(Flag& flag) {
-    return {[&flag] { return static_cast<bool>(flag.get()); }, adapt_on_change(flag)};
+    if constexpr (requires { flag.get().checked; })
+        return {[&flag] { return flag.get().checked; }, adapt_on_change(flag)};
+    else
+        return {[&flag] { return static_cast<bool>(flag.get()); }, adapt_on_change(flag)};
 }
 
 inline void add_enabler(Node& node, const Enabler& e) {

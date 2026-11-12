@@ -211,3 +211,37 @@ TEST_CASE("rows a list builds at run time follow the group's flag") {
     route_event(tree, snap.get(), MouseButton{p, buttons::left, false});
     CHECK(model.clicked == "r1");
 }
+
+namespace {
+struct Advanced {
+    Field<Checkbox> advanced{{.checked = false, .label = "Advanced"}};
+    Field<Button> tune{{"Tune"}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.widget(advanced);
+            vb.enabled_if(advanced, [&] { vb.widget(tune); });
+        });
+    }
+};
+}
+
+TEST_CASE("a checkbox can be the flag: its mark enables the group") {
+    Advanced model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    auto click = [&](WidgetId id) {
+        auto r = find_widget_rect(*snap, id);
+        REQUIRE(r);
+        Point p{r->origin.x + DX{5}, r->origin.y + DY{5}};
+        route_event(tree, snap.get(), MouseButton{p, buttons::left, true});
+        route_event(tree, snap.get(), MouseButton{p, buttons::left, false});
+    };
+    auto ids = tree.leaf_ids();
+    click(ids[1]);
+    CHECK(model.tune.get().click_count == 0);
+    click(ids[0]);   // tick "Advanced"
+    REQUIRE(model.advanced.get().checked);
+    snap = tree.build_snapshot(400, 300, 2);
+    click(ids[1]);
+    CHECK(model.tune.get().click_count == 1);
+}
