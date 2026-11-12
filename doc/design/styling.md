@@ -1,5 +1,11 @@
 # Styling & Theming
 
+> **Status (2026-11-12): an early proposal, mostly not built.** What exists is `ui::Theme`
+> (`include/prism/ui/context.hpp`), a flat struct of colors each widget reads through
+> `node_theme()`, and `WidgetVisualState` (hovered, pressed, focused). `Context` and
+> `WidgetState` below were never used and are gone. A disabled widget is not a style state:
+> the tree fades whatever it draws (`make_disableable`, `include/prism/ui/widget_node.hpp`).
+
 ## Overview
 
 Styling in PRISM is plain data — no CSS cascade, no global state, no callbacks. A theme is a struct of style structs, carried through a `Context` value. Per-instance overrides use `std::optional` fields. State-dependent styling (hover, pressed, disabled) is resolved via struct fields, not functions.

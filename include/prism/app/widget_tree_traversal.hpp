@@ -102,6 +102,13 @@ inline void collect_leaf_ids(const WidgetNode& node, std::vector<WidgetId>& ids)
     for (auto& c : node.children) collect_leaf_ids(c, ids);
 }
 
+// Calls fn on `node` and every node below it, parents first.
+template <typename Fn>
+void for_each_node(WidgetNode& node, Fn&& fn) {
+    fn(node);
+    for (auto& c : node.children) for_each_node(c, fn);
+}
+
 inline void refresh_dirty(WidgetNode& node) {
     if (node.dirty && node.record)
         node.record(node);

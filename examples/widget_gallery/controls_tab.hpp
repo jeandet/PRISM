@@ -33,6 +33,10 @@ struct ControlsTab {
     prism::core::Field<prism::ui::ProgressBar> progress{{.value = 0.6, .label = "60%"}};
     prism::core::Field<prism::ui::Checkbox> busy{{.checked = false, .label = "Length unknown (busy)"}};
     prism::core::Field<prism::ui::Label<>> summary{{""}};
+    prism::core::Field<prism::ui::Checkbox> lock{{.checked = false, .label = "Lock the settings"}};
+    // Flags that grey widgets out (vb.widget(f).enabled, vb.enabled_if); they follow the fields.
+    prism::core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }, name};
+    prism::core::Derived<bool> unlocked{[this] { return !lock.get().checked; }, lock};
     std::vector<prism::core::Connection> wiring;   // captures `this`: the tab never moves
 
     ControlsTab() {
@@ -68,6 +72,27 @@ struct ControlsTab {
         vb.gap(6.f);
         vb.widget(fruit).tooltip("A combo box: type freely, or pick a suggestion with the arrows");
         vb.gap(6.f);
+        vb.widget(lock).tooltip("Greys out the settings below, down to the checkboxes");
+        vb.gap(6.f);
+        vb.enabled_if(unlocked, [&] { settings(vb); });
+        vb.gap(6.f);
+        vb.hstack([&] {
+            vb.widget(save).enabled(has_name).tooltip("Enabled once the name is filled in");
+            vb.gap(8.f);
+            vb.widget(reset).tooltip("A quieter button: clears the form");
+            vb.gap(8.f);
+            vb.widget(trash).tooltip("An icon-only button needs a tooltip as its name");
+            vb.spacer();
+        });
+        vb.gap(6.f);
+        vb.widget(progress).tooltip("Follows the slider");
+        vb.widget(busy).tooltip("For work whose length is unknown");
+        vb.gap(6.f);
+        vb.widget(summary);
+    }
+
+private:
+    void settings(prism::app::WidgetTree::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.widget(copies).tooltip("Whole numbers: arrows, the wheel, or type a value");
             vb.gap(8.f);
@@ -83,23 +108,8 @@ struct ControlsTab {
             vb.gap(16.f);
             vb.widget(quality).tooltip("An enum shown as radio buttons");
         });
-        vb.gap(6.f);
-        vb.hstack([&] {
-            vb.widget(save).tooltip("A primary button with an icon");
-            vb.gap(8.f);
-            vb.widget(reset).tooltip("A quieter button: clears the form");
-            vb.gap(8.f);
-            vb.widget(trash).tooltip("An icon-only button needs a tooltip as its name");
-            vb.spacer();
-        });
-        vb.gap(6.f);
-        vb.widget(progress).tooltip("Follows the slider");
-        vb.widget(busy).tooltip("For work whose length is unknown");
-        vb.gap(6.f);
-        vb.widget(summary);
     }
 
-private:
     void update() {
         summary.set({fmt::format("{} · {} · {} × {:.2f} · {} · notifications {}",
                                  name.get().value.empty() ? "nobody" : name.get().value,

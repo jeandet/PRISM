@@ -169,7 +169,7 @@ public:
     }
 
     void dispatch(WidgetId id, const InputEvent& ev) {
-        if (auto it = index_.find(id); it != index_.end()) {
+        if (auto it = index_.find(id); it != index_.end() && is_enabled(*it->second)) {
             it->second->on_input.emit(ev);
             track_popup(*it->second);
         }
@@ -349,7 +349,7 @@ public:
 
     void flip_visual_flag(WidgetId id, bool WidgetVisualState::* flag, bool value) {
         if (id == 0) return;
-        if (auto it = index_.find(id); it != index_.end()) {
+        if (auto it = index_.find(id); it != index_.end() && (!value || is_enabled(*it->second))) {
             it->second->visual_state.*flag = value;
             it->second->dirty = true;
         }
@@ -405,7 +405,7 @@ public:
 
     void set_pressed(WidgetId id, bool pressed) {
         flip_visual_flag(id, &WidgetVisualState::pressed, pressed);
-        captured_id_ = pressed ? id : 0;
+        captured_id_ = pressed && enabled(id) ? id : 0;
     }
 
     [[nodiscard]] WidgetId captured_id() const { return captured_id_; }
@@ -414,7 +414,7 @@ public:
         WidgetId active = captured_id_ != 0 ? captured_id_ : hovered_id_;
         if (active == 0) return CursorShape::Default;
         auto it = index_.find(active);
-        return it != index_.end() ? it->second->visual_state.cursor : CursorShape::Default;
+        return it != index_.end() && is_enabled(*it->second) ? it->second->visual_state.cursor : CursorShape::Default;
     }
 
     struct ScrollbarDrag {
@@ -535,7 +535,7 @@ public:
     [[nodiscard]] const std::vector<WidgetId>& focus_order() const { return focus_order_; }
 
     void set_focused(WidgetId id) {
-        if (id == focused_id_) return;
+        if (id == focused_id_ || !enabled(id)) return;
         if (std::find(focus_order_.begin(), focus_order_.end(), id) == focus_order_.end()) return;
         flip_visual_flag(focused_id_, &WidgetVisualState::focused, false);
         focused_id_ = id;
@@ -551,11 +551,15 @@ public:
     // focus inside), else every focusable widget.
     [[nodiscard]] std::vector<WidgetId> focus_ring() const {
         const WidgetNode* p = open_content_popup();
-        if (!p) return focus_order_;
         std::vector<WidgetId> ring;
         for (WidgetId id : focus_order_)
-            if (within(id, p->id)) ring.push_back(id);
+            if ((!p || within(id, p->id)) && enabled(id)) ring.push_back(id);
         return ring;
+    }
+
+    [[nodiscard]] bool enabled(WidgetId id) const {
+        auto it = index_.find(id);
+        return it == index_.end() || is_enabled(*it->second);
     }
 
     void focus_next() { step_focus(+1); }
@@ -763,6 +767,12 @@ private:
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
+        build_widget_kind(node, wn);
+        if (!node.enablers.empty()) make_disableable(wn, node.enablers);
+        return wn;
+    }
+
+    void build_widget_kind(Node& node, WidgetNode& wn) {
         if (node.is_leaf) {
             wn.is_container = false;
             if (node.build_widget)
@@ -804,7 +814,6 @@ private:
                     wn.children.push_back(build_widget_node(child));
             }
         }
-        return wn;
     }
 
     void connect_on_change_dirty(Node& node, WidgetNode& wn) {
@@ -825,7 +834,31 @@ private:
         }
     }
 
+    // A widget whose condition changed redraws (faded or not); one just disabled lets go of the
+    // focus, hover, press and popup it held.
+    void connect_enablers(Node& node, WidgetNode& wn) {
+        for (auto& e : node.enablers)
+            wn.connections.push_back(e.subscribe([this, id = wn.id] {
+                auto it = index_.find(id);
+                if (it == index_.end()) return;
+                // Its rows (a list's, a table's) draw with it: all of them redraw.
+                widget_detail::for_each_node(*it->second, [](WidgetNode& n) { n.dirty = true; });
+                if (!enabled(id)) release_disabled(*it->second);
+            }));
+    }
+
+    // Lets go of the focus, hover, press and popups held by `w` or anything below it.
+    void release_disabled(WidgetNode& w) {
+        widget_detail::for_each_node(w, [this](WidgetNode& n) {
+            if (focused_id_ == n.id) clear_focus();
+            if (captured_id_ == n.id) captured_id_ = 0;
+            n.visual_state.hovered = n.visual_state.pressed = false;
+            while (std::ranges::find(popup_stack_, n.id) != popup_stack_.end()) close_popup();
+        });
+    }
+
     void connect_dirty(Node& node, WidgetNode& wn) {
+        connect_enablers(node, wn);
         if (node.is_leaf) {
             connect_on_change_dirty(node, wn);
             connect_deps_dirty(node, wn);
@@ -1435,6 +1468,7 @@ private:
             }
             wn.theme = &theme_;
             vls->bind_row(wn, i);
+            if (node.enabled) make_disableable(wn, node.enabled);   // rows follow the list's flag
             parent_map_[wn.id] = node.id;
             if (wn.focus_policy != FocusPolicy::none)
                 focus_order_.push_back(wn.id);

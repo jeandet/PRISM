@@ -81,7 +81,9 @@ struct SvgEmitter {
         auto png = encode_png(c.image->width(), c.image->height(), c.image->pixels());
         out << "<image x=\"" << fmt_float(c.rect.origin.x.raw()) << "\" y=\"" << fmt_float(c.rect.origin.y.raw())
             << "\" width=\"" << fmt_float(c.rect.extent.w.raw()) << "\" height=\"" << fmt_float(c.rect.extent.h.raw())
-            << "\" preserveAspectRatio=\"none\" href=\"data:image/png;base64,"
+            << "\" preserveAspectRatio=\"none\"";
+        if (c.alpha < 255) out << " opacity=\"" << fmt_float(c.alpha / 255.f) << "\"";
+        out << " href=\"data:image/png;base64,"
             << base64(std::as_bytes(std::span{png})) << "\"/>\n";
     }
 

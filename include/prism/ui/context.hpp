@@ -8,26 +8,6 @@ namespace prism::ui {
 using namespace prism::render;
 
 
-// Bitmask of interactive states a widget can be in.
-enum class WidgetState : uint8_t {
-    Normal   = 0,
-    Hovered  = 1 << 0,
-    Focused  = 1 << 1,
-    Pressed  = 1 << 2,
-    Disabled = 1 << 3,
-};
-
-[[nodiscard]] constexpr WidgetState operator|(WidgetState a, WidgetState b)
-{
-    return static_cast<WidgetState>(
-        static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-}
-
-[[nodiscard]] constexpr bool has(WidgetState mask, WidgetState flag)
-{
-    return (static_cast<uint8_t>(mask) & static_cast<uint8_t>(flag)) != 0;
-}
-
 struct TextMeasurer;
 struct Clipboard;
 
@@ -116,18 +96,5 @@ struct Theme {
 };
 
 inline Theme default_theme() { return {}; }
-
-// Carried through the widget tree during record().
-// Provides theme access and current interaction state.
-struct Context {
-    const Theme& theme;
-    WidgetState  state = WidgetState::Normal;
-};
-
-// A drawable is any type that can record draw commands given a context.
-template <typename T>
-concept Drawable = requires(const T w, DrawList& dl, const Context& ctx) {
-    { w.record(dl, ctx) } -> std::same_as<void>;
-};
 
 } // namespace prism::ui

@@ -72,6 +72,17 @@ auto adapt_on_change(Observable& obs) {
     };
 }
 
+// A widget is enabled while `flag` (a Field<bool>, a Derived<bool>, ...) holds true.
+template <typename Flag>
+Enabler enabler_of(Flag& flag) {
+    return {[&flag] { return static_cast<bool>(flag.get()); }, adapt_on_change(flag)};
+}
+
+inline void add_enabler(Node& node, const Enabler& e) {
+    node.enablers.push_back(e);
+    for (auto& c : node.children) add_enabler(c, e);
+}
+
 // The widgets a dialog is made of (see ViewBuilder::dialog). Created once and changed in place:
 // an open dialog's widgets point at them, and the content builder also runs while the view is
 // built, so they must never be replaced under it.
@@ -196,11 +207,19 @@ public:
     // the next placement may move the node it points to.
     struct LeafHandle {
         Node& node_ref;
+        std::set<const void*>& placed_ref;   // a flag field counts as used by the view
         // &&: only on the temporary widget() returns, so a stored handle cannot dangle.
         LeafHandle&& tooltip(std::string text) && { node_ref.tooltip = std::move(text); return std::move(*this); }
         // Inside a popup: this widget, not the first one, has the focus when the popup opens
         // (a dialog's default button, a form's most useful field).
         LeafHandle&& focus_on_open() && { node_ref.focus_on_open = true; return std::move(*this); }
+        // Greyed out and deaf to input while `flag` (a bool Field or Derived) is false.
+        template <typename Flag>
+        LeafHandle&& enabled(Flag& flag) && {
+            placed_ref.insert(&flag);
+            view_builder_detail::add_enabler(node_ref, view_builder_detail::enabler_of(flag));
+            return std::move(*this);
+        }
     };
 
 public:
@@ -221,7 +240,20 @@ public:
         auto leaf = node_leaf(field, tree_.next_id_);
         apply_field_name(leaf, field);
         current_parent().children.push_back(std::move(leaf));
-        return {current_parent().children.back()};
+        return {current_parent().children.back(), placed_};
+    }
+
+    // Everything `fn` places, nested containers included, is greyed out and deaf to input while
+    // `flag` (a bool Field or Derived) is false. Adds no container: the layout is unchanged.
+    template <typename Flag>
+    void enabled_if(Flag& flag, std::invocable auto&& fn) {
+        auto& parent = current_parent();
+        auto first = parent.children.size();
+        fn();
+        placed_.insert(&flag);
+        auto e = view_builder_detail::enabler_of(flag);
+        for (auto i = first; i < parent.children.size(); ++i)
+            view_builder_detail::add_enabler(parent.children[i], e);
     }
 
     // A right click anywhere in the current container opens this menu at the pointer.
@@ -269,7 +301,7 @@ public:
         auto leaf = node_readonly_leaf<T>(field, tree_.next_id_);
         apply_field_name(leaf, field);
         current_parent().children.push_back(std::move(leaf));
-        return {current_parent().children.back()};
+        return {current_parent().children.back(), placed_};
     }
 
     template <typename T>
@@ -278,7 +310,7 @@ public:
         auto leaf = node_readonly_leaf<T>(derived, tree_.next_id_);
         apply_field_name(leaf, derived);
         current_parent().children.push_back(std::move(leaf));
-        return {current_parent().children.back()};
+        return {current_parent().children.back(), placed_};
     }
 
     template <typename T>
@@ -289,7 +321,7 @@ public:
         node.drain_fn = [&shared] { shared.drain_notifications(); };
         node.bind_waker_fn = [&shared](std::function<void()> w) { shared.set_waker(std::move(w)); };
         current_parent().children.push_back(std::move(node));
-        return {current_parent().children.back()};
+        return {current_parent().children.back(), placed_};
     }
 
     // Generic read-only widget for custom observables (e.g. Python Derived).

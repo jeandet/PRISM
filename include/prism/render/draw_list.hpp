@@ -117,6 +117,7 @@ private:
 struct ImageCmd {
     std::shared_ptr<const Image> image;
     Rect rect;   // destination; the image is scaled to fit
+    std::uint8_t alpha = 255;   // multiplies the image's own alpha (a disabled widget's icon)
 };
 
 using DrawCmd = std::variant<FilledRect, RectOutline, TextCmd, ClipPush, ClipPop,
@@ -299,5 +300,16 @@ struct DrawList {
         return Rect{translated(r.origin), r.extent};
     }
 };
+
+// Scales the alpha of everything in `dl` by `factor`, colors and images alike: how a disabled
+// widget is greyed out, whatever it draws.
+inline void fade(DrawList& dl, float factor) {
+    auto scaled = [factor](std::uint8_t a) { return static_cast<std::uint8_t>(a * factor + 0.5f); };
+    for (auto& cmd : dl.commands)
+        std::visit([&](auto& c) {
+            if constexpr (requires { c.color.a; }) c.color.a = scaled(c.color.a);
+            if constexpr (requires { c.alpha; }) c.alpha = scaled(c.alpha);
+        }, cmd);
+}
 
 } // namespace prism::render

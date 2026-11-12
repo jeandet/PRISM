@@ -31,6 +31,9 @@ struct WidgetNode {
     std::string name;                     // accessible name: the field's member name, if known
     std::string tooltip;                  // empty: none (see ui/tooltip.hpp)
     bool focus_on_open = false;           // focused when the popup holding it opens
+    // Null: always enabled. Otherwise read live: false greys the widget out and the tree gives
+    // it no input, focus, hover or press (see make_disableable).
+    std::function<bool()> enabled;
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;
@@ -164,6 +167,28 @@ inline std::pair<ItemIndex, ItemIndex> compute_visible_range(
 }
 
 inline const WidgetVisualState& node_vs(const WidgetNode& n) { return n.visual_state; }
+
+inline bool is_enabled(const WidgetNode& n) { return !n.enabled || n.enabled(); }
+
+inline constexpr float disabled_alpha = 0.4f;
+
+// Makes `wn` enabled only while `on` holds; while it does not, `wn` records as usual, then fades
+// what it drew.
+inline void make_disableable(WidgetNode& wn, std::function<bool()> on) {
+    wn.enabled = std::move(on);
+    if (wn.record)
+        wn.record = [inner = std::move(wn.record), on = wn.enabled](WidgetNode& n) {
+            inner(n);
+            if (!on()) fade(n.draws, disabled_alpha);
+        };
+    if (!wn.enabled()) fade(wn.draws, disabled_alpha);   // it usually recorded once already
+}
+
+inline void make_disableable(WidgetNode& wn, const std::vector<Enabler>& enablers) {
+    std::vector<std::function<bool()>> gets;
+    for (const auto& e : enablers) gets.push_back(e.get);
+    make_disableable(wn, [gets = std::move(gets)] { return std::ranges::all_of(gets, [](const auto& g) { return g(); }); });
+}
 inline Size node_allocated(const WidgetNode& n) { return n.canvas_bounds.extent; }
 inline const Theme& node_theme(const WidgetNode& n) { return *n.theme; }
 

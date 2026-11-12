@@ -473,6 +473,7 @@ void SdlWindow::render_cmd(const ImageCmd& cmd) {
         image_cache_.insert(std::move(key), tex);
     }
     SDL_FRect dst = to_sdl(cmd.rect);
+    SDL_SetTextureAlphaMod(tex, cmd.alpha);   // the texture is cached: set it on every draw
     SDL_RenderTexture(renderer_, tex, nullptr, &dst);
 }
 

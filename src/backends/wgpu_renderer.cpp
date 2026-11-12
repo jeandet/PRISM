@@ -373,7 +373,7 @@ void WgpuRenderer::render(std::span<const Layer> layers, WGPUTextureView target,
                 const auto& r = (*image)->rect;
                 float x = r.origin.x.raw(), y = r.origin.y.raw(), w = r.extent.w.raw(), h = r.extent.h.raw();
                 auto first = static_cast<std::uint32_t>(vertices.size());
-                push_quad(vertices, {{{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}}, core::Color::rgba(255, 255, 255));
+                push_quad(vertices, {{{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}}, core::Color::rgba(255, 255, 255, (*image)->alpha));
                 draws.push_back({li, b.clip, first, 6, t->group});
             } else if (b.count > 0) {
                 draws.push_back({li, b.clip, base + b.first, b.count, white_.group});

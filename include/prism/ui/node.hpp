@@ -20,6 +20,13 @@ struct WidgetNode;
 struct TableState;
 struct TabsState;
 
+// A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;
+// `subscribe` tells the tree when it may have changed.
+struct Enabler {
+    std::function<bool()> get;
+    std::function<Connection(std::function<void()>)> subscribe;
+};
+
 struct Node {
     WidgetId id = 0;
     bool is_leaf = false;
@@ -27,6 +34,7 @@ struct Node {
     std::string tooltip;   // shown when the pointer rests on the widget; copied to WidgetNode
     bool focus_on_open = false;   // takes the focus when the popup holding it opens; copied too
     std::function<void(Node&)> popup_builder;   // ui::Popup content; copied to WidgetNode
+    std::vector<Enabler> enablers;   // all true: enabled (none: always)
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif

@@ -76,6 +76,7 @@ headless_tests = {
   'intrinsic_size' : files('test_intrinsic_size.cpp'),
   'image' : files('test_image.cpp'),
   'popup' : files('test_popup.cpp'),
+  'enabled' : files('test_enabled.cpp'),
   'text_segmentation' : files('test_text_segmentation.cpp'),
   'text_bidi' : files('test_text_bidi.cpp'),
   'combo_box' : files('test_combo_box.cpp'),

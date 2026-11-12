@@ -410,6 +410,16 @@ vb.widget(save).tooltip("Write the file to disk");                  // in view()
 [[=core::tooltip<"Output level, in dB">]] core::Field<ui::Slider<>> volume;   // reflected
 ```
 
+A widget can be greyed out. It then takes no clicks, keys or focus. The flag is any bool
+`Field` or `Derived`, and the widget follows it as it changes. `enabled_if` covers everything
+placed inside it without adding a container:
+
+```cpp
+core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }, name};
+vb.widget(save).enabled(has_name);                        // one widget
+vb.enabled_if(unlocked, [&] { vb.vstack(volume, quality); });   // a group
+```
+
 Every widget also describes itself for assistive technology (role, name, value), ready for a
 screen-reader bridge.
 
@@ -673,7 +683,7 @@ The [live demos](https://jeandet.github.io/PRISM/) are built by `.github/workflo
 - **Phase 3.5**: stdexec `run_loop` event loops, `core::then`/`core::on`, `AppContext`.
 - **Phase 3.6**: the `Node` layer, C++23 support through `view()`, magic_enum fallback.
 - **Phase 4**: scroll areas, virtual lists, animation, mouse capture and drag, table, tabs, plot, SVG export, custom window chrome, themes, transactions, `Derived<T>`/`Shared<T>`.
-- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus, modal dialogs and tooltips, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes, editable combo boxes and progress bars (busy too); pixel tests through SDL; popups and dialogs that hold widgets, file dialogs, message boxes, drag and drop; image decoding and icon buttons; graphemes, Unicode line breaks and bidirectional text; a Windows CI lane; the Widget Gallery. Done plan: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md); next: [`doc/review-2026-11-02.md`](doc/review-2026-11-02.md).
+- **Phase 4.5** (in progress): `Widget<T>` for custom types, live inspector and annotations, `Tree<T>`, live widget-tree inspector, `Channel<T>`, the Python SDK, the WebAssembly build, frame pacing, snapshot and present statistics, `perf_lab`, plot decimation; real text metrics with Noto Sans and JetBrains Mono, text selection, clipboard, undo and input methods, content-sized layout, a popup layer, menu bars, context menus, modal dialogs and tooltips, accessibility metadata, images, anti-aliased shapes; table sorting, multi-row selection, column resize and horizontal scroll; word wrap; radio groups, spin boxes, editable combo boxes and progress bars (busy too); pixel tests through SDL; popups and dialogs that hold widgets, file dialogs, message boxes, drag and drop; image decoding and icon buttons; graphemes, Unicode line breaks and bidirectional text; a Windows CI lane; the Widget Gallery; disabled widgets. Done plans: [`doc/review-2026-11-01.md`](doc/review-2026-11-01.md), [`doc/review-2026-11-02.md`](doc/review-2026-11-02.md); next: [`doc/review-2026-11-12.md`](doc/review-2026-11-12.md) (the application shell).
 - **Phase 5**: WebGPU renderer (started: shapes, text, images and windows on desktop; browser next), GPU text (Slug), tile compositing.
 
 </details>
