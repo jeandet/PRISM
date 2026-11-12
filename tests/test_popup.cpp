@@ -409,3 +409,49 @@ TEST_CASE("a menu open inside a dialog: Escape closes the menu, then the dialog"
     f.key(keys::escape);
     CHECK_FALSE(f.model.ask.get().open);
 }
+
+namespace {
+struct LongPage {
+    std::vector<std::unique_ptr<Field<Label<>>>> lines;
+    Field<Button> more{{"More"}};
+    Field<Popup> options{{.open = false, .modal = false}};
+    Field<Checkbox> snap{{.checked = false, .label = "Snap"}};
+    WidgetId scroll_id = 0;
+    std::vector<std::unique_ptr<Field<Label<>>>> after;
+    LongPage() {
+        for (int i = 0; i < 30; ++i) lines.push_back(std::make_unique<Field<Label<>>>(Label<>{"line"}));
+        for (int i = 0; i < 30; ++i) after.push_back(std::make_unique<Field<Label<>>>(Label<>{"line"}));
+    }
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.scroll([&] {
+            vb.vstack([&] {
+                for (auto& l : lines) vb.widget(*l);
+                vb.widget(more);
+                vb.popup(options, [&](WidgetTree::ViewBuilder& p) { p.widget(snap); });
+                for (auto& l : after) vb.widget(*l);
+            });
+        });
+    }
+};
+}
+
+TEST_CASE("a non-modal popup in a scrolled area opens next to where its anchor is on screen") {
+    LongPage model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    auto scroll_id = tree.root().children[0].id;
+    auto unscrolled = find_widget_rect(*snap, tree.leaf_ids()[30]);
+    REQUIRE(unscrolled);
+    tree.scroll_to(scroll_id, DY{unscrolled->origin.y.raw() - 100.f});
+    snap = tree.build_snapshot(400, 300, 2);
+    auto button = find_widget_rect(*snap, tree.leaf_ids()[30]);
+    REQUIRE(button);
+    REQUIRE(button->origin.y.raw() == doctest::Approx(100.f));   // scrolled to mid-window
+    model.options.set({.open = true, .modal = false});
+    snap = tree.build_snapshot(400, 300, 3);
+    auto card = prism::app::widget_detail::popup_area(tree, *snap);
+    REQUIRE(card);
+    float button_bottom = button->origin.y.raw() + button->extent.h.raw();
+    // Right below the button, where the popup is declared; not where the button was before scrolling.
+    CHECK(card->origin.y.raw() == doctest::Approx(button_bottom).epsilon(0.05));
+}

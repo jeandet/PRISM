@@ -1351,10 +1351,7 @@ private:
         float max_h = std::max(0.f, window.h.raw() - 2 * popup_margin);
         Size size{Width{std::min(max_w, std::max(popup_min_w, p.content.hint.cross + 2 * popup_pad))},
                   Height{std::min(max_h, p.content.hint.preferred + 2 * popup_pad)}};
-        // simplify: the anchor's position before any scroll area above it scrolls; a non-modal
-        // popup declared inside a scrolled area opens off its anchor. Upgrade: offset by the
-        // ancestors' scroll offsets.
-        Point at = anchor_origin(main, anchor->id);
+        Point at = anchor_origin(main, anchor->id).value_or(Point{X{0}, Y{0}});
         p.card = anchor->popup_modal
             ? Rect{Point{X{(window.w.raw() - size.w.raw()) / 2}, Y{(window.h.raw() - size.h.raw()) / 2}}, size}
             : place_popup(size, Rect{at, Size{Width{0}, Height{0}}}, window);
@@ -1373,13 +1370,13 @@ private:
         return nullptr;
     }
 
-    static Point anchor_origin(const LayoutNode& node, WidgetId id) {
+    // Where the widget is on screen: its place in the layout, moved up by every scrolled
+    // container above it, as layout_flatten draws it.
+    static std::optional<Point> anchor_origin(const LayoutNode& node, WidgetId id) {
         if (node.id == id) return node.allocated.origin;
-        for (auto& c : node.children) {
-            Point p = anchor_origin(c, id);
-            if (p.x.raw() != -1.f) return p;
-        }
-        return Point{X{-1.f}, Y{-1.f}};
+        for (auto& c : node.children)
+            if (auto p = anchor_origin(c, id)) return Point{p->x, p->y - node.scroll_offset};
+        return std::nullopt;
     }
 
     // Into the overlay, which draws after and is hit-tested before the window's widgets:
