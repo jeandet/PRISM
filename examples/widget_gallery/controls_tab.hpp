@@ -15,6 +15,11 @@ namespace gallery {
 enum class Quality { Draft, Normal, Best };
 enum class Theme { System, Light, Dark };
 
+// What the gallery remembers between runs (app/settings.hpp): saved as settings.toml.
+struct Prefs {
+    prism::core::Field<Theme> theme{Theme::System};   // a bare enum: a dropdown; applied by main.cpp
+};
+
 struct ControlsTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Controls", .heading = true}};
     prism::core::Field<prism::ui::TextField<>> name{{.placeholder = "Your name"}};
@@ -26,7 +31,7 @@ struct ControlsTab {
     prism::core::Field<prism::ui::Slider<>> volume{{.value = 0.6, .min = 0.0, .max = 1.0}};
     prism::core::Field<prism::ui::Checkbox> notify{{.checked = true, .label = "Send notifications"}};
     prism::core::Field<prism::ui::Radio<Quality>> quality{{Quality::Normal}};
-    prism::core::Field<Theme> theme{Theme::System};   // a bare enum: a dropdown
+    prism::core::Field<Theme>& theme;   // the gallery's preference, shown here
     prism::core::Field<prism::ui::Button> save{{.text = "Save", .icon = icon("save.svg")}};
     prism::core::Field<prism::ui::Button> reset{{.text = "Reset", .icon = icon("refresh.svg"), .primary = false}};
     prism::core::Field<prism::ui::Button> trash{{.text = "", .icon = icon("trash.svg"), .primary = false}};
@@ -39,7 +44,7 @@ struct ControlsTab {
     prism::core::Derived<bool> unlocked{[this] { return !lock.get().checked; }, lock};
     std::vector<prism::core::Connection> wiring;   // captures `this`: the tab never moves
 
-    ControlsTab() {
+    explicit ControlsTab(prism::core::Field<Theme>& theme_pref) : theme(theme_pref) {
         auto refresh = [this](const auto&) { update(); };
         wiring.push_back(name.on_change().connect(refresh));
         wiring.push_back(fruit.on_change().connect(refresh));
@@ -98,7 +103,7 @@ private:
             vb.gap(8.f);
             vb.widget(scale).tooltip("Steps of 0.25");
             vb.gap(8.f);
-            vb.widget(theme).tooltip("An enum field is a dropdown");
+            vb.widget(theme).tooltip("An enum field is a dropdown. This one switches the theme, and is remembered");
         });
         vb.gap(6.f);
         vb.widget(volume).tooltip("Drag, click, or use the arrow keys");

@@ -8,6 +8,9 @@
 #include "text_tab.hpp"
 #include "../showcase/showcase_common.hpp"
 
+#include <prism/app/settings.hpp>
+#include <prism/backends/settings_dir.hpp>
+
 #include <array>
 #include <string>
 #include <vector>
@@ -29,7 +32,8 @@ struct Gallery {
                                               "build, compiled to WebAssembly.",
                                    .buttons = {"Close"}}};
     core::Field<ui::TabBar<>> tabs;
-    gallery::ControlsTab controls;
+    gallery::Prefs prefs;
+    gallery::ControlsTab controls{prefs.theme};
     gallery::CatalogTab catalog;
     gallery::TextTab text;
     gallery::DataTab data;
@@ -78,9 +82,19 @@ int main(int argc, char* argv[]) {
     auto backend = app::Backend::software(app::RenderConfig{});
     auto& window = backend.create_window({.title = "PRISM Widget Gallery", .width = 1000, .height = 700,
                                           .decoration = app::DecorationMode::Custom});
-    app::model_app(backend, window, app, [&app](app::AppContext& ctx) {
+    // Loads the last session's preferences, and saves them as they change.
+    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "widget-gallery") / "settings.toml"};
+    core::Connection theme_link;   // follows the Theme dropdown; ends with model_app
+    app::model_app(backend, window, app, [&app, &theme_link](app::AppContext& ctx) {
         app.popups.ctx = &ctx;
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.popups.dropped(drop); });
+        auto apply = [&ctx](gallery::Theme t) {
+            if (t == gallery::Theme::System) ctx.follow_system_theme();
+            else ctx.set_theme(t == gallery::Theme::Light ? ui::light_theme() : ui::dark_theme());
+        };
+        apply(app.prefs.theme.get());
+        theme_link = app.prefs.theme.on_change().connect(apply);
     });
+    theme_link.disconnect();
     app.popups.ctx = nullptr;   // the context ended with model_app
 }

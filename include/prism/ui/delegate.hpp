@@ -734,11 +734,13 @@ struct Widget<Button> {
         dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), bg);
         if (b.primary) dl.rect_outline(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), t.primary_outline, 1.0f);
         float x = 8.f;
+        Color fg = b.primary ? t.text_on_primary : t.text;
         if (b.icon) {
-            dl.image(b.icon, Rect{Point{X{x}, Y{(32.f - icon_size) / 2}}, Size{Width{icon_size}, Height{icon_size}}});
+            dl.image(b.icon, Rect{Point{X{x}, Y{(32.f - icon_size) / 2}}, Size{Width{icon_size}, Height{icon_size}}},
+                     icon_tint(b.icon, fg));
             x += icon_size + icon_gap;
         }
-        if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, b.primary ? t.text_on_primary : t.text);
+        if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, fg);
         if (vs.focused)
             delegate_detail::draw_focus_ring(dl, w, Height{32}, t);
     }

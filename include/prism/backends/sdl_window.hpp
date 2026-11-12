@@ -65,7 +65,7 @@ public:
     void ensure_created();
 
     // present = false leaves the frame in the back buffer, e.g. to read its pixels back.
-    void render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme = Theme{},
+    void render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts,
                          bool present = true);
 
     // Test hook: renders at this device scale instead of the display's (0 = follow the display),

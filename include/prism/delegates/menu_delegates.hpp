@@ -142,7 +142,7 @@ inline void draw_item(DrawList& dl, const Items& items, std::size_t i, Rect row,
     Color color = !item.enabled ? t.text_placeholder : highlighted ? t.text_on_primary : t.text;
     X slot = row.origin.x + DX{pad};
     Y icon_y = row.origin.y + DY{(item_h.raw() - icon_size) / 2};
-    if (item.icon) dl.image(item.icon, Rect{Point{slot, icon_y}, Size{Width{icon_size}, Height{icon_size}}});
+    if (item.icon) dl.image(item.icon, Rect{Point{slot, icon_y}, Size{Width{icon_size}, Height{icon_size}}}, icon_tint(item.icon, color));
     else if (item.checked.value_or(false)) dl.text("\xe2\x9c\x93", Point{slot + DX{2.f}, row.origin.y + DY{6.f}}, font_size, color);
     draw_label(dl, item.text, Point{row.origin.x + DX{label_offset(items)}, row.origin.y + DY{6.f}}, color, t.measurer);
     if (auto keys = shortcut_text(item.shortcut); !keys.empty()) {

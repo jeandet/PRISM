@@ -96,5 +96,35 @@ struct Theme {
 };
 
 inline Theme default_theme() { return {}; }
+inline Theme dark_theme() { return {}; }
+
+// Dark text on light surfaces; every text color keeps at least WCAG AA contrast (4.5:1) with
+// what it is drawn on (tests/test_theme.cpp checks it).
+inline Theme light_theme() {
+    Theme t;
+    auto c = [](std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a = 255) { return Color::rgba(r, g, b, a); };
+    t.surface = c(236, 237, 242);         t.surface_hover = c(226, 228, 235);   t.surface_active = c(214, 217, 226);
+    t.primary = c(30, 100, 190);          t.primary_hover = c(40, 112, 205);    t.primary_active = c(22, 86, 168);
+    t.primary_outline = c(60, 130, 220);
+    t.accent = c(0, 120, 190);            t.accent_hover = c(0, 135, 210);      t.accent_active = c(0, 105, 170);
+    t.text = c(30, 30, 35);               t.text_muted = c(85, 85, 95);
+    t.text_placeholder = c(140, 140, 150); t.text_on_primary = c(255, 255, 255);
+    t.border = c(190, 192, 200);          t.border_hover = c(160, 163, 173);    t.focus_ring = c(40, 120, 220);
+    t.track = c(215, 217, 224);           t.track_hover = c(200, 203, 212);
+    t.scrollbar_thumb = c(120, 120, 130, 140);
+    t.divider = c(180, 182, 190, 180);    t.divider_hover = c(140, 143, 155, 220);
+    t.cursor = c(30, 30, 40);             t.text_selection = c(60, 120, 220, 90); t.text_match = c(240, 180, 40, 110);
+    t.popup_bg = c(252, 252, 254);        t.popup_border = c(190, 192, 200);
+    t.popup_highlight = c(30, 100, 190);  t.scrim = c(0, 0, 0, 90);
+    t.table_row_even = c(255, 255, 255);  t.table_row_odd = c(246, 247, 250);   t.table_selected = c(205, 222, 250);
+    t.table_header = c(232, 234, 240);    t.table_divider = c(225, 227, 233);
+    t.table_header_divider = c(205, 208, 216); t.table_header_text = c(70, 80, 140);
+    t.tab_bar_bg = c(232, 234, 240);      t.tab_active_bg = c(250, 250, 252);
+    t.tab_text = c(100, 100, 115);        t.tab_text_active = c(25, 25, 35);    t.tab_accent = c(90, 80, 230);
+    t.chrome_bg = c(232, 233, 238);       t.chrome_border = c(205, 207, 214);
+    t.chrome_text = c(40, 40, 48);        t.chrome_icon = c(70, 70, 80);        t.chrome_close = c(196, 43, 28);
+    t.canvas_bg = c(250, 250, 252);
+    return t;
+}
 
 } // namespace prism::ui

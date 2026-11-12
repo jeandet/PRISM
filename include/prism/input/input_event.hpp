@@ -27,11 +27,13 @@ struct MouseLeave {};   // the pointer left the window's content (or went onto i
 // Dropped from another app: the files of one drop together, or text. Where the pointer was.
 struct FileDrop { Point position; std::vector<std::string> paths; };
 struct TextDrop { Point position; std::string text; };
+// The OS's light or dark preference: sent once at start, then whenever the user changes it.
+struct SystemTheme { bool dark = true; };
 
 using InputEvent = std::variant<
     MouseMove, MouseButton, MouseScroll,
     KeyPress, KeyRelease, TextInput, Paste, Composition,
-    WindowResize, WindowClose, MouseLeave, FileDrop, TextDrop
+    WindowResize, WindowClose, MouseLeave, FileDrop, TextDrop, SystemTheme
 >;
 
 namespace keys {

@@ -104,6 +104,16 @@ public:
         mark_all_dirty_impl(root_);
     }
 
+    // Switches every widget to `t` (ui::light_theme(), dark_theme(), or the app's own) and
+    // repaints them; the backend's measurer and clipboard stay.
+    void set_theme(Theme t) {
+        t.measurer = theme_.measurer;
+        t.clipboard = theme_.clipboard;
+        theme_ = t;
+        mark_all_dirty_impl(root_);
+        tooltip_dirty_ = true;
+    }
+
     void close_overlays() { close_overlays_impl(root_); }
 
     // Scrolls the nearest scroll view at or above `target`; at its end the wheel passes to the
@@ -621,6 +631,8 @@ public:
     [[nodiscard]] std::unique_ptr<SceneSnapshot> build_snapshot(float w, float h, uint64_t version) {
         last_built_version_ = version;
         auto build_start = std::chrono::steady_clock::now();
+        auto window_colors = WindowColors{theme_.canvas_bg, theme_.chrome_bg, theme_.chrome_border,
+                                          theme_.chrome_text, theme_.chrome_icon, theme_.chrome_close};
         // Counted before refresh_dirty() runs record() -- record() never touches the
         // dirty flag itself (only clear_dirty(), called by the caller after publish,
         // does), so this reflects exactly what changed since the last publish.
@@ -683,6 +695,7 @@ public:
 
         auto snap = std::make_unique<SceneSnapshot>();
         snap->version = version;
+        snap->window = window_colors;
         snap->viewport = Size{Width{w}, Height{h}};
         layout_flatten(layout, *snap);
         resolve_clips(*snap);

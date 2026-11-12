@@ -91,6 +91,24 @@ public:
     // Called on the logic thread with every file drop (the paths and where they were dropped),
     // after the widget under the drop has seen it.
     void on_file_drop(std::function<void(const FileDrop&)> fn) { file_drop_ = std::move(fn); }
+
+    // Every window's look: ui::light_theme(), ui::dark_theme() or the app's own. Stops following
+    // the OS's preference.
+    void set_theme(const Theme& t) {
+        follow_system_theme_ = false;
+        apply_theme(t);
+    }
+    // Light or dark as the OS is set (dark until the backend says), now and whenever it changes.
+    void follow_system_theme() {
+        follow_system_theme_ = true;
+        apply_theme(system_dark_ ? dark_theme() : light_theme());
+    }
+    [[nodiscard]] bool system_prefers_dark() const { return system_dark_; }
+    // From the event loop, on a SystemTheme event.
+    void system_theme_changed(bool dark) {
+        system_dark_ = dark;
+        if (follow_system_theme_) apply_theme(dark ? dark_theme() : light_theme());
+    }
     [[nodiscard]] const std::function<void(const FileDrop&)>& file_drop_handler() const { return file_drop_; }
 
     // A message box, for what the app cannot show in its own window. Ignored when the
@@ -224,6 +242,9 @@ private:
     }
     scheduler_type sched_;
     std::function<void(const FileDrop&)> file_drop_;
+    bool follow_system_theme_ = false;
+    bool system_dark_ = true;
+    void apply_theme(const Theme& t) { registry_->for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->set_theme(t); }); }
     AnimationClock* clock_;
     Window* window_;
     Backend* backend_;
@@ -442,6 +463,12 @@ void model_app(Backend& backend, Window& window, Model& model,
                                     reset_debug_inspector();
 #endif
                             }
+                            return;
+                        }
+
+                        if (auto* st = std::get_if<SystemTheme>(&ev)) {   // every window's, not one's
+                            ctx_holder->system_theme_changed(st->dark);
+                            publish_dirty();
                             return;
                         }
 

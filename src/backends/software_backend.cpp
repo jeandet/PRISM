@@ -325,6 +325,12 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
         return false;
     };
 
+    auto system_theme = [] { return SystemTheme{SDL_GetSystemTheme() != SDL_SYSTEM_THEME_LIGHT}; };
+    {
+        std::lock_guard<std::mutex> lk(windows_mutex_);
+        if (!windows_.empty()) event_cb(WindowEvent{windows_.begin()->first, system_theme()});
+    }
+
     while (running_.load(std::memory_order_relaxed)) {
         SDL_Event ev;
         // Paced + dirty: wait only until the next frame deadline (events still wake
@@ -526,6 +532,9 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                     break;
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                     event_cb(WindowEvent{wid, WindowClose{}});
+                    break;
+                case SDL_EVENT_SYSTEM_THEME_CHANGED:
+                    event_cb(WindowEvent{wid, system_theme()});
                     break;
                 case SDL_EVENT_USER:
                     drain_window_requests();

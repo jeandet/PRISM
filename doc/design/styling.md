@@ -2,7 +2,8 @@
 
 > **Status (2026-11-12): an early proposal, mostly not built.** What exists is `ui::Theme`
 > (`include/prism/ui/context.hpp`), a flat struct of colors each widget reads through
-> `node_theme()`, and `WidgetVisualState` (hovered, pressed, focused). `Context` and
+> `node_theme()`, with `dark_theme()` and `light_theme()` and a switch at run time
+> (`AppContext::set_theme`, `follow_system_theme`), and `WidgetVisualState` (hovered, pressed, focused). `Context` and
 > `WidgetState` below were never used and are gone. A disabled widget is not a style state:
 > the tree fades whatever it draws (`make_disableable`, `include/prism/ui/widget_node.hpp`).
 

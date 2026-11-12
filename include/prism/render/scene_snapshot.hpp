@@ -14,8 +14,21 @@ using WidgetId = uint64_t;
 // Complete, immutable description of what should be on screen.
 // All vectors are parallel — indexed by the same position.
 // z_order contains indices into geometry/draw_lists, back-to-front.
+// What the backend paints itself: the window behind the widgets and its custom title bar. From
+// the app's theme (ui::Theme), so a theme change reaches them too.
+struct WindowColors {
+    Color background = Color::rgba(30, 30, 30);
+    Color chrome_bg = Color::rgba(45, 45, 48);
+    Color chrome_border = Color::rgba(60, 60, 65);
+    Color chrome_text = Color::rgba(200, 200, 200);
+    Color chrome_icon = Color::rgba(180, 180, 180);
+    Color chrome_close = Color::rgba(196, 43, 28);
+    bool operator==(const WindowColors&) const = default;
+};
+
 struct SceneSnapshot {
     uint64_t version = 0;
+    WindowColors window;
     Size viewport{Width{0}, Height{0}};  // the window, in the same coordinates as geometry
     std::vector<std::pair<WidgetId, Rect>> geometry;
     // Per-widget entries may be shared with a previous snapshot (see layout_flatten's

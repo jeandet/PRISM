@@ -75,10 +75,20 @@ struct SvgEmitter {
         out << "/>\n";
     }
 
+    // The pixels multiplied by the tint, as the renderers draw them.
+    static std::vector<std::uint8_t> tinted(std::span<const std::uint8_t> px, Color tint) {
+        std::vector<std::uint8_t> out(px.begin(), px.end());
+        if (tint == Color::rgba(255, 255, 255)) return out;
+        const std::uint8_t t[3] = {tint.r, tint.g, tint.b};
+        for (std::size_t i = 0; i + 3 < out.size(); i += 4)
+            for (int k = 0; k < 3; ++k) out[i + k] = static_cast<std::uint8_t>(out[i + k] * t[k] / 255);
+        return out;
+    }
+
     // The pixels themselves, as an embedded PNG (render/png_encode.hpp).
     void emit(const ImageCmd& c) {
         if (!c.image) return;
-        auto png = encode_png(c.image->width(), c.image->height(), c.image->pixels());
+        auto png = encode_png(c.image->width(), c.image->height(), tinted(c.image->pixels(), c.tint));
         out << "<image x=\"" << fmt_float(c.rect.origin.x.raw()) << "\" y=\"" << fmt_float(c.rect.origin.y.raw())
             << "\" width=\"" << fmt_float(c.rect.extent.w.raw()) << "\" height=\"" << fmt_float(c.rect.extent.h.raw())
             << "\" preserveAspectRatio=\"none\"";

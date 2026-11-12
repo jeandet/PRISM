@@ -12,11 +12,12 @@
 
 namespace gallery {
 
-// Drawn at 16 pt; a missing file gives no icon rather than failing the app.
+// Drawn at 16 pt in the color of the text beside them (symbolic: they are one-color line
+// icons); a missing file gives no icon rather than failing the app.
 inline std::shared_ptr<const prism::render::Image> icon(const char* name) {
     auto img = prism::render::load_image(std::string(GALLERY_ICON_DIR) + "/" + name,
                                          prism::core::Size{prism::core::Width{16}, prism::core::Height{16}});
-    return img ? *img : nullptr;
+    return img ? prism::render::symbolic(*img) : nullptr;
 }
 
 } // namespace gallery

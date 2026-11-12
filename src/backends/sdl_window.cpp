@@ -246,7 +246,23 @@ void SdlWindow::set_cursor(CursorShape shape) {
     if (auto* c = sdl_cursor_for(shape)) SDL_SetCursor(c);
 }
 
-void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, const Theme& theme, bool present) {
+namespace {
+// The colors the window paints itself (background, title bar), from the app's theme as the
+// snapshot carries them.
+Theme window_theme(const WindowColors& c) {
+    Theme t;
+    t.canvas_bg = c.background;
+    t.chrome_bg = c.chrome_bg;
+    t.chrome_border = c.chrome_border;
+    t.chrome_text = c.chrome_text;
+    t.chrome_icon = c.chrome_icon;
+    t.chrome_close = c.chrome_close;
+    return t;
+}
+} // namespace
+
+void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, bool present) {
+    const Theme theme = window_theme(snap.window);
     if (gpu_) {
         float density = forced_scale_ > 0.f ? forced_scale_ : SDL_GetWindowPixelDensity(sdl_window_);
         device_scale_ = density > 0.f ? density : 1.0f;
@@ -473,7 +489,8 @@ void SdlWindow::render_cmd(const ImageCmd& cmd) {
         image_cache_.insert(std::move(key), tex);
     }
     SDL_FRect dst = to_sdl(cmd.rect);
-    SDL_SetTextureAlphaMod(tex, cmd.alpha);   // the texture is cached: set it on every draw
+    SDL_SetTextureAlphaMod(tex, cmd.alpha);   // the texture is cached: set these on every draw
+    SDL_SetTextureColorMod(tex, cmd.tint.r, cmd.tint.g, cmd.tint.b);
     SDL_RenderTexture(renderer_, tex, nullptr, &dst);
 }
 

@@ -123,7 +123,8 @@ struct Widget<TreeRow> {
         if (row.image) {
             constexpr float image_size = 16.f;
             dl.image(row.image, Rect{delegate_detail::make_point(x, Y{(row_h.raw() - image_size) / 2}),
-                                     Size{Width{image_size}, Height{image_size}}});
+                                     Size{Width{image_size}, Height{image_size}}},
+                     icon_tint(row.image, t.text));
             x = x + DX{icon_slot};
         } else if (row.icon) {
             dl.text(*row.icon, delegate_detail::make_point(x, Y{4.f}), font, t.text);

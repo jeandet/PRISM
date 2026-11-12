@@ -151,9 +151,10 @@ class DropBackend final : public BackendBase {
 
 public:
     std::vector<InputEvent> events;
+    std::shared_ptr<const SceneSnapshot> last;   // the last frame submitted
     Window& create_window(WindowConfig) override { return window_; }
-    void submit(WindowId, std::shared_ptr<const SceneSnapshot>) override {
-        { std::lock_guard l(m_); framed_ = true; }
+    void submit(WindowId, std::shared_ptr<const SceneSnapshot> snap) override {
+        { std::lock_guard l(m_); framed_ = true; last = std::move(snap); }
         cv_.notify_all();
     }
     void wake() override {}
@@ -192,4 +193,30 @@ TEST_CASE("text dropped on a text field is typed into it") {
     auto& window = backend.create_window({});
     model_app(backend, window, model);
     CHECK(model.name.get().value == "dropped");
+}
+
+// --- the OS's light or dark preference ---------------------------------------------------
+
+TEST_CASE("an app following the system theme turns light when the OS says so") {
+    Form model;
+    auto impl = std::make_unique<DropBackend>();
+    auto* b = impl.get();
+    impl->events = {SystemTheme{false}};
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    model_app(backend, window, model, [](AppContext& ctx) { ctx.follow_system_theme(); });
+    REQUIRE(b->last);
+    CHECK(b->last->window.background == ui::light_theme().canvas_bg);
+}
+
+TEST_CASE("a theme the app chose stays when the OS changes") {
+    Form model;
+    auto impl = std::make_unique<DropBackend>();
+    auto* b = impl.get();
+    impl->events = {SystemTheme{true}};
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    model_app(backend, window, model, [](AppContext& ctx) { ctx.set_theme(ui::light_theme()); });
+    REQUIRE(b->last);
+    CHECK(b->last->window.background == ui::light_theme().canvas_bg);
 }

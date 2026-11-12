@@ -102,6 +102,17 @@ public:
     int height() const { return height_; }
     std::span<const std::uint8_t> pixels() const { return pixels_; }
     std::uint64_t id() const { return id_; }
+    // A one-color icon, stored white: widgets draw it in the color of their text (see symbolic()).
+    bool symbolic() const { return symbolic_; }
+
+    // The same shape, white, marked symbolic (render::symbolic is the public spelling).
+    std::shared_ptr<const Image> as_symbolic() const {
+        auto px = pixels_;
+        for (std::size_t i = 0; i + 3 < px.size(); i += 4) px[i] = px[i + 1] = px[i + 2] = 255;
+        auto img = std::shared_ptr<Image>(new Image(width_, height_, std::move(px)));
+        img->symbolic_ = true;
+        return img;
+    }
 
 private:
     Image(int w, int h, std::vector<std::uint8_t> px) : width_(w), height_(h), pixels_(std::move(px)) {}
@@ -112,12 +123,27 @@ private:
     int width_, height_;
     std::vector<std::uint8_t> pixels_;
     std::uint64_t id_ = next_id();
+    bool symbolic_ = false;
 };
+
+// A one-color icon (the gallery's, most toolbar icons) drawn in the color of the text beside
+// it, so it reads on a light theme and a dark one alike: GNOME's "symbolic" icons, the web's
+// currentColor. Only its alpha is kept. A logo or a photo stays as it is: do not mark it.
+inline std::shared_ptr<const Image> symbolic(const std::shared_ptr<const Image>& img) {
+    return img ? img->as_symbolic() : nullptr;
+}
+
+// What an icon is drawn in beside text of color `text`: that color for a symbolic icon, its own
+// colors (a white tint) for any other.
+inline Color icon_tint(const std::shared_ptr<const Image>& img, Color text) {
+    return img && img->symbolic() ? text : Color::rgba(255, 255, 255);
+}
 
 struct ImageCmd {
     std::shared_ptr<const Image> image;
     Rect rect;   // destination; the image is scaled to fit
     std::uint8_t alpha = 255;   // multiplies the image's own alpha (a disabled widget's icon)
+    Color tint = Color::rgba(255, 255, 255);   // multiplies its colors: a symbolic icon's color
 };
 
 using DrawCmd = std::variant<FilledRect, RectOutline, TextCmd, ClipPush, ClipPop,
@@ -173,9 +199,9 @@ struct DrawList {
             TextCmd{std::move(s), translated(origin), size, c, angle, anchor, role});
     }
 
-    void image(std::shared_ptr<const Image> img, Rect r)
+    void image(std::shared_ptr<const Image> img, Rect r, Color tint = Color::rgba(255, 255, 255))
     {
-        commands.emplace_back(ImageCmd{std::move(img), translated(r)});
+        commands.emplace_back(ImageCmd{std::move(img), translated(r), 255, tint});
     }
 
     void clip_push(Point origin, Size extent)

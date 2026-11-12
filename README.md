@@ -465,6 +465,22 @@ Unknown keys are skipped, so a file from another version still loads. It is buil
 [Glaze](https://github.com/stephenberry/glaze), which also works without `-freflection`.
 `app::to_toml`, `from_toml`, `load_settings` and `save_settings` are there for one-off use.
 
+### Light, dark, or as the OS is set
+
+`ui::dark_theme()` is the default and `ui::light_theme()` its light twin; both keep text at WCAG
+AA contrast. A `Theme` is a plain struct of colors, so an app can start from either and change
+a few. Switching repaints every widget at once:
+
+```cpp
+app::model_app(backend, window, model, [](app::AppContext& ctx) {
+    ctx.follow_system_theme();              // light or dark as the OS is set, and when it changes
+    // ctx.set_theme(ui::light_theme());    // or a fixed one
+});
+```
+
+One-color icons should be loaded as `render::symbolic(image)`: they are then drawn in the color of
+the text beside them, so they read on both themes. A logo or a photo keeps its colors.
+
 ### Live inspector
 
 Point PRISM at a plain struct behind a `Shared<T>`. You get a live, editable panel, with no mirror

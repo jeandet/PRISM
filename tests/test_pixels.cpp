@@ -85,7 +85,7 @@ struct Rig {
         win.force_device_scale(scale);
         tree.set_text_measurer(&measurer);
         auto snap = tree.build_snapshot(w, h, ++version);
-        win.render_snapshot(*snap, fonts, tree.theme(), /*present=*/false);
+        win.render_snapshot(*snap, fonts, /*present=*/false);
         SDL_Surface* raw = SDL_RenderReadPixels(win.renderer(), nullptr);
         REQUIRE(raw);
         SDL_Surface* px = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
