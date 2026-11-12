@@ -129,6 +129,7 @@ backend_base_tests = {
   'golden_snapshot' : files('test_golden_snapshot.cpp'),
   'mutation_queue' : files('test_mutation_queue.cpp'),
   'tooltip' : files('test_tooltip.cpp'),
+  'windows' : files('test_windows.cpp'),
   'image_decoder' : files('test_image_decoder.cpp'),
   'platform_services' : files('test_platform_services.cpp'),
   'text_area_scroll' : files('test_text_area_scroll.cpp'),

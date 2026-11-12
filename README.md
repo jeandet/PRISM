@@ -475,6 +475,23 @@ Unknown keys are skipped, so a file from another version still loads. It is buil
 [Glaze](https://github.com/stephenberry/glaze), which also works without `-freflection`.
 `app::to_toml`, `from_toml`, `load_settings` and `save_settings` are there for one-off use.
 
+### More windows
+
+A second model gets a window of its own. It may read the first one's fields, so it stays in
+step with them:
+
+```cpp
+struct Stats {
+    core::Derived<std::string> summary;   // from the editor's text, in the main model
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
+};
+// on the logic thread (a menu choice, setup):
+auto id = ctx.open_window(stats, {.title = "Statistics", .width = 320, .height = 80});
+```
+
+When the user closes it, it goes and the app goes on; `ctx.window_open(id)` tells, and
+`ctx.close_window(id)` closes it from code. Not in the browser yet: there is one canvas.
+
 ### Light, dark, or as the OS is set
 
 `ui::dark_theme()` is the default and `ui::light_theme()` its light twin; both keep text at WCAG

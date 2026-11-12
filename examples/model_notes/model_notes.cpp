@@ -22,6 +22,18 @@ struct NotesPrefs {
     app::WindowGeometry window;
 };
 
+// A second window (AppContext::open_window): live statistics of the text being edited, read
+// from the main window's field.
+struct NotesStats {
+    core::Derived<std::string> summary;
+    explicit NotesStats(core::Field<ui::TextArea<>>& body)
+        : summary([&body] {
+              auto s = notes::stats(body.get().value);
+              return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
+          }, body) {}
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
+};
+
 struct NotesApp {
     NotesPrefs prefs;
     FileTreeSource source;
@@ -35,6 +47,8 @@ struct NotesApp {
         {.text = "&Reload", .shortcut = {ui::keys::f5, 0}},
     }}};
     core::Field<ui::Menu> search_menu{{.title = "&Search", .items = {{"&Clear search"}}}};
+    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {
+        {.text = "&Statistics window", .shortcut = {ui::keys::i, ui::mods::ctrl}}}}};
     core::Field<ui::ContextMenu> editor_menu{{.items = {{.text = "Save", .enabled = false}, {"Reload"}, {"Clear search"}}}};
     core::Field<bool> modified{false};   // the text differs from the file: Save is enabled
     core::Field<ui::Dialog> discard{{.title = "Unsaved changes",
@@ -45,6 +59,8 @@ struct NotesApp {
     core::Field<ui::Button> reload{{"Reload"}};
     core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
     core::Field<ui::Label<>> status{{"No file open"}};
+    NotesStats stats{body};
+    app::WindowId stats_window = 0;
     // File > Rename…: a dialog holding a field
     core::Field<ui::Dialog> rename_dialog{{.title = "Rename", .message = "", .buttons = {"Rename", "Cancel"}}};
     core::Field<ui::TextField<>> new_name{{.placeholder = "New file name"}};
@@ -68,6 +84,7 @@ struct NotesApp {
         };
         wiring.push_back(run_from(file_menu));
         wiring.push_back(run_from(search_menu));
+        wiring.push_back(run_from(view_menu));
         wiring.push_back(run_from(editor_menu));
         wiring.push_back(modified.on_change().connect([this](bool on) {
             enable_item(file_menu, "Save", on);
@@ -97,6 +114,8 @@ struct NotesApp {
         else if (command == "Save") write();
         else if (command == "Reload" && !current.empty()) confirm_reload();
         else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
+        else if (command == "Statistics window" && ctx && !ctx->window_open(stats_window))
+            stats_window = ctx->open_window(stats, {.title = "Statistics", .width = 320, .height = 80});
     }
 
     void view(app::WidgetTree::ViewBuilder& vb) {
@@ -108,6 +127,7 @@ struct NotesApp {
                 vb.hstack([&] {
                     vb.widget(file_menu);
                     vb.widget(search_menu);
+                    vb.widget(view_menu);
                     vb.widget(search).tooltip("Highlights every match in the file");
                     vb.widget(save).enabled(modified).tooltip("Write the file to disk (Ctrl+S)");
                     vb.widget(reload).tooltip("Read the file again, dropping unsaved edits");

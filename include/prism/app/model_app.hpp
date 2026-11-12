@@ -93,6 +93,25 @@ public:
     // after the widget under the drop has seen it.
     void on_file_drop(std::function<void(const FileDrop&)> fn) { file_drop_ = std::move(fn); }
 
+    // Opens a window showing `model` with its own view, and returns its id (0 if the backend
+    // could not make one). The model may read other models' fields; it must outlive the window.
+    // When the user closes it, it goes; the app goes on. Logic thread.
+    template <typename Model>
+    WindowId open_window(Model& model, WindowConfig config) {
+        Window* win = backend_->request_window(std::move(config));
+        if (!win) return 0;
+        WindowId id = registry_->add(*win, model);
+        if (auto* e = registry_->find(id)) e->tree->set_theme(theme_);   // also gets it published
+        return id;
+    }
+    [[nodiscard]] bool window_open(WindowId id) const { return registry_->find(id) != nullptr; }
+    // Closes a window open_window opened (not the main one: closing that ends the app).
+    void close_window(WindowId id) {
+        if (id == window_->id() || !window_open(id)) return;
+        registry_->remove(id);
+        backend_->close_window(id);
+    }
+
     // Every window's look: ui::light_theme(), ui::dark_theme() or the app's own. Stops following
     // the OS's preference.
     void set_theme(const Theme& t) {
@@ -257,7 +276,11 @@ private:
     bool follow_system_theme_ = false;
     WindowGeometry* geometry_ = nullptr;
     bool system_dark_ = true;
-    void apply_theme(const Theme& t) { registry_->for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->set_theme(t); }); }
+    Theme theme_ = dark_theme();   // the windows' current theme, for windows opened later
+    void apply_theme(const Theme& t) {
+        theme_ = t;
+        registry_->for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->set_theme(t); });
+    }
     AnimationClock* clock_;
     Window* window_;
     Backend* backend_;
@@ -447,6 +470,7 @@ void model_app(Backend& backend, Window& window, Model& model,
 
         if (setup) {
             setup(ctx);
+            publish_dirty();   // what setup changed or opened (a theme, a second window)
             schedule_tick();
         }
 
