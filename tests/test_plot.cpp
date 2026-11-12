@@ -1658,3 +1658,10 @@ TEST_CASE("nice_ticks lands exactly on zero when the range crosses it") {
     REQUIRE(std::find(ticks.begin(), ticks.end(), 0.0) != ticks.end());
     for (double t : ticks) CHECK(std::abs(t / 0.2 - std::round(t / 0.2)) < 1e-12);   // exact multiples
 }
+
+TEST_CASE("nice_ticks: a range starting just below zero has a plain 0 tick, not -0") {
+    auto ticks = prism::plot::nice_ticks(-0.05, 12.6, 6);
+    REQUIRE_FALSE(ticks.empty());
+    CHECK(ticks[0] == 0.0);
+    CHECK_FALSE(std::signbit(ticks[0]));   // fmt prints -0.0 as "-0"
+}
