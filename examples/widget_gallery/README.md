@@ -24,8 +24,12 @@ so the same code builds with any C++23 compiler and with Emscripten. The Catalog
 the page of the entry selected in a `vb.tree(ctrl, /*detail=*/false)`.
 
 The icons are SVG files in `icons/`, decoded by `render::load_image` (bundled into the page on the
-web). Reactivity is ordinary `on_change()` wiring in each tab's constructor: the Controls summary
-line and the progress bar follow the other fields.
+web) and marked `render::symbolic`, so they take the color of the text beside them on either
+theme. Reactivity is ordinary `on_change()` wiring in each tab's constructor: the Controls summary
+line and the progress bar follow the other fields. On the Controls tab, Save stays greyed out
+until a name is typed, and "Lock the settings" greys out the group below it. The Theme dropdown
+switches between System (the OS's choice), Light and Dark; it and the window size are remembered
+in `settings.toml` (`app::SettingsFile`).
 
 ```bash
 ./builddir/examples/widget_gallery/widget_gallery            # the app
