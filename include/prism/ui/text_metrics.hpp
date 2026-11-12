@@ -98,9 +98,6 @@ inline float edge_x(const TextMeasurer* m, std::string_view line, const PlacedRu
 // x of the caret at byte offset `byte` of one line, with right-to-left runs drawn as they are.
 // The caret goes with the character before it (the one just typed), so after a Hebrew letter it
 // sits on that letter's left, where the next one appears.
-// simplify: logical caret only; Left/Right step through the text in memory order, which inside a
-// right-to-left run moves the caret the other way on screen. Upgrade: visual movement, as most
-// editors default to.
 inline float caret_x_at(const TextMeasurer* m, std::string_view line, std::size_t byte, float size,
                         FontRole role = FontRole::Ui, TextDirection dir = TextDirection::Auto) {
     byte = core::utf8::snap(line, byte);
