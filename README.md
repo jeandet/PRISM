@@ -423,7 +423,8 @@ vb.widget(save).tooltip("Write the file to disk");                  // in view()
 
 A widget can be greyed out. It then takes no clicks, keys or focus. The flag is any bool
 `Field` or `Derived`, and the widget follows it as it changes. `enabled_if` covers everything
-placed inside it without adding a container:
+placed inside it without adding a container. A checkbox works as the flag too ("Advanced
+options" enabling the group below it):
 
 ```cpp
 core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }, name};
@@ -615,6 +616,9 @@ with prism.transaction():                       # one publish for both changes
 | `prism.button(text, icon=path)` | `Field<Button>` | `.value` counts clicks |
 | `prism.combobox(default, options=[...])` | `Field<ComboBox>` | free text with suggestions |
 | `prism.popup(modal=True)` + `vb.popup(h, fn)` | `Field<Popup>` + `ViewBuilder::popup` | `.open` shows it |
+| `prism.menu("&File", items)` | `Field<Menu>` | items: `"Open"`, `"-"`, or `{"text", "shortcut": "Ctrl+S", "enabled", "checked", "icon"}`; `.on_choice(cb)` gets the label |
+| `prism.context_menu(items)` + `vb.context_menu(h)` | `Field<ContextMenu>` | right click in the container |
+| `vb.widget(h, enabled=flag)`, `vb.enabled_if(flag, fn)` | `.enabled(flag)`, `enabled_if` | flag: a bool field, derived bool or checkbox |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |

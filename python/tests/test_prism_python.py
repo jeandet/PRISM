@@ -3940,3 +3940,124 @@ def test_on_file_drop_gets_the_paths_and_the_point():
     finally:
         prism.on_file_drop(None)
     assert drops == [(["/tmp/a.txt", "/tmp/b.md"], 12.0, 34.0)]
+
+
+# --- disabled widgets -------------------------------------------------------------------
+
+
+def test_a_widget_follows_its_enabled_flag():
+    class Form(prism.Model):
+        can_save = prism.field(False)
+        name = prism.field("draft")
+        save = prism.button("Save")
+
+        def view(self, vb):
+            vb.widget(self.name)
+            vb.widget(self.save, enabled=self.can_save)
+
+    f = Form()
+    assert prism._enabled(f) == [True, False]
+    f.can_save.value = True
+    assert prism._enabled(f) == [True, True]
+
+
+def test_enabled_if_greys_out_a_group_behind_a_checkbox():
+    class Form(prism.Model):
+        advanced = prism.checkbox(False, label="Advanced")
+        level = prism.slider(0.5)
+        copies = prism.spinbox(1, min=1, max=9)
+
+        def view(self, vb):
+            vb.widget(self.advanced)
+            vb.enabled_if(self.advanced, lambda: vb.hstack(self.level, self.copies))
+
+    f = Form()
+    assert prism._enabled(f) == [True, False, False]
+    f.advanced.value = True
+    assert prism._enabled(f) == [True, True, True]
+
+
+def test_a_derived_flag_works_too():
+    class Form(prism.Model):
+        name = prism.field("")
+        has_name = prism.derived(lambda self: self.name.value != "", "name")
+        save = prism.button("Save")
+
+        def view(self, vb):
+            vb.widget(self.name)
+            vb.widget(self.save, enabled=self.has_name)
+
+    f = Form()
+    assert prism._enabled(f) == [True, False]
+    f.name.value = "Ada"
+    assert prism._enabled(f) == [True, True]
+
+
+def test_an_unsupported_flag_is_a_clear_error():
+    class Form(prism.Model):
+        count = prism.field(3)
+        save = prism.button("Save")
+
+        def view(self, vb):
+            vb.widget(self.save, enabled=self.count)
+
+    caught = []
+    try:
+        prism.on_error(lambda exc: caught.append(exc))   # a view's errors are reported, not raised
+        prism._enabled(Form())
+    finally:
+        prism.on_error(None)
+    assert len(caught) == 1
+    assert isinstance(caught[0], TypeError)
+    assert "enabled" in str(caught[0])
+
+
+# --- menus ------------------------------------------------------------------------------
+
+
+def _editor_with_menu():
+    class Editor(prism.Model):
+        file = prism.menu("&File", [
+            "&Open…",
+            {"text": "&Save", "shortcut": "Ctrl+S"},
+            "-",
+            {"text": "&Word wrap", "checked": True},
+        ])
+        edit = prism.context_menu(["Copy", {"text": "Paste", "enabled": False}])
+        body = prism.field("text")
+
+        def view(self, vb):
+            vb.widget(self.file)
+            vb.widget(self.body)
+            vb.context_menu(self.edit)
+
+    return Editor()
+
+
+def test_a_menu_shortcut_reports_the_item_by_its_label():
+    e = _editor_with_menu()
+    seen = []
+    e.file.on_choice(seen.append)
+    prism._press_keys(e, ["Ctrl+S"])
+    assert seen == ["Save"]
+    assert e.file.chosen == "Save"
+
+
+def test_menu_items_can_be_greyed_out_and_read_back():
+    e = _editor_with_menu()
+    seen = []
+    e.file.on_choice(seen.append)
+    e.file.set_enabled("Save", False)
+    prism._press_keys(e, ["Ctrl+S"])
+    assert seen == []                       # greyed out: the shortcut does nothing
+    assert e.file.checked("Word wrap") is True
+    assert e.file.checked("Save") is None  # not a check item
+    assert e.edit.items == ["Copy", "Paste"]
+
+
+def test_an_unknown_shortcut_is_a_clear_error():
+    with pytest.raises(ValueError, match="Ctrl\\+Banana"):
+        class Bad(prism.Model):
+            m = prism.menu("&File", [{"text": "Go", "shortcut": "Ctrl+Banana"}])
+
+        Bad().m

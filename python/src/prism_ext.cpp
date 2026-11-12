@@ -1235,6 +1235,49 @@ using BoundProgress = BoundWidgetValue<ProgressBar, double>;
 using BoundButton = BoundWidgetValue<Button, std::int64_t>;       // .value: clicks so far
 using BoundComboBox = BoundWidgetValue<ComboBox, std::string>;
 using BoundPopup = BoundWidgetValue<Popup, bool>;                 // .value: open
+using BoundMenu = BoundWidgetValue<Menu, std::int64_t>;               // .value: choices so far
+using BoundContextMenu = BoundWidgetValue<ContextMenu, std::int64_t>;
+
+template <typename M>
+BoundWidgetValue<M, std::int64_t> make_bound_menu(std::shared_ptr<SlotBase> owner, Field<M>* f) {
+    BoundWidgetValue<M, std::int64_t> h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const M& m) { return static_cast<std::int64_t>(m.activations); };
+    h.write = [](M&, const std::int64_t&) {};   // a count of the user's choices: not the app's to set
+    return h;
+}
+
+// Menu items from the normalized dicts python/prism/__init__.py builds (_menu_items): text,
+// shortcut ("Ctrl+S", or ""), enabled, checked (None, or the mark), icon (None, or a file),
+// separator.
+inline std::vector<MenuItem> py_menu_items(const std::vector<nb::dict>& items) {
+    std::vector<MenuItem> out;
+    for (const auto& d : items) {
+        MenuItem it;
+        it.separator = nb::cast<bool>(d["separator"]);
+        it.text = nb::cast<std::string>(d["text"]);
+        if (auto keys = nb::cast<std::string>(d["shortcut"]); !keys.empty()) {
+            auto s = prism::ui::parse_shortcut(keys);
+            if (!s) throw nb::value_error(("menu item \"" + it.text + "\": unknown shortcut \"" + keys + "\"").c_str());
+            it.shortcut = *s;
+        }
+        it.enabled = nb::cast<bool>(d["enabled"]);
+        if (!d["checked"].is_none()) it.checked = nb::cast<bool>(d["checked"]);
+        if (!d["icon"].is_none()) {
+            auto loaded = prism::render::load_image(nb::cast<std::string>(d["icon"]), Size{Width{16}, Height{16}});
+            if (!loaded) throw nb::value_error(("menu icon: " + loaded.error()).c_str());
+            it.icon = *loaded;
+        }
+        out.push_back(std::move(it));
+    }
+    return out;
+}
+
+// Whether `label` names the item: as written ("&Save") or as shown ("Save").
+inline bool names_item(const MenuItem& item, const std::string& label) {
+    return !item.separator && (item.text == label || prism::ui::menu_text(item) == label);
+}
 
 inline BoundButton make_bound_button(std::shared_ptr<SlotBase> owner, Field<Button>* f) {
     BoundButton h;
@@ -1773,6 +1816,17 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     throw nb::type_error("derived: unsupported dependency handle type");
 }
 
+// Places what `place` adds, enabled while `flag` holds: a bool field, a derived bool, or a
+// checkbox (ViewBuilder::enabled_if).
+template <typename Place>
+void py_enabled_if(ViewBuilder& vb, nb::object flag, Place&& place) {
+    if (nb::isinstance<BoundField<bool>>(flag)) vb.enabled_if(*nb::cast<BoundField<bool>&>(flag).field, place);
+    else if (nb::isinstance<FieldHandle<bool>>(flag)) vb.enabled_if(*nb::cast<FieldHandle<bool>&>(flag).field, place);
+    else if (nb::isinstance<BoundDerived<bool>>(flag)) vb.enabled_if(*nb::cast<BoundDerived<bool>&>(flag).derived, place);
+    else if (nb::isinstance<BoundCheckboxValue>(flag)) vb.enabled_if(*nb::cast<BoundCheckboxValue&>(flag).field, place);
+    else throw nb::type_error("enabled: the flag must be a bool field, a derived bool or a checkbox");
+}
+
 inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     if (nb::isinstance<BoundField<int>>(h)) vb.widget(*nb::cast<BoundField<int>&>(h).field);
     else if (nb::isinstance<BoundField<double>>(h)) vb.widget(*nb::cast<BoundField<double>&>(h).field);
@@ -1794,6 +1848,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
     else if (nb::isinstance<BoundButton>(h)) vb.widget(*nb::cast<BoundButton&>(h).field);
     else if (nb::isinstance<BoundComboBox>(h)) vb.widget(*nb::cast<BoundComboBox&>(h).field);
+    else if (nb::isinstance<BoundMenu>(h)) vb.widget(*nb::cast<BoundMenu&>(h).field);
     else if (nb::isinstance<BoundDerived<int>>(h)) vb.widget_generic<int>(*nb::cast<BoundDerived<int>&>(h).derived);
     else if (nb::isinstance<BoundDerived<double>>(h)) vb.widget_generic<double>(*nb::cast<BoundDerived<double>&>(h).derived);
     else if (nb::isinstance<BoundDerived<std::string>>(h)) vb.widget_generic<std::string>(*nb::cast<BoundDerived<std::string>&>(h).derived);
@@ -2255,6 +2310,39 @@ nb::class_<H> bind_widget_value(nb::module_& m, const char* name, const char* do
         .def("set", &validated_set<H, V>, nb::arg("value"), "Any thread; posted to the logic thread.");
 }
 
+// A menu handle: its choices by label (as shown, without the "&"), and its items' state.
+template <typename H>
+void bind_menu(nb::module_& m, const char* name, const char* doc) {
+    bind_widget_value<H, std::int64_t>(m, name, doc)
+        .def_prop_ro("items", [](const H& h) {
+            std::vector<std::string> out;
+            for (auto& it : h.state().items) if (!it.separator) out.push_back(prism::ui::menu_text(it));
+            return out;
+        }, "The items' labels, as shown; separators left out.")
+        .def_prop_ro("chosen", [](const H& h) -> std::optional<std::string> {
+            auto s = h.state();
+            if (!s.chosen || *s.chosen >= s.items.size()) return std::nullopt;
+            return prism::ui::menu_text(s.items[*s.chosen]);
+        }, "The label of the item chosen last, or None.")
+        .def("on_choice", [](nb::object self, nb::callable cb) {
+            auto& h = nb::cast<H&>(self);
+            if (!h.field) throw nb::value_error("on_choice(): handle is not bound to a Model");
+            auto* f = h.field;
+            auto conn = prism::ui::on_choice(*f, [wc = WeakCallback(cb), f](std::size_t i) { wc(prism::ui::menu_text(f->get().items[i])); });
+            if (h.owner) conn.keep_alive(h.owner);
+            return keep_connection(self, std::move(conn), cb);
+        }, nb::arg("callback"),
+             "Runs callback(label) on the logic thread each time the user chooses an item; not when "
+             "the app changes the menu.")
+        .def("set_enabled", [](H& h, std::string label, bool on) {
+            h.modify([label, on](auto& menu) { for (auto& it : menu.items) if (names_item(it, label)) it.enabled = on; });
+        }, nb::arg("label"), nb::arg("enabled"), "Greys an item out (False) or back. Any thread; posted.")
+        .def("checked", [](const H& h, std::string label) -> std::optional<bool> {
+            for (auto& it : h.state().items) if (names_item(it, label)) return it.checked;
+            return std::nullopt;
+        }, nb::arg("label"), "An item's check mark, or None if it is not a check item.");
+}
+
 // One templated registration per scalar handle family (Field/Bound/Shared/BoundShared/
 // Channel/BoundChannel/BoundDerived), instantiated once per T from NB_MODULE below.
 // Naming is not uniformly "<Family>" + suffix: BoundField<T> is historically named
@@ -2625,6 +2713,13 @@ NB_MODULE(_prism_ext, m) {
         "and .open are whether it is open.")
         .def_prop_rw("open", &BoundPopup::get, &validated_set<BoundPopup, bool>);
 
+    bind_menu<BoundMenu>(m, "BoundMenu",
+        "Bound handle for a Model's menu: on_choice(cb) runs cb(label) each time the user picks an "
+        "item (click, keys or shortcut); .value counts those choices.");
+    bind_menu<BoundContextMenu>(m, "BoundContextMenu",
+        "Bound handle for a Model's right-click menu (place it with vb.context_menu(handle)); as "
+        "BoundMenu.");
+
     bind_list<int>(m, "Int");
     bind_list<double>(m, "Float");
     bind_list<std::string>(m, "Str");
@@ -2720,8 +2815,24 @@ NB_MODULE(_prism_ext, m) {
                 });
             }, nb::arg("handle"), nb::arg("content"),
              "A popup holding the widgets content(vb) places; built each time it opens.")
-        .def("widget", [](ViewBuilder& vb, nb::object h){ py_widget_dispatch(vb, h); }, nb::arg("handle"),
-             "Add the widget for a bound scalar/shared/derived/slider/checkbox/list handle.")
+        .def("widget", [](ViewBuilder& vb, nb::object h, nb::object enabled) {
+                if (enabled.is_none()) py_widget_dispatch(vb, h);
+                else py_enabled_if(vb, enabled, [&] { py_widget_dispatch(vb, h); });
+            }, nb::arg("handle"), nb::arg("enabled") = nb::none(),
+             "Add the widget for a bound scalar/shared/derived/slider/checkbox/list handle. "
+             "enabled: a bool field, derived bool or checkbox; while false the widget is greyed out "
+             "and takes no input.")
+        .def("context_menu", [](ViewBuilder& vb, nb::object h) {
+                if (!nb::isinstance<BoundContextMenu>(h))
+                    throw nb::type_error("ViewBuilder.context_menu: needs a prism.context_menu() handle");
+                vb.context_menu(*nb::cast<BoundContextMenu&>(h).field);
+            }, nb::arg("handle"),
+             "A right click anywhere in the current container opens this menu at the pointer.")
+        .def("enabled_if", [](ViewBuilder& vb, nb::object flag, nb::callable fn) {
+                py_enabled_if(vb, flag, [&] { fn(); });
+            }, nb::arg("flag"), nb::arg("fn"),
+             "Everything fn() places is greyed out and takes no input while flag (a bool field, "
+             "derived bool or checkbox) is false.")
         .def("list", [](ViewBuilder& vb, nb::object h){ py_list_dispatch(vb, h); }, nb::arg("handle"),
              "Add a list widget for a bound list handle (list_field()).")
         .def("canvas", [](ViewBuilder& vb, nb::object h){ py_canvas_dispatch(vb, h); }, nb::arg("handle"),
@@ -2821,6 +2932,14 @@ NB_MODULE(_prism_ext, m) {
                                                                 .max_length = 0, .options = std::move(options)});
                 return make_bound_combobox(std::move(owner), p);
             }, nb::arg("value"), nb::arg("options"), nb::arg("placeholder"))
+        .def("_add_menu_internal", [](PyModel& self, std::string title, std::vector<nb::dict> items){
+                auto [owner, p] = self.add_widget_slot(Menu{.title = std::move(title), .items = py_menu_items(items)});
+                return make_bound_menu(std::move(owner), p);
+            }, nb::arg("title"), nb::arg("items"))
+        .def("_add_context_menu_internal", [](PyModel& self, std::vector<nb::dict> items){
+                auto [owner, p] = self.add_widget_slot(ContextMenu{.items = py_menu_items(items)});
+                return make_bound_menu(std::move(owner), p);
+            }, nb::arg("items"))
         .def("_add_popup_internal", [](PyModel& self, bool modal){
                 auto [owner, p] = self.add_widget_slot(Popup{.open = false, .modal = modal});
                 return make_bound_popup(std::move(owner), p);
@@ -2960,6 +3079,28 @@ NB_MODULE(_prism_ext, m) {
             if (auto t = tree.tooltip_of(id); !t.empty()) out.emplace_back(t);
         return out;
     }, nb::arg("model"));
+    // Test helper: whether each widget of the model's view is enabled, in layout order.
+    m.def("_enabled", [](PyModel& model) {
+        if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))
+            throw std::runtime_error("_enabled: not while an app is running");
+        WidgetTree tree{model};
+        auto snap = tree.build_snapshot(400, 300, 1);
+        std::vector<bool> out;
+        for (WidgetId id : tree.leaf_ids()) out.push_back(tree.enabled(id));
+        return out;
+    }, nb::arg("model"));
+    // Test helper: presses `keys` ("Ctrl+S", ...) in a tree over the model's view, as a user would.
+    m.def("_press_keys", [](PyModel& model, std::vector<std::string> keys) {
+        if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))
+            throw std::runtime_error("_press_keys: not while an app is running");
+        WidgetTree tree{model};
+        auto snap = tree.build_snapshot(400, 300, 1);
+        for (auto& k : keys) {
+            auto s = prism::ui::parse_shortcut(k);
+            if (!s) throw nb::value_error(("unknown key: " + k).c_str());
+            prism::app::widget_detail::route_event(tree, snap.get(), KeyPress{s->key, s->mods});
+        }
+    }, nb::arg("model"), nb::arg("keys"));
     m.def("_fail_next_run", [](){ g_fail_next_run.store(true, std::memory_order_release); });
 
     // --- platform services: file dialogs, message boxes, drops ---
