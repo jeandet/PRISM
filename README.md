@@ -436,6 +436,35 @@ screen-reader bridge.
 
 <p align="center"><img src="doc/screenshots/model_notes.svg" alt="Notes editor example" width="700"/></p>
 
+### Settings that persist
+
+A struct of fields is also a settings file. `app::SettingsFile` loads it at start and saves it
+shortly after each change, as TOML in the user's settings folder. A widget field keeps only
+its value, an enum is written by name, and a nested struct becomes a `[table]`:
+
+```cpp
+struct Prefs {
+    core::Field<ui::Slider<>> volume{{.value = 0.6}};
+    core::Field<Theme> theme{Theme::System};
+    Editor editor;   // [editor] font_size = 12 ...
+};
+
+Prefs prefs;
+app::SettingsFile settings{prefs, backends::settings_dir("my-org", "my-app") / "settings.toml"};
+```
+
+```toml
+volume = 0.6
+theme = "System"
+
+[editor]
+font_size = 12
+```
+
+Unknown keys are skipped, so a file from another version still loads. It is built on
+[Glaze](https://github.com/stephenberry/glaze), which also works without `-freflection`.
+`app::to_toml`, `from_toml`, `load_settings` and `save_settings` are there for one-off use.
+
 ### Live inspector
 
 Point PRISM at a plain struct behind a `Shared<T>`. You get a live, editable panel, with no mirror

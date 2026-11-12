@@ -19,9 +19,12 @@ unibreak_dep = dependency('libunibreak', fallback : ['libunibreak', 'unibreak_de
 # Bidirectional text (ui/text_bidi.hpp): visual runs of a line. Static, like libunibreak.
 sheenbidi_dep = dependency('sheenbidi', fallback : ['sheenbidi', 'sheenbidi_dep'])
 
+# Settings files (app/settings.hpp): a struct of fields to and from TOML. Header-only.
+glaze_dep = dependency('glaze', fallback : ['glaze', 'glaze_dep'])
+
 prism_core_dep = declare_dependency(
   include_directories : prism_inc,
-  dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep, sheenbidi_dep],
+  dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep, sheenbidi_dep, glaze_dep],
 )
 
 # Software backend: links SDL3 + SDL3_ttf
@@ -88,6 +91,7 @@ prism_software_backend_lib = library('prism-software-backend',
   'backends/sdl_text_measurer.cpp',
   'backends/sdl_font_set.cpp',
   'backends/font_lookup.cpp',
+  'backends/settings_dir.cpp',
   'backends/sdl_image_decoder.cpp',
   sdl_platform_src,
   sdl_webgpu_src,

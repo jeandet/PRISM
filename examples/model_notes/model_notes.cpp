@@ -2,6 +2,8 @@
 // reference app: it exercises editing, selection, clipboard, undo, IME and text measurement the
 // way a dashboard never does. Logic lives in notes_logic.hpp (tested); this file only wires it.
 #include <prism/prism.hpp>
+#include <prism/app/settings.hpp>
+#include <prism/backends/settings_dir.hpp>
 #include "file_tree_source.hpp"
 #include "../showcase/showcase_common.hpp"
 #include "notes_logic.hpp"
@@ -13,7 +15,13 @@ using namespace prism;
 
 namespace fs = std::filesystem;
 
+// What the app remembers between runs (app/settings.hpp): saved as settings.toml.
+struct NotesPrefs {
+    core::Field<std::string> last_file{""};
+};
+
 struct NotesApp {
+    NotesPrefs prefs;
     FileTreeSource source;
     ui::TreeController files{ui::wrap_tree_storage(source)};
     core::Field<ui::Menu> file_menu{{.title = "&File", .items = {
@@ -120,6 +128,7 @@ struct NotesApp {
         current = path;
         saved = *text;
         error.clear();
+        prefs.last_file.set(fs::absolute(path).string());
         body.set({.value = *text, .placeholder = body.get().placeholder, .rows = body.get().rows});
         refresh_status();
     }
@@ -230,6 +239,9 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 1000, 640);
     }
     NotesApp app{argc >= 2 ? fs::path(argv[1]) : fs::current_path()};
+    // Loads the last session's preferences, and saves them as they change.
+    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "notes") / "settings.toml"};
+    if (std::error_code ec; fs::is_regular_file(app.prefs.last_file.get(), ec)) app.open(app.prefs.last_file.get());
     auto backend = app::Backend::software(app::RenderConfig{});
     auto& window = backend.create_window({.title = "PRISM Notes", .width = 1000, .height = 640,
                                           .decoration = app::DecorationMode::Custom});

@@ -98,7 +98,7 @@ meson test -C builddir
 - Requires Meson >= 1.5, GCC 16+ for `-freflection` (auto-detected by the build; without it,
   model structs need a manual `view()` method instead of automatic reflection — most structs in
   `examples/` and `tests/` are written to work either way).
-- Dependencies (SDL3, stdexec, doctest, fmt, magic_enum) are fetched as Meson wraps under
+- Dependencies (SDL3, stdexec, doctest, fmt, magic_enum, Glaze for settings files) are fetched as Meson wraps under
   `subprojects/` — don't reach for system packages for these.
 - Never run more than one build/test invocation against `builddir` concurrently, and never
   background one "just in case it's slow." One `ninja`/`meson test` call, foreground, waited out,
@@ -111,6 +111,10 @@ meson test -C builddir
   `subprojects/sdl3_image.wrap` uses our own build file (`subprojects/packagefiles/sdl3_image/`,
   `patch_directory`) instead of WrapDB's, whose port compiles every format as a stub: an update
   would bring theirs back, so keep ours.
+  `subprojects/glaze.wrap` is not on WrapDB: bump it by hand (tag, hash), and keep
+  `GLZ_REFLECTION26=0` in its build file (`subprojects/packagefiles/glaze/meson.build` says
+  why). A change to a `packagefiles/` build file reaches an existing checkout only after
+  `meson subprojects download --redownload <name>` or a manual copy.
 - SDL-backed tests run on SDL's offscreen driver (`offscreen_env` in `tests/meson.build`), so
   they need no display. `tests/test_pixels.cpp` renders real widgets through the SDL backend
   at 1x and 2x and checks properties of the pixels (a selection covers exactly its word, an

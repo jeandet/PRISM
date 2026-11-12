@@ -77,6 +77,7 @@ headless_tests = {
   'image' : files('test_image.cpp'),
   'popup' : files('test_popup.cpp'),
   'enabled' : files('test_enabled.cpp'),
+  'settings' : files('test_settings.cpp'),
   'text_segmentation' : files('test_text_segmentation.cpp'),
   'text_bidi' : files('test_text_bidi.cpp'),
   'combo_box' : files('test_combo_box.cpp'),
@@ -178,6 +179,12 @@ test_font_lookup = executable('test_font_lookup',
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
 test('font_lookup', test_font_lookup)
+
+test_settings_dir = executable('test_settings_dir',
+  files('test_settings_dir.cpp'),
+  dependencies : [prism_software_backend_dep, sdl3_dep, doctest_dep],
+)
+test('settings_dir', test_settings_dir)
 
 test_sdl_font_set = executable('test_sdl_font_set',
   files('test_sdl_font_set.cpp'),
