@@ -1,8 +1,7 @@
 # Drag and drop inside the app, and docking
 
-**Status:** proposal, 2026-11-12, not built. Written for review before any code: the choices in
-"Open questions" are worth a decision first. Plan items P1 #6 and #7 in
-`doc/review-2026-11-12.md`.
+**Status:** design agreed 2026-11-13 (the three open questions are decided, see the end); part 1
+in progress. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 
@@ -22,42 +21,42 @@ What exists to build on:
 
 ## Part 1: dragging inside the app
 
-### What is dragged: data, not widgets
+### What is dragged: a typed value
 
-```cpp
-struct DragData {
-    std::string kind;   // what it is, for targets to accept or refuse: "row", "tab", "text"
-    std::string text;   // what it says: a label, a path, the text itself
-    std::uint64_t item = 0;   // which one, in the source's own numbering (a row index, a node id)
-};
-```
+A drag carries any C++ value (Python: any Python object), and a target accepts it **by type**,
+as Flutter's `Draggable<T>` / `DragTarget<T>` and SwiftUI's `.draggable` /
+`.dropDestination(for:)` do. Those typed APIs are the well-liked ones; string-keyed payloads
+(Qt's `QMimeData`, HTML5's `DataTransfer`) are the ones developers work around. A drag stays
+inside the process (SDL cannot export one to the OS), so no text form is needed yet.
 
-Plain data, so Python gets it as a dict and a drag can cross windows. A typed payload
-(`std::any`) would read better in C++ but could not cross into Python; see open question 1.
+What the pointer carries on screen is the source widget itself, drawn faded under the pointer:
+no preview to write.
 
 ### Who takes part
 
 - **A source** says what a press-and-move on it would drag:
-  `vb.widget(f).drag_source([&] { return DragData{"row", label, i}; })`. Lists, trees and tab
+  `vb.widget(f).drag_source([&] { return Track{id}; })`. Lists, trees and tab
   bars get it built in (`vb.list(items).reorderable()`, a tree's `on_move`, `vb.tabs(...)`
   with `movable_tabs`).
 - **A target** says what it accepts and what a drop does:
-  `vb.widget(f).drop_target({"row"}, [&](const DragData& d, DropPlace at) { ... })`, where
-  `DropPlace` is where in the widget it landed (before or after an item, inside it).
-- **Text fields** accept `"text"` with no code: an in-app drop of text is delivered as the
-  `TextDrop` the OS path already sends, so one code path serves both.
+  `vb.widget(f).drop_target([&](const Track& t, DropPlace at) { ... })`: the parameter's type
+  is what it accepts, and `DropPlace` is where in the widget it landed. A drag of another type
+  shows the "no" cursor over it, never a silent nothing (SwiftUI's trap).
+- **Text fields** accept a `std::string` with no code: it is delivered as the `TextDrop` the OS
+  path already sends, so one code path serves both.
 
 ### How it runs
 
 1. A press on a source captures the pointer, as today. Nothing else happens yet: a click
    stays a click.
-2. Moving more than 4 points with the button held asks the source for its `DragData`. None:
+2. Moving more than 4 points with the button held asks the source for its value. None:
    no drag (the widget keeps the move, as a slider does).
 3. The tree owns the drag from here (`DragState`: the data, the pointer, the target under
    it). The source gets no more moves. Escape cancels.
 4. Each move hit-tests the snapshot. A target that accepts the kind gets `DragOver` with the
    place, and draws its own insertion marker; others get nothing, and the cursor says "no".
-5. A small card with `text` follows the pointer, drawn in the overlay like a tooltip.
+5. The source widget, faded, follows the pointer, drawn in the overlay like a tooltip; an
+   accepting target under it gets an accent outline.
 6. Release over an accepting target delivers `Drop`; elsewhere, nothing happens.
 
 `DragOver`, `DragLeave` and `Drop` are input events the tree makes itself, never the backend:
@@ -106,9 +105,12 @@ changes the `DockLayout` value; the dock then rebuilds the parts of the view tha
 way a tab page is built when selected. Splitters between groups are the existing split handles,
 bound to `DockSplit::ratio`.
 
-What survives a move: everything in fields (text, selection in a list, a plot's data). What
-does not: state kept in the widget itself, such as a scroll position or a caret. See open
-question 2.
+What survives a move: everything. The dock keeps each panel's built widgets, keyed by its
+name, and a layout change only changes where they are placed: scroll positions, carets and
+selections stay. Qt and its docking replacements (KDDockWidgets, Qt Advanced Docking) move the
+real widget for the same reason, and Dear ImGui keeps state under the window's ID; web docking
+libraries that rebuilt or moved page elements lost state (an embedded page reloads on every
+move) and had to add "virtual" panels to stop it.
 
 ### Floating panels
 
@@ -130,14 +132,15 @@ above.
 
 The System Monitor is the test app: its processes, graphs and log as dockable panels.
 
-## Open questions
+## Decisions (2026-11-13)
 
-1. **The payload.** `DragData` (kind, text, item) is plain and crosses into Python. Is that
-   enough, or should C++ also carry a typed value (`std::any`) beside it?
-2. **Moving widgets, or rebuilding them.** Rebuilding a moved panel is simple and is how tabs
-   work today, but it loses scroll positions and carets. Moving the built subtree keeps them,
-   and needs the tree to re-parent nodes and re-index them. Rebuild first, move later if it
-   shows?
-3. **Where the layout lives.** Proposed: a `Field<DockLayout>` the app owns, saved with its
-   settings. The alternative, the dock keeping it, is simpler for small apps but hides it from
-   the app's code and its settings file.
+From what other toolkits do and what their users report:
+
+1. **The payload is a typed value**, matched by type (Flutter, SwiftUI), not a string-keyed
+   bundle (Qt `QMimeData`, HTML5 `DataTransfer`, widely criticized).
+2. **A moved panel keeps its widgets** (Qt, KDDockWidgets, ImGui's ID-keyed state); rebuilding
+   is what web docking libraries regretted.
+3. **The layout is a value the app owns**, `Field<DockLayout>`, saved with its settings, with a
+   default in code. Qt's opaque `saveState()` blob is its most complained-about part (floating
+   and tabbed docks not restored, private format); ImGui users had to store named layouts and a
+   "reset layout" themselves; the web libraries' JSON layouts are liked.
