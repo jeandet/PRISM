@@ -57,10 +57,10 @@ struct Fixture {
 TEST_CASE("the wheel scrolls a text area that holds more lines than it shows") {
     Fixture f;
     REQUIRE(f.body_draws("line 0"));
-    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{1}});
+    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{-1}});
     f.frame();
     CHECK_FALSE(f.body_draws("line 0"));
-    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{-100}});
+    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{100}});
     f.frame();
     CHECK(f.body_draws("line 0"));   // clamped at the top
 }
@@ -92,7 +92,7 @@ TEST_CASE("dragging the scrollbar thumb scrolls the text area") {
 
 TEST_CASE("moving the mouse over a scrolled text area does not snap it back to the caret") {
     Fixture f;
-    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{3}});
+    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{-3}});
     f.frame();
     REQUIRE_FALSE(f.body_draws("line 0"));
     route_event(f.tree, f.snap.get(), MouseMove{f.centre(f.body_id())});
@@ -108,7 +108,7 @@ TEST_CASE("moving the caret brings it back into view") {
     f.frame();
     auto caret_line_shown = [&] { return f.body_draws("line 4") || f.body_draws("line 5"); };
     REQUIRE(caret_line_shown());
-    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{10}});
+    route_event(f.tree, f.snap.get(), MouseScroll{f.centre(f.body_id()), DX{0}, DY{-10}});
     f.frame();
     REQUIRE_FALSE(caret_line_shown());
     route_event(f.tree, f.snap.get(), KeyPress{keys::left, 0});
@@ -139,8 +139,8 @@ struct PageFixture {
         for (auto& [oid, r] : snap->overlay_geometry) if (oid == id) out.push_back(r);
         return out;
     }
-    void scroll_page(float dy) {   // the wheel over the filler, below the text area
-        route_event(tree, snap.get(), MouseScroll{Point{X{150}, Y{190}}, DX{0}, DY{dy}});
+    void scroll_page(float dy) {   // the wheel turned down by dy, over the filler below the text area
+        route_event(tree, snap.get(), MouseScroll{Point{X{150}, Y{190}}, DX{0}, DY{-dy}});
         frame();
     }
 };
@@ -181,7 +181,7 @@ TEST_CASE("scrolling a text area does not move the widget below it") {
     route_event(tree, snap.get(), MouseButton{in, buttons::left, false});
     snap = tree.build_snapshot(400, 600, 2);
     auto before = *find_widget_rect(*snap, status);
-    route_event(tree, snap.get(), MouseScroll{in, DX{0}, DY{5}});           // its line scrolls out of view
+    route_event(tree, snap.get(), MouseScroll{in, DX{0}, DY{-5}});           // its line scrolls out of view
     snap = tree.build_snapshot(400, 600, 3);
     snap = tree.build_snapshot(400, 600, 4);
     CHECK(find_widget_rect(*snap, status)->origin.y == before.origin.y);

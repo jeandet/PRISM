@@ -251,7 +251,7 @@ inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
         InputEvent ev = ms;
         tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
         WidgetId stop = tree.open_content_popup() ? tree.popup_owner() : 0;   // stays in the popup
-        tree.scroll_at(*id, DY{ms.dy.raw() * wheel_multiplier}, stop);
+        tree.scroll_at(*id, DY{-ms.dy.raw() * wheel_multiplier}, stop);   // wheel down: further down
     }
 }
 

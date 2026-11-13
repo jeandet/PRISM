@@ -261,7 +261,7 @@ TEST_CASE("the wheel and the arrow keys scroll a long message; the end is reacha
     REQUIRE_FALSE(drawn(f, "message line 99"));
     auto c = *f.card();
     Point inside{c.origin.x + DX{40}, c.origin.y + DY{c.extent.h.raw() / 2}};
-    route_event(f.tree, f.snap.get(), MouseScroll{inside, DX{0}, DY{1}});
+    route_event(f.tree, f.snap.get(), MouseScroll{inside, DX{0}, DY{-1}});
     f.frame();
     CHECK_FALSE(drawn(f, "message line 0"));
     f.click(inside.x.raw(), inside.y.raw());   // the message takes the keys once clicked
@@ -289,7 +289,7 @@ TEST_CASE("a dialog the app closed and reopened starts at the top of its message
     Fixture f;
     show_message(f, numbered(100));
     auto c = *f.card();
-    route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{80}}, DX{0}, DY{3}});
+    route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{80}}, DX{0}, DY{-3}});
     f.frame();
     REQUIRE_FALSE(drawn(f, "message line 0"));
     auto d = f.model.ask.get();
@@ -304,7 +304,7 @@ TEST_CASE("an open dialog keeps its content across frames: a scrolled message st
     Fixture f;
     show_message(f, numbered(100));
     auto c = *f.card();
-    route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{c.extent.h.raw() / 2}}, DX{0}, DY{1}});
+    route_event(f.tree, f.snap.get(), MouseScroll{Point{c.origin.x + DX{40}, c.origin.y + DY{c.extent.h.raw() / 2}}, DX{0}, DY{-1}});
     f.frame();
     f.frame();   // nothing changed: the content is not rebuilt
     CHECK_FALSE(drawn(f, "message line 0"));

@@ -217,7 +217,7 @@ TEST_CASE("the wheel inside a modal popup never scrolls the window behind it") {
     snap = tree.build_snapshot(500, 300, 2);
     auto card = *prism::app::widget_detail::popup_area(tree, *snap);
     Point inside{card.origin.x + DX{20}, card.origin.y + DY{20}};
-    for (int i = 0; i < 5; ++i) route_event(tree, snap.get(), MouseScroll{inside, DX{0}, DY{3}});
+    for (int i = 0; i < 5; ++i) route_event(tree, snap.get(), MouseScroll{inside, DX{0}, DY{-3}});
     model.pop.set({.open = false, .modal = true});
     snap = tree.build_snapshot(500, 300, 3);
     auto now = find_widget_rect(*snap, tree.leaf_ids()[0]);

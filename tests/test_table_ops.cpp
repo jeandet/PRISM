@@ -303,7 +303,7 @@ TEST_CASE("one wheel notch scrolls a table once, through the shared scroll path"
     REQUIRE(table);
     auto& ts = **std::any_cast<std::shared_ptr<TableState>>(&table->edit_state);
 
-    widget_detail::route_mouse_scroll(tree, *snap, MouseScroll{.position = Point{X{100.f}, Y{300.f}}, .dx = DX{0}, .dy = DY{1.f}});
+    widget_detail::route_mouse_scroll(tree, *snap, MouseScroll{.position = Point{X{100.f}, Y{300.f}}, .dx = DX{0}, .dy = DY{-1.f}});
     CHECK(ts.scroll_y.raw() == doctest::Approx(60.f));  // the shared wheel step, not 60 + 3 rows
 }
 
