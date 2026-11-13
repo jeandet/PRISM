@@ -102,7 +102,7 @@ template <typename T>
 DragRole list_row_drag(List<T>& items, std::size_t i) {
     const void* list = &items;
     return {
-        .source = [list, i] { return std::any(ListRow{list, i}); },
+        .source = [list, i](const WidgetNode&, Point) { return std::any(ListRow{list, i}); },
         .accepts = [list](const std::any& v) {
             auto* r = std::any_cast<ListRow>(&v);
             return r && r->list == list;
@@ -128,7 +128,7 @@ struct TreeRowDrag {
 inline DragRole tree_row_drag(TreeController& ctrl, std::size_t i) {
     if (!ctrl.on_move || i >= ctrl.rows.size()) return {};
     return {
-        .source = [&ctrl, i] { return std::any(TreeRowDrag{&ctrl, i}); },
+        .source = [&ctrl, i](const WidgetNode&, Point) { return std::any(TreeRowDrag{&ctrl, i}); },
         .accepts = [&ctrl, i](const std::any& v) {
             auto* r = std::any_cast<TreeRowDrag>(&v);
             return r && r->tree == &ctrl && ctrl.can_move(r->row, i);
@@ -150,6 +150,12 @@ struct DockState {
     std::deque<Field<TabBar<>>> tabs;        // a deque: fields never move once made
     std::deque<Field<SplitSizes>> splits;
     std::vector<Connection> links;
+};
+
+// What dragging a dock's tab carries: which dock, which panel.
+struct PanelDrag {
+    const void* dock;
+    std::string name;
 };
 
 // The node at `path` (child indices from the root).
@@ -301,7 +307,7 @@ public:
         // `make` returns (any type; a std::optional that is empty: nothing to drag this time).
         template <typename F>
         LeafHandle&& drag_source(F make) && {
-            node_ref.drag.source = [make = std::move(make)]() -> std::any {
+            node_ref.drag.source = [make = std::move(make)](const WidgetNode&, Point) -> std::any {
                 auto v = make();
                 if constexpr (view_builder_detail::is_optional<decltype(v)>::value)
                     return v ? std::any(std::move(*v)) : std::any{};
@@ -433,18 +439,38 @@ private:
         auto panel = [&](const std::string& name) -> const DockPanel& {
             return *std::ranges::find(panels, name, &DockPanel::name);
         };
-        if (is_group(node) && node.panels.size() == 1) {
-            vstack([&] { panel(node.panels.front()).build(*this); });
-        } else if (is_group(node)) {
+        if (is_group(node)) {
+            // Every group shows its tabs, a lone panel too: a tab is what the user drags to
+            // move a panel, and the group takes panels dropped on its middle or its edges.
             auto& bar = state.tabs.emplace_back(TabBar<>{.selected = node.active});
             state.links.push_back(bar.on_change().connect([write_back](const TabBar<>& b) {
                 write_back([&](DockNode& n) { n.active = b.selected; });
             }));
-            tabs(bar, [&] {
-                for (auto& name : node.panels) {
-                    auto& p = panel(name);
-                    tab(p.title, [build = p.build](ViewBuilder& vb) { build(vb); });
-                }
+            const void* dock_id = &state;
+            auto names = node.panels;
+            DragRole group_role{
+                .source = {},
+                .accepts = [dock_id](const std::any& v) {
+                    auto* p = std::any_cast<view_builder_detail::PanelDrag>(&v);
+                    return p && p->dock == dock_id;
+                },
+                .drop = [&state, &layout, anchor = names.front()](const std::any& v, DropPlace at) {
+                    auto& name = std::any_cast<const view_builder_detail::PanelDrag&>(v).name;
+                    layout.set(move_panel(fitted(layout.get(), state.names), name, anchor, dock_zone(at)));
+                },
+                .between = false,
+                .inside_middle = false,
+                .zones = true,
+            };
+            with_drag(group_role, [&] {
+                tabs(bar, [&] {
+                    for (auto& name : node.panels) {
+                        auto& p = panel(name);
+                        tab(p.title, [build = p.build](ViewBuilder& vb) { build(vb); });
+                    }
+                }, [dock_id, names](std::size_t i) {
+                    return i < names.size() ? std::any(view_builder_detail::PanelDrag{dock_id, names[i]}) : std::any{};
+                });
             });
         } else {
             auto& sizes = state.splits.emplace_back(SplitSizes{node.sizes});
@@ -918,13 +944,18 @@ public:
 
     // Tabs: a header to pick a page, and the page; only the selected page is built.
     void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true); }
+    // Tabs whose headers can be dragged: `tab_drag(i)` is what dragging tab i carries.
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, std::function<std::any(std::size_t)> tab_drag) {
+        switched_pages(field, builder, true, std::move(tab_drag));
+    }
 
     // Pages: tabs without the header, the app picks the page through `field.selected` (a
     // detail view that follows a selection, a wizard's steps). Pages are declared with tab().
     void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false); }
 
 private:
-    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header) {
+    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header,
+                        std::function<std::any(std::size_t)> tab_drag = {}) {
         placed_.insert(&field);
 
         auto state = std::make_shared<TabsState>();
@@ -950,6 +981,11 @@ private:
                 wn.tab_names = names_ptr;
                 if (bar_build) bar_build(wn);
             };
+            if (tab_drag)   // a tab pressed and moved drags what tab_drag gives for it
+                bar.drag.source = [tab_drag](const WidgetNode& n, Point at) {
+                    auto i = tabs_detail::tab_at(n, at.x);
+                    return i ? tab_drag(*i) : std::any{};
+                };
             tabs_node.children.push_back(std::move(bar));
         } else {
             Node none;

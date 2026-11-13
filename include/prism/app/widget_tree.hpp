@@ -5,6 +5,7 @@
 #include <prism/delegates/dialog_delegates.hpp>
 #include <prism/delegates/form_delegates.hpp>
 #include <prism/delegates/tabs_delegates.hpp>
+#include <prism/ui/dock.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/core/list.hpp>
 #include <prism/ui/table_ops.hpp>
@@ -617,7 +618,8 @@ public:
         float dx = p.x.raw() - drag_->press.x.raw(), dy = p.y.raw() - drag_->press.y.raw();
         if (dx * dx + dy * dy < drag_threshold * drag_threshold) return false;
         auto it = index_.find(drag_->source);
-        drag_->value = it != index_.end() ? it->second->drag.source() : std::any{};
+        Point local{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};   // where it was pressed, in it
+        drag_->value = it != index_.end() ? it->second->drag.source(*it->second, local) : std::any{};
         if (!drag_->value.has_value()) {
             drag_.reset();
             return false;
@@ -635,6 +637,18 @@ public:
         const auto& n = *it->second;
         if (n.drag.accepts) return n.drag.accepts(value);
         return value.type() == typeid(std::string) && edits_text(n);
+    }
+
+    // The innermost container taking drops whose area holds `p` and that takes `value`.
+    [[nodiscard]] WidgetId drop_area_at(Point p, const std::any& value) const {
+        for (auto it = drop_areas_.rbegin(); it != drop_areas_.rend(); ++it)
+            if (it->second.contains(p) && takes(it->first, value)) return it->first;
+        return 0;
+    }
+    [[nodiscard]] std::optional<Rect> drop_area_rect(WidgetId id) const {
+        for (auto& [i, r] : drop_areas_)
+            if (i == id) return r;
+        return std::nullopt;
     }
 
     void move_drag(Point p, WidgetId target) {
@@ -745,6 +759,8 @@ public:
             layout_arrange(layout, {Point{X{0}, Y{0}}, Size{Width{w}, Height{h}}});
             update_scroll_state(layout);
             update_split_state(layout);
+            drop_areas_.clear();
+            collect_drop_areas(layout, DY{0});
             popup = layout_popup(layout, Size{Width{w}, Height{h}});
             return layout;
         };
@@ -829,6 +845,7 @@ private:
     WidgetId focused_id_ = 0;
     WidgetId captured_id_ = 0;
     std::optional<DragState> drag_;
+    std::vector<std::pair<WidgetId, Rect>> drop_areas_;   // containers that take drops, outermost first
     std::optional<WidgetId> highlight_id_;
     ScrollbarDrag scrollbar_drag_;
     SplitDrag split_drag_;
@@ -958,11 +975,11 @@ private:
     // While dragging: the target's accent outline, and the source itself, faded, under the
     // pointer where it was grabbed.
     void draw_drag(SceneSnapshot& snap) const {
+        std::optional<Rect> target_rect;
         for (auto& [id, rect] : snap.geometry)
-            if (id == drag_->target && id != 0) {
-                draw_drop_marker(snap.overlay, rect);
-                break;
-            }
+            if (id == drag_->target && id != 0) target_rect = rect;
+        if (!target_rect) target_rect = drop_area_rect(drag_->target);
+        if (target_rect) draw_drop_marker(snap.overlay, *target_rect);
         auto it = index_.find(drag_->source);
         if (it == index_.end()) return;
         DrawList ghost = it->second->draws;
@@ -976,12 +993,31 @@ private:
     // row), a line on the edge the pointer is nearer.
     void draw_drop_marker(DrawList& dl, Rect r) const {
         auto it = index_.find(drag_->target);
+        if (it != index_.end() && it->second->drag.zones) return draw_dock_zone(dl, r);
         float y_in = drag_->pointer.y.raw() - r.origin.y.raw(), h = r.extent.h.raw();
         bool inside = it != index_.end() && it->second->drag.inside_middle && y_in > h * 0.25f && y_in < h * 0.75f;
         if (it == index_.end() || !it->second->drag.between || inside) return dl.rect_outline(r, theme_.accent, 2.f);
         bool after = y_in > h / 2;
         Y y = after ? r.origin.y + DY{r.extent.h.raw()} : r.origin.y;
         dl.line(Point{r.origin.x, y}, Point{r.origin.x + DX{r.extent.w.raw()}, y}, theme_.accent, 2.f);
+    }
+
+    // A dock group under a dragged panel: the area the panel would take, shaded (ui/dock.hpp).
+    void draw_dock_zone(DrawList& dl, Rect r) const {
+        float w = r.extent.w.raw(), h = r.extent.h.raw();
+        Point at{X{drag_->pointer.x.raw() - r.origin.x.raw()}, Y{drag_->pointer.y.raw() - r.origin.y.raw()}};
+        Rect area = r;
+        switch (dock_zone(DropPlace{at, r.extent})) {
+        case DockZone::Middle: break;
+        case DockZone::Left: area.extent.w = Width{w / 2}; break;
+        case DockZone::Right: area.origin.x = r.origin.x + DX{w / 2}; area.extent.w = Width{w / 2}; break;
+        case DockZone::Top: area.extent.h = Height{h / 2}; break;
+        case DockZone::Bottom: area.origin.y = r.origin.y + DY{h / 2}; area.extent.h = Height{h / 2}; break;
+        }
+        auto shade = theme_.accent;
+        shade.a = 60;
+        dl.filled_rect(area, shade);
+        dl.rect_outline(area, theme_.accent, 2.f);
     }
 
     // A widget whose condition changed redraws (faded or not); one just disabled lets go of the
@@ -1326,6 +1362,15 @@ private:
         }
         for (auto& child : layout_node.children)
             update_scroll_state(child);
+    }
+
+    // The screen area of every container that takes drops (a dock group): a drop on its empty
+    // space, where no widget is hit, still finds it. Moved up by the scroll areas above it.
+    void collect_drop_areas(const LayoutNode& n, DY scrolled) {
+        if (n.kind != LayoutNode::Kind::Leaf)
+            if (auto it = index_.find(n.id); it != index_.end() && it->second->drag.accepts)
+                drop_areas_.push_back({n.id, Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent}});
+        for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset);
     }
 
     void update_split_state(LayoutNode& layout_node) {

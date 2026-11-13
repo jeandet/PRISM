@@ -58,6 +58,14 @@ inline void tabs_record(DrawList& dl, WidgetNode& node,
         delegate_detail::draw_focus_ring(dl, total_w, tab_h, t);
 }
 
+// The tab under x (in the bar's coordinates), as last drawn.
+inline std::optional<size_t> tab_at(const WidgetNode& bar, X x) {
+    const auto& ranges = bar.peek<TabBarEditState>().header_x_ranges;
+    for (size_t i = 0; i < ranges.size(); ++i)
+        if (x >= ranges[i].first && x < ranges[i].second) return i;
+    return std::nullopt;
+}
+
 inline bool tabs_handle_input(const InputEvent& ev, WidgetNode& node,
                               size_t selected, size_t count,
                               std::function<void(size_t)> select) {

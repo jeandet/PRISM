@@ -17,8 +17,11 @@ Part 2, step 3 done 2026-11-13: `ui/dock.hpp` (`DockNode`, `DockLayout`, `dock_g
 `dock_split`, `fitted`, `same_structure`), `ViewBuilder::dock` building splits and tab groups
 through an ordinary ViewBuilder, `WidgetNode::build_content` / `content_stale` (a container
 rebuilt while the app runs, as tab pages are), settings writing a plain struct whole. Sizes and
-shown tabs are written back without a rebuild. The System Monitor is a dock. Next: step 4,
-moving panels (tabs dragged onto drop zones), keeping their widgets. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+shown tabs are written back without a rebuild. The System Monitor is a dock. Step 4 (moving panels) done the same day, rebuilding what moved: `move_panel`, `dock_zone`,
+every group showing its tabs (`vb.tabs(field, builder, tab_drag)`), a group as a drop target
+with five zones (`DragRole::zones`), drag sources told where they were pressed, and container
+drop areas recorded at layout (`WidgetTree::drop_area_at`), so empty space in a group takes
+drops. Next: keeping a moved panel's widgets (decision 2), then floating panels. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 

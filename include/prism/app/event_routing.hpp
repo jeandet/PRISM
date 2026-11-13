@@ -93,7 +93,7 @@ inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const
 inline WidgetId drop_target_at(const WidgetTree& tree, const SceneSnapshot& snap, Point p, const std::any& value) {
     for (auto id = hit_test(snap, p); id; id = tree.parent_of(*id))
         if (tree.takes(*id, value)) return *id;
-    return 0;
+    return tree.drop_area_at(p, value);   // empty space in a container that takes drops
 }
 
 // True if the move belongs to a drag: one starting now, or running.
@@ -113,6 +113,7 @@ inline bool route_drag_release(WidgetTree& tree, const SceneSnapshot& snap, Poin
     WidgetId target = drop_target_at(tree, snap, p, tree.drag()->value);
     tree.move_drag(p, target);
     auto rect = target ? find_widget_rect(snap, target) : std::nullopt;
+    if (target && !rect) rect = tree.drop_area_rect(target);   // a container: its recorded area
     tree.end_drag(rect ? std::optional{DropPlace{Point{X{p.x.raw() - rect->origin.x.raw()}, Y{p.y.raw() - rect->origin.y.raw()}},
                                                  rect->extent}}
                        : std::nullopt);

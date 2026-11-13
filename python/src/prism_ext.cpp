@@ -1914,7 +1914,7 @@ inline DragRole py_drag_role(nb::object drag, nb::object drop, nb::object accept
     DragRole role;
     if (!drag.is_none()) {
         auto fn = std::make_shared<PyHolder>(std::move(drag));
-        role.source = [fn]() -> std::any {
+        role.source = [fn](const WidgetNode&, Point) -> std::any {
             nb::gil_scoped_acquire gil;
             try {
                 nb::object v = fn->obj();

@@ -30,11 +30,13 @@ struct DropPlace {
 // What a widget does in a drag inside the app (doc/design/drag-and-docking.md). The value is
 // typed; std::any carries it between source and target, and the target checks its type.
 struct DragRole {
-    std::function<std::any()> source;                          // empty any: nothing to drag
+    // What a press at `at` (in the widget's coordinates) drags; an empty any: nothing.
+    std::function<std::any(const WidgetNode& self, Point at)> source;
     std::function<bool(const std::any&)> accepts;              // a target: takes this value?
     std::function<void(const std::any&, DropPlace)> drop;
     bool between = false;   // drops go before or after it (a list row): shown as a line, not an outline
     bool inside_middle = false;   // with between: its middle half takes drops inside it (a tree folder)
+    bool zones = false;           // a dock group: the middle or an edge, shown as the area it would take
 };
 
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;

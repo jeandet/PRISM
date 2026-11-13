@@ -1,5 +1,7 @@
 #pragma once
 
+#include <prism/ui/node.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <string>
@@ -79,6 +81,63 @@ inline DockLayout fitted(DockLayout layout, const std::vector<std::string>& name
     auto& first = dock_detail::first_group(layout.root);
     for (const auto& name : names)
         if (!std::ranges::contains(seen, name)) first.panels.push_back(name);
+    return layout;
+}
+
+// Where a panel dropped on a group goes: into it (the middle), or beside it (an edge).
+enum class DockZone { Middle, Left, Right, Top, Bottom };
+
+// The middle, or the edge the drop is nearest to within a quarter of the group's size.
+inline DockZone dock_zone(DropPlace at) {
+    float x = at.at.x.raw() / std::max(1.f, at.size.w.raw()), y = at.at.y.raw() / std::max(1.f, at.size.h.raw());
+    float edge = std::min({x, 1.f - x, y, 1.f - y});
+    if (edge > 0.25f) return DockZone::Middle;
+    if (edge == x) return DockZone::Left;
+    if (edge == 1.f - x) return DockZone::Right;
+    return edge == y ? DockZone::Top : DockZone::Bottom;
+}
+
+namespace dock_detail {
+inline DockNode* group_of(DockNode& n, const std::string& panel) {
+    if (is_group(n)) return std::ranges::contains(n.panels, panel) ? &n : nullptr;
+    for (auto& p : n.parts)
+        if (auto* g = group_of(p, panel)) return g;
+    return nullptr;
+}
+
+inline void names_in(const DockNode& n, std::vector<std::string>& out) {
+    out.insert(out.end(), n.panels.begin(), n.panels.end());
+    for (auto& p : n.parts) names_in(p, out);
+}
+} // namespace dock_detail
+
+// The layout with panel `name` moved next to panel `anchor`: into anchor's group (Middle,
+// shown there), or into a new group on one side of it (an edge). Groups left empty go, and
+// splits left with one part become that part.
+inline DockLayout move_panel(DockLayout layout, const std::string& name, std::string anchor, DockZone zone) {
+    auto* from = dock_detail::group_of(layout.root, name);
+    auto* to = dock_detail::group_of(layout.root, anchor);
+    if (!from || !to) return layout;
+    if (from == to) {
+        if (zone == DockZone::Middle || from->panels.size() == 1) return layout;   // already there
+        anchor = *std::ranges::find_if(from->panels, [&](const std::string& p) { return p != name; });
+    }
+    std::erase(from->panels, name);
+    std::vector<std::string> left, seen;
+    dock_detail::names_in(layout.root, left);
+    dock_detail::prune(layout.root, left, seen);   // drops the emptied group, collapses its split
+    auto& target = *dock_detail::group_of(layout.root, anchor);
+    if (zone == DockZone::Middle) {
+        target.panels.push_back(name);
+        target.active = target.panels.size() - 1;
+        return layout;
+    }
+    bool vertical = zone == DockZone::Top || zone == DockZone::Bottom;
+    bool first = zone == DockZone::Left || zone == DockZone::Top;
+    DockNode moved = dock_group({name});
+    DockNode kept = std::move(target);
+    target = first ? dock_split(vertical, {std::move(moved), std::move(kept)})
+                   : dock_split(vertical, {std::move(kept), std::move(moved)});
     return layout;
 }
 

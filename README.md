@@ -514,7 +514,9 @@ vb.dock(layout, {
 });
 ```
 
-The System Monitor is built this way. Moving panels by dragging their tabs comes next.
+Drag a panel's tab onto a group: its middle adds the panel to that group's tabs, an edge puts
+it beside the group in a new one. The area it would take is shaded while dragging. Groups left
+empty disappear. The System Monitor is built this way.
 
 ### More windows
 
