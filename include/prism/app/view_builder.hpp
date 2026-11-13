@@ -380,6 +380,14 @@ public:
         c.split_set = [&sizes](std::vector<float> v) { sizes.set({std::move(v)}); };
     }
 
+    // What `fn` places (at this level) is kept when rebuilt elsewhere, under `key` (Node::keep_key).
+    void keep_as(const std::string& key, std::invocable auto&& fn) {
+        auto& parent = current_parent();
+        auto first = parent.children.size();
+        fn();
+        for (auto i = first; i < parent.children.size(); ++i) parent.children[i].keep_key = key;
+    }
+
     // Gives the widgets `fn` places (at this level) the drag role `role`: what LeafHandle's
     // drag_source / drop_target set, spelled out, for bindings that build it themselves.
     void with_drag(const DragRole& role, std::invocable auto&& fn) {
@@ -466,7 +474,11 @@ private:
                 tabs(bar, [&] {
                     for (auto& name : node.panels) {
                         auto& p = panel(name);
-                        tab(p.title, [build = p.build](ViewBuilder& vb) { build(vb); });
+                        // Kept under the dock and the panel's name: moved, it keeps its widgets.
+                        auto key = std::to_string(reinterpret_cast<std::uintptr_t>(dock_id)) + "/" + name;
+                        tab(p.title, [build = p.build, key](ViewBuilder& vb) {
+                            vb.keep_as(key, [&] { vb.vstack([&] { build(vb); }); });
+                        });
                     }
                 }, [dock_id, names](std::size_t i) {
                     return i < names.size() ? std::any(view_builder_detail::PanelDrag{dock_id, names[i]}) : std::any{};

@@ -60,6 +60,9 @@ struct Node {
     // and again whenever content_stale() says so. Copied to WidgetNode.
     std::function<void(Node&)> build_content;
     std::function<bool()> content_stale;
+    // Kept when what holds it is rebuilt (a dock panel moved elsewhere): the built widgets are
+    // parked under this key and put back where a node with the same key is built next.
+    std::string keep_key;
     // A split container's remembered pane sizes (vb.remember_split): read when built, written
     // when a drag ends.
     std::function<std::vector<float>()> split_get;

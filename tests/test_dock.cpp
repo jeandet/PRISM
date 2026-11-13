@@ -180,3 +180,25 @@ TEST_CASE("dragging a tab onto a group's edge moves the panel there") {
     snap = tree.build_snapshot(600, 400, 2);
     CHECK(text_rect(*snap, "SEARCH"));   // shown in its new place
 }
+
+TEST_CASE("a moved panel keeps its widgets: same widget, focus and wiring") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto code = text_rect(*snap, "code");
+    REQUIRE(code);
+    Point p{code->origin.x + DX{5}, code->origin.y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{p, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{p, buttons::left, false});
+    auto editor_id = tree.focused_id();
+    REQUIRE(editor_id != 0);
+    // The editor goes to the left of the files panel: its group is rebuilt elsewhere.
+    model.layout.set(move_panel(model.layout.get(), "editor", "files", DockZone::Left));
+    snap = tree.build_snapshot(600, 400, 2);
+    auto moved = text_rect(*snap, "code");
+    REQUIRE(moved);
+    CHECK(moved->origin.x.raw() < code->origin.x.raw());   // it did move
+    CHECK(tree.focused_id() == editor_id);                  // the same widget, still focused
+    route_event(tree, snap.get(), TextInput{"!"});
+    CHECK(model.editor.get().value.find('!') != std::string::npos);   // and still wired
+}

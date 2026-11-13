@@ -846,6 +846,7 @@ private:
     WidgetId captured_id_ = 0;
     std::optional<DragState> drag_;
     std::vector<std::pair<WidgetId, Rect>> drop_areas_;   // containers that take drops, outermost first
+    std::unordered_map<std::string, WidgetNode> parked_;   // kept subtrees, by keep_key (park_kept)
     std::optional<WidgetId> highlight_id_;
     ScrollbarDrag scrollbar_drag_;
     SplitDrag split_drag_;
@@ -878,6 +879,13 @@ private:
     // --- Node → WidgetNode conversion ---
 
     WidgetNode build_widget_node(Node& node) {
+        if (auto kept = parked_.find(node.keep_key); !node.keep_key.empty() && kept != parked_.end()) {
+            WidgetNode wn = std::move(kept->second);   // the widgets built before, state and all
+            parked_.erase(kept);
+            wn.reused = true;
+            mark_all_dirty_impl(wn);   // redrawn at their new size
+            return wn;
+        }
         WidgetNode wn;
         wn.id = node.id;
         wn.layout_kind = node.layout_kind;
@@ -891,6 +899,7 @@ private:
         wn.row_drag = node.row_drag;
         wn.build_content = node.build_content;
         wn.content_stale = node.content_stale;
+        wn.keep_key = node.keep_key;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -1066,6 +1075,7 @@ private:
     }
 
     void connect_dirty(Node& node, WidgetNode& wn) {
+        if (std::exchange(wn.reused, false)) return;   // put back: its subscriptions came with it
         connect_enablers(node, wn);
         if (node.is_leaf) {
             connect_on_change_dirty(node, wn);
@@ -1460,6 +1470,22 @@ private:
         std::erase(focus_order_, id);
     }
 
+    // Takes the subtrees to keep (WidgetNode::keep_key) out of `node`, which is about to be
+    // dropped: out of the index, but still wired and subscribed, ready to be put back.
+    void park_kept(WidgetNode& node) {
+        if (!node.keep_key.empty()) {
+            unindex_ids(node);
+            auto key = node.keep_key;
+            parked_.insert_or_assign(std::move(key), std::move(node));
+            return;
+        }
+        for (auto& c : node.children) park_kept(c);
+    }
+    void unindex_ids(WidgetNode& node) {
+        unindex_node(node.id);
+        for (auto& c : node.children) unindex_ids(c);
+    }
+
     void unindex_subtree(WidgetNode& node) {
         unindex_node(node.id);
         node.connections.clear();
@@ -1616,6 +1642,7 @@ private:
 
         auto& content_wn = node.children[1];
 
+        for (auto& c : content_wn.children) park_kept(c);
         for (auto& c : content_wn.children)
             unindex_subtree(c);
         content_wn.children.clear();
@@ -1844,6 +1871,7 @@ private:
     // first frame and whenever it is stale.
     void materialize_content(WidgetNode& node) {
         if (!node.children.empty() && !(node.content_stale && node.content_stale())) return;
+        for (auto& c : node.children) park_kept(c);
         for (auto& c : node.children) unindex_subtree(c);
         node.children.clear();
         Node content;

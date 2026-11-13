@@ -21,7 +21,11 @@ shown tabs are written back without a rebuild. The System Monitor is a dock. Ste
 every group showing its tabs (`vb.tabs(field, builder, tab_drag)`), a group as a drop target
 with five zones (`DragRole::zones`), drag sources told where they were pressed, and container
 drop areas recorded at layout (`WidgetTree::drop_area_at`), so empty space in a group takes
-drops. Next: keeping a moved panel's widgets (decision 2), then floating panels. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+drops. Keeping a moved panel's widgets (decision 2) followed: `Node::keep_key` and
+`ViewBuilder::keep_as`; a rebuilt container parks kept subtrees (`WidgetTree::park_kept`:
+unindexed but still wired and subscribed) and `build_widget_node` puts one back where a node
+with the same key is built. The moved node's own address changes, so a kept root must not
+capture itself (a dock wraps each panel in a plain column for that). Next: floating panels. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 
