@@ -4297,3 +4297,35 @@ def test_a_table_source_without_header_gets_empty_titles():
             vb.table(self.t)
 
     assert "only" in prism._texts(Board())
+
+
+# --- more windows, the settings folder ---------------------------------------------------
+
+
+def test_open_window_shows_another_model_in_a_window_of_its_own():
+    class Main(Model):
+        x = field(0)
+
+    class Side(Model):
+        y = field(1)
+
+    side = Side()
+    with prism.headless(Main()) as app:
+        prism.open_window(side, title="Side", width=300, height=200)
+        app.wait_until(lambda: prism._window_count() == 2, timeout=5)
+
+
+def test_open_window_needs_a_running_app():
+    class Side(Model):
+        y = field(1)
+
+    with pytest.raises(RuntimeError):
+        prism.open_window(Side())
+
+
+def test_settings_dir_is_the_apps_own_folder():
+    # SDL reads the environment once per process, so XDG_DATA_HOME cannot be redirected here.
+    d = prism.settings_dir("prism-test", "py-app")
+    assert os.path.isdir(d)
+    assert os.path.normpath(d).endswith(os.path.join("prism-test", "py-app"))
+    assert prism.settings_dir("prism-test", "other") != d

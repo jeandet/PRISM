@@ -691,6 +691,8 @@ with prism.transaction():                       # one publish for both changes
 | `prism.tabs()` + `vb.tabs(h, [(title, fn), ...])` | `Field<TabBar<>>` + `vb.tabs` | `.value` is the selected page |
 | `prism.dialog(title, message, buttons)` + `vb.dialog(h, content=None)` | `Field<Dialog>` + `vb.dialog` | `.open = True` asks; `.on_choice(cb)` gets the button |
 | `prism.table_field(source)` + `vb.table(h, sort_column=None)` | `vb.table(ColumnStorage)` | source: `column_count`, `row_count`, `cell_text`, `header`; `.refresh()` after a change |
+| `prism.open_window(model, title=, width=, height=)` | `AppContext::open_window` | while an app runs; desktop |
+| `prism.settings_dir(org, app)` | `backends::settings_dir` | save the app's settings there (json, tomllib) |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |

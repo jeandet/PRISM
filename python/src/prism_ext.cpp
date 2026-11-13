@@ -1,3 +1,5 @@
+#include <prism/backends/settings_dir.hpp>
+#include <deque>
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
@@ -87,10 +89,19 @@ static std::atomic<bool> g_fail_next_run{false};
 // run or during it.
 static std::mutex g_file_drop_mutex;
 static std::shared_ptr<struct PyHolder> g_file_drop;
+// Models shown by prism.open_window, kept alive while their windows may exist (until the run ends).
+static std::mutex g_window_models_mutex;
+static std::vector<std::shared_ptr<struct PyHolder>> g_window_models;
 static void call_file_drop(const prism::input::FileDrop& drop);
 
 struct RunGuardReset {
+    // Runs as run()/_run_headless() return, with the GIL held again: the windows are gone, so
+    // the models prism.open_window kept for them can go too.
     ~RunGuardReset() {
+        {
+            std::lock_guard<std::mutex> lk(g_window_models_mutex);
+            g_window_models.clear();
+        }
         {
             std::lock_guard<std::mutex> lk(g_handle_mutex);
             g_post_handle.reset();
@@ -2758,9 +2769,12 @@ static void final_drain_before_close() {
 
 struct DelayHeadlessBackend final : BackendBase {
     HeadlessWindow window_{0, {}};
+    std::deque<HeadlessWindow> more_;   // prism.open_window's (a deque: they never move)
+    WindowId next_id_ = 2;
     int delay_ms_ = 100;
     explicit DelayHeadlessBackend(int d) : delay_ms_(d) {}
     Window& create_window(WindowConfig cfg) override { window_ = HeadlessWindow{1, cfg}; return window_; }
+    Window* request_window(WindowConfig cfg) override { return &more_.emplace_back(next_id_++, cfg); }
     void run(std::function<void(const WindowEvent&)> cb) override {
         {
             std::unique_lock<std::mutex> lk(g_headless_cv_mutex);
@@ -3538,6 +3552,47 @@ NB_MODULE(_prism_ext, m) {
             return ctx->theme().canvas_bg == light_theme().canvas_bg ? std::string{"light"} : std::string{"dark"};
         });
     }, "Test-only: the running app's theme, 'light' or 'dark'.");
+    m.def("open_window", [](nb::object model, std::string title, int width, int height) {
+        if (!nb::isinstance<PyModel>(model)) throw nb::type_error("open_window: needs a prism.Model");
+        wait_for_context("prism.open_window");
+        // The model stays alive until the run ends (it is the window's model); posted outside
+        // g_handle_mutex: posting takes it too.
+        auto holder = std::make_shared<PyHolder>(model);
+        {
+            std::lock_guard<std::mutex> lk(g_window_models_mutex);
+            g_window_models.push_back(holder);
+        }
+        auto* pm = &nb::cast<PyModel&>(model);
+        try_post_any_thread([pm, holder, title = std::move(title), width, height] {
+            AppContext* ctx = nullptr;
+            {
+                std::lock_guard<std::mutex> lk(g_handle_mutex);
+                ctx = g_ctx;
+            }
+            if (!ctx) return;
+            nb::gil_scoped_acquire gil;   // building its view runs the model's view()
+            ctx->open_window(*pm, {.title = title.c_str(), .width = width, .height = height});
+        });
+    }, nb::arg("model"), nb::arg("title") = "PRISM", nb::arg("width") = 480, nb::arg("height") = 360,
+       "While an app runs (any thread): shows `model` in a window of its own (desktop). It may read "
+       "the main model's fields. Closing it removes it; the app goes on.");
+    m.def("_window_count", []() {
+        return dispatch_sync_read<int>([] {
+            AppContext* ctx = nullptr;
+            {
+                std::lock_guard<std::mutex> lk(g_handle_mutex);
+                ctx = g_ctx;
+            }
+            int n = 0;
+            if (ctx) ctx->registry().for_each([&](WindowId, WindowRegistry::Entry&) { ++n; });
+            return n;
+        });
+    }, "Test-only: how many windows the running app has.");
+    m.def("settings_dir", [](std::string org, std::string app) {
+        return prism::backends::settings_dir(org, app).string();
+    }, nb::arg("org"), nb::arg("app"),
+       "The folder where this user's settings for `app` belong (created if needed): "
+       "~/.local/share/<org>/<app> on Linux, %APPDATA% on Windows, Application Support on macOS.");
     m.def("on_file_drop", [](nb::object fn) {
         auto holder = fn.is_none() ? nullptr : std::make_shared<PyHolder>(std::move(fn));
         std::lock_guard<std::mutex> lk(g_file_drop_mutex);
