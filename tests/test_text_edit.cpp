@@ -3,6 +3,9 @@
 
 #include <prism/ui/text_edit.hpp>
 
+#include <string>
+#include <vector>
+
 using prism::ui::TextEdit;
 namespace te = prism::ui::text_edit;
 
@@ -134,4 +137,55 @@ TEST_CASE("inserting into a full field keeps the selection instead of deleting i
     CHECK(e.anchor == 0);   // selection kept
     auto replace_all = te::insert(TextEdit{"abc", 3, 0}, "xyz", 2);
     CHECK(replace_all.text == "xy");
+}
+
+TEST_CASE("each undo step keeps what changed, not the whole text") {
+    EditHistory h;
+    std::string text;
+    while (text.size() < 1'000'000) text += "a line of a long note\n";
+    TextEdit e{text, 500'000, 500'000};
+    const TextEdit start = e;
+    for (int i = 0; i < 50; ++i) {   // separate steps: a typed character, then a deletion
+        TextEdit typed = te::insert(e, "b", 0);
+        h.record(e, typed, EditHistory::Kind::Other);
+        TextEdit erased = te::erase_forward(typed);
+        h.record(typed, erased, EditHistory::Kind::Other);
+        e = erased;
+    }
+    CHECK(h.stored_bytes() < 10'000);   // whole-text steps would be 100 MB
+    while (auto u = h.undo(e)) e = *u;
+    CHECK(e == start);
+}
+
+TEST_CASE("undo and redo walk the same states back and forth") {
+    EditHistory h;
+    std::vector<TextEdit> states{{"one two three", 4, 7}};   // "two" selected
+    auto edit = [&](TextEdit next, EditHistory::Kind kind) {
+        h.record(states.back(), next, kind);
+        states.push_back(std::move(next));
+    };
+    edit(te::insert(states.back(), "2", 0), EditHistory::Kind::Other);
+    edit(te::erase_back(states.back()), EditHistory::Kind::Other);
+    edit(te::insert(te::select_all(states.back()), "all new", 0), EditHistory::Kind::Other);
+    TextEdit e = states.back();
+    for (auto i = states.size() - 1; i-- > 0;) {
+        e = *h.undo(e);
+        CHECK(e == states[i]);
+    }
+    for (std::size_t i = 1; i < states.size(); ++i) {
+        e = *h.redo(e);
+        CHECK(e.text == states[i].text);
+        CHECK(e.cursor == states[i].cursor);
+    }
+}
+
+TEST_CASE("typing inside a run of the same letter is still one step") {
+    EditHistory h;
+    TextEdit e{"aaaa", 2, 2};
+    for (const char* c : {"a", "b"}) {
+        TextEdit next = te::insert(e, c, 0);
+        h.record(e, next, EditHistory::Kind::Typing);
+        e = next;
+    }
+    CHECK(h.undo(e)->text == "aaaa");
 }
