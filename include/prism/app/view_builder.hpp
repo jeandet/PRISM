@@ -115,6 +115,31 @@ DragRole list_row_drag(List<T>& items, std::size_t i) {
     };
 }
 
+// What a tree row drags: which tree, which row.
+struct TreeRowDrag {
+    const TreeController* tree;
+    std::size_t row;
+};
+
+// Row i of a tree whose controller has on_move: drags itself, takes another row of the same
+// tree where TreeController::can_move allows.
+inline DragRole tree_row_drag(TreeController& ctrl, std::size_t i) {
+    if (!ctrl.on_move || i >= ctrl.rows.size()) return {};
+    return {
+        .source = [&ctrl, i] { return std::any(TreeRowDrag{&ctrl, i}); },
+        .accepts = [&ctrl, i](const std::any& v) {
+            auto* r = std::any_cast<TreeRowDrag>(&v);
+            return r && r->tree == &ctrl && ctrl.can_move(r->row, i);
+        },
+        .drop = [&ctrl, i](const std::any& v, DropPlace at) {
+            ctrl.move_row(std::any_cast<TreeRowDrag>(v).row, i,
+                          TreeController::drop_zone(ctrl.rows[i], at.at.y.raw(), at.size.h.raw()));
+        },
+        .between = true,
+        .inside_middle = ctrl.rows[i].has_children,
+    };
+}
+
 template <typename T> struct is_optional : std::false_type {};
 template <typename T> struct is_optional<std::optional<T>> : std::true_type {};
 
@@ -651,10 +676,11 @@ public:
                     // item keys the item the user saw cannot be found again. Appends and
                     // in-place updates move nothing and never drop a click.
                     node.connections.push_back(
-                        node.on_input.connect([on_row_click, &items, index, shifted_at, &tree](const InputEvent& ev) {
-                            auto* mb = std::get_if<MouseButton>(&ev);
+                        node.on_input.connect([on_row_click, &items, index, shifted_at, &tree, &node](const InputEvent& ev) {
                             if (tree.input_frame() < *shifted_at) return;
-                            if (mb && mb->pressed && mb->button == 1 && index < items.size())
+                            // a click: on release, over the row pressed (a drag is not one)
+                            if (delegate_detail::is_activation_event(ev, node) && std::holds_alternative<MouseButton>(ev)
+                                && index < items.size())
                                 on_row_click(index, items[index]);
                         })
                     );
@@ -716,9 +742,9 @@ public:
                 wn.record(wn);
                 wn.wire = [field_ptr, &ctrl, index, container_id, &tree](WidgetNode& node) {
                     node.connections.push_back(
-                        node.on_input.connect([&ctrl, index, container_id, &tree](const InputEvent& ev) {
-                            auto* mb = std::get_if<MouseButton>(&ev);
-                            if (mb && mb->pressed && mb->button == 1 && index < ctrl.rows.size()) {
+                        node.on_input.connect([&ctrl, index, container_id, &tree, &node](const InputEvent& ev) {
+                            if (delegate_detail::is_activation_event(ev, node) && std::holds_alternative<MouseButton>(ev)
+                                && index < ctrl.rows.size()) {
                                 tree.set_focused(container_id);
                                 ctrl.on_row_clicked(index, ctrl.rows[index]);
                             }
@@ -729,6 +755,7 @@ public:
 
             container.vlist_unbind_row = &view_builder_detail::unbind_vlist_row;
             view_builder_detail::wire_list_signals(container, ctrl.rows);
+            container.row_drag = [&ctrl](std::size_t i) { return view_builder_detail::tree_row_drag(ctrl, i); };
 
             current_parent().children.push_back(std::move(container));
             if (!detail) return;

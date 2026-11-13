@@ -489,7 +489,10 @@ vb.widget(playlist).drop_target([&](const Track& t, ui::DropPlace at) { add(t, a
 ```
 
 A list can be reordered by dragging its rows, `vb.list(items).reorderable()`; an insertion line
-shows where a row will go, and `List::move` does the move.
+shows where a row will go, and `List::move` does the move. A tree's nodes can be dragged once its
+controller has `on_move(node, target, where)`: dropped on the middle of a folder a node goes
+inside it, near an edge before or after; never into its own subtree. The app moves it in its
+data and the tree refreshes.
 
 A click lands on the release, over the widget that was pressed, as on every platform: sliding
 off a button before letting go cancels it, and a drag that starts on a button is not a click.

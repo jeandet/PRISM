@@ -1008,6 +1008,7 @@ TEST_CASE("end-to-end: hotkey attach then hover-select then row-click-highlight 
 
             auto primary_before_click = primary_count_.load(std::memory_order_acquire);
             cb(prism::WindowEvent{secondary_id_, prism::MouseButton{leaf_row_center, 1, true}});
+            cb(prism::WindowEvent{secondary_id_, prism::MouseButton{leaf_row_center, 1, false}});   // a click lands on release
             primary_count_.wait(primary_before_click, std::memory_order_acquire);
 
             auto primary_snap2 = latest_primary_;

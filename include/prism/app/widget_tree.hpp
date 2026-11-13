@@ -974,8 +974,10 @@ private:
     // row), a line on the edge the pointer is nearer.
     void draw_drop_marker(DrawList& dl, Rect r) const {
         auto it = index_.find(drag_->target);
-        if (it == index_.end() || !it->second->drag.between) return dl.rect_outline(r, theme_.accent, 2.f);
-        bool after = drag_->pointer.y.raw() > r.origin.y.raw() + r.extent.h.raw() / 2;
+        float y_in = drag_->pointer.y.raw() - r.origin.y.raw(), h = r.extent.h.raw();
+        bool inside = it != index_.end() && it->second->drag.inside_middle && y_in > h * 0.25f && y_in < h * 0.75f;
+        if (it == index_.end() || !it->second->drag.between || inside) return dl.rect_outline(r, theme_.accent, 2.f);
+        bool after = y_in > h / 2;
         Y y = after ? r.origin.y + DY{r.extent.h.raw()} : r.origin.y;
         dl.line(Point{r.origin.x, y}, Point{r.origin.x + DX{r.extent.w.raw()}, y}, theme_.accent, 2.f);
     }

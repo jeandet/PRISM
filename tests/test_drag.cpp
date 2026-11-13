@@ -257,3 +257,86 @@ TEST_CASE("over a list row, an insertion line shows where the row will go") {
     route_event(tree, snap.get(), MouseMove{Point{c->origin.x + DX{5}, c->origin.y + DY{c->extent.h.raw() * 0.2f}}});
     CHECK(line_at(c->origin.y.raw()));
 }
+
+// --- moving tree nodes -----------------------------------------------------------------
+
+namespace drag_test {
+// root(1) -> {2, 3}; 2 -> {4}
+struct SmallTree {
+    size_t root_count() const { return 1; }
+    TreeNodeId root_at(size_t) const { return 1; }
+    size_t child_count(TreeNodeId id) const { return id == 1 ? 2 : id == 2 ? 1 : 0; }
+    TreeNodeId child_at(TreeNodeId id, size_t i) const { return id == 1 ? (i == 0 ? 2 : 3) : 4; }
+    std::string label(TreeNodeId id) const { return "n" + std::to_string(id); }
+    bool has_children(TreeNodeId id) const { return id == 1 || id == 2; }
+    std::vector<std::pair<std::string, std::string>> attributes(TreeNodeId) const { return {}; }
+};
+
+struct Explorer {
+    SmallTree data;
+    TreeController files{wrap_tree_storage(data)};
+    struct Move { TreeNodeId node, target; TreeDrop where; };
+    std::vector<Move> moves;
+    Explorer() {
+        files.on_move = [this](TreeNodeId n, TreeNodeId t, TreeDrop w) { moves.push_back({n, t, w}); };
+        files.on_row_clicked(0, files.rows[0]);   // expand the root
+        files.on_row_clicked(1, files.rows[1]);   // expand n2: n1, n2, n4, n3
+    }
+    void view(WidgetTree::ViewBuilder& vb) { vb.tree(files, /*detail=*/false); }
+};
+}
+
+namespace {
+void drag_between(WidgetTree& tree, std::unique_ptr<SceneSnapshot>& snap, std::string_view from, std::string_view to, float frac) {
+    auto a = text_rect(*snap, from), b = text_rect(*snap, to);
+    REQUIRE(a);
+    REQUIRE(b);
+    Point p{a->origin.x + DX{5}, a->origin.y + DY{a->extent.h.raw() / 2}};
+    Point q{b->origin.x + DX{5}, b->origin.y + DY{b->extent.h.raw() * frac}};
+    route_event(tree, snap.get(), MouseButton{p, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{p.x, p.y + DY{6}}});
+    route_event(tree, snap.get(), MouseMove{q});
+    route_event(tree, snap.get(), MouseButton{q, buttons::left, false});
+}
+}
+
+TEST_CASE("a tree node dropped on another's middle goes inside it; near an edge, before or after") {
+    Explorer model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    drag_between(tree, snap, "n3", "n2", 0.5f);
+    drag_between(tree, snap, "n4", "n3", 0.9f);
+    drag_between(tree, snap, "n3", "n2", 0.1f);
+    REQUIRE(model.moves.size() == 3);
+    CHECK((model.moves[0].node == 3 && model.moves[0].target == 2 && model.moves[0].where == TreeDrop::Inside));
+    CHECK((model.moves[1].node == 4 && model.moves[1].target == 3 && model.moves[1].where == TreeDrop::After));
+    CHECK((model.moves[2].node == 3 && model.moves[2].target == 2 && model.moves[2].where == TreeDrop::Before));
+}
+
+TEST_CASE("a tree node is never dropped on itself or inside its own subtree") {
+    Explorer model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    drag_between(tree, snap, "n2", "n4", 0.5f);   // n4 is n2's child
+    drag_between(tree, snap, "n1", "n3", 0.5f);   // everything is under n1
+    CHECK(model.moves.empty());
+}
+
+TEST_CASE("a tree without on_move cannot be dragged") {
+    SmallTree data;
+    struct Plain {
+        TreeController& files;
+        void view(WidgetTree::ViewBuilder& vb) { vb.tree(files, false); }
+    };
+    TreeController files{wrap_tree_storage(data)};
+    files.on_row_clicked(0, files.rows[0]);
+    Plain model{files};
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    auto a = text_rect(*snap, "n2");
+    Point p{a->origin.x + DX{5}, a->origin.y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{p, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{p.x, p.y + DY{30}}});
+    CHECK_FALSE(tree.dragging());
+    route_event(tree, snap.get(), MouseButton{p, buttons::left, false});
+}

@@ -208,6 +208,9 @@ inline std::vector<TreeRow> visible_rows(const TreeSource& source,
     return rows;
 }
 
+// Where a dragged tree node goes, relative to the node it is dropped on.
+enum class TreeDrop { Before, After, Inside };
+
 class TreeController {
 public:
     explicit TreeController(TreeSource source) : source_(std::move(source)) {
@@ -217,6 +220,32 @@ public:
     List<TreeRow> rows;
     Field<std::optional<TreeNodeId>> selected;
     Field<std::optional<TreeDetail>> detail;
+    // Set it to let the user drag nodes (doc/design/drag-and-docking.md): called with the node,
+    // the node it was dropped on and where; the app moves it in its data, then the rows refresh.
+    std::function<void(TreeNodeId node, TreeNodeId target, TreeDrop where)> on_move;
+
+    // A drop on the middle half of a node that can hold children goes inside it; nearer an
+    // edge, before or after it.
+    [[nodiscard]] static TreeDrop drop_zone(const TreeRow& target, float y, float height) {
+        if (target.has_children && y > height * 0.25f && y < height * 0.75f) return TreeDrop::Inside;
+        return y < height / 2 ? TreeDrop::Before : TreeDrop::After;
+    }
+
+    // Whether row `from` may be dropped on row `to`: not on itself, not inside its own subtree
+    // (the rows right after it that are deeper).
+    [[nodiscard]] bool can_move(std::size_t from, std::size_t to) const {
+        if (!on_move || from >= rows.size() || to >= rows.size() || from == to) return false;
+        if (to < from) return true;
+        for (std::size_t i = from + 1; i <= to; ++i)
+            if (rows[i].depth <= rows[from].depth) return true;
+        return false;
+    }
+
+    void move_row(std::size_t from, std::size_t to, TreeDrop where) {
+        if (!can_move(from, to)) return;
+        on_move(rows[from].id, rows[to].id, where);
+        refresh();
+    }
 
     void refresh() {
         auto fresh = visible_rows(source_, expanded_, selected.get());

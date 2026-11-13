@@ -35,7 +35,9 @@ TEST_CASE("TreeInspectorModel row click invokes on_click with the row's index an
     }
     REQUIRE(row_leaf_id != 0);
 
-    tree.dispatch(row_leaf_id, prism::MouseButton{prism::Point{prism::X{0}, prism::Y{0}}, 1, true});
+    tree.set_pressed(row_leaf_id, true);   // a click: pressed, then the release lands on it
+    tree.dispatch(row_leaf_id, prism::MouseButton{prism::Point{prism::X{1}, prism::Y{1}}, 1, false});
+    tree.set_pressed(row_leaf_id, false);
 
     REQUIRE(clicks.size() == 1);
     CHECK(clicks[0] == std::make_pair(size_t{0}, prism::WidgetId{42}));

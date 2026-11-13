@@ -139,7 +139,9 @@ TEST_CASE("clicking the root row expands it and updates the row count") {
     REQUIRE(snap->geometry.size() > 1);
     auto row_id = snap->geometry[1].first;
 
-    tree.dispatch(row_id, prism::MouseButton{prism::Point{prism::X{5}, prism::Y{5}}, 1, true});
+    tree.set_pressed(row_id, true);   // a click: pressed, then the release lands on it
+    tree.dispatch(row_id, prism::MouseButton{prism::Point{prism::X{1}, prism::Y{1}}, 1, false});
+    tree.set_pressed(row_id, false);
 
     CHECK(model.ctrl.selected.get() == std::optional<prism::TreeNodeId>{1});
     CHECK(model.ctrl.rows.size() == 3); // root + 2 children now visible
@@ -181,6 +183,9 @@ TEST_CASE("clicking a row through the real hit_test/route_mouse_button pipeline 
     prism::MouseButton mb{click_pos, /*button=*/1, /*pressed=*/true};
     prism::InputEvent ev{mb};
     prism::app::widget_detail::route_mouse_button(tree, *snap, ev, mb);
+    prism::MouseButton up{click_pos, /*button=*/1, /*pressed=*/false};   // a click lands on release
+    prism::InputEvent up_ev{up};
+    prism::app::widget_detail::route_mouse_button(tree, *snap, up_ev, up);
 
     // A real click on a row must still end up focusing the container -- otherwise every
     // subsequent arrow-key press has no focused widget to route to, exactly reproducing

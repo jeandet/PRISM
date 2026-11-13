@@ -34,6 +34,7 @@ struct DragRole {
     std::function<bool(const std::any&)> accepts;              // a target: takes this value?
     std::function<void(const std::any&, DropPlace)> drop;
     bool between = false;   // drops go before or after it (a list row): shown as a line, not an outline
+    bool inside_middle = false;   // with between: its middle half takes drops inside it (a tree folder)
 };
 
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;

@@ -390,8 +390,12 @@ TEST_CASE("clicking a VirtualList row invokes on_row_click with the index and va
     auto ids = row_ids(*snap, 2);
     REQUIRE(ids.size() == 2);
 
-    tree.dispatch(ids[0], prism::MouseButton{prism::Point{prism::X{0}, prism::Y{0}}, 1, true});
-    tree.dispatch(ids[1], prism::MouseButton{prism::Point{prism::X{0}, prism::Y{0}}, 1, true});
+    tree.set_pressed(ids[0], true);   // a click: pressed, then the release lands on it
+    tree.dispatch(ids[0], prism::MouseButton{prism::Point{prism::X{1}, prism::Y{1}}, 1, false});
+    tree.set_pressed(ids[0], false);
+    tree.set_pressed(ids[1], true);   // a click: pressed, then the release lands on it
+    tree.dispatch(ids[1], prism::MouseButton{prism::Point{prism::X{1}, prism::Y{1}}, 1, false});
+    tree.set_pressed(ids[1], false);
 
     REQUIRE(clicks.size() == 2);
     CHECK(clicks[0] == std::make_pair(size_t{0}, 100));

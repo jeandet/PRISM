@@ -8,7 +8,10 @@ tests in `tests/test_drag.cpp`. Reorderable lists followed: `vb.list(items).reor
 `List::move`, `DragRole::between` (an insertion line instead of an outline). Python too:
 `vb.widget(h, drag=, drop=, accepts=)` and `vb.list(h, reorderable=True)`, through
 `ViewBuilder::with_drag`; a Python value travels as a shared pointer to a GIL-safe holder.
-Next: trees and tabs. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+Trees followed: `TreeController::on_move(node, target, TreeDrop)`, `can_move`, `drop_zone`,
+`DragRole::inside_middle` (an outline on a folder's middle, a line near its edges). List and tree
+row clicks now land on release too, so pressing a row to drag it no longer collapses it. Tab
+reordering is left to the dock's tab groups (part 2). Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 
