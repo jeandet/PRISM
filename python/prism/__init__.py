@@ -162,6 +162,10 @@ __all__ = [
     "combobox",
     "popup",
     "dock_layout",
+    "label",
+    "text_area",
+    "tabs",
+    "dialog",
     "dock_group",
     "dock_split",
     "menu",
@@ -490,6 +494,16 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_combobox_internal(self.default, self.meta["options"], self.meta["placeholder"])
         elif self.kind == "popup":
             h = instance._add_popup_internal(self.meta["modal"])
+        elif self.kind == "label":
+            h = instance._add_label_internal(self.default, self.meta["heading"])
+        elif self.kind == "text_area":
+            m = self.meta
+            h = instance._add_text_area_internal(self.default, m["rows"], m["read_only"], m["placeholder"])
+        elif self.kind == "tabs":
+            h = instance._add_tabs_internal(self.default)
+        elif self.kind == "dialog":
+            m = self.meta
+            h = instance._add_dialog_internal(m["title"], m["message"], m["buttons"])
         elif self.kind == "dock_layout":
             h = instance._add_dock_layout_internal(self.default)
         elif self.kind == "menu":
@@ -646,6 +660,34 @@ def combobox(default="", options=(), placeholder="", validator=None, *, tooltip=
         str(default), validator=validator, kind="combobox",
         meta={"options": [str(o) for o in options], "placeholder": str(placeholder)},
     ), tooltip)
+
+
+def label(text="", heading=False, *, tooltip=None):
+    """Text shown, not edited (C++ ``Label``); ``heading`` makes it a title. ``.value`` is the text."""
+    return _tooltipped(_FieldDescriptor(str(text), kind="label", meta={"heading": bool(heading)}), tooltip)
+
+
+def text_area(default="", rows=6, read_only=False, placeholder="", *, tooltip=None):
+    """Several lines of text (C++ ``TextArea``): edited in a monospace font, or, with
+    ``read_only``, shown in the UI font and still selectable and copyable. ``.value`` is the text."""
+    return _tooltipped(_FieldDescriptor(
+        str(default), kind="text_area",
+        meta={"rows": int(rows), "read_only": bool(read_only), "placeholder": str(placeholder)},
+    ), tooltip)
+
+
+def tabs(selected=0):
+    """A tab bar (C++ ``TabBar``), placed with ``vb.tabs(handle, [(title, fn), ...])``.
+    ``.value`` is the selected page's index."""
+    return _FieldDescriptor(int(selected), kind="tabs")
+
+
+def dialog(title, message="", buttons=("OK",)):
+    """A modal dialog (C++ ``Dialog``), placed with ``vb.dialog(handle)``. Set ``.open = True`` to
+    ask; ``handle.on_choice(cb)`` runs ``cb(button)`` when the user picks one, and ``.chosen`` is
+    the last pick (None after Escape)."""
+    return _FieldDescriptor(False, kind="dialog",
+                            meta={"title": str(title), "message": str(message), "buttons": [str(b) for b in buttons]})
 
 
 def dock_group(*panels, active=0):

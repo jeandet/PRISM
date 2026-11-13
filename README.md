@@ -686,6 +686,10 @@ with prism.transaction():                       # one publish for both changes
 | `vb.widget(h, drag=fn, drop=fn, accepts=Type)` | `.drag_source`, `.drop_target` | `drag()` gives any Python object; `drop(value, x, y)` |
 | `vb.list(h, reorderable=True)` | `vb.list(items).reorderable()` | rows dragged into another order |
 | `prism.dock_layout(prism.dock_split(prism.dock_group("a"), ...))` + `vb.dock(h, [(name, title, fn), ...])` | `Field<DockLayout>` + `vb.dock` | `.value` is the layout as nested dicts |
+| `prism.label(text, heading=False)` | `Field<Label<>>` | display only |
+| `prism.text_area(text, rows=6, read_only=False)` | `Field<TextArea<>>` | read-only: selectable, UI font |
+| `prism.tabs()` + `vb.tabs(h, [(title, fn), ...])` | `Field<TabBar<>>` + `vb.tabs` | `.value` is the selected page |
+| `prism.dialog(title, message, buttons)` + `vb.dialog(h, content=None)` | `Field<Dialog>` + `vb.dialog` | `.open = True` asks; `.on_choice(cb)` gets the button |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |

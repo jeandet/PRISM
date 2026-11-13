@@ -4179,3 +4179,62 @@ def test_a_dock_layout_keeps_its_floating_panels_apart():
     root = ide.layout.value
     ide.layout.value = root          # setting the arrangement keeps the floating list
     assert ide.layout.floating == ["log"]
+
+
+# --- labels, text areas, tabs, dialogs ---------------------------------------------------
+
+
+def test_a_label_and_text_areas():
+    class Note(prism.Model):
+        title = prism.label("Notes", heading=True)
+        body = prism.text_area("line one\nline two", rows=4)
+        log = prism.text_area("read me", read_only=True)
+
+        def view(self, vb):
+            vb.vstack(self.title, self.body, self.log)
+
+    n = Note()
+    texts = prism._texts(n)
+    assert "Notes" in texts and "line one" in texts and "read me" in texts
+    n.title.value = "Renamed"
+    assert "Renamed" in prism._texts(n)
+    n.body.value = n.body.value + "\nthree"
+    assert n.body.value.endswith("three")
+    assert n.log.read_only is True
+
+
+def test_tabs_show_the_selected_page():
+    class Book(prism.Model):
+        pages = prism.tabs()
+        a = prism.label("PAGE A")
+        b = prism.label("PAGE B")
+
+        def view(self, vb):
+            vb.tabs(self.pages, [("First", lambda p: p.widget(self.a)), ("Second", lambda p: p.widget(self.b))])
+
+    t = Book()
+    texts = prism._texts(t)
+    assert "PAGE A" in texts and "PAGE B" not in texts and "Second" in texts
+    t.pages.value = 1
+    assert "PAGE B" in prism._texts(t)
+
+
+def test_a_dialog_opens_and_reports_the_button_chosen():
+    class Doc(prism.Model):
+        ask = prism.dialog("Discard edits?", "Unsaved edits will be lost.", ["Discard", "Keep"])
+        body = prism.field("text")
+
+        def view(self, vb):
+            vb.widget(self.body)
+            vb.dialog(self.ask)
+
+    d = Doc()
+    assert d.ask.open is False
+    d.ask.open = True
+    assert "Discard edits?" in prism._texts(d)
+    got = []
+    d.ask.on_choice(got.append)
+    prism._press_keys(d, ["Enter"])   # the first button has the focus
+    assert got == ["Discard"]
+    assert d.ask.open is False
+    assert d.ask.chosen == "Discard"

@@ -1237,6 +1237,21 @@ using BoundComboBox = BoundWidgetValue<ComboBox, std::string>;
 using BoundPopup = BoundWidgetValue<Popup, bool>;                 // .value: open
 using BoundMenu = BoundWidgetValue<Menu, std::int64_t>;               // .value: choices so far
 using BoundDockLayout = BoundWidgetValue<DockLayout, DockLayout>;    // Python sees it as nested dicts
+using BoundLabel = BoundWidgetValue<Label<std::string>, std::string>;
+using BoundTextArea = BoundWidgetValue<TextArea<std::string>, std::string>;
+using BoundTabs = BoundWidgetValue<TabBar<>, std::int64_t>;          // .value: the selected tab
+using BoundDialog = BoundWidgetValue<Dialog, bool>;                  // .value: open
+
+// A handle whose .value is the struct's `value` member (a label's text, a text area's text).
+template <typename H, typename S>
+H make_bound_text(std::shared_ptr<SlotBase> owner, Field<S>* f) {
+    H h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const S& s) { return s.value; };
+    h.write = [](S& s, const std::string& v) { s.value = v; };
+    return h;
+}
 
 // A dock layout as Python sees it: {"panels": [...], "active": 0, "vertical": False,
 // "sizes": [...], "parts": [...]}, nested. Converted on the calling thread (with the GIL), so no
@@ -1877,6 +1892,8 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundButton>(h)) vb.widget(*nb::cast<BoundButton&>(h).field);
     else if (nb::isinstance<BoundComboBox>(h)) vb.widget(*nb::cast<BoundComboBox&>(h).field);
     else if (nb::isinstance<BoundMenu>(h)) vb.widget(*nb::cast<BoundMenu&>(h).field);
+    else if (nb::isinstance<BoundLabel>(h)) vb.widget(*nb::cast<BoundLabel&>(h).field);
+    else if (nb::isinstance<BoundTextArea>(h)) vb.widget(*nb::cast<BoundTextArea&>(h).field);
     else if (nb::isinstance<BoundDerived<int>>(h)) vb.widget_generic<int>(*nb::cast<BoundDerived<int>&>(h).derived);
     else if (nb::isinstance<BoundDerived<double>>(h)) vb.widget_generic<double>(*nb::cast<BoundDerived<double>&>(h).derived);
     else if (nb::isinstance<BoundDerived<std::string>>(h)) vb.widget_generic<std::string>(*nb::cast<BoundDerived<std::string>&>(h).derived);
@@ -2797,6 +2814,39 @@ NB_MODULE(_prism_ext, m) {
         "Bound handle for a Model's right-click menu (place it with vb.context_menu(handle)); as "
         "BoundMenu.");
 
+    bind_widget_value<BoundLabel, std::string>(m, "BoundLabel",
+        "Bound handle for a Model's label: .value is its text.")
+        .def_prop_ro("heading", [](const BoundLabel& h) { return h.state().heading; });
+    bind_widget_value<BoundTextArea, std::string>(m, "BoundTextArea",
+        "Bound handle for a Model's text area: .value is its text.")
+        .def_prop_ro("read_only", [](const BoundTextArea& h) { return h.state().read_only; })
+        .def_prop_ro("rows", [](const BoundTextArea& h) { return h.state().rows; });
+    bind_widget_value<BoundTabs, std::int64_t>(m, "BoundTabs",
+        "Bound handle for a Model's tab bar (place it with vb.tabs(handle, pages)): .value is the "
+        "selected tab's index.");
+    bind_widget_value<BoundDialog, bool>(m, "BoundDialog",
+        "Bound handle for a Model's modal dialog (place it with vb.dialog(handle)): .open shows it; "
+        "on_choice(cb) runs cb(button) when the user picks a button.")
+        .def_prop_rw("open", &BoundDialog::get, &validated_set<BoundDialog, bool>)
+        .def_prop_ro("chosen", [](const BoundDialog& h) -> std::optional<std::string> {
+            auto d = h.state();
+            if (!d.chosen || *d.chosen >= d.buttons.size()) return std::nullopt;
+            return d.buttons[*d.chosen];
+        }, "The button the user picked last, or None (closed with Escape, or not answered yet).")
+        .def("on_choice", [](nb::object self, nb::callable cb) {
+            auto& h = nb::cast<BoundDialog&>(self);
+            if (!h.field) throw nb::value_error("on_choice(): handle is not bound to a Model");
+            auto* f = h.field;
+            auto last = std::make_shared<std::uint64_t>(f->get().activations);
+            auto conn = f->on_change().connect([wc = WeakCallback(cb), last](const Dialog& d) {
+                if (d.activations == *last) return;
+                *last = d.activations;
+                if (d.chosen && *d.chosen < d.buttons.size()) wc(d.buttons[*d.chosen]);
+            });
+            if (h.owner) conn.keep_alive(h.owner);
+            return keep_connection(self, std::move(conn), cb);
+        }, nb::arg("callback"), "Runs callback(button) on the logic thread when the user picks a button.");
+
     nb::class_<BoundDockLayout>(m, "BoundDockLayout", nb::dynamic_attr(), nb::is_weak_referenceable(),
         "Bound handle for a Model's dock layout (prism.dock_layout): .value is the layout as nested "
         "dicts; the user's moves, split sizes and tab choices show up in it. Place the dock with "
@@ -2923,6 +2973,39 @@ NB_MODULE(_prism_ext, m) {
              "and takes no input. drag: a callable giving the Python object a drag from this "
              "widget carries (None: nothing to drag). drop: callable(value, x, y) for objects "
              "dropped here, of type accepts (a type or tuple of types; any object if None).")
+        .def("tabs", [](ViewBuilder& vb, nb::object h, nb::list pages) {
+                if (!nb::isinstance<BoundTabs>(h)) throw nb::type_error("ViewBuilder.tabs: needs a prism.tabs() handle");
+                std::vector<std::pair<std::string, std::shared_ptr<PyHolder>>> built;
+                for (auto item : pages) {
+                    auto t = nb::cast<nb::tuple>(item);
+                    if (t.size() != 2) throw nb::type_error("ViewBuilder.tabs: each page is (title, fn)");
+                    built.push_back({nb::cast<std::string>(t[0]), std::make_shared<PyHolder>(nb::borrow<nb::object>(t[1]))});
+                }
+                vb.tabs(*nb::cast<BoundTabs&>(h).field, [&] {
+                    for (auto& [title, holder] : built)
+                        // Built on the logic thread when the page is shown: take the GIL there.
+                        vb.tab(title, [holder](ViewBuilder& inner) {
+                            nb::gil_scoped_acquire gil;
+                            try { holder->obj(nb::cast(&inner, nb::rv_policy::reference)); }
+                            catch (...) { report_python_callback_error(); }
+                        });
+                });
+            }, nb::arg("handle"), nb::arg("pages"),
+             "Tabs: pages, a list of (title, fn) where fn(vb) places the page's widgets; the handle's "
+             ".value is the selected page.")
+        .def("dialog", [](ViewBuilder& vb, nb::object h, nb::object content) {
+                if (!nb::isinstance<BoundDialog>(h)) throw nb::type_error("ViewBuilder.dialog: needs a prism.dialog() handle");
+                auto& d = *nb::cast<BoundDialog&>(h).field;
+                if (content.is_none()) return vb.dialog(d);
+                auto holder = std::make_shared<PyHolder>(std::move(content));
+                vb.dialog(d, [holder](ViewBuilder& inner) {
+                    nb::gil_scoped_acquire gil;
+                    try { holder->obj(nb::cast(&inner, nb::rv_policy::reference)); }
+                    catch (...) { report_python_callback_error(); }
+                });
+            }, nb::arg("handle"), nb::arg("content") = nb::none(),
+             "A modal dialog, shown when the handle's .open is True; content(vb), if given, places a "
+             "form between its message and its buttons.")
         .def("dock", [](ViewBuilder& vb, nb::object h, nb::list panels) {
                 if (!nb::isinstance<BoundDockLayout>(h))
                     throw nb::type_error("ViewBuilder.dock: needs a prism.dock_layout() handle");
@@ -3063,6 +3146,39 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(ContextMenu{.items = py_menu_items(items)});
                 return make_bound_menu(std::move(owner), p);
             }, nb::arg("items"))
+        .def("_add_label_internal", [](PyModel& self, std::string text, bool heading){
+                auto [owner, p] = self.add_widget_slot(Label<std::string>{.value = std::move(text), .heading = heading});
+                return make_bound_text<BoundLabel>(std::move(owner), p);
+            }, nb::arg("text"), nb::arg("heading"))
+        .def("_add_text_area_internal", [](PyModel& self, std::string text, std::size_t rows, bool read_only,
+                                           std::string placeholder){
+                auto [owner, p] = self.add_widget_slot(TextArea<std::string>{
+                    .value = std::move(text), .placeholder = std::move(placeholder), .rows = rows,
+                    .read_only = read_only, .font = read_only ? FontRole::Ui : FontRole::Mono});
+                return make_bound_text<BoundTextArea>(std::move(owner), p);
+            }, nb::arg("text"), nb::arg("rows"), nb::arg("read_only"), nb::arg("placeholder"))
+        .def("_add_tabs_internal", [](PyModel& self, std::int64_t selected){
+                auto [owner, p] = self.add_widget_slot(TabBar<>{.selected = static_cast<std::size_t>(selected)});
+                BoundTabs h;
+                h.owner = std::move(owner);
+                h.field = p;
+                h.read = [](const TabBar<>& t) { return static_cast<std::int64_t>(t.selected); };
+                h.write = [](TabBar<>& t, const std::int64_t& v) { t.selected = static_cast<std::size_t>(std::max<std::int64_t>(0, v)); };
+                return h;
+            }, nb::arg("selected"))
+        .def("_add_dialog_internal", [](PyModel& self, std::string title, std::string message, std::vector<std::string> buttons){
+                auto [owner, p] = self.add_widget_slot(Dialog{.title = std::move(title), .message = std::move(message),
+                                                              .buttons = std::move(buttons)});
+                BoundDialog h;
+                h.owner = std::move(owner);
+                h.field = p;
+                h.read = [](const Dialog& d) { return d.open; };
+                h.write = [](Dialog& d, const bool& v) {
+                    if (v && !d.open) d.chosen.reset();   // a new question: no answer yet
+                    d.open = v;
+                };
+                return h;
+            }, nb::arg("title"), nb::arg("message"), nb::arg("buttons"))
         .def("_add_dock_layout_internal", [](PyModel& self, nb::handle value){
                 auto [owner, p] = self.add_widget_slot(DockLayout{dock_from_py(value)});
                 BoundDockLayout h;
@@ -3230,9 +3346,12 @@ NB_MODULE(_prism_ext, m) {
         auto snap = tree.build_snapshot(600, 400, 1);
         snap = tree.build_snapshot(600, 400, 2);
         std::vector<std::string> out;
-        for (auto& dl : snap->draw_lists)
-            for (auto& c : dl->commands)
+        auto collect = [&](const prism::render::DrawList& dl) {
+            for (auto& c : dl.commands)
                 if (auto* t = std::get_if<prism::render::TextCmd>(&c)) out.push_back(t->text);
+        };
+        for (auto& dl : snap->draw_lists) collect(*dl);
+        collect(snap->overlay);   // popups and dialogs
         return out;
     }, nb::arg("model"));
     // Test helper: drags from the widget showing `from` to the one showing `to` (its centre, or
