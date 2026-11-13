@@ -145,8 +145,8 @@ std::expected<void, std::string> save_settings(const S& settings, const std::fil
 // (a slider being dragged) into one write, done on a thread of its own. Closing it writes the
 // last change. Fields are read on the thread that changes them (the logic thread).
 // A file that does not parse is kept beside it as "<file>.broken", and the defaults are used.
-// simplify: in the browser the file lives in memory and is gone on reload; persisting it needs
-// IndexedDB (Emscripten's IDBFS) and a sync after each write.
+// In the browser, the settings folder (settings_dir) is kept in the page's IndexedDB
+// (src/backends/web_settings.js).
 template <typename S>
 class SettingsFile {
 public:

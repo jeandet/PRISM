@@ -136,7 +136,9 @@ if host_machine.system() == 'emscripten'
   # from fonttools.
   text_ranges = 'U+0000-02FF,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-2BFF,U+FB00-FB06,U+FFFD'
   web_fonts = []
-  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1']
+  app_link_args = ['-sJSPI', '-sPTHREAD_POOL_SIZE=1',
+                   # settings kept in the page's IndexedDB (backends/web_settings.js says how)
+                   '-lidbfs.js', '--pre-js=' + (meson.current_source_dir() / 'backends' / 'web_settings.js')]
   foreach f : [[ui_font_path, 'web_ui_font.ttf', text_ranges],
                [mono_font_path, 'web_mono_font.ttf', text_ranges + ',U+F07B,U+F15B']]
     t = custom_target(f[1],
