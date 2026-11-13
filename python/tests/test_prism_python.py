@@ -4077,6 +4077,18 @@ def test_a_submenu_item_is_reported_and_greyed_by_its_label():
     assert e.file.items == ["New", "Recent"]
 
 
+def test_a_button_shortcut_presses_it():
+    class Form(prism.Model):
+        run = prism.button("Run", shortcut="F5")
+
+        def view(self, vb):
+            vb.widget(self.run)
+
+    f = Form()
+    prism._press_keys(f, ["F5"])
+    assert f.run.value == 1
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

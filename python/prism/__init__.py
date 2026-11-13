@@ -481,7 +481,7 @@ class _FieldDescriptor(_Descriptor):
             m = self.meta
             h = instance._add_progress_internal(self.default, m["min"], m["max"], m["label"], m["busy"])
         elif self.kind == "button":
-            h = instance._add_button_internal(self.meta["text"], self.meta["icon"])
+            h = instance._add_button_internal(self.meta["text"], self.meta["icon"], self.meta["shortcut"])
         elif self.kind == "combobox":
             h = instance._add_combobox_internal(self.default, self.meta["options"], self.meta["placeholder"])
         elif self.kind == "popup":
@@ -630,14 +630,16 @@ def progress(default=0.0, min=0.0, max=1.0, label="", validator=None, *, busy=Fa
     ), tooltip)
 
 
-def button(text, icon=None, *, tooltip=None):
+def button(text, icon=None, *, shortcut="", tooltip=None):
     """A push button (C++ ``Button``). ``.value`` counts the clicks, so
     ``handle.observe(cb)`` runs ``cb`` on each click. ``icon`` is an image file
     (PNG, JPEG, SVG) drawn left of the text; one that cannot be read raises
-    ``ValueError`` when the Model is created.
+    ``ValueError`` when the Model is created. ``shortcut`` ("F5", "Ctrl+Enter") presses it
+    from anywhere in the window, and is shown after the text.
     """
     return _tooltipped(_FieldDescriptor(
-        0, kind="button", meta={"text": str(text), "icon": None if icon is None else str(icon)}
+        0, kind="button", meta={"text": str(text), "icon": None if icon is None else str(icon),
+                                "shortcut": str(shortcut)}
     ), tooltip)
 
 

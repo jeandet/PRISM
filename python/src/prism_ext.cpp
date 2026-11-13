@@ -3240,16 +3240,23 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(ProgressBar{.value = v, .min = mn, .max = mx, .label = std::move(label), .busy = busy});
                 return make_bound_progress(std::move(owner), p);
             }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("label"), nb::arg("busy") = false)
-        .def("_add_button_internal", [](PyModel& self, std::string text, std::optional<std::string> icon){
+        .def("_add_button_internal", [](PyModel& self, std::string text, std::optional<std::string> icon, std::string keys){
                 std::shared_ptr<const prism::render::Image> img;
                 if (icon) {
                     auto loaded = prism::render::load_image(*icon, Size{Width{16}, Height{16}});
                     if (!loaded) throw nb::value_error(("button icon: " + loaded.error()).c_str());
                     img = *loaded;
                 }
-                auto [owner, p] = self.add_widget_slot(Button{.text = std::move(text), .click_count = 0, .icon = std::move(img)});
+                prism::ui::Shortcut shortcut{};
+                if (!keys.empty()) {
+                    auto s = prism::ui::parse_shortcut(keys);
+                    if (!s) throw nb::value_error(("button \"" + text + "\": unknown shortcut \"" + keys + "\"").c_str());
+                    shortcut = *s;
+                }
+                auto [owner, p] = self.add_widget_slot(Button{.text = std::move(text), .click_count = 0, .icon = std::move(img),
+                                                              .shortcut = shortcut});
                 return make_bound_button(std::move(owner), p);
-            }, nb::arg("text"), nb::arg("icon") = nb::none())
+            }, nb::arg("text"), nb::arg("icon") = nb::none(), nb::arg("shortcut") = "")
         .def("_add_combobox_internal", [](PyModel& self, std::string v, std::vector<std::string> options, std::string placeholder){
                 auto [owner, p] = self.add_widget_slot(ComboBox{.value = std::move(v), .placeholder = std::move(placeholder),
                                                                 .max_length = 0, .options = std::move(options)});

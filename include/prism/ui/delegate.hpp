@@ -727,6 +727,7 @@ struct Button {
     // icon-only button has empty text: give it a tooltip so it still has a name.
     std::shared_ptr<const Image> icon{};
     bool primary = true;   // false: a quieter button beside the main one (a dialog's Cancel)
+    Shortcut shortcut{};   // presses it from anywhere in the window, shown after the text
     bool operator==(const Button&) const = default;
 };
 
@@ -739,8 +740,11 @@ struct Widget<Button> {
         const auto& b = f.get();
         if (b.text.empty() && b.icon) return 32.f;   // an icon alone: square
         float icon = b.icon ? icon_size + icon_gap : 0.f;
-        return std::max(48.f, 16.f + icon + text_width(node_theme(n).measurer, b.text, 14.f));   // 8 pt each side
+        const auto* m = node_theme(n).measurer;
+        float keys = b.shortcut.key ? shortcut_gap + text_width(m, shortcut_text(b.shortcut), 14.f) : 0.f;
+        return std::max(48.f, 16.f + icon + text_width(m, b.text, 14.f) + keys);   // 8 pt each side
     }
+    static constexpr float shortcut_gap = 12.f;   // between the text and the shortcut
     static constexpr Role access_role = Role::Button;
     static void describe(const Field<Button>& f, AccessInfo& a) { a.name = f.get().text; }
 
@@ -761,8 +765,21 @@ struct Widget<Button> {
             x += icon_size + icon_gap;
         }
         if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, fg);
+        if (b.shortcut.key) {
+            auto keys = shortcut_text(b.shortcut);
+            float kx = w.raw() - 8.f - text_width(t.measurer, keys, 14.f);
+            dl.text(keys, delegate_detail::make_point(X{kx}, Y{7}), 14, b.primary ? fg : t.text_muted);
+        }
         if (vs.focused)
             delegate_detail::draw_focus_ring(dl, w, Height{32}, t);
+    }
+
+    static bool try_shortcut(Field<Button>& field, const KeyPress& kp, WidgetNode&) {
+        if (!matches(field.get().shortcut, kp)) return false;
+        auto btn = field.get();
+        btn.click_count++;
+        field.set(btn);
+        return true;
     }
 
     static void handle_input(Field<Button>& field, const InputEvent& ev, WidgetNode& node) {

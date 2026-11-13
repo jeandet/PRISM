@@ -198,3 +198,38 @@ TEST_CASE("a shortcut parses from the way people write it, and back") {
     CHECK_FALSE(parse_shortcut("Ctrl+Banana"));
     CHECK_FALSE(parse_shortcut("Hyper+S"));
 }
+
+namespace {
+struct Toolbar {
+    Field<bool> can_run{true};
+    Field<Button> run{{.text = "Run", .shortcut = {keys::f5, 0}}};
+    Field<TextField<>> code{{}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.widget(run).enabled(can_run);
+            vb.widget(code);
+        });
+    }
+};
+
+bool draws_text(const SceneSnapshot& snap, std::string_view text) {
+    for (auto& dl : snap.draw_lists)
+        for (auto& c : dl->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->text == text) return true;
+    return false;
+}
+}
+
+TEST_CASE("a button's shortcut presses it from anywhere, and the button shows it") {
+    Toolbar m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(500, 300, 1);
+    CHECK(draws_text(*snap, "F5"));
+    tree.set_focused(tree.leaf_ids()[1]);   // typing in the text field
+    route_event(tree, snap.get(), KeyPress{keys::f5, 0});
+    CHECK(m.run.get().click_count == 1);
+    m.can_run.set(false);
+    snap = tree.build_snapshot(500, 300, 2);
+    route_event(tree, snap.get(), KeyPress{keys::f5, 0});
+    CHECK(m.run.get().click_count == 1);   // greyed out: the shortcut does nothing
+}
