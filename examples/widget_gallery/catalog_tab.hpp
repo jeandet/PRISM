@@ -33,6 +33,19 @@ struct Samples {
     prism::core::Field<Shape> dropdown{Shape::Triangle};
     prism::core::Field<prism::ui::Label<>> label{{"A label: read-only text"}};
     prism::core::Field<prism::ui::Label<>> heading{{.value = "A heading", .heading = true}};
+    prism::core::Field<prism::ui::Label<>> wrapped{{.value = "A label with .wrap breaks into lines to fit its width, "
+                                                             "and grows as tall as they are.", .wrap = true}};
+    prism::core::Field<prism::ui::Choice> port{{.options = {"/dev/ttyUSB0", "/dev/ttyUSB1", "COM3"},
+                                                .placeholder = "Pick a port"}};
+    prism::core::Field<prism::ui::Link> link{{.text = "PRISM on GitHub", .url = "https://github.com/jeandet/PRISM"}};
+    prism::core::Field<prism::ui::Picture> picture{{.image = picture_of("info.svg", 64), .description = "An info sign"}};
+    prism::core::Field<prism::ui::Button> toggle{{.text = "Bold", .primary = false, .checked = false}};
+    prism::core::Field<prism::ui::Button> tool_open{{.text = "", .icon = icon("folder.svg"), .primary = false}};
+    prism::core::Field<prism::ui::Button> tool_bold{{.text = "Bold", .primary = false, .checked = true}};
+    prism::core::Field<prism::ui::Label<>> status{{"Saved"}};
+    prism::core::Field<prism::ui::Checkbox> grouped{{.checked = true, .label = "Inside a group"}};
+    prism::core::Field<prism::ui::Expander> advanced{{.title = "Advanced"}};
+    prism::core::Field<prism::ui::Checkbox> verbose{{.checked = false, .label = "Verbose logs"}};
     prism::core::Field<prism::ui::ProgressBar> progress{{.value = 0.7, .label = "70%"}};
     prism::core::Field<prism::ui::ProgressBar> busy{{.value = 0.0, .busy = true}};
     prism::core::Field<prism::ui::Button> button{{.text = "Save", .icon = icon("save.svg")}};
@@ -108,14 +121,33 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<ui::Radio<Shape>> shape{{Shape::Square}};", one(s.radio)},
         E{"Dropdown", "Inputs", "Any enum field: one choice, shown when opened.",
           "core::Field<Shape> shape{Shape::Triangle};", one(s.dropdown)},
+        E{"Choice", "Inputs", "One of a list known only at run time (ports, recent files); nothing else, unlike a ComboBox.",
+          "core::Field<ui::Choice> port{{.options = ports(), .placeholder = \"Pick a port\"}};", one(s.port)},
         E{"Display", "", "Widgets that show something: text, progress, actions.", "", nullptr},
-        E{"Label", "Display", "Read-only text. .heading makes a title.",
-          "core::Field<ui::Label<>> status{{\"Ready\"}};", [&s](Vb& vb) { vb.vstack(s.heading, s.label); }},
+        E{"Label", "Display", "Read-only text. .heading makes a title; .wrap breaks it into lines.",
+          "core::Field<ui::Label<>> status{{\"Ready\"}};", [&s](Vb& vb) { vb.vstack(s.heading, s.label, s.wrapped); }},
+        E{"Link", "Display", "Text that opens its URL in the browser; .value counts the clicks either way.",
+          "core::Field<ui::Link> docs{{.text = \"Docs\", .url = \"https://...\"}};", one(s.link)},
+        E{"Picture", "Display", "An image on its own, at its size or fitted into .size with its proportions kept.",
+          "core::Field<ui::Picture> logo{{.image = *render::load_image(\"logo.png\")}};", one(s.picture)},
         E{"ProgressBar", "Display", "How far along work is; .busy for work of unknown length.",
           "core::Field<ui::ProgressBar> done{{.value = 0.7}};", [&s](Vb& vb) { vb.vstack(s.progress, s.busy); }},
-        E{"Button", "Display", "An action: .value counts clicks, on_change() runs on each. .icon draws an image, .primary = false is quieter.",
+        E{"Button", "Display", "An action: .value counts clicks, on_change() runs on each. .icon draws an image, .primary = false is quieter, .shortcut presses it from anywhere, and .checked makes a toggle.",
           "core::Field<ui::Button> save{{.text = \"Save\", .icon = icon}};",
-          [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.button); vb.gap(8.f); vb.widget(s.quiet); vb.spacer(); }); }},
+          [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.button); vb.gap(8.f); vb.widget(s.quiet); vb.gap(8.f); vb.widget(s.toggle); vb.spacer(); }); }},
+        E{"Layout", "", "Containers with a look of their own.", "", nullptr},
+        E{"Toolbar", "Layout", "A row of tools across the window, on its chrome colour; toggles stay pressed.",
+          "vb.toolbar([&] { vb.widget(open); vb.widget(bold); });",
+          [&s](Vb& vb) { vb.toolbar([&] { vb.widget(s.tool_open); vb.widget(s.tool_bold); vb.spacer(); }); }},
+        E{"StatusBar", "Layout", "A row of short status texts, usually last in the window.",
+          "vb.status_bar([&] { vb.widget(status); });",
+          [&s](Vb& vb) { vb.status_bar([&] { vb.widget(s.status); vb.spacer(); }); }},
+        E{"Group", "Layout", "Widgets that belong together, outlined under a title.",
+          "vb.group(\"Options\", [&] { vb.widget(wrap); });",
+          [&s](Vb& vb) { vb.group("Options", [&] { vb.widget(s.grouped); }); }},
+        E{"Section", "Layout", "A titled part the user folds and unfolds; its content exists only while open.",
+          "vb.section(advanced, [&](auto& inner) { inner.widget(verbose); });",
+          [&s](Vb& vb) { vb.section(s.advanced, [&s](Vb& inner) { inner.widget(s.verbose); }); }},
         E{"Popups", "", "Things drawn above the window: menus, dialogs, popovers, tooltips.", "", nullptr},
         E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it. An item can have an icon, a shortcut (Ctrl+S works from anywhere), a check mark, or be greyed out; {.separator = true} draws a line, and .items opens a submenu.",
           "core::Field<ui::Menu> file{{.title = \"&File\", .items = {\n    {.text = \"&Save\", .shortcut = {keys::s, mods::ctrl}},\n    {.separator = true},\n    {.text = \"&Word wrap\", .checked = true}}}};",

@@ -20,15 +20,17 @@ class Dashboard(prism.Model):
     tree = prism.tree_field(DictTreeSource(TREE_DATA, roots=["Device"]))
     frequency = prism.slider(2.0, min=0.1, max=10.0)
     amplitude = prism.slider(1.0, min=0.1, max=3.0)
-    auto_sweep = prism.checkbox(False, label="Auto sweep")
-    status = prism.field("Dashboard ready")
+    auto_sweep = prism.button("Sweep", checked=False, tooltip="Sweep the frequency (a toggle)")
+    status = prism.label("Dashboard ready")
+    details = prism.expander("Device tree", open=True)
     tick = prism.shared(0)
 
     def view(self, vb):
-        vb.hstack(self.frequency, self.amplitude, self.auto_sweep)
-        vb.widget(self.status)
+        vb.toolbar(lambda: vb.widget(self.auto_sweep))
+        vb.group("Signal", lambda: vb.hstack(self.frequency, self.amplitude))
         vb.canvas(self.plot)
-        vb.tree(self.tree)
+        vb.section(self.details, lambda inner: inner.tree(self.tree))
+        vb.status_bar(lambda: vb.widget(self.status))
 
     @prism.on_change(frequency, amplitude, tick, immediate=True)
     def rebuild_plot(self):
@@ -44,7 +46,7 @@ m = Dashboard()
 
 
 def sweeper():
-    if m.auto_sweep.value:
+    if m.auto_sweep.checked:
         m.tick.value = (m.tick.value + 1) % 1000
         m.frequency.value = 2.0 + 1.5 * math.sin(m.tick.value * 0.02)
 

@@ -157,8 +157,17 @@ struct Editor {
     core::Field<ui::RadioGroup>   units{{.options = {"Metric", "Imperial"}}};   // radio buttons, from strings
     core::Field<ui::SpinBox<int>> copies{{.value = 1, .min = 1, .max = 99}};    // number with steppers
     core::Field<ui::ProgressBar>  done{{.value = 0.4, .label = "Exporting"}};   // progress; .busy for unknown length
+    core::Field<ui::Choice>       port{{.options = {"COM1", "COM3"}}};         // one of a list known at run time
+    core::Field<ui::Button>       bold{{.text = "Bold", .checked = false}};     // a toggle: stays pressed
+    core::Field<ui::Label<>>      help{{.value = "Long help...", .wrap = true}}; // wraps to its width
+    core::Field<ui::Link>         docs{{.text = "Docs", .url = "https://..."}};  // opens in the browser
+    core::Field<ui::Picture>      logo{{.image = image}};                       // an image, fitted to .size
+    core::Field<ui::Expander>     more{{.title = "Advanced"}};                  // vb.section(more, fn): folds
 };
 ```
+
+Containers with a look of their own: `vb.toolbar(fn)`, `vb.status_bar(fn)`, `vb.group("Title", fn)`,
+and `vb.section(expander, fn)`, whose content exists only while it is open.
 
 <p align="center"><img src="doc/screenshots/form.svg" alt="Radio buttons, spin boxes, a combo box and a progress bar" width="360"/></p>
 
@@ -678,7 +687,12 @@ with prism.transaction():                       # one publish for both changes
 | `prism.radio(default, options=[...])` | `Field<RadioGroup>` | `.value` is the chosen option string |
 | `prism.spinbox(default, min, max, step)` | `Field<SpinBox<int64_t>>` / `Field<SpinBox<double>>` | int when `default` and `step` are ints |
 | `prism.progress(default, label=...)` | `Field<ProgressBar>` | display only; `busy=True` for unknown length |
-| `prism.button(text, icon=path)` | `Field<Button>` | `.value` counts clicks |
+| `prism.button(text, icon=path, shortcut="F5", checked=None)` | `Field<Button>` | `.value` counts clicks; `checked=False` makes a toggle (`.checked`) |
+| `prism.choice(options, placeholder=)` | `Field<Choice>` | `.value` is the option or None; `.options` can change |
+| `prism.link(text, url=)` | `Field<Link>` | opens the URL; `.value` counts clicks |
+| `prism.picture(path, width=, height=)` | `Field<Picture>` | `.load(path)` shows another file |
+| `prism.expander(title)` + `vb.section(h, fn)` | `Field<Expander>` + `vb.section` | content built only while open |
+| `vb.toolbar(fn)`, `vb.status_bar(fn)`, `vb.group(title, fn)` | the same | containers with a look |
 | `prism.combobox(default, options=[...])` | `Field<ComboBox>` | free text with suggestions |
 | `prism.popup(modal=True)` + `vb.popup(h, fn)` | `Field<Popup>` + `ViewBuilder::popup` | `.open` shows it |
 | `prism.menu("&File", items)` | `Field<Menu>` | items: `"Open"`, `"-"`, or `{"text", "shortcut": "Ctrl+S", "enabled", "checked", "icon"}`; `.on_choice(cb)` gets the label |
@@ -688,7 +702,7 @@ with prism.transaction():                       # one publish for both changes
 | `vb.widget(h, drag=fn, drop=fn, accepts=Type)` | `.drag_source`, `.drop_target` | `drag()` gives any Python object; `drop(value, x, y)` |
 | `vb.list(h, reorderable=True)` | `vb.list(items).reorderable()` | rows dragged into another order |
 | `prism.dock_layout(prism.dock_split(prism.dock_group("a"), ...))` + `vb.dock(h, [(name, title, fn), ...])` | `Field<DockLayout>` + `vb.dock` | `.value` is the layout as nested dicts |
-| `prism.label(text, heading=False)` | `Field<Label<>>` | display only |
+| `prism.label(text, heading=False, wrap=False)` | `Field<Label<>>` | display only; `wrap` breaks it into lines |
 | `prism.text_area(text, rows=6, read_only=False)` | `Field<TextArea<>>` | read-only: selectable, UI font |
 | `prism.tabs()` + `vb.tabs(h, [(title, fn), ...])` | `Field<TabBar<>>` + `vb.tabs` | `.value` is the selected page |
 | `prism.dialog(title, message, buttons)` + `vb.dialog(h, content=None)` | `Field<Dialog>` + `vb.dialog` | `.open = True` asks; `.on_choice(cb)` gets the button |

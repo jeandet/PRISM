@@ -55,8 +55,8 @@ struct NotesApp {
                                          .message = "Reloading discards your edits.",
                                          .buttons = {"Discard", "Cancel"}}};
     core::Field<ui::TextField<>> search{{.placeholder = "Find in file..."}};
-    core::Field<ui::Button> save{{"Save"}};
-    core::Field<ui::Button> reload{{"Reload"}};
+    core::Field<ui::Button> save{{.text = "Save", .primary = false}};
+    core::Field<ui::Button> reload{{.text = "Reload", .primary = false}};
     core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
     core::Field<ui::Label<>> status{{"No file open"}};
     NotesStats stats{body};
@@ -128,12 +128,16 @@ struct NotesApp {
                     vb.widget(file_menu);
                     vb.widget(search_menu);
                     vb.widget(view_menu);
-                    vb.widget(search).tooltip("Highlights every match in the file");
+                    vb.spacer();
+                });
+                vb.toolbar([&] {
                     vb.widget(save).enabled(modified).tooltip("Write the file to disk (Ctrl+S)");
                     vb.widget(reload).tooltip("Read the file again, dropping unsaved edits");
+                    vb.widget(search).tooltip("Highlights every match in the file");
                 });
                 vb.widget(body);
-                vb.widget(status);
+                vb.spacer();
+                vb.status_bar([&] { vb.widget(status); vb.spacer(); });
                 vb.context_menu(editor_menu);
                 vb.dialog(discard);
                 vb.dialog(rename_dialog, [&](app::WidgetTree::ViewBuilder& d) { d.widget(new_name).focus_on_open(); });

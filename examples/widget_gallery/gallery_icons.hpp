@@ -20,4 +20,11 @@ inline std::shared_ptr<const prism::render::Image> icon(const char* name) {
     return img ? prism::render::symbolic(*img) : nullptr;
 }
 
+// The same icon file, larger and as drawn (not one-color): a sample image for ui::Picture.
+inline std::shared_ptr<const prism::render::Image> picture_of(const char* name, float px) {
+    auto img = prism::render::load_image(std::string(GALLERY_ICON_DIR) + "/" + name,
+                                         prism::core::Size{prism::core::Width{px}, prism::core::Height{px}});
+    return img ? *img : nullptr;
+}
+
 } // namespace gallery

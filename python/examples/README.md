@@ -57,7 +57,7 @@ PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py --headle
 | `05_lists_and_derived.py` | `list_field()` `push`/`erase`/`observe_*`, `derived()` over scalars |
 | `06_live_plot.py` | `plot_field()` + `canvas(plot)`, `replace_series()`/`set_labels()`, `@prism.on_change` rebuilding from slider deps, sliders + a jittering worker |
 | `07_file_tree.py` | `tree_field(source)` + `tree(ctrl)`, a `TreeSource` Python object, lazy expansion |
-| `08_dashboard.py` | Plot + Tree + slider controls composed via one custom `view()` |
+| `08_dashboard.py` | Plot + Tree + slider controls composed via one custom `view()`: a toolbar toggle, a group, a folding section and a status bar |
 | `09_headless_multithread_stress.py` | 8-thread `ThreadPoolExecutor` storm over `shared`/`channel`/`field`/`derived`, no display; also the `3.14t` free-threaded CI check |
 | `10_worker_pool_plot.py` | `ThreadPoolExecutor(max_workers=4)` computing a pure-Python (`cmath`) FFT spectrum per window inside a `prism.worker`, each window posted via `plot.replace_series()`, `--headless` mode |
 | `11_error_handling.py` | `prism.on_error(handler)`, an observer + a worker that raise, `--headless` mode |

@@ -75,6 +75,10 @@ struct SystemMonitor {
     core::List<std::string> event_log;
 
     core::Field<float> heartbeat_phase{0.f};
+    core::Field<ui::Label<>> summary{{"Waiting for the first sample…"}};   // the status bar's text
+    float last_cpu = 0.f;
+    double last_mem_mb = 0.0, total_mem_mb = 0.0;
+    std::size_t process_count = 0;
 
     SystemMonitor() { plot_group.x_tick_format = format_seconds_ago; }
 
@@ -98,10 +102,21 @@ struct SystemMonitor {
         rebuild_plot(*cpu_plot, cpu_history, /*fill=*/true);
         rebuild_plot(*mem_plot, mem_history);
         rebuild_plot(*net_plot, net_history);
+        last_cpu = s.cpu_percent;
+        last_mem_mb = s.mem_used_mb;
+        total_mem_mb = s.mem_total_mb;
+        refresh_summary();
+    }
+
+    void refresh_summary() {
+        summary.set({fmt::format("CPU {:.0f}%  ·  memory {:.1f} / {:.1f} GB  ·  {} processes", last_cpu,
+                                 last_mem_mb / 1024.0, total_mem_mb / 1024.0, process_count)});
     }
 
     void ingest_processes(const std::vector<ProcessInfo>& processes) {
         process_table.update(processes);
+        process_count = processes.size();
+        refresh_summary();
         process_revision.set(process_revision.get() + 1);
         tree_source.update(processes);
         tree_ctrl.refresh();
@@ -159,7 +174,11 @@ struct SystemMonitor {
                 {"tree", "Tree", [&](app::WidgetTree::ViewBuilder& p) { p.tree(tree_ctrl); }},
                 {"events", "Events", [&](app::WidgetTree::ViewBuilder& p) { p.list(event_log); }},
             });
-            vb.canvas(*this).depends_on(heartbeat_phase).min_size(core::Height{24});
+            vb.status_bar([&] {
+                vb.canvas(*this).depends_on(heartbeat_phase).min_size(core::Width{24});
+                vb.widget(summary);
+                vb.spacer();
+            });
         });
     }
 };
