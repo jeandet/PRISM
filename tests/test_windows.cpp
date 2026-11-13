@@ -6,10 +6,12 @@
 #include <prism/app/model_app.hpp>
 #include <prism/ui/dock.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <map>
 #include <mutex>
+#include <thread>
 
 using namespace prism;
 using namespace prism::app;
@@ -81,13 +83,14 @@ TEST_CASE("a second window shows its own model, and follows the first one's fiel
     auto impl = std::make_unique<Windows>();
     auto* b = impl.get();
     WindowId second = 0;
-    AppContext* ctx = nullptr;
+    std::atomic<AppContext*> ctx{nullptr};   // set on the logic thread, read by the backend's
     b->script.push_back([&](auto&) {
         REQUIRE(b->wait_for([&] { return b->last.contains(2); }));
         CHECK(shows(b->last[2].get(), "echo: hello"));
     });
     b->script.push_back([&](auto&) {
-        ctx->post([&] { main.text.set({.value = "world"}); });
+        while (!ctx.load()) std::this_thread::yield();   // the first frame can come before setup
+        ctx.load()->post([&] { main.text.set({.value = "world"}); });
         CHECK(b->wait_for([&] { return shows(b->last[2].get(), "echo: world"); }));
     });
     Backend backend{std::move(impl)};
@@ -104,14 +107,15 @@ TEST_CASE("closing a second window removes it; the app goes on") {
     Echo echo{main};
     auto impl = std::make_unique<Windows>();
     auto* b = impl.get();
-    AppContext* ctx = nullptr;
+    std::atomic<AppContext*> ctx{nullptr};   // set on the logic thread, read by the backend's
     WindowId second = 0;
     bool open_after = true;
     b->script.push_back([&](auto& send) {
         REQUIRE(b->wait_for([&] { return b->last.contains(2); }));
         send({2, WindowClose{}});
         std::atomic<bool> done{false};
-        ctx->post([&] { open_after = ctx->window_open(second); done = true; });
+        while (!ctx.load()) std::this_thread::yield();   // the first frame can come before setup
+        ctx.load()->post([&] { open_after = ctx.load()->window_open(second); done = true; });
         auto end = std::chrono::steady_clock::now() + 2s;
         while (!done && std::chrono::steady_clock::now() < end) std::this_thread::sleep_for(1ms);
     });
@@ -162,9 +166,10 @@ TEST_CASE("a floating panel opens in its own window; closing it docks the panel 
     windows_test::Docked model;
     auto impl = std::make_unique<Windows>();
     auto* b = impl.get();
-    AppContext* ctx = nullptr;
+    std::atomic<AppContext*> ctx{nullptr};   // set on the logic thread, read by the backend's
     b->script.push_back([&](auto&) {
-        ctx->post([&] { model.layout.set(float_panel(model.layout.get(), "log")); });
+        while (!ctx.load()) std::this_thread::yield();   // the first frame can come before setup
+        ctx.load()->post([&] { model.layout.set(float_panel(model.layout.get(), "log")); });
         REQUIRE(b->wait_for([&] { return b->last.contains(2); }));
         CHECK(b->wait_for([&] { return shows(b->last[2].get(), "LOG"); }));
         CHECK(b->wait_for([&] { return !shows(b->last[1].get(), "LOG"); }));   // gone from the dock
