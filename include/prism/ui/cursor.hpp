@@ -4,6 +4,6 @@
 
 namespace prism::ui {
 
-enum class CursorShape : uint8_t { Default, Text, ResizeNS, ResizeEW, ResizeNESW, ResizeNWSE };
+enum class CursorShape : uint8_t { Default, Text, ResizeNS, ResizeEW, ResizeNESW, ResizeNWSE, NotAllowed };
 
 } // namespace prism::ui

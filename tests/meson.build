@@ -77,6 +77,7 @@ headless_tests = {
   'image' : files('test_image.cpp'),
   'popup' : files('test_popup.cpp'),
   'enabled' : files('test_enabled.cpp'),
+  'drag' : files('test_drag.cpp'),
   'settings' : files('test_settings.cpp'),
   'text_segmentation' : files('test_text_segmentation.cpp'),
   'text_bidi' : files('test_text_bidi.cpp'),

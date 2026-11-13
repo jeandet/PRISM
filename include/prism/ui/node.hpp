@@ -20,6 +20,21 @@ struct WidgetNode;
 struct TableState;
 struct TabsState;
 
+// Where a drop landed, in the target widget's coordinates, and the widget's size: enough to
+// tell before from after, or which row.
+struct DropPlace {
+    Point at;
+    Size size;
+};
+
+// What a widget does in a drag inside the app (doc/design/drag-and-docking.md). The value is
+// typed; std::any carries it between source and target, and the target checks its type.
+struct DragRole {
+    std::function<std::any()> source;                          // empty any: nothing to drag
+    std::function<bool(const std::any&)> accepts;              // a target: takes this value?
+    std::function<void(const std::any&, DropPlace)> drop;
+};
+
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;
 // `subscribe` tells the tree when it may have changed.
 struct Enabler {
@@ -35,6 +50,7 @@ struct Node {
     bool focus_on_open = false;   // takes the focus when the popup holding it opens; copied too
     std::function<void(Node&)> popup_builder;   // ui::Popup content; copied to WidgetNode
     std::vector<Enabler> enablers;   // all true: enabled (none: always)
+    DragRole drag;                   // copied to WidgetNode
     // A split container's remembered pane sizes (vb.remember_split): read when built, written
     // when a drag ends.
     std::function<std::vector<float>()> split_get;

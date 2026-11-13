@@ -1,7 +1,10 @@
 # Drag and drop inside the app, and docking
 
-**Status:** design agreed 2026-11-13 (the three open questions are decided, see the end); part 1
-in progress. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+**Status:** design agreed 2026-11-13 (the three open questions are decided, see the end). Part 1
+core done 2026-11-13: `LeafHandle::drag_source` / `drop_target`, `ui::DropPlace`, the drag state
+in `WidgetTree` (`arm_drag`, `start_drag_at`, `takes`, `end_drag`, `draw_drag`), routing in
+`app/event_routing.hpp` (`route_drag_move`, `route_drag_release`), `CursorShape::NotAllowed`;
+tests in `tests/test_drag.cpp`. Next: lists, trees and tabs, and Python. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 

@@ -18,6 +18,12 @@ using namespace ui; using namespace app; using namespace plot;
 
 namespace {
 prism::Point P(float x, float y) { return {prism::X{x}, prism::Y{y}}; }
+// A click as the routing delivers it: the widget shows pressed, then the release lands on it.
+void click(prism::WidgetTree& tree, prism::WidgetId id, prism::Point at) {
+    tree.set_pressed(id, true);
+    tree.dispatch(id, prism::MouseButton{at, 1, false});
+    tree.set_pressed(id, false);
+}
 }
 
 struct SimpleModel {
@@ -137,13 +143,13 @@ TEST_CASE("Field<bool> toggles on MouseButton dispatch") {
     REQUIRE(ids.size() == 2);
 
     CHECK(model.flag.get() == false);
-    tree.dispatch(ids[0], prism::MouseButton{P(50, 15), 1, true});
+    click(tree, ids[0], P(50, 15));
     CHECK(model.flag.get() == true);
-    tree.dispatch(ids[0], prism::MouseButton{P(50, 15), 1, true});
+    click(tree, ids[0], P(50, 15));
     CHECK(model.flag.get() == false);
 }
 
-TEST_CASE("Field<bool> ignores mouse release") {
+TEST_CASE("Field<bool> ignores a release when it was not pressed") {
     BoolModel model;
     prism::WidgetTree tree(model);
     auto ids = tree.leaf_ids();
@@ -160,7 +166,7 @@ TEST_CASE("Field<bool> toggle produces different draws on re-record") {
     tree.clear_dirty();
 
     auto ids = tree.leaf_ids();
-    tree.dispatch(ids[0], prism::MouseButton{P(50, 15), 1, true});
+    click(tree, ids[0], P(50, 15));
     CHECK(tree.any_dirty());
 
     auto snap2 = tree.build_snapshot(800, 600, 2);
@@ -331,7 +337,7 @@ TEST_CASE("Button click through WidgetTree dispatch increments count") {
     auto ids = tree.leaf_ids();
 
     CHECK(model.action.get().click_count == 0);
-    tree.dispatch(ids[0], prism::MouseButton{P(10, 10), 1, true});
+    click(tree, ids[0], P(10, 10));
     CHECK(model.action.get().click_count == 1);
 }
 

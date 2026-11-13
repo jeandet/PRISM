@@ -21,11 +21,22 @@ enum class TestColor { Red, Green, Blue };
 namespace {
 prism::Theme test_theme;
 
+// A click as the routing delivers it: the widget shows pressed, then the release lands on it.
+template <typename W, typename F>
+void click(F& field, prism::WidgetNode& node);
+
 prism::WidgetNode make_node(prism::WidgetVisualState vs = {}) {
     prism::WidgetNode node;
     node.visual_state = vs;
     node.theme = &test_theme;
     return node;
+}
+
+template <typename W, typename F>
+void click(F& field, prism::WidgetNode& node) {
+    node.visual_state.pressed = true;
+    prism::Widget<W>::handle_input(field, prism::MouseButton{prism::Point{prism::X{1}, prism::Y{1}}, 1, false}, node);
+    node.visual_state.pressed = false;
 }
 prism::Point P(float x, float y) { return {prism::X{x}, prism::Y{y}}; }
 }
@@ -56,10 +67,10 @@ TEST_CASE("Widget<bool> record changes with value") {
     CHECK(color1.r != color2.r);  // false=grey, true=blue
 }
 
-TEST_CASE("Widget<bool> handle_input toggles on press") {
+TEST_CASE("Widget<bool> handle_input toggles on a click (press, then release over it)") {
     prism::Field<bool> field{false};
     auto node = make_node();
-    prism::Widget<bool>::handle_input(field, prism::MouseButton{P(0, 0), 1, true}, node);
+    click<bool>(field, node);
     CHECK(field.get() == true);
 }
 
@@ -200,9 +211,9 @@ TEST_CASE("Button click increments click_count") {
     prism::Field<prism::Button> field{{"Go"}};
     auto node = make_node();
     CHECK(field.get().click_count == 0);
-    prism::Widget<prism::Button>::handle_input(field, prism::MouseButton{P(0, 0), 1, true}, node);
+    click<prism::Button>(field, node);
     CHECK(field.get().click_count == 1);
-    prism::Widget<prism::Button>::handle_input(field, prism::MouseButton{P(0, 0), 1, true}, node);
+    click<prism::Button>(field, node);
     CHECK(field.get().click_count == 2);
 }
 
@@ -368,9 +379,9 @@ TEST_CASE("Checkbox toggle via mouse click") {
     prism::Field<prism::Checkbox> field{{.label = "Toggle me"}};
     auto node = make_node();
     CHECK(field.get().checked == false);
-    prism::Widget<prism::Checkbox>::handle_input(field, prism::MouseButton{P(0, 0), 1, true}, node);
+    click<prism::Checkbox>(field, node);
     CHECK(field.get().checked == true);
-    prism::Widget<prism::Checkbox>::handle_input(field, prism::MouseButton{P(0, 0), 1, true}, node);
+    click<prism::Checkbox>(field, node);
     CHECK(field.get().checked == false);
 }
 
@@ -457,7 +468,7 @@ TEST_CASE("Checkbox observer fires on toggle") {
     auto node = make_node();
     int fire_count = 0;
     auto conn = field.on_change().connect([&](const prism::Checkbox&) { fire_count++; });
-    prism::Widget<prism::Checkbox>::handle_input(field, prism::MouseButton{P(0, 0), 1, true}, node);
+    click<prism::Checkbox>(field, node);
     CHECK(fire_count == 1);
 }
 

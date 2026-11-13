@@ -475,6 +475,22 @@ Unknown keys are skipped, so a file from another version still loads. It is buil
 [Glaze](https://github.com/stephenberry/glaze), which also works without `-freflection`.
 `app::to_toml`, `from_toml`, `load_settings` and `save_settings` are there for one-off use.
 
+### Drag and drop inside the app
+
+A widget can be dragged, and another can take what is dropped on it. The value is typed: a
+target takes the type its callback names and refuses others with a no-entry cursor. While
+dragging, the source follows the pointer, faded, and a target that takes it is outlined. A
+dragged `std::string` dropped on a text field is typed into it. Escape cancels.
+
+```cpp
+struct Track { int id; };
+vb.widget(song).drag_source([&] { return Track{song_id}; });
+vb.widget(playlist).drop_target([&](const Track& t, ui::DropPlace at) { add(t, at); });
+```
+
+A click lands on the release, over the widget that was pressed, as on every platform: sliding
+off a button before letting go cancels it, and a drag that starts on a button is not a click.
+
 ### More windows
 
 A second model gets a window of its own. It may read the first one's fields, so it stays in

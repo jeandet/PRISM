@@ -338,7 +338,9 @@ TEST_CASE("clicking a VirtualList row writes the mutation back to the source Lis
     REQUIRE(!ids.empty());
     auto row_id = ids[0];
 
-    tree.dispatch(row_id, prism::MouseButton{prism::Point{prism::X{0}, prism::Y{0}}, 1, true});
+    tree.set_pressed(row_id, true);   // a click: pressed, then the release lands on it
+    tree.dispatch(row_id, prism::MouseButton{prism::Point{prism::X{1}, prism::Y{1}}, 1, false});
+    tree.set_pressed(row_id, false);
 
     CHECK(model.items[0].checked == true);
 }

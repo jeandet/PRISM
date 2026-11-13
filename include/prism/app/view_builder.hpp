@@ -82,6 +82,15 @@ Enabler enabler_of(Flag& flag) {
         return {[&flag] { return static_cast<bool>(flag.get()); }, adapt_on_change(flag)};
 }
 
+// The value type a drop target takes: its callback's first parameter.
+template <typename R, typename A, typename... Rest>
+A first_param(std::function<R(A, Rest...)>);
+template <typename F>
+using drop_value_t = std::remove_cvref_t<decltype(first_param(std::function{std::declval<F>()}))>;
+
+template <typename T> struct is_optional : std::false_type {};
+template <typename T> struct is_optional<std::optional<T>> : std::true_type {};
+
 inline void add_enabler(Node& node, const Enabler& e) {
     node.enablers.push_back(e);
     for (auto& c : node.children) add_enabler(c, e);
@@ -217,6 +226,30 @@ public:
         // Inside a popup: this widget, not the first one, has the focus when the popup opens
         // (a dialog's default button, a form's most useful field).
         LeafHandle&& focus_on_open() && { node_ref.focus_on_open = true; return std::move(*this); }
+        // A drag source (doc/design/drag-and-docking.md): pressing it and moving drags the value
+        // `make` returns (any type; a std::optional that is empty: nothing to drag this time).
+        template <typename F>
+        LeafHandle&& drag_source(F make) && {
+            node_ref.drag.source = [make = std::move(make)]() -> std::any {
+                auto v = make();
+                if constexpr (view_builder_detail::is_optional<decltype(v)>::value)
+                    return v ? std::any(std::move(*v)) : std::any{};
+                else
+                    return std::any(std::move(v));
+            };
+            return std::move(*this);
+        }
+        // A drop target: `on_drop(const T& value, DropPlace at)` takes dragged values of type T,
+        // `at` in this widget's coordinates. A value of another type is refused.
+        template <typename F>
+        LeafHandle&& drop_target(F on_drop) && {
+            using T = view_builder_detail::drop_value_t<F>;
+            node_ref.drag.accepts = [](const std::any& v) { return v.type() == typeid(T); };
+            node_ref.drag.drop = [on_drop = std::move(on_drop)](const std::any& v, DropPlace at) {
+                on_drop(std::any_cast<const T&>(v), at);
+            };
+            return std::move(*this);
+        }
         // Greyed out and deaf to input while `flag` (a bool Field or Derived) is false.
         template <typename Flag>
         LeafHandle&& enabled(Flag& flag) && {

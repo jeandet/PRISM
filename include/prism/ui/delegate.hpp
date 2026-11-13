@@ -413,9 +413,15 @@ inline void draw_focus_ring(DrawList& dl, Width w, Height h, const Theme& t) {
 }
 
 // The framework's activation gesture: mouse press, or space/enter.
-inline bool is_activation_event(const InputEvent& ev) {
-    if (auto* mb = std::get_if<MouseButton>(&ev))
-        return mb->pressed;
+// A click activates on the release, over the widget that was pressed, as on every platform:
+// sliding off before letting go cancels it, and a drag that starts on the widget is no click.
+// The routing delivers that release while the widget still shows as pressed.
+inline bool is_activation_event(const InputEvent& ev, const WidgetNode& node) {
+    if (auto* mb = std::get_if<MouseButton>(&ev)) {
+        if (mb->pressed || mb->button != buttons::left || !node_vs(node).pressed) return false;
+        float x = mb->position.x.raw(), y = mb->position.y.raw();
+        return x >= 0.f && y >= 0.f && x < widget_w(node).raw() && y < widget_h(node).raw();
+    }
     if (auto* kp = std::get_if<KeyPress>(&ev))
         return (kp->key == keys::space || kp->key == keys::enter);
     return false;
@@ -545,8 +551,8 @@ struct Widget<Checkbox> {
             delegate_detail::draw_focus_ring(dl, delegate_detail::widget_w(node), widget_h, t);
     }
 
-    static void handle_input(Field<Checkbox>& field, const InputEvent& ev, WidgetNode&) {
-        if (delegate_detail::is_activation_event(ev)) {
+    static void handle_input(Field<Checkbox>& field, const InputEvent& ev, WidgetNode& node) {
+        if (delegate_detail::is_activation_event(ev, node)) {
             auto cb = field.get();
             cb.checked = !cb.checked;
             field.set(cb);
@@ -576,8 +582,8 @@ struct Widget<bool> {
             delegate_detail::draw_focus_ring(dl, delegate_detail::widget_w(node), widget_h, t);
     }
 
-    static void handle_input(Field<bool>& field, const InputEvent& ev, WidgetNode&) {
-        if (delegate_detail::is_activation_event(ev))
+    static void handle_input(Field<bool>& field, const InputEvent& ev, WidgetNode& node) {
+        if (delegate_detail::is_activation_event(ev, node))
             field.set(!field.get());
     }
 };
@@ -752,8 +758,8 @@ struct Widget<Button> {
             delegate_detail::draw_focus_ring(dl, w, Height{32}, t);
     }
 
-    static void handle_input(Field<Button>& field, const InputEvent& ev, WidgetNode&) {
-        if (delegate_detail::is_activation_event(ev)) {
+    static void handle_input(Field<Button>& field, const InputEvent& ev, WidgetNode& node) {
+        if (delegate_detail::is_activation_event(ev, node)) {
             auto btn = field.get();
             btn.click_count++;
             field.set(btn);

@@ -86,8 +86,42 @@ inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const
     return true;
 }
 
+// --- dragging inside the app (doc/design/drag-and-docking.md) ---
+
+// The widget under `p` that takes the dragged value: the one hit, or the nearest container
+// above it that does.
+inline WidgetId drop_target_at(const WidgetTree& tree, const SceneSnapshot& snap, Point p, const std::any& value) {
+    for (auto id = hit_test(snap, p); id; id = tree.parent_of(*id))
+        if (tree.takes(*id, value)) return *id;
+    return 0;
+}
+
+// True if the move belongs to a drag: one starting now, or running.
+inline bool route_drag_move(WidgetTree& tree, const SceneSnapshot& snap, Point p) {
+    if (!tree.drag() || !tree.start_drag_at(p)) return false;
+    tree.move_drag(p, drop_target_at(tree, snap, p, tree.drag()->value));
+    tree.update_hover(std::nullopt);
+    return true;
+}
+
+inline bool route_drag_release(WidgetTree& tree, const SceneSnapshot& snap, Point p) {
+    if (!tree.drag()) return false;
+    if (!tree.dragging()) {   // never moved far enough: an ordinary click
+        tree.end_drag(std::nullopt);
+        return false;
+    }
+    WidgetId target = drop_target_at(tree, snap, p, tree.drag()->value);
+    tree.move_drag(p, target);
+    auto rect = target ? find_widget_rect(snap, target) : std::nullopt;
+    tree.end_drag(rect ? std::optional{DropPlace{Point{X{p.x.raw() - rect->origin.x.raw()}, Y{p.y.raw() - rect->origin.y.raw()}},
+                                                 rect->extent}}
+                       : std::nullopt);
+    return true;
+}
+
 inline void route_mouse_move(WidgetTree& tree, const SceneSnapshot& snap,
                              const MouseMove& mm) {
+    if (route_drag_move(tree, snap, mm.position)) return;
     if (route_popup_mouse(tree, snap, mm, mm.position, false)) return;
     auto hovered = hit_test(snap, mm.position);
     tree.update_hover(hovered);
@@ -147,6 +181,7 @@ inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
 
 inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
                                const InputEvent& ev, const MouseButton& mb) {
+    if (!mb.pressed && mb.button == buttons::left && route_drag_release(tree, snap, mb.position)) return;
     if (route_popup_mouse(tree, snap, ev, mb.position, mb.pressed)) return;
     if (open_context_menu(tree, snap, ev, mb)) return;
     if (!mb.pressed && tree.in_scrollbar_drag()) {
@@ -163,17 +198,18 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
     auto id = hit_test(snap, mb.position);
     if (!mb.pressed && tree.captured_id() != 0) {
         auto cid = tree.captured_id();
-        tree.set_pressed(cid, false);
         auto rect = find_widget_rect(snap, cid);
-        tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);
+        tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);   // still pressed: a click lands
+        tree.set_pressed(cid, false);
     } else if (id) {
         tree.set_pressed(*id, mb.pressed);
+        auto rect = find_widget_rect(snap, *id);
         if (mb.pressed) {
             if (*id != tree.focused_id())
                 tree.close_overlays();
             tree.set_focused(*id);
+            if (mb.button == buttons::left && rect) tree.arm_drag(*id, mb.position, *rect);
         }
-        auto rect = find_widget_rect(snap, *id);
         tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
     } else if (mb.pressed) {
         tree.close_overlays();
@@ -216,6 +252,10 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
                             const KeyPress& kp) {
     constexpr float page_delta = 200.f;
     tree.swallow_next_text_input(false);   // only the text event right after a popup's key
+    if (tree.dragging()) {   // the drag has the keyboard: Escape cancels it, nothing else acts
+        if (kp.key == keys::escape) tree.end_drag(std::nullopt);
+        return;
+    }
     if (open_menu_by_mnemonic(tree, kp)) return;
     if (tree.open_content_popup() && kp.key == keys::escape) {   // a popup holding widgets
         // An open list inside it (a dropdown) closes first; then the popup itself.

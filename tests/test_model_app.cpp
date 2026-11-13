@@ -130,6 +130,7 @@ TEST_CASE("model_app routes MouseButton to Field<bool> toggle") {
             auto center = rect.center();
 
             cb(prism::WindowEvent{window_.id(), prism::MouseButton{center, 1, true}});
+            cb(prism::WindowEvent{window_.id(), prism::MouseButton{center, 1, false}});   // a click lands on release
 
             auto before = count.load(std::memory_order_acquire);
             count.wait(before, std::memory_order_acquire);

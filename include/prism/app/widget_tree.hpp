@@ -421,6 +421,7 @@ public:
     [[nodiscard]] WidgetId captured_id() const { return captured_id_; }
 
     [[nodiscard]] CursorShape desired_cursor() const {
+        if (dragging()) return drag_->target != 0 ? CursorShape::Default : CursorShape::NotAllowed;
         WidgetId active = captured_id_ != 0 ? captured_id_ : hovered_id_;
         if (active == 0) return CursorShape::Default;
         auto it = index_.find(active);
@@ -588,6 +589,79 @@ public:
         set_focused(ring[static_cast<std::size_t>((i % n + n) % n)]);
     }
 
+    // --- dragging inside the app (doc/design/drag-and-docking.md) ---
+    // A press on a source arms a drag; moving past drag_threshold starts it (the source gives
+    // its value); from then the tree owns the pointer until the release or Escape.
+    static constexpr float drag_threshold = 4.f;
+    struct DragState {
+        WidgetId source = 0;
+        Point press{};
+        Offset grab{};          // the pointer within the source, kept while it follows
+        std::any value;         // empty until the drag starts
+        Point pointer{};
+        WidgetId target = 0;    // the widget under the pointer that takes the value, or 0
+    };
+
+    void arm_drag(WidgetId id, Point at, Rect source_rect) {
+        auto it = index_.find(id);
+        if (it == index_.end() || !it->second->drag.source || !is_enabled(*it->second)) return;
+        drag_ = DragState{.source = id, .press = at, .grab = at - source_rect.origin, .value = {}, .pointer = at, .target = 0};
+    }
+    [[nodiscard]] bool dragging() const { return drag_ && drag_->value.has_value(); }
+    [[nodiscard]] const DragState* drag() const { return drag_ ? &*drag_ : nullptr; }
+
+    // Starts the drag once the pointer has moved far enough; false while it has not, or if the
+    // source has nothing to drag (the press then stays an ordinary one).
+    bool start_drag_at(Point p) {
+        if (!drag_ || dragging()) return dragging();
+        float dx = p.x.raw() - drag_->press.x.raw(), dy = p.y.raw() - drag_->press.y.raw();
+        if (dx * dx + dy * dy < drag_threshold * drag_threshold) return false;
+        auto it = index_.find(drag_->source);
+        drag_->value = it != index_.end() ? it->second->drag.source() : std::any{};
+        if (!drag_->value.has_value()) {
+            drag_.reset();
+            return false;
+        }
+        set_pressed(drag_->source, false);   // the source lets go: no click on release
+        tooltip_dirty_ = true;
+        return true;
+    }
+
+    // Whether widget `id` takes the dragged value: a drop target of its type, or a text widget
+    // taking a string as typing.
+    [[nodiscard]] bool takes(WidgetId id, const std::any& value) const {
+        auto it = index_.find(id);
+        if (it == index_.end() || !is_enabled(*it->second)) return false;
+        const auto& n = *it->second;
+        if (n.drag.accepts) return n.drag.accepts(value);
+        return value.type() == typeid(std::string) && edits_text(n);
+    }
+
+    void move_drag(Point p, WidgetId target) {
+        drag_->pointer = p;
+        drag_->target = target;
+        tooltip_dirty_ = true;   // the ghost and the outline are redrawn
+    }
+
+    // Ends the drag: drops on the target (at `place`), or nothing.
+    void end_drag(std::optional<DropPlace> place) {
+        if (!dragging()) {
+            drag_.reset();
+            return;
+        }
+        auto d = std::move(*drag_);
+        drag_.reset();
+        tooltip_dirty_ = true;
+        if (!place || d.target == 0) return;
+        auto it = index_.find(d.target);
+        if (it == index_.end()) return;
+        if (it->second->drag.drop) it->second->drag.drop(d.value, *place);
+        else if (d.value.type() == typeid(std::string)) {   // a text widget: typed in, as a drop from the OS
+            set_focused(d.target);
+            dispatch(d.target, Paste{std::any_cast<const std::string&>(d.value)});
+        }
+    }
+
     // Chooses the menu item whose shortcut `kp` is, unless the focused text widget keeps the
     // key (Ctrl+C copies there). Disabled menus and items never match.
     // simplify: every menu in the tree matches, also one in a tab that is not shown; scope
@@ -601,6 +675,11 @@ public:
     [[nodiscard]] bool has_open_overlay(WidgetId id) const {
         auto it = index_.find(id);
         return it != index_.end() && widget_detail::has_open_overlay(*it->second);
+    }
+
+    [[nodiscard]] std::optional<WidgetId> parent_of(WidgetId id) const {
+        auto it = parent_map_.find(id);
+        return it != parent_map_.end() ? std::optional{it->second} : std::nullopt;
     }
 
     // Whether `id` is `ancestor` or below it.
@@ -714,6 +793,7 @@ public:
         if (popup_owner() != 0) tooltip_ = tooltip_dismissed(tooltip_);   // e.g. a dialog the app opened
         if (auto text = tooltip_of(tooltip_.target); tooltip_.shown && !text.empty())
             draw_tooltip(snap->overlay, text, tooltip_.pointer, snap->viewport, theme_);
+        if (dragging()) draw_drag(*snap);
 
         snap->dirty_widget_count = dirty_widgets;
         snap->layout_pass_count = layout_passes;
@@ -748,6 +828,7 @@ private:
     WidgetId hovered_id_ = 0;
     WidgetId focused_id_ = 0;
     WidgetId captured_id_ = 0;
+    std::optional<DragState> drag_;
     std::optional<WidgetId> highlight_id_;
     ScrollbarDrag scrollbar_drag_;
     SplitDrag split_drag_;
@@ -789,6 +870,7 @@ private:
         wn.tooltip = node.tooltip;
         wn.focus_on_open = node.focus_on_open;
         wn.popup_builder = node.popup_builder;
+        wn.drag = node.drag;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -870,6 +952,23 @@ private:
         }
     }
 
+    // While dragging: the target's accent outline, and the source itself, faded, under the
+    // pointer where it was grabbed.
+    void draw_drag(SceneSnapshot& snap) const {
+        for (auto& [id, rect] : snap.geometry)
+            if (id == drag_->target && id != 0) {
+                snap.overlay.rect_outline(rect, theme_.accent, 2.f);
+                break;
+            }
+        auto it = index_.find(drag_->source);
+        if (it == index_.end()) return;
+        DrawList ghost = it->second->draws;
+        Point at = drag_->pointer - drag_->grab;
+        layout_detail::translate_draw_list(ghost, DX{at.x.raw()}, DY{at.y.raw()});
+        fade(ghost, 0.6f);
+        snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
+    }
+
     // A widget whose condition changed redraws (faded or not); one just disabled lets go of the
     // focus, hover, press and popup it held.
     void connect_enablers(Node& node, WidgetNode& wn) {
@@ -901,8 +1000,12 @@ private:
 
     [[nodiscard]] bool focused_edits_text() const {
         auto it = index_.find(focused_id_);
-        if (it == index_.end() || !it->second->access) return false;
-        switch (it->second->access().role) {
+        return it != index_.end() && edits_text(*it->second);
+    }
+
+    [[nodiscard]] static bool edits_text(const WidgetNode& n) {
+        if (!n.access) return false;
+        switch (n.access().role) {
         case Role::TextInput: case Role::MultilineTextInput: case Role::PasswordInput:
         case Role::ComboBox: case Role::SpinButton:
             return true;

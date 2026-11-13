@@ -35,6 +35,7 @@ struct WidgetNode {
     // it no input, focus, hover or press (see make_disableable).
     std::function<bool()> enabled;
     std::function<void(std::vector<float>)> split_changed;   // a drag ended (vb.remember_split)
+    DragRole drag;   // a drag source and/or drop target (doc/design/drag-and-docking.md)
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;

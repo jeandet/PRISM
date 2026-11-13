@@ -131,6 +131,7 @@ TEST_CASE("golden: initial publish of a small multi-widget model") {
 TEST_CASE("golden: clicking the checkbox flips its rendered state") {
     std::vector<prism::InputEvent> events = {
         prism::MouseButton{prism::Point{prism::X{4.f}, prism::Y{34.f}}, 1, true},
+        prism::MouseButton{prism::Point{prism::X{4.f}, prism::Y{34.f}}, 1, false},   // a click lands on release
     };
     GoldenModel model;
     auto backend_ptr = std::make_unique<prism::TestBackend>(events);
@@ -149,7 +150,7 @@ TEST_CASE("golden: clicking the checkbox flips its rendered state") {
 [widget 3] rect=(0.0,30.0,300.0,30.0)
     ClipPush rect=(0.0,30.0,300.0,30.0)
     FilledRect rect=(0.0,30.0,300.0,30.0) color=#2d2d37ff
-    FilledRect rect=(8.0,37.0,16.0,16.0) color=#0078b4ff
+    FilledRect rect=(8.0,37.0,16.0,16.0) color=#008cc8ff
     Text "✓" at=(10.0,38.0) size=13.0 color=#f0f0f0ff
     RectOutline rect=(8.0,37.0,16.0,16.0) color=#5a5a69ff thickness=1.5
     Text "agree" at=(32.0,37.0) size=14.0 color=#dcdcdcff
