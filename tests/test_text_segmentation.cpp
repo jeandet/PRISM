@@ -4,6 +4,9 @@
 
 #include <prism/ui/text_segmentation.hpp>
 
+#include <chrono>
+#include <string>
+
 using namespace prism::ui;
 
 namespace {
@@ -28,6 +31,32 @@ TEST_CASE("grapheme steps stop at the ends") {
     CHECK(next_grapheme("ab", 2) == 2);
     CHECK(prev_grapheme("ab", 0) == 0);
     CHECK(next_grapheme("", 0) == 0);
+}
+
+TEST_CASE("steps next to line ends, and in a long text, see the whole character") {
+    std::string s = family + "\n" + e_acute + "\r\n" + family;
+    CHECK(next_grapheme(s, 0) == family.size());
+    CHECK(prev_grapheme(s, family.size()) == 0);
+    auto second = family.size() + 1;
+    CHECK(next_grapheme(s, family.size()) == second);   // the newline
+    CHECK(prev_grapheme(s, second) == family.size());
+    CHECK(next_grapheme(s, second) == second + 3);
+    CHECK(prev_grapheme(s, second + 3) == second);
+    CHECK(next_grapheme(s, second + 3) == second + 5);   // CR LF is one character
+    CHECK(prev_grapheme(s, second + 5) == second + 3);
+    CHECK(prev_grapheme(s, s.size()) == second + 5);
+
+    std::string doc;
+    for (int i = 0; i < 20'000; ++i) doc += "a line of text, " + e_acute + "\n";   // ~400 KB
+    auto mid = doc.size() / 2;
+    mid = doc.find('\n', mid) + 1;   // a line start
+    auto t0 = std::chrono::steady_clock::now();
+    for (int i = 0; i < 1000; ++i) {   // a held arrow key
+        CHECK(next_grapheme(doc, mid) == mid + 1);
+        CHECK(prev_grapheme(doc, mid) == mid - 1);
+    }
+    // Only the line around the caret is read: a whole-text pass each step took ~30 s here.
+    CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(2));
 }
 
 TEST_CASE("line breaks: after spaces and hyphens, between ideographs, never inside a word") {

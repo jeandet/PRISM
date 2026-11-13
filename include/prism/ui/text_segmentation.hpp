@@ -10,8 +10,6 @@
 // Unicode text boundaries: user-perceived characters (UAX #29 graphemes) for the caret, and where
 // a line may break (UAX #14) for word wrap. One interface, implemented with libunibreak (chosen
 // at build time, doc/review-2026-11-02.md §4). UTF-8 in, byte offsets out.
-// simplify: each call segments the whole string; a large document in a text area pays O(n) per
-// caret step. Segment a window around the offset when that shows in profiles.
 namespace prism::ui {
 
 namespace segmentation_detail {
@@ -30,23 +28,38 @@ inline std::vector<char> grapheme_marks(std::string_view s) {
 }
 } // namespace segmentation_detail
 
+namespace segmentation_detail {
+// A character never spans a newline (UAX #29 always breaks after one), so stepping looks only
+// at the line around the caret, not the whole text.
+// simplify: a single very long line (a 1 MB minified file) is still read whole per step; a
+// window back to a safe break (not inside a run of regional indicators) would bound it.
+inline std::size_t line_start(std::string_view s, std::size_t at) {
+    auto nl = at == 0 ? std::string_view::npos : s.rfind('\n', at - 1);
+    return nl == std::string_view::npos ? 0 : nl + 1;
+}
+} // namespace segmentation_detail
+
 // The offset after the character that starts at `at` (s.size() at the end).
 inline std::size_t next_grapheme(std::string_view s, std::size_t at) {
     if (at >= s.size()) return s.size();
-    auto marks = segmentation_detail::grapheme_marks(s);
-    for (std::size_t i = at; i < s.size(); ++i)
-        if (marks[i] == GRAPHEMEBREAK_BREAK) return i + 1;
-    return s.size();
+    auto from = segmentation_detail::line_start(s, at);
+    auto nl = s.find('\n', at);
+    auto to = nl == std::string_view::npos ? s.size() : nl + 1;
+    auto marks = segmentation_detail::grapheme_marks(s.substr(from, to - from));
+    for (std::size_t i = at - from; i < marks.size(); ++i)
+        if (marks[i] == GRAPHEMEBREAK_BREAK) return from + i + 1;
+    return to;
 }
 
 // The offset where the character ending at `at` starts (0 at the start).
 inline std::size_t prev_grapheme(std::string_view s, std::size_t at) {
     if (at == 0 || s.empty()) return 0;
     if (at > s.size()) at = s.size();
-    auto marks = segmentation_detail::grapheme_marks(s);
-    for (std::size_t i = at - 1; i-- > 0;)
-        if (marks[i] == GRAPHEMEBREAK_BREAK) return i + 1;
-    return 0;
+    auto from = segmentation_detail::line_start(s, at - 1);   // the line of the byte before `at`
+    auto marks = segmentation_detail::grapheme_marks(s.substr(from, at - from));
+    for (std::size_t i = at - from - 1; i-- > 0;)
+        if (marks[i] == GRAPHEMEBREAK_BREAK) return from + i + 1;
+    return from;
 }
 
 // For each byte offset 0..s.size(): whether a line may start there -- after a space or a hyphen,
