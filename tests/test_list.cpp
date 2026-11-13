@@ -147,3 +147,17 @@ TEST_CASE("List::replace_all with same size only updates, never inserts or remov
     CHECK(removes == 0);
     CHECK(updates == 2);
 }
+
+TEST_CASE("move takes an item out and puts it back at another place, as updates") {
+    prism::List<std::string> l;
+    for (auto s : {"a", "b", "c", "d"}) l.push_back(s);
+    std::vector<size_t> updated;
+    auto c = l.on_update().connect([&](size_t i, const std::string&) { updated.push_back(i); });
+    l.move(0, 2);
+    CHECK(std::vector<std::string>{l[0], l[1], l[2], l[3]} == std::vector<std::string>{"b", "c", "a", "d"});
+    CHECK(updated == std::vector<size_t>{0, 1, 2});   // only what moved
+    l.move(3, 0);
+    CHECK(std::vector<std::string>{l[0], l[1], l[2], l[3]} == std::vector<std::string>{"d", "b", "c", "a"});
+    l.move(1, 1);   // nowhere: nothing changes
+    CHECK(l[1] == "b");
+}

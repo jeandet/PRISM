@@ -2,6 +2,7 @@
 
 #include <prism/core/connection.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <ranges>
 #include <vector>
@@ -20,6 +21,17 @@ public:
     void erase(size_t index) {
         items_.erase(items_.begin() + static_cast<ptrdiff_t>(index));
         removed_.emit(index);
+    }
+
+    // Takes the item at `from` out and puts it back at `to` (an index in the list as it is after
+    // the move). Reported as updates of the slots that changed, so views redraw them in place.
+    void move(size_t from, size_t to) {
+        if (from == to || from >= items_.size() || to >= items_.size()) return;
+        auto first = items_.begin() + static_cast<ptrdiff_t>(std::min(from, to));
+        auto last = items_.begin() + static_cast<ptrdiff_t>(std::max(from, to)) + 1;
+        if (from < to) std::rotate(first, first + 1, last);
+        else std::rotate(first, last - 1, last);
+        for (size_t i = std::min(from, to); i <= std::max(from, to); ++i) updated_.emit(i, items_[i]);
     }
 
     void set(size_t index, T value) {

@@ -168,3 +168,92 @@ TEST_CASE("a click lands on release: sliding off the button before letting go ca
     f.release(off);
     CHECK(f.model.track.get().click_count == 1);
 }
+
+namespace drag_test {
+struct Lists {
+    List<std::string> todo;
+    List<std::string> done;
+    Lists() {
+        for (auto s : {"a", "b", "c", "d"}) todo.push_back(s);
+        done.push_back("x");
+    }
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.hstack([&] {
+            vb.list(todo).reorderable();
+            vb.list(done).reorderable();
+        });
+    }
+};
+}
+
+namespace {
+std::optional<Rect> text_rect(const SceneSnapshot& snap, std::string_view text) {
+    for (std::size_t i = 0; i < snap.draw_lists.size(); ++i)
+        for (auto& c : snap.draw_lists[i]->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->text == text) return snap.geometry[i].second;
+    return std::nullopt;
+}
+std::vector<std::string> items(const List<std::string>& l) {
+    std::vector<std::string> out;
+    for (std::size_t i = 0; i < l.size(); ++i) out.push_back(l[i]);
+    return out;
+}
+}
+
+TEST_CASE("a reorderable list moves a row to where it is dropped, and shows it there") {
+    Lists model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    auto a = text_rect(*snap, "a"), c = text_rect(*snap, "c");
+    REQUIRE(a);
+    REQUIRE(c);
+    Point from{a->origin.x + DX{5}, a->origin.y + DY{a->extent.h.raw() / 2}};
+    Point to{c->origin.x + DX{5}, c->origin.y + DY{c->extent.h.raw() * 0.75f}};   // c's lower half: after c
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x, from.y + DY{6}}});
+    route_event(tree, snap.get(), MouseMove{to});
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(items(model.todo) == std::vector<std::string>{"b", "c", "a", "d"});
+    snap = tree.build_snapshot(400, 300, 2);
+    auto a2 = text_rect(*snap, "a"), c2 = text_rect(*snap, "c");
+    REQUIRE(a2);
+    REQUIRE(c2);
+    CHECK(a2->origin.y.raw() > c2->origin.y.raw());   // drawn below c now
+}
+
+TEST_CASE("a row is not dropped into another list") {
+    Lists model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    auto a = text_rect(*snap, "a"), x = text_rect(*snap, "x");
+    Point from{a->origin.x + DX{5}, a->origin.y + DY{5}};
+    Point to{x->origin.x + DX{5}, x->origin.y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x, from.y + DY{6}}});
+    route_event(tree, snap.get(), MouseMove{to});
+    CHECK(tree.desired_cursor() == CursorShape::NotAllowed);
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(items(model.todo) == std::vector<std::string>{"a", "b", "c", "d"});
+    CHECK(items(model.done) == std::vector<std::string>{"x"});
+}
+
+TEST_CASE("over a list row, an insertion line shows where the row will go") {
+    Lists model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    auto a = text_rect(*snap, "a"), c = text_rect(*snap, "c");
+    Point from{a->origin.x + DX{5}, a->origin.y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x, from.y + DY{6}}});
+    auto line_at = [&](float y) {
+        snap = tree.build_snapshot(400, 300, 2);
+        for (auto& cmd : snap->overlay.commands)
+            if (auto* l = std::get_if<Line>(&cmd); l && std::abs(l->from.y.raw() - y) < 2.f) return true;
+        return false;
+    };
+    float c_bottom = c->origin.y.raw() + c->extent.h.raw();
+    route_event(tree, snap.get(), MouseMove{Point{c->origin.x + DX{5}, c->origin.y + DY{c->extent.h.raw() * 0.8f}}});
+    CHECK(line_at(c_bottom));
+    route_event(tree, snap.get(), MouseMove{Point{c->origin.x + DX{5}, c->origin.y + DY{c->extent.h.raw() * 0.2f}}});
+    CHECK(line_at(c->origin.y.raw()));
+}

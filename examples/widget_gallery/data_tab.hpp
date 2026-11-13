@@ -53,7 +53,9 @@ struct DataTab {
     std::vector<prism::core::Connection> wiring;
 
     DataTab() {
-        for (auto s : {"Try sorting the table", "Drag the handle between the panes", "Add an item here"}) todo.push_back(s);
+        for (auto s : {"Try sorting the table", "Drag the handle between the panes", "Add an item here",
+                       "Drag these rows to reorder them"})
+            todo.push_back(s);
         wiring.push_back(add.on_change().connect([this](const auto&) {
             if (new_item.get().value.empty()) return;
             todo.push_back(new_item.get().value);
@@ -77,7 +79,7 @@ struct DataTab {
                     vb.gap(8.f);
                     vb.widget(remove);
                 });
-                vb.list(todo);
+                vb.list(todo).reorderable();
             });
         });
     }

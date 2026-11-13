@@ -871,6 +871,7 @@ private:
         wn.focus_on_open = node.focus_on_open;
         wn.popup_builder = node.popup_builder;
         wn.drag = node.drag;
+        wn.row_drag = node.row_drag;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -957,7 +958,7 @@ private:
     void draw_drag(SceneSnapshot& snap) const {
         for (auto& [id, rect] : snap.geometry)
             if (id == drag_->target && id != 0) {
-                snap.overlay.rect_outline(rect, theme_.accent, 2.f);
+                draw_drop_marker(snap.overlay, rect);
                 break;
             }
         auto it = index_.find(drag_->source);
@@ -967,6 +968,16 @@ private:
         layout_detail::translate_draw_list(ghost, DX{at.x.raw()}, DY{at.y.raw()});
         fade(ghost, 0.6f);
         snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
+    }
+
+    // An accent outline around the target; for one that takes drops before or after it (a list
+    // row), a line on the edge the pointer is nearer.
+    void draw_drop_marker(DrawList& dl, Rect r) const {
+        auto it = index_.find(drag_->target);
+        if (it == index_.end() || !it->second->drag.between) return dl.rect_outline(r, theme_.accent, 2.f);
+        bool after = drag_->pointer.y.raw() > r.origin.y.raw() + r.extent.h.raw() / 2;
+        Y y = after ? r.origin.y + DY{r.extent.h.raw()} : r.origin.y;
+        dl.line(Point{r.origin.x, y}, Point{r.origin.x + DX{r.extent.w.raw()}, y}, theme_.accent, 2.f);
     }
 
     // A widget whose condition changed redraws (faded or not); one just disabled lets go of the
@@ -1623,6 +1634,7 @@ private:
             wn.theme = &theme_;
             vls->bind_row(wn, i);
             if (node.enabled) make_disableable(wn, node.enabled);   // rows follow the list's flag
+            wn.drag = node.row_drag ? node.row_drag(i) : DragRole{};
             parent_map_[wn.id] = node.id;
             if (wn.focus_policy != FocusPolicy::none)
                 focus_order_.push_back(wn.id);

@@ -488,6 +488,9 @@ vb.widget(song).drag_source([&] { return Track{song_id}; });
 vb.widget(playlist).drop_target([&](const Track& t, ui::DropPlace at) { add(t, at); });
 ```
 
+A list can be reordered by dragging its rows, `vb.list(items).reorderable()`; an insertion line
+shows where a row will go, and `List::move` does the move.
+
 A click lands on the release, over the widget that was pressed, as on every platform: sliding
 off a button before letting go cancels it, and a drag that starts on a button is not a click.
 

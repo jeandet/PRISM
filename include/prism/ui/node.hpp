@@ -33,6 +33,7 @@ struct DragRole {
     std::function<std::any()> source;                          // empty any: nothing to drag
     std::function<bool(const std::any&)> accepts;              // a target: takes this value?
     std::function<void(const std::any&, DropPlace)> drop;
+    bool between = false;   // drops go before or after it (a list row): shown as a line, not an outline
 };
 
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;
@@ -51,6 +52,7 @@ struct Node {
     std::function<void(Node&)> popup_builder;   // ui::Popup content; copied to WidgetNode
     std::vector<Enabler> enablers;   // all true: enabled (none: always)
     DragRole drag;                   // copied to WidgetNode
+    std::function<DragRole(std::size_t)> row_drag;   // a list's rows (vb.list(...).reorderable())
     // A split container's remembered pane sizes (vb.remember_split): read when built, written
     // when a drag ends.
     std::function<std::vector<float>()> split_get;

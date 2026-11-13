@@ -88,6 +88,33 @@ A first_param(std::function<R(A, Rest...)>);
 template <typename F>
 using drop_value_t = std::remove_cvref_t<decltype(first_param(std::function{std::declval<F>()}))>;
 
+// What a row of a reorderable list drags: which list, which row. Only that list takes it.
+struct ListRow {
+    const void* list;
+    std::size_t index;
+};
+
+// Each row of `items` drags itself, and takes a row of the same list: dropped on a row's upper
+// half it goes before it, on its lower half after it.
+template <typename T>
+DragRole list_row_drag(List<T>& items, std::size_t i) {
+    const void* list = &items;
+    return {
+        .source = [list, i] { return std::any(ListRow{list, i}); },
+        .accepts = [list](const std::any& v) {
+            auto* r = std::any_cast<ListRow>(&v);
+            return r && r->list == list;
+        },
+        .drop = [&items, i](const std::any& v, DropPlace at) {
+            auto from = std::any_cast<ListRow>(v).index;
+            std::size_t to = at.at.y.raw() > at.size.h.raw() / 2 ? i + 1 : i;
+            if (to > from) --to;   // the item leaves its own place first
+            items.move(from, std::min(to, items.size() - 1));
+        },
+        .between = true,
+    };
+}
+
 template <typename T> struct is_optional : std::false_type {};
 template <typename T> struct is_optional<std::optional<T>> : std::true_type {};
 
@@ -555,8 +582,20 @@ public:
         return CanvasHandle{current_parent().children.back(), placed_};
     }
 
+    // What vb.list returns: the list just placed, to set options on.
     template <typename T>
-    void list(List<T>& items, std::function<void(size_t, const T&)> on_row_click = nullptr) {
+    struct ListHandle {
+        Node& node_ref;
+        List<T>& items;
+        // The user can drag rows to put them in another order (List::move).
+        ListHandle&& reorderable() && {
+            node_ref.row_drag = [&items = items](std::size_t i) { return view_builder_detail::list_row_drag(items, i); };
+            return std::move(*this);
+        }
+    };
+
+    template <typename T>
+    ListHandle<T> list(List<T>& items, std::function<void(size_t, const T&)> on_row_click = nullptr) {
         Node container;
         container.id = tree_.next_id_++;
         container.is_leaf = false;
@@ -622,6 +661,7 @@ public:
         };
 
         current_parent().children.push_back(std::move(container));
+        return {current_parent().children.back(), items};
     }
 
     // A tree, with a pane beside it showing the selected row's details; `detail = false` places
