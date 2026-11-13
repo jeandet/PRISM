@@ -3179,6 +3179,12 @@ NB_MODULE(_prism_ext, m) {
         }, "Row container. hstack(h1, h2, ...) places those handles' widgets side by side; "
            "hstack(fn) with a single callable runs fn() inside the row's scope instead — "
            "for a lambda capturing vb that mixes in further vb.* calls.")
+        .def("toolbar", [](ViewBuilder& vb, nb::callable fn) { vb.toolbar([&] { fn(); }); }, nb::arg("fn"),
+             "A row of tools across the window (buttons, toggles), on the window's chrome colour.")
+        .def("status_bar", [](ViewBuilder& vb, nb::callable fn) { vb.status_bar([&] { fn(); }); }, nb::arg("fn"),
+             "A row of short status texts, usually last in the window.")
+        .def("group", [](ViewBuilder& vb, std::string title, nb::callable fn) { vb.group(std::move(title), [&] { fn(); }); },
+             nb::arg("title"), nb::arg("fn"), "Widgets that belong together, outlined, under a title.")
         .def("vstack", [](ViewBuilder& vb, nb::args args){
             if (args.size() == 1 && nb::isinstance<nb::callable>(args[0])) {
                 auto fn = nb::cast<nb::callable>(args[0]);

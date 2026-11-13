@@ -896,6 +896,7 @@ private:
         wn.theme = &theme_;
         wn.name = node.name;
         wn.tooltip = node.tooltip;
+        wn.frame = node.frame;
         wn.focus_on_open = node.focus_on_open;
         wn.popup_builder = node.popup_builder;
         wn.drag = node.drag;

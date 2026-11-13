@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/ui/frame.hpp>
 #include <prism/core/connection.hpp>
 #include <prism/ui/context.hpp>
 #include <prism/ui/delegate.hpp>
@@ -30,6 +31,7 @@ struct WidgetNode {
     WidgetId id = 0;
     std::string name;                     // accessible name: the field's member name, if known
     std::string tooltip;                  // empty: none (see ui/tooltip.hpp)
+    std::optional<Framing> frame;           // a Row/Column's look around its content (ui/frame.hpp)
     bool focus_on_open = false;           // focused when the popup holding it opens
     // Null: always enabled. Otherwise read live: false greys the widget out and the tree gives
     // it no input, focus, hover or press (see make_disableable).

@@ -4103,6 +4103,22 @@ def test_a_toggle_button_flips_and_can_be_set():
     assert f.bold.checked is False
 
 
+def test_toolbar_status_bar_and_group_frame_their_widgets():
+    class Window(prism.Model):
+        bold = prism.button("Bold", checked=False)
+        wrap = prism.field(True)
+        status = prism.label("Ready")
+
+        def view(self, vb):
+            vb.toolbar(lambda: vb.widget(self.bold))
+            vb.group("Options", lambda: vb.widget(self.wrap))
+            vb.status_bar(lambda: vb.widget(self.status))
+
+    texts = prism._texts(Window())
+    assert "Options" in texts      # the group's title
+    assert "Bold" in texts and "Ready" in texts
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

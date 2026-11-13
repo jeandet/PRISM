@@ -503,6 +503,15 @@ public:
     void hstack(auto&... args) { push_container(LayoutKind::Row, [&] { (item(args), ...); }); }
     WidgetId vstack(std::invocable auto&& fn) { return push_container(LayoutKind::Column, fn).id; }
 
+    // A row of tools across the window (buttons, toggles), on the window's chrome colour.
+    WidgetId toolbar(std::invocable auto&& fn) { return framed(LayoutKind::Row, {FrameLook::Toolbar}, fn); }
+    // A row of short status texts, usually last in the window.
+    WidgetId status_bar(std::invocable auto&& fn) { return framed(LayoutKind::Row, {FrameLook::StatusBar}, fn); }
+    // Widgets that belong together, outlined, under a title.
+    WidgetId group(std::string title, std::invocable auto&& fn) {
+        return framed(LayoutKind::Column, {FrameLook::Group, std::move(title)}, fn);
+    }
+
 private:
     // Gives the widget just placed a popup built from `content` on each opening. It also runs
     // once now, into a scratch node, only to learn which fields it places, so the unplaced-field
@@ -535,6 +544,12 @@ private:
     template <typename T>
     void item(Shared<T>& s) { widget(s); }
     void item(component_type auto& comp) { component(comp); }
+    WidgetId framed(LayoutKind kind, Framing frame, std::invocable auto&& fn) {
+        auto& node = push_container(kind, fn);
+        node.frame = std::move(frame);
+        return node.id;
+    }
+
     Node& push_container(LayoutKind kind, std::invocable auto&& fn) {
         Node container;
         container.id = tree_.next_id_++;
@@ -1041,7 +1056,8 @@ public:
         }
         // Hoist single Row/Column child: avoids an unnecessary nesting level
         // when view() produces exactly one container (the common case).
-        if (target_.children.size() == 1 && !target_.children[0].build_content) {   // a dock stays itself
+        if (target_.children.size() == 1 && !target_.children[0].build_content
+            && !target_.children[0].frame) {   // a dock, a toolbar or a group stays itself
             auto lk = target_.children[0].layout_kind;
             if (lk == LayoutKind::Row || lk == LayoutKind::Column) {
                 target_.layout_kind = lk;

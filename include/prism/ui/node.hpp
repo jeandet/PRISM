@@ -2,6 +2,7 @@
 
 #include <prism/core/connection.hpp>
 #include <prism/ui/delegate.hpp>
+#include <prism/ui/frame.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
 #include <cstdint>
@@ -55,6 +56,7 @@ struct Node {
     bool is_leaf = false;
     std::string name;   // accessible name (reflected member name); copied to WidgetNode::name
     std::string tooltip;   // shown when the pointer rests on the widget; copied to WidgetNode
+    std::optional<Framing> frame;   // a Row/Column's look around its content; copied to WidgetNode
     bool focus_on_open = false;   // takes the focus when the popup holding it opens; copied too
     std::function<void(Node&)> popup_builder;   // ui::Popup content; copied to WidgetNode
     std::vector<Enabler> enablers;   // all true: enabled (none: always)

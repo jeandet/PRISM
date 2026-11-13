@@ -31,6 +31,10 @@ struct Gallery {
                                               "reactive fields. This page is the same C++ as the desktop "
                                               "build, compiled to WebAssembly.",
                                    .buttons = {"Close"}}};
+    core::Field<ui::Button> open_tool{{.text = "", .icon = gallery::icon("folder.svg"), .primary = false}};
+    core::Field<ui::Button> save_tool{{.text = "", .icon = gallery::icon("save.svg"), .primary = false}};
+    core::Field<ui::Button> wrap_tool{{.text = "Wrap", .primary = false, .checked = true}};
+    core::Field<ui::Label<>> status{{"Controls"}};
     core::Field<ui::TabBar<>> tabs;
     gallery::Prefs prefs;
     gallery::ControlsTab controls{prefs.theme};
@@ -44,6 +48,11 @@ struct Gallery {
     Gallery() {
         wiring.push_back(file_menu.on_change().connect([this](const ui::Menu& m) {
             if (m.chosen) popups.choose(*m.chosen == 0 ? app::FileDialogKind::Open : app::FileDialogKind::Save);
+        }));
+        wiring.push_back(open_tool.on_change().connect([this](const ui::Button&) { popups.choose(app::FileDialogKind::Open); }));
+        wiring.push_back(save_tool.on_change().connect([this](const ui::Button&) { popups.choose(app::FileDialogKind::Save); }));
+        wiring.push_back(tabs.on_change().connect([this](const ui::TabBar<>& t) {
+            status.set({tab_names[std::min(t.selected, tab_names.size() - 1)]});
         }));
         wiring.push_back(view_menu.on_change().connect([this](const ui::Menu& m) {
             if (m.chosen) tabs.set({.selected = *m.chosen});
@@ -61,6 +70,12 @@ struct Gallery {
             vb.widget(help_menu);
             vb.spacer();
         });
+        vb.toolbar([&] {
+            vb.widget(open_tool).tooltip("Open…");
+            vb.widget(save_tool).tooltip("Save as…");
+            vb.widget(wrap_tool).tooltip("A toggle: stays pressed");
+            vb.spacer();
+        });
         vb.tabs(tabs, [&] {
             vb.tab(tab_names[0], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(controls); }); });
             vb.tab(tab_names[1], [&](app::WidgetTree::ViewBuilder& t) { t.component(catalog); });
@@ -69,6 +84,7 @@ struct Gallery {
             vb.tab(tab_names[4], [&](app::WidgetTree::ViewBuilder& t) { t.component(plot); });
             vb.tab(tab_names[5], [&](app::WidgetTree::ViewBuilder& t) { t.component(popups); });
         });
+        vb.status_bar([&] { vb.widget(status); vb.spacer(); });
         vb.dialog(about);
     }
 };

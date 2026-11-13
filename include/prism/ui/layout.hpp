@@ -2,6 +2,7 @@
 
 #include <prism/render/draw_list.hpp>
 #include <prism/ui/context.hpp>
+#include <prism/ui/frame.hpp>
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/ui/widget_node.hpp>
 
@@ -112,6 +113,7 @@ struct LayoutNode {
     // The widget node this one was built from, for every kind (containers too): the passes
     // after layout reach its state through it, not through an id lookup per node.
     WidgetNode* source = nullptr;
+    std::optional<Framing> frame;   // Row/Column: drawn around the children, which it insets
 };
 
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis);
@@ -186,6 +188,26 @@ inline void measure_linear(LayoutNode& node, LayoutAxis own_axis, LayoutAxis par
                                                                : ExpandAxis::None;
 }
 
+// A framed container needs its content's size plus the frame's insets.
+inline void add_frame_insets(LayoutNode& node, LayoutAxis parent_axis) {
+    if (!node.frame) return;
+    auto in = frame_insets(*node.frame);
+    float across = in.left + in.right, down = in.top + in.bottom;
+    bool horiz = parent_axis == LayoutAxis::Horizontal;
+    node.hint.preferred += horiz ? across : down;
+    node.hint.cross += horiz ? down : across;
+}
+
+// The frame's drawing, and the area left inside it for the children.
+inline Rect apply_frame(LayoutNode& node, Rect available) {
+    if (!node.frame || !node.theme) return available;
+    node.draws = frame_draws(*node.frame, available.extent, *node.theme);
+    auto in = frame_insets(*node.frame);
+    return Rect{Point{available.origin.x + DX{in.left}, available.origin.y + DY{in.top}},
+                Size{Width{std::max(0.f, available.extent.w.raw() - in.left - in.right)},
+                     Height{std::max(0.f, available.extent.h.raw() - in.top - in.bottom)}}};
+}
+
 inline void measure_scrollable(LayoutNode& node) {
     float max_cross = 0;
     for (auto& child : node.children) {
@@ -250,9 +272,11 @@ inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
         return;
     case LayoutNode::Kind::Row:
         layout_detail::measure_linear(node, LayoutAxis::Horizontal, parent_axis);
+        layout_detail::add_frame_insets(node, parent_axis);
         return;
     case LayoutNode::Kind::Column:
         layout_detail::measure_linear(node, LayoutAxis::Vertical, parent_axis);
+        layout_detail::add_frame_insets(node, parent_axis);
         return;
     case LayoutNode::Kind::Scroll:
     case LayoutNode::Kind::VirtualList:
@@ -324,6 +348,7 @@ inline void layout_arrange(LayoutNode& node, Rect available) {
         return;
     }
 
+    available = layout_detail::apply_frame(node, available);
     if (node.children.empty()) return;
 
     bool horizontal = (node.kind == LayoutNode::Kind::Row);

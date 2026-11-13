@@ -177,6 +177,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         container.theme = node.theme;
         if (auto* ss = std::any_cast<SplitState>(&node.edit_state); ss && ss->engaged)
             container.split_sizes = ss->pane_sizes;
+        container.frame = node.frame;
         build_children(node, container);
         parent.children.push_back(std::move(container));
     } else {

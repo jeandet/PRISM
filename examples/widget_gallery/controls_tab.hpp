@@ -113,7 +113,7 @@ private:
         vb.hstack([&] {
             vb.widget(notify).tooltip("A checkbox");
             vb.gap(16.f);
-            vb.widget(quality).tooltip("An enum shown as radio buttons");
+            vb.group("Quality", [&] { vb.widget(quality).tooltip("An enum shown as radio buttons"); });
         });
     }
 
