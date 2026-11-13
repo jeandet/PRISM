@@ -174,7 +174,7 @@ struct Widget<std::optional<TreeDetail>> {
     static void handle_input(Field<std::optional<TreeDetail>>&, const InputEvent&, WidgetNode&) {}
 };
 
-namespace detail_tree {
+namespace tree_detail {
 inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
                           const std::set<TreeNodeId>& expanded,
                           std::optional<TreeNodeId> selected,
@@ -196,7 +196,7 @@ inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
             flatten_node(source, source.child_at(id, i), depth + 1, expanded, selected, out);
     }
 }
-} // namespace detail_tree
+} // namespace tree_detail
 
 inline std::vector<TreeRow> visible_rows(const TreeSource& source,
                                           const std::set<TreeNodeId>& expanded,
@@ -204,7 +204,7 @@ inline std::vector<TreeRow> visible_rows(const TreeSource& source,
     std::vector<TreeRow> rows;
     size_t n = source.root_count();
     for (size_t i = 0; i < n; ++i)
-        detail_tree::flatten_node(source, source.root_at(i), 0, expanded, selected, rows);
+        tree_detail::flatten_node(source, source.root_at(i), 0, expanded, selected, rows);
     return rows;
 }
 
@@ -351,7 +351,7 @@ private:
 
 #if __cpp_impl_reflection
 
-namespace detail_tree {
+namespace tree_detail {
 
 // Matches std::optional<X> where X is a reflectable class (excluding std::string, which is
 // itself a class type but must be treated as a plain value, not something to recurse into).
@@ -431,7 +431,7 @@ TreeNodeId populate_struct_tree_cache(X& obj, std::string_view label, Cache& cac
     return id;
 }
 
-} // namespace detail_tree
+} // namespace tree_detail
 
 template <typename T>
 TreeSource wrap_struct_tree(T& root) {
@@ -443,7 +443,7 @@ TreeSource wrap_struct_tree(T& root) {
     auto cache = std::make_shared<std::unordered_map<TreeNodeId, Entry>>();
     auto next_id = std::make_shared<TreeNodeId>(1);
     TreeNodeId root_id
-        = detail_tree::populate_struct_tree_cache(root, std::meta::identifier_of(^^T), *cache,
+        = tree_detail::populate_struct_tree_cache(root, std::meta::identifier_of(^^T), *cache,
                                                    *next_id);
 
     TreeSource src;

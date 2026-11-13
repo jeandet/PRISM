@@ -1,0 +1,139 @@
+#pragma once
+
+#include <prism/app/widget_tree_layout.hpp>
+#include <prism/app/widget_tree_traversal.hpp>
+#include <prism/ui/layout.hpp>
+#include <prism/ui/widget_node.hpp>
+
+#include <algorithm>
+#include <any>
+#include <cmath>
+#include <utility>
+#include <vector>
+
+// After a layout pass: what it decided, written back into the widgets (scroll and split
+// state, window position and size, re-records at a new size) and the drop areas it found.
+namespace prism::app::widget_detail {
+using namespace prism::core;
+using namespace prism::ui;
+
+inline void update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
+    WidgetNode* wn = &node;
+    if (layout_node.kind == LayoutNode::Kind::Scroll) {
+        auto& ss = ensure_scroll_state(*wn);
+        ss.viewport_h = layout_node.allocated.extent.h;
+        ss.viewport_w = layout_node.allocated.extent.w;
+        ss.content_h = layout_node.scroll_content_h;
+    }
+    if (layout_node.kind == LayoutNode::Kind::VirtualList)
+        if (auto* vls = get_vlist_state(*wn)) vls->viewport_h = layout_node.allocated.extent.h;
+    if (layout_node.kind == LayoutNode::Kind::Table) {
+        if (auto* ts = get_table_state(*wn)) {
+            bool was_zero = ts->viewport_w.raw() == 0.f;
+            ts->viewport_h = Height{layout_node.allocated.extent.h.raw() - ts->row_height.raw()};
+            ts->viewport_w = layout_node.allocated.extent.w;
+            if (was_zero && ts->viewport_w.raw() > 0.f) wn->dirty = true;
+        }
+    }
+    if (auto sv = get_scroll_view(*wn)) {
+        DY max_off = max_scroll(sv->content_h, sv->viewport_h);
+        sv->offset = DY{std::clamp(sv->offset.raw(), 0.f, max_off.raw())};
+        layout_node.scroll_offset = sv->offset;
+        if (sv->show_ticks > 0) sv->show_ticks--;
+    }
+}
+
+inline void update_scroll_state(LayoutNode& layout_node) {
+    if (layout_node.source) update_scroll_state_of(layout_node, *layout_node.source);
+    for (auto& child : layout_node.children)
+        update_scroll_state(child);
+}
+
+// The screen area of every container that takes drops (a dock group): a drop on its empty
+// space, where no widget is hit, still finds it. Moved up by the scroll areas above it.
+inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::vector<std::pair<WidgetId, Rect>>& out) {
+    if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts)
+        out.push_back({n.id, Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent}});
+    for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset, out);
+}
+
+inline void update_split_state(LayoutNode& layout_node) {
+    bool is_split_container = (layout_node.kind == LayoutNode::Kind::Row
+                             || layout_node.kind == LayoutNode::Kind::Column)
+                             && !layout_node.split_sizes.empty();
+    if (is_split_container && layout_node.source) {
+        {
+            if (auto* ss = std::any_cast<SplitState>(&layout_node.source->edit_state); ss && ss->engaged) {
+                bool vertical = (layout_node.kind == LayoutNode::Kind::Column);
+                float available = vertical ? layout_node.allocated.extent.h.raw()
+                                            : layout_node.allocated.extent.w.raw();
+                float handle_total = 0.f;
+                for (auto& child : layout_node.children)
+                    if (child.kind == LayoutNode::Kind::Handle)
+                        handle_total += splitter::thickness_px;
+                float pane_total = 0.f;
+                for (float sz : ss->pane_sizes) pane_total += sz;
+                float target = available - handle_total;
+                if (pane_total > 0.f && std::abs(target - pane_total) > 0.5f) {
+                    float scale = target / pane_total;
+                    for (auto& sz : ss->pane_sizes) sz *= scale;
+                }
+            }
+        }
+    }
+    for (auto& child : layout_node.children)
+        update_split_state(child);
+}
+
+inline void update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
+    // Propagate absolute position and the window size to all indexed widget nodes
+    bool window_changed = false;
+    if (layout_node.id != 0 && layout_node.source) {
+        {
+            auto& n = *layout_node.source;
+            window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
+                          || n.absolute_x != layout_node.allocated.origin.x
+                          || n.absolute_y != layout_node.allocated.origin.y;
+            n.absolute_x = layout_node.allocated.origin.x;
+            n.absolute_y = layout_node.allocated.origin.y;
+            n.viewport_height = viewport.h;
+            n.viewport_width = viewport.w;
+            n.arranged_extent = layout_node.allocated.extent;
+        }
+    }
+
+    // Re-record leaf/canvas/handle widgets after layout so delegates can use their
+    // allocated size instead of a pre-layout guess -- but only when that size actually
+    // differs from wn->canvas_bounds (the size wn->draws was last produced at, whether
+    // by refresh_dirty()'s pre-layout call this same build_snapshot(), or by this same
+    // re-record last frame). No widget here sizes its own record() output from its field
+    // value independent of allocated size (bounding_box() never measures text/points by
+    // content, see draw_list.hpp), so if the size didn't move, the currently-held draws
+    // are still correct -- skipping avoids a second full record() for every leaf/canvas/
+    // handle in the window on every publish, including ones untouched by whatever else
+    // made the window dirty (see benchmarks/stall_latency.cpp's
+    // untouched_sibling_record_calls, and tests/test_record_reuse.cpp).
+    if (layout_node.kind == LayoutNode::Kind::Leaf ||
+        layout_node.kind == LayoutNode::Kind::Canvas ||
+        layout_node.kind == LayoutNode::Kind::Handle) {
+        auto* wn = layout_node.widget;   // set by build_layout() for these three kinds
+        // layout_node reads wn->draws in place (ui::content_draws), so a re-record here is
+        // what layout_flatten() sees; overlay_draws is still a copy and is refreshed.
+        // Popup anchors place their popup relative to the window, so they also re-record
+        // when the window or their position in it changes.
+        bool resized = wn && wn->canvas_bounds.extent != layout_node.allocated.extent;
+        if (wn && wn->record && (resized || (window_changed && wn->popup_anchor))) {
+            wn->canvas_bounds = Rect{
+                Point{X{0}, Y{0}},
+                layout_node.allocated.extent
+            };
+            wn->record(*wn);
+            layout_node.overlay_draws = wn->overlay_draws;
+        }
+        return;
+    }
+    for (auto& child : layout_node.children)
+        update_canvas_bounds(child, viewport);
+}
+
+} // namespace prism::app::widget_detail

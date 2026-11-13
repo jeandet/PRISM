@@ -16,12 +16,17 @@
 #include <prism/ui/widget_node.hpp>
 #include <prism/app/widget_tree_layout.hpp>
 #include <prism/app/widget_tree_traversal.hpp>
+#include <prism/app/layout_writeback.hpp>
+#include <prism/app/popup_layout.hpp>
+#include <prism/app/handle_drag.hpp>
 #include <prism/app/table_input.hpp>
+#include <prism/app/table_paint.hpp>
 #include <prism/ui/popup_place.hpp>
 #include <prism/ui/tooltip.hpp>
 #if __cpp_impl_reflection
 #include <prism/core/reflect.hpp>
 #include <prism/core/reflect_annotations.hpp>
+#include <prism/app/widget_tree_reflect.hpp>
 #endif
 #include <prism/core/state.hpp>
 
@@ -433,22 +438,8 @@ public:
         return it != index_.end() && is_enabled(*it->second) ? it->second->visual_state.cursor : CursorShape::Default;
     }
 
-    struct ScrollbarDrag {
-        WidgetId scroll_id = 0;
-        Y anchor_y{0};       // mouse Y at drag start (absolute)
-        DY anchor_offset{0}; // scroll offset at drag start
-        Height viewport_h{0};
-        Height content_h{0};
-        Height thumb_h{0};
-    };
-
-    struct SplitDrag {
-        WidgetId container_id = 0;
-        size_t handle_index = 0;
-        float anchor = 0.f;
-        float orig_before = 0.f;
-        float orig_after = 0.f;
-    };
+    using ScrollbarDrag = widget_detail::ScrollbarDrag;
+    using SplitDrag = widget_detail::SplitDrag;
 
     void begin_scrollbar_drag(WidgetId id, Y mouse_y) {
         auto it = index_.find(id);
@@ -468,15 +459,8 @@ public:
 
     void update_scrollbar_drag(Y mouse_y) {
         if (scrollbar_drag_.scroll_id == 0) return;
-        auto& d = scrollbar_drag_;
-        Height track_range = d.viewport_h - d.thumb_h;
-        if (track_range.raw() <= 0) return;
-        DY max_off = max_scroll(d.content_h, d.viewport_h);
-        DY dy_pixels = mouse_y - d.anchor_y;
-        float new_offset = std::clamp(
-            d.anchor_offset.raw() + dy_pixels.raw() * max_off.raw() / track_range.raw(),
-            0.f, max_off.raw());
-        scroll_to(d.scroll_id, DY{new_offset});
+        if (auto offset = scrollbar_drag_offset(scrollbar_drag_, mouse_y))
+            scroll_to(scrollbar_drag_.scroll_id, *offset);
     }
 
     void end_scrollbar_drag() {
@@ -488,18 +472,7 @@ public:
     void begin_split_drag(WidgetId container_id, size_t handle_index, float pos) {
         auto it = index_.find(container_id);
         if (it == index_.end()) return;
-        auto& container_wn = *it->second;
-        auto& ss = container_wn.get_or_create<SplitState>();
-        bool vertical = (container_wn.layout_kind == LayoutKind::Column);
-        if (!ss.engaged) {
-            ss.pane_sizes.clear();
-            for (auto& child : container_wn.children) {
-                if (child.layout_kind == LayoutKind::Handle) continue;
-                ss.pane_sizes.push_back(vertical ? child.arranged_extent.h.raw()
-                                                  : child.arranged_extent.w.raw());
-            }
-            ss.engaged = true;
-        }
+        auto& ss = engage_split(*it->second);
         if (handle_index + 1 >= ss.pane_sizes.size()) return;
         split_drag_ = SplitDrag{
             .container_id = container_id,
@@ -516,17 +489,7 @@ public:
         if (it == index_.end()) return;
         auto* ss = std::any_cast<SplitState>(&it->second->edit_state);
         if (!ss) return;
-        float delta = pos - split_drag_.anchor;
-        float before = split_drag_.orig_before + delta;
-        float after = split_drag_.orig_after - delta;
-        if (before < splitter::min_pane_size_px) {
-            after -= (splitter::min_pane_size_px - before);
-            before = splitter::min_pane_size_px;
-        }
-        if (after < splitter::min_pane_size_px) {
-            before -= (splitter::min_pane_size_px - after);
-            after = splitter::min_pane_size_px;
-        }
+        auto [before, after] = split_drag_sizes(split_drag_, pos);
         ss->pane_sizes[split_drag_.handle_index] = before;
         ss->pane_sizes[split_drag_.handle_index + 1] = after;
         set_dirty(split_drag_.container_id);
@@ -797,8 +760,9 @@ public:
             update_scroll_state(layout);
             update_split_state(layout);
             drop_areas_.clear();
-            collect_drop_areas(layout, DY{0});
-            popup = layout_popup(layout, Size{Width{w}, Height{h}});
+            collect_drop_areas(layout, DY{0}, drop_areas_);
+            popup = layout_popup(root_, layout, Size{Width{w}, Height{h}}, theme_);
+            popup_card_ = popup ? std::optional{popup->card} : std::nullopt;
             return layout;
         };
 
@@ -834,7 +798,7 @@ public:
         snap->viewport = Size{Width{w}, Height{h}};
         layout_flatten(layout, *snap);
         resolve_clips(*snap);
-        if (popup) flatten_popup(*popup, *snap);
+        if (popup) flatten_popup(*popup, *snap, theme_);
         if (highlight_id_) {
             for (auto& [id, rect] : snap->geometry) {
                 if (id == *highlight_id_) {
@@ -1185,7 +1149,7 @@ private:
         // sub-tree in a root Node via this function. Without this, that wrapper's debug_name
         // stays empty and its layout_kind default (LayoutKind::Default) leaks through as the
         // row's displayed name -- see the analogous fallback comment on check_unplaced_fields'
-        // model_name below.
+        // model_name (widget_tree_reflect.hpp).
         static constexpr std::string_view root_debug_name = std::meta::has_identifier(^^Model)
             ? std::meta::identifier_of(^^Model) : std::string_view{"<anonymous>"};
         root.debug_name = std::string(root_debug_name);
@@ -1194,24 +1158,7 @@ private:
 
         if constexpr (requires(Model& m, ViewBuilder& vb) { m.view(vb); }) {
 #if __cpp_impl_reflection
-            // view()-driven placement (vb.widget(field)) only ever sees a Field<T>&, never the
-            // member identifier that placed it -- unlike the whole-model reflection branch below,
-            // which walks Model's own members and knows both. Recover the identifier here, keyed
-            // by address, so ViewBuilder::apply_field_name can resolve it for whichever field
-            // view() happens to place.
-            static constexpr auto own_members = std::define_static_array(
-                std::meta::nonstatic_data_members_of(
-                    ^^Model, std::meta::access_context::unchecked()));
-            template for (constexpr auto m : own_members) {
-                auto& member = model.[:m:];
-                using M = std::remove_cvref_t<decltype(member)>;
-                if constexpr (is_field_v<M> || is_derived_v<M> || is_shared_v<M>) {
-                    field_names_.emplace(static_cast<const void*>(&member),
-                                         std::meta::identifier_of(m));
-                    if constexpr (constexpr auto tip = core::extract_string_annotation<m, core::tooltip_t>(); !tip.empty())
-                        field_tooltips_.emplace(static_cast<const void*>(&member), tip);
-                }
-            }
+            record_field_names(model, field_names_, field_tooltips_);
 #endif
             typename dependent_type<ViewBuilder, Model>::type vb{*this, root};
             model.view(vb);
@@ -1279,39 +1226,6 @@ private:
         return root;
     }
 
-#if __cpp_impl_reflection
-    template <typename Model>
-    void check_unplaced_fields([[maybe_unused]] Model& model,
-                               [[maybe_unused]] const std::set<const void*>& placed) {
-#ifndef NDEBUG
-        static constexpr auto members = std::define_static_array(
-            std::meta::nonstatic_data_members_of(
-                ^^Model, std::meta::access_context::unchecked()));
-        // Model can be a class-template specialization reached through a deduced function-
-        // template parameter (e.g. LeafSlot<M, ReadOnly>) -- on this reflection implementation
-        // such a ^^Model reports has_identifier() == false, and identifier_of() would throw as
-        // a consteval call. Fall back to a placeholder rather than crash the build; this is a
-        // debug-only diagnostic string, not something callers parse. See the analogous
-        // Shared<T>& -> Shared<T>* workaround in inspector.hpp for the same underlying bug.
-        static constexpr std::string_view model_name = std::meta::has_identifier(^^Model)
-            ? std::meta::identifier_of(^^Model) : std::string_view{"<anonymous>"};
-        template for (constexpr auto m : members) {
-            auto& member = model.[:m:];
-            using M = std::remove_cvref_t<decltype(member)>;
-            if constexpr (is_field_v<M> || is_derived_v<M> || is_shared_v<M>) {
-                if (!placed.contains(&member)) {
-                    std::fprintf(stderr, "[prism] warning: Field '%.*s' in %.*s not placed by view()\n",
-                        static_cast<int>(std::meta::identifier_of(m).size()),
-                        std::meta::identifier_of(m).data(),
-                        static_cast<int>(model_name.size()),
-                        model_name.data());
-                }
-            }
-        }
-#endif
-    }
-#endif // __cpp_impl_reflection
-
     // --- WidgetNode tree utilities ---
 
     void build_index(WidgetNode& node) {
@@ -1339,125 +1253,6 @@ private:
     void set_dirty(WidgetId id) {
         if (auto it = index_.find(id); it != index_.end())
             it->second->dirty = true;
-    }
-
-    void update_scroll_state(LayoutNode& layout_node) {
-        if (layout_node.source) update_scroll_state_of(layout_node, *layout_node.source);
-        for (auto& child : layout_node.children)
-            update_scroll_state(child);
-    }
-
-    void update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
-        WidgetNode* wn = &node;
-        if (layout_node.kind == LayoutNode::Kind::Scroll) {
-            auto& ss = ensure_scroll_state(*wn);
-            ss.viewport_h = layout_node.allocated.extent.h;
-            ss.viewport_w = layout_node.allocated.extent.w;
-            ss.content_h = layout_node.scroll_content_h;
-        }
-        if (layout_node.kind == LayoutNode::Kind::VirtualList)
-            if (auto* vls = get_vlist_state(*wn)) vls->viewport_h = layout_node.allocated.extent.h;
-        if (layout_node.kind == LayoutNode::Kind::Table) {
-            if (auto* ts = get_table_state(*wn)) {
-                bool was_zero = ts->viewport_w.raw() == 0.f;
-                ts->viewport_h = Height{layout_node.allocated.extent.h.raw() - ts->row_height.raw()};
-                ts->viewport_w = layout_node.allocated.extent.w;
-                if (was_zero && ts->viewport_w.raw() > 0.f) wn->dirty = true;
-            }
-        }
-        if (auto sv = get_scroll_view(*wn)) {
-            DY max_off = max_scroll(sv->content_h, sv->viewport_h);
-            sv->offset = DY{std::clamp(sv->offset.raw(), 0.f, max_off.raw())};
-            layout_node.scroll_offset = sv->offset;
-            if (sv->show_ticks > 0) sv->show_ticks--;
-        }
-    }
-
-    // The screen area of every container that takes drops (a dock group): a drop on its empty
-    // space, where no widget is hit, still finds it. Moved up by the scroll areas above it.
-    void collect_drop_areas(const LayoutNode& n, DY scrolled) {
-        if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts)
-                drop_areas_.push_back({n.id, Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent}});
-        for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset);
-    }
-
-    void update_split_state(LayoutNode& layout_node) {
-        bool is_split_container = (layout_node.kind == LayoutNode::Kind::Row
-                                 || layout_node.kind == LayoutNode::Kind::Column)
-                                 && !layout_node.split_sizes.empty();
-        if (is_split_container && layout_node.source) {
-            {
-                if (auto* ss = std::any_cast<SplitState>(&layout_node.source->edit_state); ss && ss->engaged) {
-                    bool vertical = (layout_node.kind == LayoutNode::Kind::Column);
-                    float available = vertical ? layout_node.allocated.extent.h.raw()
-                                                : layout_node.allocated.extent.w.raw();
-                    float handle_total = 0.f;
-                    for (auto& child : layout_node.children)
-                        if (child.kind == LayoutNode::Kind::Handle)
-                            handle_total += splitter::thickness_px;
-                    float pane_total = 0.f;
-                    for (float sz : ss->pane_sizes) pane_total += sz;
-                    float target = available - handle_total;
-                    if (pane_total > 0.f && std::abs(target - pane_total) > 0.5f) {
-                        float scale = target / pane_total;
-                        for (auto& sz : ss->pane_sizes) sz *= scale;
-                    }
-                }
-            }
-        }
-        for (auto& child : layout_node.children)
-            update_split_state(child);
-    }
-
-    void update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
-        // Propagate absolute position and the window size to all indexed widget nodes
-        bool window_changed = false;
-        if (layout_node.id != 0 && layout_node.source) {
-            {
-                auto& n = *layout_node.source;
-                window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
-                              || n.absolute_x != layout_node.allocated.origin.x
-                              || n.absolute_y != layout_node.allocated.origin.y;
-                n.absolute_x = layout_node.allocated.origin.x;
-                n.absolute_y = layout_node.allocated.origin.y;
-                n.viewport_height = viewport.h;
-                n.viewport_width = viewport.w;
-                n.arranged_extent = layout_node.allocated.extent;
-            }
-        }
-
-        // Re-record leaf/canvas/handle widgets after layout so delegates can use their
-        // allocated size instead of a pre-layout guess -- but only when that size actually
-        // differs from wn->canvas_bounds (the size wn->draws was last produced at, whether
-        // by refresh_dirty()'s pre-layout call this same build_snapshot(), or by this same
-        // re-record last frame). No widget here sizes its own record() output from its field
-        // value independent of allocated size (bounding_box() never measures text/points by
-        // content, see draw_list.hpp), so if the size didn't move, the currently-held draws
-        // are still correct -- skipping avoids a second full record() for every leaf/canvas/
-        // handle in the window on every publish, including ones untouched by whatever else
-        // made the window dirty (see benchmarks/stall_latency.cpp's
-        // untouched_sibling_record_calls, and tests/test_record_reuse.cpp).
-        if (layout_node.kind == LayoutNode::Kind::Leaf ||
-            layout_node.kind == LayoutNode::Kind::Canvas ||
-            layout_node.kind == LayoutNode::Kind::Handle) {
-            auto* wn = layout_node.widget;   // set by build_layout() for these three kinds
-            // layout_node reads wn->draws in place (ui::content_draws), so a re-record here is
-            // what layout_flatten() sees; overlay_draws is still a copy and is refreshed.
-            // Popup anchors place their popup relative to the window, so they also re-record
-            // when the window or their position in it changes.
-            bool resized = wn && wn->canvas_bounds.extent != layout_node.allocated.extent;
-            if (wn && wn->record && (resized || (window_changed && wn->popup_anchor))) {
-                wn->canvas_bounds = Rect{
-                    Point{X{0}, Y{0}},
-                    layout_node.allocated.extent
-                };
-                wn->record(*wn);
-                layout_node.overlay_draws = wn->overlay_draws;
-            }
-            return;
-        }
-        for (auto& child : layout_node.children)
-            update_canvas_bounds(child, viewport);
     }
 
     void unindex_node(WidgetId id) {
@@ -1533,99 +1328,6 @@ private:
         node.popup_area.reset();
         if (!index_.contains(focused_id_)) focused_id_ = 0;   // it was inside the popup
         set_focused(std::exchange(node.focus_before_popup, 0));
-    }
-
-    struct PopupLayout {
-        WidgetNode* anchor;
-        LayoutNode content;
-        Rect card;   // window coordinates
-    };
-
-    static constexpr float popup_pad = 16.f;      // between the card's edge and its content
-    static constexpr float popup_margin = 24.f;   // kept free between the card and the window edge
-    static constexpr float popup_min_w = 320.f;
-
-    // The open popup's content, measured, given a card (a modal one centred, a non-modal one
-    // next to its anchor, both within the window) and arranged in it. Also sets the anchor's
-    // popup_area, which routing reads.
-    std::optional<PopupLayout> layout_popup(const LayoutNode& main, Size window) {
-        WidgetNode* anchor = find_open_popup(root_);
-        popup_card_.reset();
-        if (!anchor) return std::nullopt;
-        PopupLayout p{anchor, {}, {}};
-        auto& content_wn = anchor->children.front();
-        p.content.kind = LayoutNode::Kind::Column;
-        p.content.id = content_wn.id;
-        p.content.source = &content_wn;
-        p.content.theme = &theme_;
-        for (auto& c : content_wn.children) build_layout(c, p.content);
-        layout_measure(p.content, LayoutAxis::Vertical);
-        float max_w = std::max(0.f, window.w.raw() - 2 * popup_margin);
-        float max_h = std::max(0.f, window.h.raw() - 2 * popup_margin);
-        Size size{Width{std::min(max_w, std::max(popup_min_w, p.content.hint.cross + 2 * popup_pad))},
-                  Height{std::min(max_h, p.content.hint.preferred + 2 * popup_pad)}};
-        Point at = anchor_origin(main, anchor->id).value_or(Point{X{0}, Y{0}});
-        p.card = anchor->popup_modal
-            ? Rect{Point{X{(window.w.raw() - size.w.raw()) / 2}, Y{(window.h.raw() - size.h.raw()) / 2}}, size}
-            : place_popup(size, Rect{at, Size{Width{0}, Height{0}}}, window);
-        layout_arrange(p.content, Rect{Point{p.card.origin.x + DX{popup_pad}, p.card.origin.y + DY{popup_pad}},
-                                       Size{size.w - Width{2 * popup_pad}, size.h - Height{2 * popup_pad}}});
-        update_scroll_state(p.content);
-        popup_card_ = p.card;
-        anchor->popup_area = Rect{Point{X{p.card.origin.x.raw() - at.x.raw()}, Y{p.card.origin.y.raw() - at.y.raw()}}, size};
-        return p;
-    }
-
-    static WidgetNode* find_open_popup(WidgetNode& node) {
-        if (node.popup_builder && !node.children.empty()) return &node;
-        for (auto& c : node.children)
-            if (auto* p = find_open_popup(c)) return p;
-        return nullptr;
-    }
-
-    // Where the widget is on screen: its place in the layout, moved up by every scrolled
-    // container above it, as layout_flatten draws it.
-    static std::optional<Point> anchor_origin(const LayoutNode& node, WidgetId id) {
-        if (node.id == id) return node.allocated.origin;
-        for (auto& c : node.children)
-            if (auto p = anchor_origin(c, id)) return Point{p->x, p->y - node.scroll_offset};
-        return std::nullopt;
-    }
-
-    // Into the overlay, which draws after and is hit-tested before the window's widgets:
-    // a scrim behind a modal popup, the card, then the content clipped to the card.
-    void flatten_popup(PopupLayout& p, SceneSnapshot& snap) {
-        if (p.anchor->popup_modal) snap.overlay.filled_rect(Rect{Point{X{0}, Y{0}}, snap.viewport}, theme_.scrim);
-        snap.overlay.rounded_rect(p.card, theme_.popup_bg, 8.f);
-        snap.overlay.rounded_rect(p.card, theme_.popup_border, 8.f, 1.f);
-        snap.overlay_geometry.push_back({p.anchor->id, p.card});   // the card's own background
-
-        SceneSnapshot content;
-        content.viewport = snap.viewport;
-        auto add = [&](WidgetId id, Rect r, DrawList dl) {
-            content.geometry.push_back({id, r});
-            content.draw_lists.push_back(std::make_shared<DrawList>(std::move(dl)));
-            content.z_order.push_back(static_cast<uint32_t>(content.geometry.size() - 1));
-        };
-        DrawList open_clip, close_clip;
-        open_clip.clip_push(p.card.origin, p.card.extent);
-        close_clip.clip_pop();
-        add(0, Rect{}, std::move(open_clip));
-        layout_flatten(p.content, content, p.card);
-        add(0, Rect{}, std::move(close_clip));
-        resolve_clips(content);   // nested clips (a scroll area) cut to the card
-
-        for (auto idx : content.z_order)
-            if (content.draw_lists[idx])
-                for (const auto& cmd : content.draw_lists[idx]->commands) snap.overlay.commands.push_back(cmd);
-        for (auto& [id, r] : content.geometry) {
-            Rect visible = p.card.intersect(r);
-            if (id != 0 && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
-                snap.overlay_geometry.push_back({id, visible});
-        }
-        for (const auto& cmd : content.overlay.commands) snap.overlay.commands.push_back(cmd);
-        for (auto& g : content.overlay_geometry) snap.overlay_geometry.push_back(g);
-        for (auto& g : content.scrollbar_geometry) snap.scrollbar_geometry.push_back(g);
     }
 
     void materialize_tabs(WidgetNode& node) {
@@ -1736,71 +1438,6 @@ private:
         node.children.clear();
     }
 
-    // Paints one row (recycled from the pool when possible): zebra/selection
-    // background, per-cell clipped text, and column dividers.
-    WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::vector<float>& edges) {
-        WidgetNode wn;
-        if (!ts.pool.empty()) {
-            wn = std::move(ts.pool.back());
-            ts.pool.pop_back();
-        }
-        wn.id = 0;  // cells are hit-test transparent; the table container handles input
-        wn.dirty = true;
-        wn.draws.clear();
-        wn.theme = &theme_;
-
-        size_t row = source_row(ts, view_pos);
-        auto bg = is_selected(ts, row) ? theme_.table_selected
-                : view_pos % 2 == 0    ? theme_.table_row_even
-                                       : theme_.table_row_odd;
-        float dx = -ts.scroll_x.raw();
-        Width total_w{std::max(edges.back() + dx, ts.viewport_w.raw())};
-        wn.draws.filled_rect(Rect{Point{X{0}, Y{0}}, Size{total_w, ts.row_height}}, bg);
-
-        for (size_t c = 0; c < ts.column_count; ++c) {
-            X cx{edges[c] + dx};
-            Width cw{edges[c + 1] - edges[c]};
-            wn.draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});
-            wn.draws.text(ts.source.cell_text(row, c), Point{X{4.f}, Y{4.f}}, 14.f, theme_.text);  // clip-relative
-            wn.draws.clip_pop();
-            if (c > 0)
-                wn.draws.filled_rect(Rect{Point{cx, Y{0}}, Size{Width{1.f}, ts.row_height}},
-                                     theme_.table_divider);
-        }
-        return wn;
-    }
-
-    static void draw_sort_arrow(DrawList& dl, X right, bool descending, Color c) {
-        float x = right.raw() - 14.f, y = 12.f, w = 8.f, h = 5.f;
-        if (descending)
-            dl.filled_polygon({Point{X{x}, Y{y - h / 2}}, Point{X{x + w}, Y{y - h / 2}},
-                               Point{X{x + w / 2}, Y{y + h / 2}}}, c);
-        else
-            dl.filled_polygon({Point{X{x + w / 2}, Y{y - h / 2}}, Point{X{x + w}, Y{y + h / 2}},
-                               Point{X{x}, Y{y + h / 2}}}, c);
-    }
-
-    // Renders header cells into overlay_draws (picked up by table flatten).
-    void render_table_header(WidgetNode& node, const TableState& ts, const std::vector<float>& edges) {
-        node.overlay_draws.clear();
-        auto sort = ts.sort.get();
-        float dx = -ts.scroll_x.raw();
-        for (size_t c = 0; c < ts.column_count; ++c) {
-            X cx{edges[c] + dx};
-            X right{edges[c + 1] + dx};
-            Width cw{edges[c + 1] - edges[c]};
-            node.overlay_draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});  // origin moves to cx
-            node.overlay_draws.text(std::string(ts.column_header(c)), Point{X{4.f}, Y{4.f}},
-                                    14.f, theme_.table_header_text);
-            if (sort && sort->column == c)
-                draw_sort_arrow(node.overlay_draws, X{cw.raw()}, sort->descending, theme_.table_header_text);
-            node.overlay_draws.clip_pop();
-            node.overlay_draws.filled_rect(Rect{Point{right, Y{4.f}},
-                                                Size{Width{1.f}, ts.row_height - Height{8.f}}},
-                                           theme_.table_header_divider);
-        }
-    }
-
     // A press on the body hit-tested against a frame from before the rows moved: it would act
     // on whichever row has since taken that place.
     bool stale_body_press(const TableState& ts, const InputEvent& ev) const {
@@ -1854,13 +1491,13 @@ private:
             // id=0 is shared by every row (hit-test transparent, see paint_table_row);
             // registering it in index_/parent_map_ would alias to whichever
             // row was inserted last, so it's deliberately skipped here.
-            node.children.push_back(paint_table_row(*ts, i, edges));
+            node.children.push_back(paint_table_row(*ts, i, edges, theme_));
         }
 
         ts->visible_start = new_start;
         ts->visible_end = new_end;
 
-        render_table_header(node, *ts, edges);
+        render_table_header(node, *ts, edges, theme_);
         wire_table_input(node, ts);
     }
 

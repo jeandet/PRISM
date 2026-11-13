@@ -59,8 +59,14 @@ The general taste is KISS, functional-over-imperative, and one level of abstract
   already existed in this codebase. Check `core/` and `subprojects/*.wrap` before reaching outward.
 - **One level of abstraction per function/file; split when that stops being true.** `WidgetTree`
   used to mix a 630-line builder DSL, stateless tree-walk helpers, and the frame pipeline in one
-  1960-line file; it's now three headers (`widget_tree.hpp`, `widget_tree_layout.hpp`,
-  `widget_tree_traversal.hpp`) plus `view_builder.hpp`, split along exactly that seam. Prefer
+  1960-line file; split along exactly that seam, `widget_tree.hpp` now keeps the stateful core
+  (index, focus, popup stack, drag-and-drop, materializers, frame pipeline) and calls stateless
+  helpers in `app/`: `widget_tree_layout.hpp` (widgets to layout nodes),
+  `widget_tree_traversal.hpp` (tree walks), `layout_writeback.hpp` (layout results back into
+  the widgets), `popup_layout.hpp` (a popup's content card), `table_paint.hpp` (table rows and
+  header), `table_input.hpp`, `handle_drag.hpp` (scrollbar and split-handle drags),
+  `drag_draw.hpp`, `widget_tree_reflect.hpp` (reflection-only helpers), plus `view_builder.hpp`
+  and `dock_builder.hpp` for the builder DSL. Prefer
   extracting a stateless free function over growing a class method when the two don't actually
   share state.
 - **No comment-decorated code blocks — extract instead.** This codebase's own `detail::` namespace

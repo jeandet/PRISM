@@ -19,7 +19,7 @@ using namespace prism::core;
 /// freed memory. Do not copy or move — copies would multiply this hazard.
 template <typename T>
 struct Inspector {
-    // source_ is a pointer, not a reference: WidgetTree::check_unplaced_fields (debug builds)
+    // source_ is a pointer, not a reference: check_unplaced_fields (debug builds, app/widget_tree_reflect.hpp)
     // reflects over Model's own members to warn about unplaced Field/Derived/Shared fields.
     // A `Shared<T>&` member matches that reflection walk and hits a GCC identifier_of()
     // limitation on this template instantiation; a raw pointer member doesn't match
