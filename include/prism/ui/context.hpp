@@ -59,6 +59,7 @@ struct Theme {
     // Dropdown popup
     Color popup_bg        = Color::rgba(50, 50, 62);
     Color popup_border    = Color::rgba(80, 80, 95);
+    Color error           = Color::rgba(235, 90, 90);   // input that was refused
     Color popup_highlight = Color::rgba(60, 100, 180);
     Color scrim           = Color::rgba(0, 0, 0, 140);   // dims the window behind a modal dialog
 
@@ -117,6 +118,7 @@ inline Theme light_theme() {
     t.divider = c(180, 182, 190, 180);    t.divider_hover = c(140, 143, 155, 220);
     t.cursor = c(30, 30, 40);             t.text_selection = c(60, 120, 220, 90); t.text_match = c(240, 180, 40, 110);
     t.popup_bg = c(252, 252, 254);        t.popup_border = c(190, 192, 200);
+    t.error = c(200, 40, 40);
     t.popup_highlight = c(30, 100, 190);  t.scrim = c(0, 0, 0, 90);
     t.table_row_even = c(255, 255, 255);  t.table_row_odd = c(246, 247, 250);   t.table_selected = c(205, 222, 250);
     t.table_header = c(232, 234, 240);    t.table_divider = c(225, 227, 233);

@@ -7,21 +7,25 @@
 #include <fmt/format.h>
 
 #include <array>
+#include <map>
 #include <cmath>
 #include <string>
 #include <vector>
 
 namespace gallery {
 
-// Synthetic readings, computed from the row number: nothing is stored.
+// Synthetic readings, computed from the row number: nothing is stored but the notes the user
+// types into the last column (double-click or F2 to edit it).
 struct Readings {
+    std::map<std::size_t, std::string> notes;
+
     static constexpr std::array<const char*, 5> sensors{"battery", "bus", "motor", "radio", "heater"};
     static constexpr std::array<const char*, 5> units{"V", "V", "A", "dBm", "°C"};
 
-    std::size_t column_count() const { return 5; }
+    std::size_t column_count() const { return 6; }
     std::size_t row_count() const { return 10'000; }
     std::string_view header(std::size_t c) const {
-        static constexpr std::array<const char*, 5> h{"#", "Sensor", "Value", "Unit", "Status"};
+        static constexpr std::array<const char*, 6> h{"#", "Sensor", "Value", "Unit", "Status", "Note"};
         return h[c];
     }
     std::string cell_text(std::size_t r, std::size_t c) const {
@@ -32,8 +36,15 @@ struct Readings {
         case 2: return fmt::format("{:.2f}", v);
         case 3: return units[r % units.size()];
         case 4: return v > 40.0 ? "high" : v < 5.0 ? "low" : "ok";
+        case 5: { auto it = notes.find(r); return it == notes.end() ? std::string{} : it->second; }
         default: return {};
         }
+    }
+    bool editable(std::size_t c) const { return c == 5; }
+    bool set_cell(std::size_t r, std::size_t, std::string_view text) {
+        if (text.empty()) notes.erase(r);
+        else notes[r] = std::string(text);
+        return true;
     }
 
 private:

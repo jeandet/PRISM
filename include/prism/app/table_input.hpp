@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/app/widget_tree_traversal.hpp>
+#include <prism/delegates/text_delegates.hpp>
 #include <prism/input/input_event.hpp>
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/table_ops.hpp>
@@ -52,11 +53,17 @@ inline TableInputResult header_press(TableState& ts, Point local) {
     return {false, CursorShape::Default};
 }
 
-inline TableInputResult body_press(TableState& ts, Point local, uint16_t m) {
+inline TableInputResult body_press(TableState& ts, Point local, uint16_t m, uint8_t clicks) {
+    if (ts.editing && !commit_edit(ts)) cancel_edit(ts);   // a click elsewhere ends the edit
     float body_y = local.y.raw() - ts.row_height.raw() + ts.scroll_y.raw();
     auto pos = static_cast<size_t>(body_y / ts.row_height.raw());
-    if (pos >= ts.row_count()) return {false, CursorShape::Default};
+    if (pos >= ts.row_count()) return {true, CursorShape::Default};
     size_t row = source_row(ts, pos);
+    if (clicks >= 2) {   // a double-click edits the cell
+        select_single(ts, row);
+        if (auto c = column_at(column_edges(ts), content_x(ts, local))) begin_edit(ts, row, *c);
+        return {true, CursorShape::Default};
+    }
     if (m & mods::shift)
         select_range_to(ts, pos);
     else if (mods::shortcut(m))
@@ -75,7 +82,7 @@ inline TableInputResult on_button(TableState& ts, const MouseButton& mb) {
         ts.resizing.reset();
         return {was_resizing, hover_cursor(ts, mb.position)};
     }
-    return in_header(ts, mb.position) ? header_press(ts, mb.position) : body_press(ts, mb.position, mb.mods);
+    return in_header(ts, mb.position) ? header_press(ts, mb.position) : body_press(ts, mb.position, mb.mods, mb.clicks);
 }
 
 inline TableInputResult on_move(TableState& ts, const MouseMove& mm) {
@@ -103,7 +110,32 @@ inline void move_current(TableState& ts, size_t pos, bool extend) {
         select_single(ts, source_row(ts, pos));
 }
 
+// Keys while a cell is edited: Enter commits, Escape cancels, Tab commits and edits the next
+// cell (Shift+Tab the previous one); the rest edit the text.
+inline TableInputResult edit_key(TableState& ts, const KeyPress& kp) {
+    auto& e = *ts.editing;
+    if (kp.key == keys::enter) commit_edit(ts);
+    else if (kp.key == keys::escape) cancel_edit(ts);
+    else if (kp.key == keys::tab) {
+        size_t row = e.row, col = e.column;
+        auto next = next_editable_column(ts, col, (kp.mods & mods::shift) ? -1 : +1);
+        if (commit_edit(ts) && next) begin_edit(ts, row, *next);
+    } else if (kp.key == keys::home || kp.key == keys::end) {
+        e.text = text_edit::move_to(e.text, kp.key == keys::home ? 0 : e.text.text.size(), (kp.mods & mods::shift) != 0);
+    } else if (auto after = text_detail::common_edit_key(e.text, kp)) {
+        e.text = *after;
+    } else {
+        return {};
+    }
+    return {true, std::nullopt};
+}
+
 inline TableInputResult on_key(TableState& ts, const KeyPress& kp) {
+    if (ts.editing) return edit_key(ts, kp);
+    if (kp.key == keys::f2 && ts.selected_row.get()) {
+        if (auto c = first_editable_column(ts)) begin_edit(ts, *ts.selected_row.get(), *c);
+        return {true, std::nullopt};
+    }
     size_t n = ts.row_count();
     if (n == 0) return {};
     bool extend = (kp.mods & mods::shift) != 0;
@@ -139,6 +171,15 @@ inline TableInputResult handle_table_input(ui::TableState& ts, const input::Inpu
     if (auto* mm = std::get_if<input::MouseMove>(&ev)) return on_move(ts, *mm);
     if (auto* ms = std::get_if<input::MouseScroll>(&ev)) return on_scroll(ts, *ms);
     if (auto* kp = std::get_if<input::KeyPress>(&ev)) return on_key(ts, *kp);
+    if (ts.editing) {   // typed or pasted text goes into the cell
+        std::string_view text;
+        if (auto* ti = std::get_if<input::TextInput>(&ev)) text = ti->text;
+        else if (auto* p = std::get_if<input::Paste>(&ev)) text = p->text;
+        else return {};
+        ts.editing->text = text_edit::insert(ts.editing->text, text, 0);
+        ts.editing->rejected = false;
+        return {true, std::nullopt};
+    }
     return {};
 }
 

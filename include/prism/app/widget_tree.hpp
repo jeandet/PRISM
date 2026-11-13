@@ -681,6 +681,12 @@ public:
     // key (Ctrl+C copies there). Disabled menus and items never match.
     // simplify: every menu in the tree matches, also one in a tab that is not shown; scope
     // shortcuts to visible widgets when two tabs give the same shortcut different meanings.
+    // Whether the focused widget takes this key before routing does anything with it.
+    [[nodiscard]] bool focused_keeps(const KeyPress& kp) const {
+        auto it = index_.find(focused_id_);
+        return it != index_.end() && it->second->keeps_keys && it->second->keeps_keys(kp);
+    }
+
     bool trigger_shortcut(const KeyPress& kp) {
         if (focused_edits_text() && text_widget_keeps(kp)) return false;
         return trigger_shortcut_in(root_, kp);
@@ -1462,6 +1468,7 @@ private:
         // A re-sort moves the rows, whether a header click or the app set it.
         node.connections.push_back(
             ts->sort.on_change().connect([ts, this](const auto&) { ts->shifted_at = next_frame_version(); }));
+        node.keeps_keys = [ts](const KeyPress&) { return ts->editing.has_value(); };
         node.connections.push_back(
             node.on_input.connect([ts, node_id, this](const InputEvent& ev) {
                 auto it = index_.find(node_id);

@@ -73,6 +73,9 @@ struct WidgetNode {
     std::function<std::int32_t()> mnemonic_key;   // a menu title's Alt+key (0: none); read live
     // A menu's keyboard shortcuts: chooses the item `kp` triggers, if any (see ui/shortcut.hpp).
     std::function<bool(const KeyPress&, WidgetNode& self)> try_shortcut;
+    // While it says so, the focused widget gets every key first -- Tab and shortcuts included
+    // (a table cell being edited owns the keyboard).
+    std::function<bool(const KeyPress&)> keeps_keys;
     bool context_menu = false;  // opened by a right click in its parent container
     bool popup_anchor = false;  // draws nothing in place, only popups (context menu, dialog)
 #ifdef PRISM_DEBUG_TOOLS_ENABLED

@@ -320,6 +320,11 @@ Click a table header to sort (numbers sort by value), drag a header edge to resi
 and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
 A sorted table re-sorts when it hears about a change: a `List<T>` notifies it, and column
 storage does through `.depends_on(...)`.
+Cells can be edited in place: double-click one, or press F2 on a row; Enter keeps the text,
+Escape drops it, Tab goes to the next cell. A source takes edits with a
+`bool set_cell(row, col, text)` (false refuses the text: the editor stays open) and can limit
+them to some columns with `bool editable(col)`. A table over a `List` of plain structs takes
+them by itself, each column parsed into its member's type.
 Both bind to data of any shape through three adapter tiers:
 
 | Tier | Tree | Table | Needs reflection |
@@ -706,7 +711,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.text_area(text, rows=6, read_only=False)` | `Field<TextArea<>>` | read-only: selectable, UI font |
 | `prism.tabs()` + `vb.tabs(h, [(title, fn), ...])` | `Field<TabBar<>>` + `vb.tabs` | `.value` is the selected page |
 | `prism.dialog(title, message, buttons)` + `vb.dialog(h, content=None)` | `Field<Dialog>` + `vb.dialog` | `.open = True` asks; `.on_choice(cb)` gets the button |
-| `prism.table_field(source)` + `vb.table(h, sort_column=None)` | `vb.table(ColumnStorage)` | source: `column_count`, `row_count`, `cell_text`, `header`; `.refresh()` after a change |
+| `prism.table_field(source)` + `vb.table(h, sort_column=None)` | `vb.table(ColumnStorage)` | source: `column_count`, `row_count`, `cell_text`, `header`; `.refresh()` after a change; `set_cell(row, col, text)` makes it editable |
 | `prism.open_window(model, title=, width=, height=)` | `AppContext::open_window` | while an app runs; desktop |
 | `prism.settings_dir(org, app)` | `backends::settings_dir` | save the app's settings there (json, tomllib) |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |

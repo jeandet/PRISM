@@ -6,10 +6,12 @@
 #include <prism/core/types.hpp>
 #include <prism/core/reflect_annotations.hpp>
 #include <prism/core/reflect_leaf.hpp>
+#include <prism/ui/text_edit.hpp>
 #include <prism/ui/widget_node.hpp>
 
 #include <fmt/format.h>
 #include <cassert>
+#include <charconv>
 #include <functional>
 #include <optional>
 #include <string>
@@ -29,6 +31,11 @@ struct TableSource {
     std::function<size_t()> row_count;
     std::function<std::string(size_t row, size_t col)> cell_text;
     std::function<std::string_view(size_t col)> header;
+    // Takes the text the user typed into a cell; false refuses it (not a number, say), and the
+    // editor stays open. Unset: the table is read-only.
+    std::function<bool(size_t row, size_t col, std::string_view text)> set_cell{};
+    // Which columns take edits; unset: all of them (when set_cell is set).
+    std::function<bool(size_t col)> column_editable{};
 };
 
 template <typename T>
@@ -38,6 +45,24 @@ concept ColumnStorage = requires(const T& t, size_t r, size_t c) {
     { t.cell_text(r, c) } -> std::convertible_to<std::string>;
     { t.header(c) } -> std::convertible_to<std::string_view>;
 };
+
+// The source's set_cell, if it has one (bool set_cell(row, col, text)): its tables are editable.
+template <ColumnStorage T>
+std::function<bool(size_t, size_t, std::string_view)> column_set_cell(T& data) {
+    if constexpr (requires(size_t r, std::string_view t) { { data.set_cell(r, r, t) } -> std::convertible_to<bool>; })
+        return [d = &data](size_t r, size_t c, std::string_view t) { return static_cast<bool>(d->set_cell(r, c, t)); };
+    else
+        return {};
+}
+
+// The source's editable(col), if it has one: which columns take edits.
+template <ColumnStorage T>
+std::function<bool(size_t)> column_editable_of(T& data) {
+    if constexpr (requires(size_t c) { { data.editable(c) } -> std::convertible_to<bool>; })
+        return [d = &data](size_t c) { return static_cast<bool>(d->editable(c)); };
+    else
+        return {};
+}
 
 template <ColumnStorage T>
 TableSource wrap_column_storage(T& data) {
@@ -50,6 +75,8 @@ TableSource wrap_column_storage(T& data) {
         .header = [&data](size_t c) -> std::string_view {
             return data.header(c);
         },
+        .set_cell = column_set_cell(data),
+        .column_editable = column_editable_of(data),
     };
 }
 
@@ -71,6 +98,30 @@ std::string field_to_string(const Field<T>& f) {
         return fmt::to_string(f.get());
     else
         return "?";
+}
+
+// Reads a cell's text into a column's value: a string as is, a number or a bool parsed whole
+// (surrounding spaces allowed). False, and `out` untouched, for text that is not one.
+template <typename T>
+bool parse_cell(std::string_view text, T& out) {
+    auto first = text.find_first_not_of(' '), last = text.find_last_not_of(' ');
+    std::string_view t = first == std::string_view::npos ? std::string_view{} : text.substr(first, last - first + 1);
+    if constexpr (std::is_same_v<T, std::string>) {
+        out = std::string(text);
+        return true;
+    } else if constexpr (std::is_same_v<T, bool>) {
+        if (t == "true" || t == "1" || t == "yes") { out = true; return true; }
+        if (t == "false" || t == "0" || t == "no") { out = false; return true; }
+        return false;
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        T v{};
+        auto [p, ec] = std::from_chars(t.data(), t.data() + t.size(), v);
+        if (t.empty() || ec != std::errc{} || p != t.data() + t.size()) return false;
+        out = v;
+        return true;
+    } else {
+        return false;   // simplify: other column types (enums, structs) are not editable yet
+    }
 }
 
 template <typename Row>
@@ -140,6 +191,30 @@ TableSource wrap_row_storage(L& list) {
         .header = [](size_t col) -> std::string_view {
             return headers[col];
         },
+        // Plain rows: copied, the column parsed into its member, set back (the List reports the
+        // row as updated). simplify: rows of Field members stay read-only -- a Field cannot be
+        // copied, and setting one in place would not tell the List the row changed.
+        .set_cell = [l = &list] {
+            std::function<bool(size_t, size_t, std::string_view)> set;
+            if constexpr (!any_field_member && std::is_copy_constructible_v<Row>)
+                set = [l](size_t row, size_t col, std::string_view text) {
+                    auto& list = *l;
+                    if (row >= list.size()) return false;
+                    Row copy = list[row];
+                    size_t idx = 0;
+                    bool ok = false;
+                    template for (constexpr auto m : members) {
+                        using M = std::remove_cvref_t<decltype(copy.[:m:])>;
+                        if constexpr (!has_annotation<m, decltype(skip)>() && LeafType<M>) {
+                            if (idx == col) ok = table_detail::parse_cell(text, copy.[:m:]);
+                            ++idx;
+                        }
+                    }
+                    if (ok) list.set(row, std::move(copy));
+                    return ok;
+                };
+            return set;
+        }(),
     };
 }
 
@@ -251,6 +326,15 @@ struct SortSpec {
     bool operator==(const SortSpec&) const = default;
 };
 
+// The cell being edited: the source row and column, and the text being typed (it starts as
+// the cell's text, all selected). `rejected`: the source refused the last commit.
+struct CellEdit {
+    size_t row = 0;
+    size_t column = 0;
+    TextEdit text{};
+    bool rejected = false;
+};
+
 struct ColumnResize {
     size_t column;
     float grab_dx;  // pointer offset from the column's right edge when grabbed
@@ -294,6 +378,8 @@ struct TableState {
     std::vector<size_t> changed_rows;
     bool rows_tracked = false;
     std::vector<Connection> row_watch;   // the List's per-row signals, for changed_rows
+
+    std::optional<CellEdit> editing;   // a cell being edited in place (ui::begin_edit)
 
     std::vector<float> column_widths;  // user-resized widths; 0 or missing = auto
     float auto_column_w = 120.f;

@@ -263,4 +263,53 @@ inline void select_all(TableState& ts) {
     }
 }
 
+// ---- Editing cells ----------------------------------------------------------
+
+inline bool editable(const TableState& ts) { return static_cast<bool>(ts.source.set_cell); }
+
+inline bool column_editable(const TableState& ts, size_t column) {
+    return editable(ts) && column < ts.column_count && (!ts.source.column_editable || ts.source.column_editable(column));
+}
+
+// The editable column after (or, `step` -1, before) `from`, if any.
+inline std::optional<size_t> next_editable_column(const TableState& ts, size_t from, int step) {
+    for (auto c = static_cast<std::ptrdiff_t>(from) + step; c >= 0 && c < static_cast<std::ptrdiff_t>(ts.column_count); c += step)
+        if (column_editable(ts, static_cast<size_t>(c))) return static_cast<size_t>(c);
+    return std::nullopt;
+}
+
+inline std::optional<size_t> first_editable_column(const TableState& ts) {
+    return column_editable(ts, 0) ? std::optional<size_t>{0} : next_editable_column(ts, 0, +1);
+}
+
+// Scrolls sideways just enough to show column `c` (its left edge, if it is wider than the view).
+inline void reveal_column(TableState& ts, size_t c) {
+    auto edges = column_edges(ts);
+    float view = ts.viewport_w.raw(), x = ts.scroll_x.raw();
+    if (edges[c + 1] > x + view) x = edges[c + 1] - view;
+    if (edges[c] < x) x = edges[c];
+    ts.scroll_x = DX{std::max(0.f, x)};
+}
+
+// Opens the editor on a cell (source row, column), its text all selected, scrolled into view.
+inline void begin_edit(TableState& ts, size_t row, size_t column) {
+    if (!column_editable(ts, column) || row >= ts.row_count()) return;
+    reveal_column(ts, column);
+    ts.editing = CellEdit{row, column, text_edit::select_all(TextEdit{ts.source.cell_text(row, column)})};
+}
+
+inline void cancel_edit(TableState& ts) { ts.editing.reset(); }
+
+// Hands the typed text to the source: true and closed if it took it, false and marked if not.
+inline bool commit_edit(TableState& ts) {
+    if (!ts.editing) return true;
+    auto& e = *ts.editing;
+    if (!ts.source.set_cell(e.row, e.column, e.text.text)) {
+        e.rejected = true;
+        return false;
+    }
+    ts.editing.reset();
+    return true;
+}
+
 } // namespace prism::ui

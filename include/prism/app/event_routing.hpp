@@ -296,6 +296,7 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
         tree.swallow_next_text_input(menu_detail::is_mnemonic_key(kp.key));   // only a letter types
         return;
     }
+    if (tree.popup_owner() == 0 && tree.focused_keeps(kp)) return tree.dispatch(tree.focused_id(), ev);
     if (tree.popup_owner() == 0 && tree.trigger_shortcut(kp)) return;   // not while a dialog is up
     if (kp.key == keys::tab) {
         if (kp.mods & mods::shift) tree.focus_prev();

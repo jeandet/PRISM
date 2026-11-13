@@ -4200,6 +4200,33 @@ def test_a_section_shows_its_content_only_while_open():
     assert s.advanced.value is True
 
 
+def test_a_python_table_with_set_cell_takes_edits():
+    class Inventory:
+        def __init__(self):
+            self.counts = [3, 5]
+
+        def column_count(self): return 1
+        def row_count(self): return len(self.counts)
+        def cell_text(self, r, c): return str(self.counts[r])
+        def header(self, c): return "Count"
+
+        def set_cell(self, r, c, text):
+            if not text.isdigit():
+                return False          # refused: the editor stays open
+            self.counts[r] = int(text)
+
+    inv = Inventory()
+    assert prism._table_set_cell(inv, 0, 0, "12") is True
+    assert inv.counts[0] == 12
+    assert prism._table_set_cell(inv, 0, 0, "many") is False
+    assert prism._table_editable(inv, 0) is True
+
+    class ReadOnly(Inventory):
+        set_cell = None
+
+    assert prism._table_editable(ReadOnly(), 0) is False
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

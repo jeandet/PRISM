@@ -75,6 +75,8 @@ from ._prism_ext import (
     _press_keys,
     _drag_text,
     _texts,
+    _table_set_cell,
+    _table_editable,
     _window_count,
     _is_running,
     _request_quit,
@@ -1202,7 +1204,9 @@ def table_field(source):
     """A table over ``source`` (a ``prism.TableSource``: ``column_count()``, ``row_count()``,
     ``cell_text(row, col)``, optionally ``header(col)``), or a zero-arg callable returning one.
     Place it with ``vb.table(handle, sort_column=None, descending=False)``; call
-    ``handle.refresh()`` when the source's data changed. The source is read on the logic thread."""
+    ``handle.refresh()`` when the source's data changed. The source is read on the logic thread.
+    With a ``set_cell(row, col, text)`` the cells can be edited (double-click or F2); returning
+    False refuses the text. An ``editable(col)`` method limits that to some columns."""
     return _TableDescriptor(source)
 
 

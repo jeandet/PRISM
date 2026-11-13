@@ -16,6 +16,23 @@ using namespace prism::core;
 using namespace prism::render;
 using namespace prism::ui;
 
+// The editor over a cell being edited (clip-relative): a field, the selection, the text and the
+// caret; outlined in the error colour when the source refused the last commit.
+inline void paint_cell_editor(DrawList& dl, const CellEdit& e, Size cell, const Theme& theme) {
+    const auto* m = theme.measurer;
+    std::string_view text = e.text.text;
+    auto [lo, hi] = text_edit::selection(e.text);
+    auto x_at = [&](size_t i) { return 4.f + text_width(m, text.substr(0, i), 14.f); };
+    dl.filled_rect(Rect{Point{X{0}, Y{0}}, cell}, theme.surface);
+    if (lo != hi)
+        dl.filled_rect(Rect{Point{X{x_at(lo)}, Y{3}}, Size{Width{x_at(hi) - x_at(lo)}, Height{cell.h.raw() - 6.f}}}, theme.text_selection);
+    dl.text(std::string(text), Point{X{4.f}, Y{4.f}}, 14.f, theme.text);
+    float caret = x_at(e.text.cursor);
+    dl.line(Point{X{caret}, Y{4}}, Point{X{caret}, Y{cell.h.raw() - 4.f}}, theme.text, 1.f);
+    dl.rect_outline(Rect{Point{X{0.5f}, Y{0.5f}}, Size{Width{cell.w.raw() - 1}, Height{cell.h.raw() - 1}}},
+                    e.rejected ? theme.error : theme.accent, 1.f);
+}
+
 // Paints one row (recycled from the pool when possible): zebra/selection
 // background, per-cell clipped text, and column dividers.
 inline WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::vector<float>& edges, const Theme& theme) {
@@ -41,7 +58,10 @@ inline WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::ve
         X cx{edges[c] + dx};
         Width cw{edges[c + 1] - edges[c]};
         wn.draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});
-        wn.draws.text(ts.source.cell_text(row, c), Point{X{4.f}, Y{4.f}}, 14.f, theme.text);  // clip-relative
+        if (ts.editing && ts.editing->row == row && ts.editing->column == c)
+            paint_cell_editor(wn.draws, *ts.editing, Size{cw, ts.row_height}, theme);
+        else
+            wn.draws.text(ts.source.cell_text(row, c), Point{X{4.f}, Y{4.f}}, 14.f, theme.text);  // clip-relative
         wn.draws.clip_pop();
         if (c > 0)
             wn.draws.filled_rect(Rect{Point{cx, Y{0}}, Size{Width{1.f}, ts.row_height}},

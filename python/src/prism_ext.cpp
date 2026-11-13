@@ -1022,6 +1022,26 @@ struct PyTableData {
         headers[c] = nb::hasattr(o, "header") ? nb::cast<std::string>(nb::str(o.attr("header")(c))) : std::string{};
         return headers[c];
     }
+    // Editable when the object has a set_cell(row, col, text); editable(col), if it has one,
+    // narrows that to some columns.
+    bool editable(size_t c) const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        if (!nb::hasattr(o, "set_cell") || o.attr("set_cell").is_none()) return false;
+        return !nb::hasattr(o, "editable") || nb::cast<bool>(o.attr("editable")(c));
+    }
+    // set_cell's answer: False refuses the text (the editor stays open); None or anything else
+    // takes it. An exception is reported and refuses it.
+    bool set_cell(size_t r, size_t c, std::string_view text) {
+        nb::gil_scoped_acquire g;
+        try {
+            auto res = held->attr("set_cell")(r, c, std::string(text));
+            return !(nb::isinstance<nb::bool_>(res) && !nb::cast<bool>(res));
+        } catch (...) {
+            report_python_callback_error();
+            return false;
+        }
+    }
 };
 
 struct SlotTable : SlotBase {
@@ -3609,6 +3629,16 @@ NB_MODULE(_prism_ext, m) {
     }, nb::arg("model"));
     // Test helper: every text the model's view draws (after two frames, so built-on-demand parts
     // such as a dock are there).
+    m.def("_table_set_cell", [](nb::object src, size_t r, size_t c, std::string text) {
+        PyTableData d{std::make_shared<nb::object>(src), {}};
+        nb::gil_scoped_release rel;   // as the logic thread calls it
+        return d.set_cell(r, c, text);
+    });
+    m.def("_table_editable", [](nb::object src, size_t c) {
+        PyTableData d{std::make_shared<nb::object>(src), {}};
+        nb::gil_scoped_release rel;
+        return d.editable(c);
+    });
     m.def("_texts", [](PyModel& model) {
         if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))
             throw std::runtime_error("_texts: not while an app is running");
