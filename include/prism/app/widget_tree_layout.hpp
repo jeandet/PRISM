@@ -41,6 +41,7 @@ struct ScrollView {
 };
 
 inline std::optional<ScrollView> get_scroll_view(WidgetNode& node) {
+    if (!node.edit_state.has_value()) return std::nullopt;   // most widgets: no state to cast
     if (auto* ss = std::any_cast<ScrollState>(&node.edit_state))
         return ScrollView{ss->offset_y, ss->viewport_h, ss->content_h, ss->show_ticks, ss->event_policy};
     if (auto* vls = get_vlist_state(node)) {
@@ -76,12 +77,14 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             spacer.kind = LayoutNode::Kind::Spacer;
             spacer.spacer_size = node.spacer_size;
             spacer.id = node.id;
+            spacer.source = &node;
             spacer.theme = node.theme;
             parent.children.push_back(std::move(spacer));
         } else if (node.layout_kind == LK::Canvas) {
             LayoutNode canvas;
             canvas.kind = LayoutNode::Kind::Canvas;
             canvas.id = node.id;
+            canvas.source = &node;
             canvas.theme = node.theme;
             canvas.overlay_draws = node.overlay_draws;
             canvas.canvas_min_width = node.canvas_min_width;
@@ -92,6 +95,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             LayoutNode handle;
             handle.kind = LayoutNode::Kind::Handle;
             handle.id = node.id;
+            handle.source = &node;
             handle.theme = node.theme;
             handle.overlay_draws = node.overlay_draws;
             handle.widget = &node;
@@ -100,11 +104,15 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             LayoutNode leaf;
             leaf.kind = LayoutNode::Kind::Leaf;
             leaf.id = node.id;
+            leaf.source = &node;
             leaf.theme = node.theme;
             leaf.overlay_draws = node.overlay_draws;
             leaf.hint.expand = node.expand;
             leaf.hint.expand_axis = node.expand_axis;
-            if (node.intrinsic_width) leaf.intrinsic_width = node.intrinsic_width(node);
+            if (node.intrinsic_width) {
+                if (!node.intrinsic_width_cache) node.intrinsic_width_cache = node.intrinsic_width(node);
+                leaf.intrinsic_width = *node.intrinsic_width_cache;
+            }
             leaf.widget = &node;
             parent.children.push_back(std::move(leaf));
         }
@@ -112,6 +120,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         LayoutNode container;
         container.kind = LayoutNode::Kind::Scroll;
         container.id = node.id;
+        container.source = &node;
         container.theme = node.theme;
         if (auto* ss = std::any_cast<ScrollState>(&node.edit_state))
             container.scroll_offset = ss->offset_y;
@@ -121,6 +130,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         LayoutNode container;
         container.kind = LayoutNode::Kind::VirtualList;
         container.id = node.id;
+        container.source = &node;
         container.theme = node.theme;
         if (auto* vls = get_vlist_state(node)) {
             container.scroll_offset = vls->scroll_offset;
@@ -135,6 +145,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         LayoutNode container;
         container.kind = LayoutNode::Kind::Table;
         container.id = node.id;
+        container.source = &node;
         container.theme = node.theme;
         if (auto* ts = get_table_state(node)) {
             container.scroll_offset = ts->scroll_y;
@@ -153,6 +164,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         LayoutNode container;
         container.kind = LayoutNode::Kind::Tabs;
         container.id = node.id;
+        container.source = &node;
         container.theme = node.theme;
         build_children(node, container);
         parent.children.push_back(std::move(container));
@@ -161,6 +173,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         container.kind = (node.layout_kind == LK::Row)
             ? LayoutNode::Kind::Row : LayoutNode::Kind::Column;
         container.id = node.id;
+        container.source = &node;
         container.theme = node.theme;
         if (auto* ss = std::any_cast<SplitState>(&node.edit_state); ss && ss->engaged)
             container.split_sizes = ss->pane_sizes;

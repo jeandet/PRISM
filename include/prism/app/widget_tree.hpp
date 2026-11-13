@@ -779,6 +779,7 @@ public:
             layout.kind = (root_.layout_kind == LayoutKind::Row)
                 ? LayoutNode::Kind::Row : LayoutNode::Kind::Column;
             layout.id = root_.id;
+            layout.source = &root_;
             layout.theme = &theme_;
             // ViewBuilder::finalize() hoists a lone top-level Row/Column into
             // root_ itself (see its id-adoption comment), so this root layout
@@ -1341,52 +1342,41 @@ private:
     }
 
     void update_scroll_state(LayoutNode& layout_node) {
-        if (layout_node.kind == LayoutNode::Kind::Scroll) {
-            auto it = index_.find(layout_node.id);
-            if (it != index_.end()) {
-                auto& ss = ensure_scroll_state(*it->second);
-                ss.viewport_h = layout_node.allocated.extent.h;
-                ss.viewport_w = layout_node.allocated.extent.w;
-                ss.content_h = layout_node.scroll_content_h;
-            }
-        }
-        if (layout_node.kind == LayoutNode::Kind::VirtualList) {
-            auto it = index_.find(layout_node.id);
-            if (it != index_.end()) {
-                if (auto* vls = get_vlist_state(*it->second))
-                    vls->viewport_h = layout_node.allocated.extent.h;
-            }
-        }
-        if (layout_node.kind == LayoutNode::Kind::Table) {
-            auto it = index_.find(layout_node.id);
-            if (it != index_.end()) {
-                if (auto* ts = get_table_state(*it->second)) {
-                    bool was_zero = ts->viewport_w.raw() == 0.f;
-                    ts->viewport_h = Height{layout_node.allocated.extent.h.raw() - ts->row_height.raw()};
-                    ts->viewport_w = layout_node.allocated.extent.w;
-                    if (was_zero && ts->viewport_w.raw() > 0.f)
-                        it->second->dirty = true;
-                }
-            }
-        }
-        auto it = index_.find(layout_node.id);
-        if (it != index_.end()) {
-            if (auto sv = get_scroll_view(*it->second)) {
-                DY max_off = max_scroll(sv->content_h, sv->viewport_h);
-                sv->offset = DY{std::clamp(sv->offset.raw(), 0.f, max_off.raw())};
-                layout_node.scroll_offset = sv->offset;
-                if (sv->show_ticks > 0) sv->show_ticks--;
-            }
-        }
+        if (layout_node.source) update_scroll_state_of(layout_node, *layout_node.source);
         for (auto& child : layout_node.children)
             update_scroll_state(child);
+    }
+
+    void update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
+        WidgetNode* wn = &node;
+        if (layout_node.kind == LayoutNode::Kind::Scroll) {
+            auto& ss = ensure_scroll_state(*wn);
+            ss.viewport_h = layout_node.allocated.extent.h;
+            ss.viewport_w = layout_node.allocated.extent.w;
+            ss.content_h = layout_node.scroll_content_h;
+        }
+        if (layout_node.kind == LayoutNode::Kind::VirtualList)
+            if (auto* vls = get_vlist_state(*wn)) vls->viewport_h = layout_node.allocated.extent.h;
+        if (layout_node.kind == LayoutNode::Kind::Table) {
+            if (auto* ts = get_table_state(*wn)) {
+                bool was_zero = ts->viewport_w.raw() == 0.f;
+                ts->viewport_h = Height{layout_node.allocated.extent.h.raw() - ts->row_height.raw()};
+                ts->viewport_w = layout_node.allocated.extent.w;
+                if (was_zero && ts->viewport_w.raw() > 0.f) wn->dirty = true;
+            }
+        }
+        if (auto sv = get_scroll_view(*wn)) {
+            DY max_off = max_scroll(sv->content_h, sv->viewport_h);
+            sv->offset = DY{std::clamp(sv->offset.raw(), 0.f, max_off.raw())};
+            layout_node.scroll_offset = sv->offset;
+            if (sv->show_ticks > 0) sv->show_ticks--;
+        }
     }
 
     // The screen area of every container that takes drops (a dock group): a drop on its empty
     // space, where no widget is hit, still finds it. Moved up by the scroll areas above it.
     void collect_drop_areas(const LayoutNode& n, DY scrolled) {
-        if (n.kind != LayoutNode::Kind::Leaf)
-            if (auto it = index_.find(n.id); it != index_.end() && it->second->drag.accepts)
+        if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts)
                 drop_areas_.push_back({n.id, Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent}});
         for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset);
     }
@@ -1395,10 +1385,9 @@ private:
         bool is_split_container = (layout_node.kind == LayoutNode::Kind::Row
                                  || layout_node.kind == LayoutNode::Kind::Column)
                                  && !layout_node.split_sizes.empty();
-        if (is_split_container) {
-            auto it = index_.find(layout_node.id);
-            if (it != index_.end()) {
-                if (auto* ss = std::any_cast<SplitState>(&it->second->edit_state); ss && ss->engaged) {
+        if (is_split_container && layout_node.source) {
+            {
+                if (auto* ss = std::any_cast<SplitState>(&layout_node.source->edit_state); ss && ss->engaged) {
                     bool vertical = (layout_node.kind == LayoutNode::Kind::Column);
                     float available = vertical ? layout_node.allocated.extent.h.raw()
                                                 : layout_node.allocated.extent.w.raw();
@@ -1423,10 +1412,9 @@ private:
     void update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
         // Propagate absolute position and the window size to all indexed widget nodes
         bool window_changed = false;
-        if (layout_node.id != 0) {
-            auto it = index_.find(layout_node.id);
-            if (it != index_.end()) {
-                auto& n = *it->second;
+        if (layout_node.id != 0 && layout_node.source) {
+            {
+                auto& n = *layout_node.source;
                 window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
                               || n.absolute_x != layout_node.allocated.origin.x
                               || n.absolute_y != layout_node.allocated.origin.y;
@@ -1568,6 +1556,7 @@ private:
         auto& content_wn = anchor->children.front();
         p.content.kind = LayoutNode::Kind::Column;
         p.content.id = content_wn.id;
+        p.content.source = &content_wn;
         p.content.theme = &theme_;
         for (auto& c : content_wn.children) build_layout(c, p.content);
         layout_measure(p.content, LayoutAxis::Vertical);

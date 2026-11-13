@@ -43,6 +43,7 @@ struct WidgetNode {
     bool reused = false;    // just put back from the parked subtrees: already wired and subscribed
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
+    std::optional<float> intrinsic_width_cache;   // its last answer, until the widget is dirty again
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;
     // while set, the popup gets all input first (see doc/design/menus-and-dialogs.md).
     std::optional<Rect> popup_area;

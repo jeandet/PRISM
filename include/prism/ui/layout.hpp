@@ -109,6 +109,9 @@ struct LayoutNode {
     // layout_flatten() read/update that widget's snapshot-assembly cache directly,
     // without threading a WidgetId->WidgetNode* lookup through this free function.
     WidgetNode* widget = nullptr;
+    // The widget node this one was built from, for every kind (containers too): the passes
+    // after layout reach its state through it, not through an id lookup per node.
+    WidgetNode* source = nullptr;
 };
 
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis);

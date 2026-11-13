@@ -111,6 +111,7 @@ void for_each_node(WidgetNode& node, Fn&& fn) {
 }
 
 inline void refresh_dirty(WidgetNode& node) {
+    if (node.dirty) node.intrinsic_width_cache.reset();
     if (node.dirty && node.record)
         node.record(node);
     for (auto& c : node.children)
