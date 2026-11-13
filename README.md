@@ -656,6 +656,8 @@ with prism.transaction():                       # one publish for both changes
 | `prism.context_menu(items)` + `vb.context_menu(h)` | `Field<ContextMenu>` | right click in the container |
 | `vb.widget(h, enabled=flag)`, `vb.enabled_if(flag, fn)` | `.enabled(flag)`, `enabled_if` | flag: a bool field, derived bool or checkbox |
 | `prism.set_theme("light" / "dark" / "system")` | `AppContext::set_theme`, `follow_system_theme` | any thread, while an app runs |
+| `vb.widget(h, drag=fn, drop=fn, accepts=Type)` | `.drag_source`, `.drop_target` | `drag()` gives any Python object; `drop(value, x, y)` |
+| `vb.list(h, reorderable=True)` | `vb.list(items).reorderable()` | rows dragged into another order |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |

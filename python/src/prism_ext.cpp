@@ -1891,11 +1891,60 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     throw nb::type_error("tooltip: this kind of field has no single widget to hover");
 }
 
-inline void py_list_dispatch(ViewBuilder& vb, nb::object h) {
-    if (nb::isinstance<BoundList<int>>(h)) vb.list(*nb::cast<BoundList<int>&>(h).list);
-    else if (nb::isinstance<BoundList<double>>(h)) vb.list(*nb::cast<BoundList<double>&>(h).list);
-    else if (nb::isinstance<BoundList<std::string>>(h)) vb.list(*nb::cast<BoundList<std::string>&>(h).list);
+inline void py_list_dispatch(ViewBuilder& vb, nb::object h, bool reorderable = false) {
+    auto place = [&](auto& items) {
+        auto handle = vb.list(items);
+        if (reorderable) std::move(handle).reorderable();
+    };
+    if (nb::isinstance<BoundList<int>>(h)) place(*nb::cast<BoundList<int>&>(h).list);
+    else if (nb::isinstance<BoundList<double>>(h)) place(*nb::cast<BoundList<double>&>(h).list);
+    else if (nb::isinstance<BoundList<std::string>>(h)) place(*nb::cast<BoundList<std::string>&>(h).list);
     else throw nb::type_error("ViewBuilder.list: unsupported handle type");
+}
+
+// A dragged Python object. Held through a shared_ptr so that copies of the drag value (std::any,
+// on the logic thread) never touch Python reference counts; the holder releases it GIL-safely.
+struct PyDragValue {
+    std::shared_ptr<PyHolder> obj;
+};
+
+// The drag role of `vb.widget(h, drag=..., drop=..., accepts=...)`: drag() gives the value (None:
+// nothing to drag), drop(value, x, y) takes one whose type is `accepts` (any Python object if None).
+inline DragRole py_drag_role(nb::object drag, nb::object drop, nb::object accepts) {
+    DragRole role;
+    if (!drag.is_none()) {
+        auto fn = std::make_shared<PyHolder>(std::move(drag));
+        role.source = [fn]() -> std::any {
+            nb::gil_scoped_acquire gil;
+            try {
+                nb::object v = fn->obj();
+                if (v.is_none()) return {};
+                return PyDragValue{std::make_shared<PyHolder>(std::move(v))};
+            } catch (nb::python_error&) {
+                report_python_callback_error();
+                return {};
+            }
+        };
+    }
+    if (!drop.is_none()) {
+        auto fn = std::make_shared<PyHolder>(std::move(drop));
+        auto type = std::make_shared<PyHolder>(std::move(accepts));
+        role.accepts = [type](const std::any& v) {
+            auto* p = std::any_cast<PyDragValue>(&v);
+            if (!p) return false;
+            nb::gil_scoped_acquire gil;
+            return type->obj.is_none() || nb::isinstance(p->obj->obj, nb::handle(type->obj));
+        };
+        role.drop = [fn](const std::any& v, DropPlace at) {
+            nb::gil_scoped_acquire gil;
+            try {
+                fn->obj(std::any_cast<const PyDragValue&>(v).obj->obj, at.at.x.raw(), at.at.y.raw());
+            } catch (nb::python_error&) {
+                report_python_callback_error();
+            }
+        };
+    }
+    return role;
 }
 inline void py_canvas_dispatch(ViewBuilder& vb, nb::object h) {
     if (nb::isinstance<BoundPlot>(h)) {
@@ -2815,13 +2864,21 @@ NB_MODULE(_prism_ext, m) {
                 });
             }, nb::arg("handle"), nb::arg("content"),
              "A popup holding the widgets content(vb) places; built each time it opens.")
-        .def("widget", [](ViewBuilder& vb, nb::object h, nb::object enabled) {
-                if (enabled.is_none()) py_widget_dispatch(vb, h);
-                else py_enabled_if(vb, enabled, [&] { py_widget_dispatch(vb, h); });
-            }, nb::arg("handle"), nb::arg("enabled") = nb::none(),
+        .def("widget", [](ViewBuilder& vb, nb::object h, nb::object enabled, nb::object drag,
+                          nb::object drop, nb::object accepts) {
+                auto place = [&] {
+                    if (drag.is_none() && drop.is_none()) return py_widget_dispatch(vb, h);
+                    vb.with_drag(py_drag_role(drag, drop, accepts), [&] { py_widget_dispatch(vb, h); });
+                };
+                if (enabled.is_none()) place();
+                else py_enabled_if(vb, enabled, place);
+            }, nb::arg("handle"), nb::arg("enabled") = nb::none(), nb::arg("drag") = nb::none(),
+             nb::arg("drop") = nb::none(), nb::arg("accepts") = nb::none(),
              "Add the widget for a bound scalar/shared/derived/slider/checkbox/list handle. "
              "enabled: a bool field, derived bool or checkbox; while false the widget is greyed out "
-             "and takes no input.")
+             "and takes no input. drag: a callable giving the Python object a drag from this "
+             "widget carries (None: nothing to drag). drop: callable(value, x, y) for objects "
+             "dropped here, of type accepts (a type or tuple of types; any object if None).")
         .def("context_menu", [](ViewBuilder& vb, nb::object h) {
                 if (!nb::isinstance<BoundContextMenu>(h))
                     throw nb::type_error("ViewBuilder.context_menu: needs a prism.context_menu() handle");
@@ -2833,8 +2890,10 @@ NB_MODULE(_prism_ext, m) {
             }, nb::arg("flag"), nb::arg("fn"),
              "Everything fn() places is greyed out and takes no input while flag (a bool field, "
              "derived bool or checkbox) is false.")
-        .def("list", [](ViewBuilder& vb, nb::object h){ py_list_dispatch(vb, h); }, nb::arg("handle"),
-             "Add a list widget for a bound list handle (list_field()).")
+        .def("list", [](ViewBuilder& vb, nb::object h, bool reorderable){ py_list_dispatch(vb, h, reorderable); },
+             nb::arg("handle"), nb::arg("reorderable") = false,
+             "Add a list widget for a bound list handle (list_field()). reorderable: the user "
+             "can drag rows to another place.")
         .def("canvas", [](ViewBuilder& vb, nb::object h){ py_canvas_dispatch(vb, h); }, nb::arg("handle"),
              "Add a canvas widget for a bound plot handle (plot_field()).")
         .def("tree", [](ViewBuilder& vb, nb::object h){ py_tree_dispatch(vb, h); }, nb::arg("handle"),
@@ -3089,6 +3148,28 @@ NB_MODULE(_prism_ext, m) {
         for (WidgetId id : tree.leaf_ids()) out.push_back(tree.enabled(id));
         return out;
     }, nb::arg("model"));
+    // Test helper: drags from the widget showing `from` to the one showing `to` (its centre, or
+    // its lower half), as a user would.
+    m.def("_drag_text", [](PyModel& model, std::string from, std::string to, bool to_lower_half) {
+        if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))
+            throw std::runtime_error("_drag_text: not while an app is running");
+        WidgetTree tree{model};
+        auto snap = tree.build_snapshot(400, 300, 1);
+        auto rect_of = [&](const std::string& text) -> Rect {
+            for (std::size_t i = 0; i < snap->draw_lists.size(); ++i)
+                for (auto& c : snap->draw_lists[i]->commands)
+                    if (auto* t = std::get_if<prism::render::TextCmd>(&c); t && t->text == text) return snap->geometry[i].second;
+            throw nb::value_error(("no widget shows " + text).c_str());
+        };
+        Rect a = rect_of(from), b = rect_of(to);
+        Point p{a.origin.x + DX{5}, a.origin.y + DY{a.extent.h.raw() / 2}};
+        Point q{b.origin.x + DX{5}, b.origin.y + DY{b.extent.h.raw() * (to_lower_half ? 0.75f : 0.5f)}};
+        using prism::app::widget_detail::route_event;
+        route_event(tree, snap.get(), MouseButton{p, 1, true});
+        route_event(tree, snap.get(), MouseMove{Point{p.x, p.y + DY{6}}});
+        route_event(tree, snap.get(), MouseMove{q});
+        route_event(tree, snap.get(), MouseButton{q, 1, false});
+    }, nb::arg("model"), nb::arg("from_text"), nb::arg("to_text"), nb::arg("to_lower_half") = false);
     // Test helper: presses `keys` ("Ctrl+S", ...) in a tree over the model's view, as a user would.
     m.def("_press_keys", [](PyModel& model, std::vector<std::string> keys) {
         if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))

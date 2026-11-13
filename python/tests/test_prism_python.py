@@ -4082,3 +4082,55 @@ def test_set_theme_switches_a_running_app():
 def test_set_theme_names_are_checked():
     with pytest.raises(ValueError, match="light"):
         prism.set_theme("sepia")
+
+
+# --- drag and drop inside the app -------------------------------------------------------
+
+
+class _Track:
+    def __init__(self, n):
+        self.n = n
+
+
+def test_a_python_value_is_dragged_and_dropped():
+    got = []
+
+    class Board(prism.Model):
+        song = prism.button("Song")
+        playlist = prism.button("Playlist")
+
+        def view(self, vb):
+            vb.widget(self.song, drag=lambda: _Track(7))
+            vb.widget(self.playlist, drop=lambda t, x, y: got.append((t.n, x >= 0, y >= 0)), accepts=_Track)
+
+    b = Board()
+    prism._drag_text(b, "Song", "Playlist")
+    assert got == [(7, True, True)]
+    assert b.song.value == 0   # a drag is not a click
+
+
+def test_a_target_refuses_other_types():
+    got = []
+
+    class Board(prism.Model):
+        song = prism.button("Song")
+        bin = prism.button("Bin")
+
+        def view(self, vb):
+            vb.widget(self.song, drag=lambda: "just a string")
+            vb.widget(self.bin, drop=lambda v, x, y: got.append(v), accepts=_Track)
+
+    prism._drag_text(Board(), "Song", "Bin")
+    assert got == []
+
+
+def test_a_list_can_be_reordered_by_dragging():
+    class Todo(prism.Model):
+        items = prism.list_field(["a", "b", "c", "d"])
+
+        def view(self, vb):
+            vb.list(self.items, reorderable=True)
+
+    t = Todo()
+    prism._drag_text(t, "a", "c", to_lower_half=True)
+    assert t.items.to_list() == ["b", "c", "a", "d"]

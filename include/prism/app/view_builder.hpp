@@ -330,6 +330,19 @@ public:
         c.split_set = [&sizes](std::vector<float> v) { sizes.set({std::move(v)}); };
     }
 
+    // Gives the widgets `fn` places (at this level) the drag role `role`: what LeafHandle's
+    // drag_source / drop_target set, spelled out, for bindings that build it themselves.
+    void with_drag(const DragRole& role, std::invocable auto&& fn) {
+        auto& parent = current_parent();
+        auto first = parent.children.size();
+        fn();
+        for (auto i = first; i < parent.children.size(); ++i) {
+            auto& d = parent.children[i].drag;
+            if (role.source) d.source = role.source;
+            if (role.accepts) { d.accepts = role.accepts; d.drop = role.drop; d.between = role.between; }
+        }
+    }
+
     // A right click anywhere in the current container opens this menu at the pointer.
     void context_menu(Field<ContextMenu>& menu) { widget(menu); }
 

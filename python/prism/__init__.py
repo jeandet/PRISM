@@ -71,6 +71,7 @@ from ._prism_ext import (
     _tooltips,
     _enabled,
     _press_keys,
+    _drag_text,
     _is_running,
     _request_quit,
     _set_error_handler,

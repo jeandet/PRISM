@@ -5,8 +5,10 @@ core done 2026-11-13: `LeafHandle::drag_source` / `drop_target`, `ui::DropPlace`
 in `WidgetTree` (`arm_drag`, `start_drag_at`, `takes`, `end_drag`, `draw_drag`), routing in
 `app/event_routing.hpp` (`route_drag_move`, `route_drag_release`), `CursorShape::NotAllowed`;
 tests in `tests/test_drag.cpp`. Reorderable lists followed: `vb.list(items).reorderable()`,
-`List::move`, `DragRole::between` (an insertion line instead of an outline). Next: trees and
-tabs, and Python. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+`List::move`, `DragRole::between` (an insertion line instead of an outline). Python too:
+`vb.widget(h, drag=, drop=, accepts=)` and `vb.list(h, reorderable=True)`, through
+`ViewBuilder::with_drag`; a Python value travels as a shared pointer to a GIL-safe holder.
+Next: trees and tabs. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 
