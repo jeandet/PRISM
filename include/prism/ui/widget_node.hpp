@@ -37,6 +37,8 @@ struct WidgetNode {
     std::function<void(std::vector<float>)> split_changed;   // a drag ended (vb.remember_split)
     DragRole drag;   // a drag source and/or drop target (doc/design/drag-and-docking.md)
     std::function<DragRole(std::size_t)> row_drag;   // a virtual list: each bound row's role
+    std::function<void(Node&)> build_content;   // see Node::build_content
+    std::function<bool()> content_stale;
     std::function<AccessInfo()> access;   // leaves only: role, value and state for assistive tech
     std::function<float(const WidgetNode&)> intrinsic_width;   // leaves that size to their content
     // A widget opens a popup (menu, popover, dialog) by setting this, in its own coordinates;

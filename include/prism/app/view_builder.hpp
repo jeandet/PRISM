@@ -15,6 +15,8 @@
 #include <prism/core/state.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/ui/table.hpp>
+#include <prism/ui/dock.hpp>
+#include <deque>
 #include <prism/ui/tree.hpp>
 #include <prism/ui/widget_node.hpp>
 #if __cpp_impl_reflection
@@ -138,6 +140,23 @@ inline DragRole tree_row_drag(TreeController& ctrl, std::size_t i) {
         .between = true,
         .inside_middle = ctrl.rows[i].has_children,
     };
+}
+
+// What a dock keeps between builds: its panels, the layout it built last, and the fields its
+// tab groups and splits use, with the links writing their changes back into the layout.
+struct DockState {
+    std::vector<std::string> names;
+    DockNode built;
+    std::deque<Field<TabBar<>>> tabs;        // a deque: fields never move once made
+    std::deque<Field<SplitSizes>> splits;
+    std::vector<Connection> links;
+};
+
+// The node at `path` (child indices from the root).
+inline DockNode& dock_node_at(DockNode& root, const std::vector<std::size_t>& path) {
+    DockNode* n = &root;
+    for (auto i : path) n = &n->parts[i];
+    return *n;
 }
 
 template <typename T> struct is_optional : std::false_type {};
@@ -368,6 +387,85 @@ public:
         }
     }
 
+    // A panel of a dock: its name (what the layout stores), its tab title, and what it shows.
+    struct DockPanel {
+        std::string name;
+        std::string title;
+        std::function<void(ViewBuilder&)> build;
+    };
+
+    // A dock (doc/design/drag-and-docking.md): the panels arranged as `layout` says, in splits
+    // and tab groups. The layout is the app's value, kept in its settings; the user's split sizes
+    // and tab choices are written back into it. Panels the layout does not name join its first
+    // group, and names with no panel are dropped.
+    void dock(Field<DockLayout>& layout, std::vector<DockPanel> panels) {
+        placed_.insert(&layout);
+        auto state = std::make_shared<view_builder_detail::DockState>();
+        for (auto& p : panels) state->names.push_back(p.name);
+        auto shared_panels = std::make_shared<std::vector<DockPanel>>(std::move(panels));
+        Node c;
+        c.id = tree_.next_id_++;
+        c.is_leaf = false;
+        c.layout_kind = LayoutKind::Column;
+        c.on_change = view_builder_detail::adapt_on_change(layout);   // a change: the next frame checks
+        c.content_stale = [state, &layout] { return !same_structure(state->built, fitted(layout.get(), state->names).root); };
+        c.build_content = [state, shared_panels, &layout, &tree = tree_](Node& target) {
+            state->links.clear();
+            state->tabs.clear();
+            state->splits.clear();
+            state->built = fitted(layout.get(), state->names).root;
+            ViewBuilder vb{tree, target};
+            vb.dock_part(*state, *shared_panels, layout, state->built, {});
+        };
+        current_parent().children.push_back(std::move(c));
+    }
+
+private:
+    // Places one part of a dock; `path` locates it in the layout, for writing changes back.
+    void dock_part(view_builder_detail::DockState& state, const std::vector<DockPanel>& panels,
+                   Field<DockLayout>& layout, const DockNode& node, std::vector<std::size_t> path) {
+        // Writes `edit` into the layout's node at `path` (the layout fitted first, so paths agree).
+        auto write_back = [&state, &layout, path](auto edit) {
+            auto l = fitted(layout.get(), state.names);
+            edit(view_builder_detail::dock_node_at(l.root, path));
+            layout.set(std::move(l));
+        };
+        auto panel = [&](const std::string& name) -> const DockPanel& {
+            return *std::ranges::find(panels, name, &DockPanel::name);
+        };
+        if (is_group(node) && node.panels.size() == 1) {
+            vstack([&] { panel(node.panels.front()).build(*this); });
+        } else if (is_group(node)) {
+            auto& bar = state.tabs.emplace_back(TabBar<>{.selected = node.active});
+            state.links.push_back(bar.on_change().connect([write_back](const TabBar<>& b) {
+                write_back([&](DockNode& n) { n.active = b.selected; });
+            }));
+            tabs(bar, [&] {
+                for (auto& name : node.panels) {
+                    auto& p = panel(name);
+                    tab(p.title, [build = p.build](ViewBuilder& vb) { build(vb); });
+                }
+            });
+        } else {
+            auto& sizes = state.splits.emplace_back(SplitSizes{node.sizes});
+            state.links.push_back(sizes.on_change().connect([write_back](const SplitSizes& s) {
+                write_back([&](DockNode& n) { n.sizes = s.value; });
+            }));
+            auto parts = [&] {
+                remember_split(sizes);
+                for (std::size_t i = 0; i < node.parts.size(); ++i) {
+                    if (i > 0) handle();
+                    auto sub = path;
+                    sub.push_back(i);
+                    dock_part(state, panels, layout, node.parts[i], std::move(sub));
+                }
+            };
+            if (node.vertical) vstack(parts);
+            else hstack(parts);
+        }
+    }
+
+public:
     // A right click anywhere in the current container opens this menu at the pointer.
     void context_menu(Field<ContextMenu>& menu) { widget(menu); }
 
@@ -973,7 +1071,7 @@ public:
         }
         // Hoist single Row/Column child: avoids an unnecessary nesting level
         // when view() produces exactly one container (the common case).
-        if (target_.children.size() == 1) {
+        if (target_.children.size() == 1 && !target_.children[0].build_content) {   // a dock stays itself
             auto lk = target_.children[0].layout_kind;
             if (lk == LayoutKind::Row || lk == LayoutKind::Column) {
                 target_.layout_kind = lk;

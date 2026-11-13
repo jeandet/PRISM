@@ -872,6 +872,8 @@ private:
         wn.popup_builder = node.popup_builder;
         wn.drag = node.drag;
         wn.row_drag = node.row_drag;
+        wn.build_content = node.build_content;
+        wn.content_stale = node.content_stale;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
@@ -1793,7 +1795,30 @@ private:
         wire_table_input(node, ts);
     }
 
+    // A container built while the app runs (a dock): its content again from its builder, on the
+    // first frame and whenever it is stale.
+    void materialize_content(WidgetNode& node) {
+        if (!node.children.empty() && !(node.content_stale && node.content_stale())) return;
+        for (auto& c : node.children) unindex_subtree(c);
+        node.children.clear();
+        Node content;
+        content.id = next_id_++;
+        content.is_leaf = false;
+        content.layout_kind = LayoutKind::Column;
+        node.build_content(content);
+        for (auto& child_node : content.children) {
+            auto child_wn = build_widget_node(child_node);
+            propagate_theme(child_wn);
+            connect_dirty(child_node, child_wn);
+            parent_map_[child_wn.id] = node.id;
+            node.children.push_back(std::move(child_wn));
+        }
+        for (auto& c : node.children) build_index(c);
+        node.dirty = true;
+    }
+
     void materialize_all_virtual_lists(WidgetNode& node) {
+        if (node.build_content) materialize_content(node);
         if (node.popup_builder) materialize_popup(node);
         if (node.layout_kind == LayoutKind::VirtualList)
             materialize_virtual_list(node);

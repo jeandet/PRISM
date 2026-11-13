@@ -41,8 +41,10 @@ auto& setting_of(T& v) {
         return v;
     else if constexpr (requires { v.checked; })
         return v.checked;
-    else
+    else if constexpr (requires { v.value; })
         return v.value;
+    else
+        return v;   // a plain struct (a dock layout): written whole
 }
 
 template <typename T>

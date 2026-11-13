@@ -54,6 +54,10 @@ struct Node {
     std::vector<Enabler> enablers;   // all true: enabled (none: always)
     DragRole drag;                   // copied to WidgetNode
     std::function<DragRole(std::size_t)> row_drag;   // a list's rows (vb.list(...).reorderable())
+    // A container whose content is built while the app runs (a dock): built on the first frame,
+    // and again whenever content_stale() says so. Copied to WidgetNode.
+    std::function<void(Node&)> build_content;
+    std::function<bool()> content_stale;
     // A split container's remembered pane sizes (vb.remember_split): read when built, written
     // when a drag ends.
     std::function<std::vector<float>()> split_get;

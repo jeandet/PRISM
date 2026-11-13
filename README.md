@@ -497,6 +497,25 @@ data and the tree refreshes.
 A click lands on the release, over the widget that was pressed, as on every platform: sliding
 off a button before letting go cancels it, and a drag that starts on a button is not a click.
 
+### Docking panels
+
+A dock arranges named panels in splits and tab groups. The arrangement is a value the app owns,
+`core::Field<ui::DockLayout>`, kept in its settings; the user's split sizes and tab choices are
+written back into it. A saved layout from another version still works: panels it does not name
+join its first group, names with no panel are dropped.
+
+```cpp
+core::Field<ui::DockLayout> layout{{ui::dock_split(/*vertical=*/true, {
+    ui::dock_group({"plots"}), ui::dock_group({"table", "tree", "events"})})}};
+vb.dock(layout, {
+    {"plots", "Plots", [&](auto& p) { plots.view(p); }},
+    {"table", "Table", [&](auto& p) { p.table(processes); }},
+    ...
+});
+```
+
+The System Monitor is built this way. Moving panels by dragging their tabs comes next.
+
 ### More windows
 
 A second model gets a window of its own. It may read the first one's fields, so it stays in

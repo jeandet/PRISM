@@ -11,7 +11,14 @@ tests in `tests/test_drag.cpp`. Reorderable lists followed: `vb.list(items).reor
 Trees followed: `TreeController::on_move(node, target, TreeDrop)`, `can_move`, `drop_zone`,
 `DragRole::inside_middle` (an outline on a folder's middle, a line near its edges). List and tree
 row clicks now land on release too, so pressing a row to drag it no longer collapses it. Tab
-reordering is left to the dock's tab groups (part 2). Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+reordering is left to the dock's tab groups (part 2).
+
+Part 2, step 3 done 2026-11-13: `ui/dock.hpp` (`DockNode`, `DockLayout`, `dock_group`,
+`dock_split`, `fitted`, `same_structure`), `ViewBuilder::dock` building splits and tab groups
+through an ordinary ViewBuilder, `WidgetNode::build_content` / `content_stale` (a container
+rebuilt while the app runs, as tab pages are), settings writing a plain struct whole. Sizes and
+shown tabs are written back without a rebuild. The System Monitor is a dock. Next: step 4,
+moving panels (tabs dragged onto drop zones), keeping their widgets. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 

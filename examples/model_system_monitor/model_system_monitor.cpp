@@ -1,4 +1,7 @@
 #include <prism/prism.hpp>
+#include <prism/app/settings.hpp>
+#include <prism/backends/settings_dir.hpp>
+#include <prism/ui/dock.hpp>
 #include <prism/widgets/plot.hpp>
 #include "proc_metrics.hpp"
 #include "process_table.hpp"
@@ -32,7 +35,16 @@ std::string format_seconds_ago(double seconds_ago) {
     return fmt::format("{}{}:{:04.1f}", sign, minutes, secs);
 }
 
+// What the monitor remembers between runs (app/settings.hpp): its panels' layout and its size.
+struct MonitorPrefs {
+    // Plots above; the process table, tree and event log as tabs below.
+    core::Field<ui::DockLayout> layout{{ui::dock_split(true, {ui::dock_group({"plots"}),
+                                                          ui::dock_group({"table", "tree", "events"})})}};
+    app::WindowGeometry window;
+};
+
 struct SystemMonitor {
+    MonitorPrefs prefs;
     // Background-thread ingest points. Never placed via vb.widget() -- they are read only
     // through .observe(), which fires during drain via the void drain() opt-in below. A
     // harmless "not placed by view()" debug-build warning is expected for these fields.
@@ -58,7 +70,6 @@ struct SystemMonitor {
     core::Field<std::uint64_t> process_revision{0};
     FlatProcessTreeSource tree_source;
     ui::TreeController tree_ctrl{ui::wrap_tree_storage(tree_source)};
-    core::Field<ui::TabBar<>> tabs;
 
     static constexpr size_t max_event_log_lines = 200;
     core::List<std::string> event_log;
@@ -137,25 +148,18 @@ struct SystemMonitor {
     }
 
     void view(app::WidgetTree::ViewBuilder& vb) {
+        // The panels are a dock (doc/design/drag-and-docking.md): their arrangement is
+        // prefs.layout, saved with the settings; the heartbeat stays below it.
         vb.vstack([&] {
-            plot_group.view(vb);
-            vb.handle();
-            // tabs + heartbeat nested together so the handle above trades space with the
-            // whole process view as one pane, not just with its first flat sibling.
-            vb.vstack([&] {
-                vb.tabs(tabs, [&] {
-                    vb.tab("Table", [&](app::WidgetTree::ViewBuilder& tvb) {
-                        tvb.table(process_table).sort(2, /*descending=*/true).depends_on(process_revision);  // CPU %
-                    });
-                    vb.tab("Tree", [&](app::WidgetTree::ViewBuilder& tvb) {
-                        tvb.tree(tree_ctrl);
-                    });
-                    vb.tab("Events", [&](app::WidgetTree::ViewBuilder& tvb) {
-                        tvb.list(event_log);
-                    });
-                });
-                vb.canvas(*this).depends_on(heartbeat_phase).min_size(core::Height{24});
+            vb.dock(prefs.layout, {
+                {"plots", "Plots", [&](app::WidgetTree::ViewBuilder& p) { plot_group.view(p); }},
+                {"table", "Table", [&](app::WidgetTree::ViewBuilder& p) {
+                     p.table(process_table).sort(2, /*descending=*/true).depends_on(process_revision);   // CPU %
+                 }},
+                {"tree", "Tree", [&](app::WidgetTree::ViewBuilder& p) { p.tree(tree_ctrl); }},
+                {"events", "Events", [&](app::WidgetTree::ViewBuilder& p) { p.list(event_log); }},
             });
+            vb.canvas(*this).depends_on(heartbeat_phase).min_size(core::Height{24});
         });
     }
 };
@@ -171,9 +175,12 @@ int main(int argc, char* argv[]) {
     std::jthread sys_thread;
     std::jthread proc_thread;
 
-    app::model_app({.title = "PRISM System Monitor", .width = 900, .height = 700,
-                       .decoration = app::DecorationMode::Custom},
+    // Loads the last session's layout and size, and saves them as they change.
+    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "system-monitor") / "settings.toml"};
+    app::model_app(app.prefs.window.applied_to({.title = "PRISM System Monitor", .width = 900, .height = 700,
+                                                .decoration = app::DecorationMode::Custom}),
                       app, [&](app::AppContext& ctx) {
+        ctx.remember_window_size(app.prefs.window);
         ctx.clock().add([&app](ui::AnimationClock::time_point now) {
             double t = std::chrono::duration<double>(now.time_since_epoch()).count();
             // now.time_since_epoch() is steady_clock's time since boot, which on a machine

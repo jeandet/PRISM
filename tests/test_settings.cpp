@@ -3,6 +3,7 @@
 #include <doctest.h>
 
 #include <prism/app/settings.hpp>
+#include <prism/ui/dock.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -150,4 +151,21 @@ TEST_CASE("window geometry and pane sizes are settings too") {
     CHECK(cfg.height == 800);
     settings_test::Layout first_run;   // nothing remembered: the app's defaults stay
     CHECK(first_run.window.applied_to({.width = 640, .height = 480}).width == 640);
+}
+
+namespace settings_test {
+struct Docked {
+    Field<DockLayout> layout{{dock_split(false, {dock_group({"files"}), dock_split(true, {dock_group({"editor", "search"}), dock_group({"log"})}, {300.f, 100.f})}, {200.f, 600.f})}};
+};
+}
+
+TEST_CASE("a dock layout is a setting: written and read back whole") {
+    settings_test::Docked d;
+    d.layout.get();
+    auto toml = app::to_toml(d);
+    settings_test::Docked back;
+    back.layout.set({dock_group({"x"})});
+    auto r = app::from_toml(back, toml);
+    REQUIRE(r);
+    CHECK(back.layout.get() == d.layout.get());
 }
