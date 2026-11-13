@@ -683,6 +683,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.set_theme("light" / "dark" / "system")` | `AppContext::set_theme`, `follow_system_theme` | any thread, while an app runs |
 | `vb.widget(h, drag=fn, drop=fn, accepts=Type)` | `.drag_source`, `.drop_target` | `drag()` gives any Python object; `drop(value, x, y)` |
 | `vb.list(h, reorderable=True)` | `vb.list(items).reorderable()` | rows dragged into another order |
+| `prism.dock_layout(prism.dock_split(prism.dock_group("a"), ...))` + `vb.dock(h, [(name, title, fn), ...])` | `Field<DockLayout>` + `vb.dock` | `.value` is the layout as nested dicts |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |

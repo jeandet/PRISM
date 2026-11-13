@@ -4134,3 +4134,39 @@ def test_a_list_can_be_reordered_by_dragging():
     t = Todo()
     prism._drag_text(t, "a", "c", to_lower_half=True)
     assert t.items.to_list() == ["b", "c", "a", "d"]
+
+
+# --- docking ----------------------------------------------------------------------------
+
+
+def _ide():
+    class Ide(prism.Model):
+        files = prism.field("FILES")
+        log = prism.field("LOG")
+        layout = prism.dock_layout(prism.dock_split(prism.dock_group("files"), prism.dock_group("editor", "log")))
+        code = prism.field("CODE")
+
+        def view(self, vb):
+            vb.dock(self.layout, [
+                ("files", "Files", lambda p: p.widget(self.files)),
+                ("editor", "Editor", lambda p: p.widget(self.code)),
+                ("log", "Log", lambda p: p.widget(self.log)),
+            ])
+
+    return Ide()
+
+
+def test_a_dock_shows_its_panels_as_the_layout_says():
+    texts = prism._texts(_ide())
+    assert {"Files", "Editor", "Log", "FILES", "CODE"} <= set(texts)
+    assert "LOG" not in texts   # behind the Editor tab
+
+
+def test_a_dock_layout_is_plain_data_and_a_new_one_rebuilds_the_dock():
+    ide = _ide()
+    layout = ide.layout.value
+    assert layout["parts"][1]["panels"] == ["editor", "log"]
+    layout["parts"][1]["active"] = 1
+    ide.layout.value = layout
+    texts = prism._texts(ide)
+    assert "LOG" in texts and "CODE" not in texts

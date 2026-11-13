@@ -1236,6 +1236,34 @@ using BoundButton = BoundWidgetValue<Button, std::int64_t>;       // .value: cli
 using BoundComboBox = BoundWidgetValue<ComboBox, std::string>;
 using BoundPopup = BoundWidgetValue<Popup, bool>;                 // .value: open
 using BoundMenu = BoundWidgetValue<Menu, std::int64_t>;               // .value: choices so far
+using BoundDockLayout = BoundWidgetValue<DockLayout, DockLayout>;    // Python sees it as nested dicts
+
+// A dock layout as Python sees it: {"panels": [...], "active": 0, "vertical": False,
+// "sizes": [...], "parts": [...]}, nested. Converted on the calling thread (with the GIL), so no
+// Python object reaches the logic thread.
+inline nb::dict dock_to_py(const DockNode& n) {
+    nb::dict d;
+    d["panels"] = nb::cast(n.panels);
+    d["active"] = n.active;
+    d["vertical"] = n.vertical;
+    d["sizes"] = nb::cast(n.sizes);
+    nb::list parts;
+    for (auto& p : n.parts) parts.append(dock_to_py(p));
+    d["parts"] = parts;
+    return d;
+}
+
+inline DockNode dock_from_py(nb::handle h) {
+    auto d = nb::cast<nb::dict>(h);
+    DockNode n;
+    if (d.contains("panels")) n.panels = nb::cast<std::vector<std::string>>(d["panels"]);
+    if (d.contains("active")) n.active = nb::cast<std::size_t>(d["active"]);
+    if (d.contains("vertical")) n.vertical = nb::cast<bool>(d["vertical"]);
+    if (d.contains("sizes")) n.sizes = nb::cast<std::vector<float>>(d["sizes"]);
+    if (d.contains("parts"))
+        for (auto p : nb::cast<nb::list>(d["parts"])) n.parts.push_back(dock_from_py(p));
+    return n;
+}
 using BoundContextMenu = BoundWidgetValue<ContextMenu, std::int64_t>;
 
 template <typename M>
@@ -2769,6 +2797,14 @@ NB_MODULE(_prism_ext, m) {
         "Bound handle for a Model's right-click menu (place it with vb.context_menu(handle)); as "
         "BoundMenu.");
 
+    nb::class_<BoundDockLayout>(m, "BoundDockLayout", nb::dynamic_attr(), nb::is_weak_referenceable(),
+        "Bound handle for a Model's dock layout (prism.dock_layout): .value is the layout as nested "
+        "dicts; the user's moves, split sizes and tab choices show up in it. Place the dock with "
+        "vb.dock(handle, panels).")
+        .def_prop_rw("value", [](const BoundDockLayout& h) { return dock_to_py(h.get().root); },
+                     [](BoundDockLayout& h, nb::handle v) { h.set(DockLayout{dock_from_py(v)}); },
+                     "Any thread. Writes are posted to the logic thread.");
+
     bind_list<int>(m, "Int");
     bind_list<double>(m, "Float");
     bind_list<std::string>(m, "Str");
@@ -2879,6 +2915,26 @@ NB_MODULE(_prism_ext, m) {
              "and takes no input. drag: a callable giving the Python object a drag from this "
              "widget carries (None: nothing to drag). drop: callable(value, x, y) for objects "
              "dropped here, of type accepts (a type or tuple of types; any object if None).")
+        .def("dock", [](ViewBuilder& vb, nb::object h, nb::list panels) {
+                if (!nb::isinstance<BoundDockLayout>(h))
+                    throw nb::type_error("ViewBuilder.dock: needs a prism.dock_layout() handle");
+                std::vector<ViewBuilder::DockPanel> built;
+                for (auto item : panels) {
+                    auto t = nb::cast<nb::tuple>(item);
+                    if (t.size() != 3) throw nb::type_error("ViewBuilder.dock: each panel is (name, title, fn)");
+                    // Built on the logic thread when the dock (re)builds: take the GIL there.
+                    auto holder = std::make_shared<PyHolder>(nb::borrow<nb::object>(t[2]));
+                    built.push_back({nb::cast<std::string>(t[0]), nb::cast<std::string>(t[1]),
+                                     [holder](ViewBuilder& inner) {
+                                         nb::gil_scoped_acquire gil;
+                                         try { holder->obj(nb::cast(&inner, nb::rv_policy::reference)); }
+                                         catch (...) { report_python_callback_error(); }
+                                     }});
+                }
+                vb.dock(*nb::cast<BoundDockLayout&>(h).field, std::move(built));
+            }, nb::arg("handle"), nb::arg("panels"),
+             "A dock: panels, a list of (name, title, fn) where fn(vb) places the panel's widgets, "
+             "arranged as the layout handle says. The user drags tabs to move panels.")
         .def("context_menu", [](ViewBuilder& vb, nb::object h) {
                 if (!nb::isinstance<BoundContextMenu>(h))
                     throw nb::type_error("ViewBuilder.context_menu: needs a prism.context_menu() handle");
@@ -2999,6 +3055,15 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(ContextMenu{.items = py_menu_items(items)});
                 return make_bound_menu(std::move(owner), p);
             }, nb::arg("items"))
+        .def("_add_dock_layout_internal", [](PyModel& self, nb::handle value){
+                auto [owner, p] = self.add_widget_slot(DockLayout{dock_from_py(value)});
+                BoundDockLayout h;
+                h.owner = std::move(owner);
+                h.field = p;
+                h.read = [](const DockLayout& l) { return l; };
+                h.write = [](DockLayout& l, const DockLayout& v) { l = v; };
+                return h;
+            }, nb::arg("value"))
         .def("_add_popup_internal", [](PyModel& self, bool modal){
                 auto [owner, p] = self.add_widget_slot(Popup{.open = false, .modal = modal});
                 return make_bound_popup(std::move(owner), p);
@@ -3146,6 +3211,20 @@ NB_MODULE(_prism_ext, m) {
         auto snap = tree.build_snapshot(400, 300, 1);
         std::vector<bool> out;
         for (WidgetId id : tree.leaf_ids()) out.push_back(tree.enabled(id));
+        return out;
+    }, nb::arg("model"));
+    // Test helper: every text the model's view draws (after two frames, so built-on-demand parts
+    // such as a dock are there).
+    m.def("_texts", [](PyModel& model) {
+        if (g_has_handle.load(std::memory_order_acquire) || g_run_guard.load(std::memory_order_acquire))
+            throw std::runtime_error("_texts: not while an app is running");
+        WidgetTree tree{model};
+        auto snap = tree.build_snapshot(600, 400, 1);
+        snap = tree.build_snapshot(600, 400, 2);
+        std::vector<std::string> out;
+        for (auto& dl : snap->draw_lists)
+            for (auto& c : dl->commands)
+                if (auto* t = std::get_if<prism::render::TextCmd>(&c)) out.push_back(t->text);
         return out;
     }, nb::arg("model"));
     // Test helper: drags from the widget showing `from` to the one showing `to` (its centre, or

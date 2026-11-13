@@ -72,6 +72,7 @@ from ._prism_ext import (
     _enabled,
     _press_keys,
     _drag_text,
+    _texts,
     _is_running,
     _request_quit,
     _set_error_handler,
@@ -160,6 +161,9 @@ __all__ = [
     "button",
     "combobox",
     "popup",
+    "dock_layout",
+    "dock_group",
+    "dock_split",
     "menu",
     "context_menu",
     "shared",
@@ -486,6 +490,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_combobox_internal(self.default, self.meta["options"], self.meta["placeholder"])
         elif self.kind == "popup":
             h = instance._add_popup_internal(self.meta["modal"])
+        elif self.kind == "dock_layout":
+            h = instance._add_dock_layout_internal(self.default)
         elif self.kind == "menu":
             h = instance._add_menu_internal(self.meta["title"], self.meta["items"])
         elif self.kind == "context_menu":
@@ -640,6 +646,24 @@ def combobox(default="", options=(), placeholder="", validator=None, *, tooltip=
         str(default), validator=validator, kind="combobox",
         meta={"options": [str(o) for o in options], "placeholder": str(placeholder)},
     ), tooltip)
+
+
+def dock_group(*panels, active=0):
+    """A dock group: these panels (by name) as tabs, ``active`` shown."""
+    return {"panels": list(panels), "active": int(active), "vertical": False, "sizes": [], "parts": []}
+
+
+def dock_split(*parts, vertical=False, sizes=None):
+    """A dock split: ``parts`` (groups or splits) side by side, or above one another if
+    ``vertical``; ``sizes`` along that axis (equal if None)."""
+    return {"panels": [], "active": 0, "vertical": bool(vertical), "sizes": list(sizes or []), "parts": list(parts)}
+
+
+def dock_layout(default):
+    """A dock's layout (C++ ``Field<DockLayout>``): ``default`` built with ``dock_group`` and
+    ``dock_split``. Place the dock with ``vb.dock(handle, [(name, title, fn), ...])``. ``.value``
+    is the layout as nested dicts, so it can be saved (json, tomllib) and set again."""
+    return _FieldDescriptor(default, kind="dock_layout")
 
 
 def _menu_items(items):
