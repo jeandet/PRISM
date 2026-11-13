@@ -2802,8 +2802,16 @@ NB_MODULE(_prism_ext, m) {
         "dicts; the user's moves, split sizes and tab choices show up in it. Place the dock with "
         "vb.dock(handle, panels).")
         .def_prop_rw("value", [](const BoundDockLayout& h) { return dock_to_py(h.get().root); },
-                     [](BoundDockLayout& h, nb::handle v) { h.set(DockLayout{dock_from_py(v)}); },
-                     "Any thread. Writes are posted to the logic thread.");
+                     [](BoundDockLayout& h, nb::handle v) {
+                         auto root = dock_from_py(v);
+                         h.modify([root = std::move(root)](DockLayout& l) { l.root = root; });   // floating stays
+                     },
+                     "The docked panels' arrangement. Any thread. Writes are posted to the logic thread.")
+        .def_prop_rw("floating", [](const BoundDockLayout& h) { return h.get().floating; },
+                     [](BoundDockLayout& h, std::vector<std::string> v) {
+                         h.modify([v = std::move(v)](DockLayout& l) { l.floating = v; });
+                     },
+                     "The panels in windows of their own (desktop). Any thread; writes are posted.");
 
     bind_list<int>(m, "Int");
     bind_list<double>(m, "Float");

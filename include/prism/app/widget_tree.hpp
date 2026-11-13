@@ -50,6 +50,8 @@ struct dependent_type { using type = T; };
 // index_ stores raw pointers into the tree — built after construction;
 // virtualized containers (VirtualList/Table/Tabs) mutate the tree and
 // rebuild the index via reindex() so pointers stay valid.
+using WindowId = std::uint32_t;   // as app/window.hpp declares it; that header is not needed here
+
 class WidgetTree {
 public:
     using ViewBuilder = app::ViewBuilder;
@@ -590,6 +592,29 @@ public:
         set_focused(ring[static_cast<std::size_t>((i % n + n) % n)]);
     }
 
+    // --- windows of the app's own, asked for by widgets (a dock's floating panels) ---
+    // AppContext installs the opener; without one (tests, the browser) nothing opens.
+    struct WindowRequest {
+        std::string title;
+        std::function<void(ViewBuilder&)> build;   // what the window shows
+        std::function<void(WindowId)> on_opened;   // its id, or 0 if it could not open
+        std::function<void()> on_closed;           // the user closed it
+    };
+    using WindowOpener = std::function<void(WindowRequest)>;
+    void set_window_opener(WindowOpener open, std::function<void(WindowId)> close) {
+        window_opener_ = std::move(open);
+        window_closer_ = std::move(close);
+    }
+    [[nodiscard]] bool can_open_windows() const { return static_cast<bool>(window_opener_); }
+    // The window opens later, outside the current frame; on_opened says how it went.
+    void request_window(WindowRequest r) {
+        if (window_opener_) window_opener_(std::move(r));
+        else if (r.on_opened) r.on_opened(0);
+    }
+    void close_window(WindowId id) {
+        if (window_closer_) window_closer_(id);
+    }
+
     // --- dragging inside the app (doc/design/drag-and-docking.md) ---
     // A press on a source arms a drag; moving past drag_threshold starts it (the source gives
     // its value); from then the tree owns the pointer until the release or Escape.
@@ -655,6 +680,15 @@ public:
         drag_->pointer = p;
         drag_->target = target;
         tooltip_dirty_ = true;   // the ghost and the outline are redrawn
+    }
+
+    // The drag was let go outside the window: its source decides (a dock tab floats its panel).
+    void drop_outside() {
+        if (!dragging()) return drag_.reset();
+        auto d = std::move(*drag_);
+        drag_.reset();
+        tooltip_dirty_ = true;
+        if (auto it = index_.find(d.source); it != index_.end() && it->second->drag.outside) it->second->drag.outside(d.value);
     }
 
     // Ends the drag: drops on the target (at `place`), or nothing.
@@ -847,6 +881,8 @@ private:
     std::optional<DragState> drag_;
     std::vector<std::pair<WidgetId, Rect>> drop_areas_;   // containers that take drops, outermost first
     std::unordered_map<std::string, WidgetNode> parked_;   // kept subtrees, by keep_key (park_kept)
+    WindowOpener window_opener_;
+    std::function<void(WindowId)> window_closer_;
     std::optional<WidgetId> highlight_id_;
     ScrollbarDrag scrollbar_drag_;
     SplitDrag split_drag_;

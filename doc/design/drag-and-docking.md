@@ -25,7 +25,15 @@ drops. Keeping a moved panel's widgets (decision 2) followed: `Node::keep_key` a
 `ViewBuilder::keep_as`; a rebuilt container parks kept subtrees (`WidgetTree::park_kept`:
 unindexed but still wired and subscribed) and `build_widget_node` puts one back where a node
 with the same key is built. The moved node's own address changes, so a kept root must not
-capture itself (a dock wraps each panel in a plain column for that). Next: floating panels. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
+capture itself (a dock wraps each panel in a plain column for that).
+
+Step 5 (floating panels) done the same day: `DockLayout::floating`, `float_panel` / `dock_panel`,
+a tab let go outside the window floats its panel (`DragRole::outside`), and the dock asks for
+windows through `WidgetTree::request_window`, which `AppContext::serve_window_requests` answers
+after the frame (`open_window` with a `RequestedView` model); closing the window docks the panel
+again. Without an opener (tests, the browser) a panel stays docked. A floating panel is built
+anew in its window (its widgets are in another tree). Step 6 (dragging between windows) waits
+for a use. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
 ## Problem
 

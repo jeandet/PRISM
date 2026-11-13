@@ -17,6 +17,7 @@
 #include <prism/ui/table.hpp>
 #include <prism/ui/dock.hpp>
 #include <deque>
+#include <map>
 #include <prism/ui/tree.hpp>
 #include <prism/ui/widget_node.hpp>
 #if __cpp_impl_reflection
@@ -150,6 +151,8 @@ struct DockState {
     std::deque<Field<TabBar<>>> tabs;        // a deque: fields never move once made
     std::deque<Field<SplitSizes>> splits;
     std::vector<Connection> links;
+    std::vector<std::string> floating;            // as built last
+    std::map<std::string, WindowId> windows;      // floating panels' windows (0: asked for, not open yet)
 };
 
 // What dragging a dock's tab carries: which dock, which panel.
@@ -399,6 +402,7 @@ public:
             if (role.source) {
                 d.source = role.source;
                 d.ghost_area = role.ghost_area;
+                d.outside = role.outside;
             }
             if (role.accepts) {
                 d.accepts = role.accepts;
@@ -439,19 +443,53 @@ public:
         c.is_leaf = false;
         c.layout_kind = LayoutKind::Column;
         c.on_change = view_builder_detail::adapt_on_change(layout);   // a change: the next frame checks
-        c.content_stale = [state, &layout] { return !same_structure(state->built, fitted(layout.get(), state->names).root); };
+        c.content_stale = [state, &layout] {
+            auto fit = fitted(layout.get(), state->names);
+            return !same_structure(state->built, fit.root) || state->floating != fit.floating;
+        };
         c.build_content = [state, shared_panels, &layout, &tree = tree_](Node& target) {
             state->links.clear();
             state->tabs.clear();
             state->splits.clear();
-            state->built = fitted(layout.get(), state->names).root;
+            auto fit = fitted(layout.get(), state->names);
+            state->built = fit.root;
+            state->floating = fit.floating;
             ViewBuilder vb{tree, target};
             vb.dock_part(*state, *shared_panels, layout, state->built, {});
+            float_windows(tree, state, *shared_panels, layout);
         };
         current_parent().children.push_back(std::move(c));
     }
 
 private:
+    // Opens a window for each floating panel that has none, and closes the windows of panels
+    // docked again. A window that cannot open (no opener: the browser, tests), or that the user
+    // closes, puts its panel back in the dock.
+    static void float_windows(WidgetTree& tree, const std::shared_ptr<view_builder_detail::DockState>& state,
+                              const std::vector<DockPanel>& panels, Field<DockLayout>& layout) {
+        for (auto it = state->windows.begin(); it != state->windows.end();)
+            if (std::ranges::contains(state->floating, it->first)) ++it;
+            else {
+                if (it->second) tree.close_window(it->second);
+                it = state->windows.erase(it);
+            }
+        for (auto& name : state->floating) {
+            if (state->windows.contains(name)) continue;
+            state->windows[name] = 0;
+            auto dock_again = [state, &layout, name] {
+                state->windows.erase(name);
+                layout.set(dock_panel(fitted(layout.get(), state->names), name));
+            };
+            auto& p = *std::ranges::find(panels, name, &DockPanel::name);
+            tree.request_window({.title = p.title, .build = p.build,
+                                 .on_opened = [state, name, dock_again](WindowId id) {
+                                     if (id == 0) dock_again();
+                                     else state->windows[name] = id;
+                                 },
+                                 .on_closed = dock_again});
+        }
+    }
+
     // Places one part of a dock; `path` locates it in the layout, for writing changes back.
     void dock_part(view_builder_detail::DockState& state, const std::vector<DockPanel>& panels,
                    Field<DockLayout>& layout, const DockNode& node, std::vector<std::size_t> path) {
@@ -464,7 +502,9 @@ private:
         auto panel = [&](const std::string& name) -> const DockPanel& {
             return *std::ranges::find(panels, name, &DockPanel::name);
         };
-        if (is_group(node)) {
+        if (is_group(node) && node.panels.empty()) {   // every panel floats
+            vstack([] {});
+        } else if (is_group(node)) {
             // Every group shows its tabs, a lone panel too: a tab is what the user drags to
             // move a panel, and the group takes panels dropped on its middle or its edges.
             auto& bar = state.tabs.emplace_back(TabBar<>{.selected = node.active});
@@ -499,6 +539,10 @@ private:
                     }
                 }, [dock_id, names](std::size_t i) {
                     return i < names.size() ? std::any(view_builder_detail::PanelDrag{dock_id, names[i]}) : std::any{};
+                }, [&state, &layout, &tree = tree_](const std::any& v) {   // let go outside: the panel floats
+                    if (!tree.can_open_windows()) return;
+                    auto& name = std::any_cast<const view_builder_detail::PanelDrag&>(v).name;
+                    layout.set(float_panel(fitted(layout.get(), state.names), name));
                 });
             });
         } else {
@@ -974,8 +1018,10 @@ public:
     // Tabs: a header to pick a page, and the page; only the selected page is built.
     void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true); }
     // Tabs whose headers can be dragged: `tab_drag(i)` is what dragging tab i carries.
-    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, std::function<std::any(std::size_t)> tab_drag) {
-        switched_pages(field, builder, true, std::move(tab_drag));
+    // `tab_outside(value)`: a dragged tab let go outside the window.
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, std::function<std::any(std::size_t)> tab_drag,
+              std::function<void(const std::any&)> tab_outside = {}) {
+        switched_pages(field, builder, true, std::move(tab_drag), std::move(tab_outside));
     }
 
     // Pages: tabs without the header, the app picks the page through `field.selected` (a
@@ -984,7 +1030,8 @@ public:
 
 private:
     void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header,
-                        std::function<std::any(std::size_t)> tab_drag = {}) {
+                        std::function<std::any(std::size_t)> tab_drag = {},
+                        std::function<void(const std::any&)> tab_outside = {}) {
         placed_.insert(&field);
 
         auto state = std::make_shared<TabsState>();
@@ -1016,6 +1063,7 @@ private:
                     auto i = tabs_detail::tab_at(n, at.x);
                     return i ? tab_drag(*i) : std::any{};
                 };
+                bar.drag.outside = tab_outside;
                 bar.drag.ghost_area = [](const WidgetNode& n, Point at) -> std::optional<Rect> {   // that tab only
                     auto i = tabs_detail::tab_at(n, at.x);
                     if (!i) return std::nullopt;

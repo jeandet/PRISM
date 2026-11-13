@@ -4,6 +4,7 @@
 
 #include <prism/app/headless_window.hpp>
 #include <prism/app/model_app.hpp>
+#include <prism/ui/dock.hpp>
 
 #include <chrono>
 #include <condition_variable>
@@ -139,4 +140,42 @@ TEST_CASE("a new window takes the app's theme") {
         c.set_theme(light_theme());
         c.open_window(echo, {.title = "Echo"});
     });
+}
+
+// --- a dock's floating panel ----------------------------------------------------------------
+
+namespace windows_test {
+struct Docked {
+    Field<Label<>> files{{"FILES"}};
+    Field<Label<>> log{{"LOG"}};
+    Field<DockLayout> layout{{dock_split(false, {dock_group({"files"}), dock_group({"log"})})}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.dock(layout, {
+            {"files", "Files", [&](WidgetTree::ViewBuilder& p) { p.widget(files); }},
+            {"log", "Log", [&](WidgetTree::ViewBuilder& p) { p.widget(log); }},
+        });
+    }
+};
+}
+
+TEST_CASE("a floating panel opens in its own window; closing it docks the panel again") {
+    windows_test::Docked model;
+    auto impl = std::make_unique<Windows>();
+    auto* b = impl.get();
+    AppContext* ctx = nullptr;
+    b->script.push_back([&](auto&) {
+        ctx->post([&] { model.layout.set(float_panel(model.layout.get(), "log")); });
+        REQUIRE(b->wait_for([&] { return b->last.contains(2); }));
+        CHECK(b->wait_for([&] { return shows(b->last[2].get(), "LOG"); }));
+        CHECK(b->wait_for([&] { return !shows(b->last[1].get(), "LOG"); }));   // gone from the dock
+    });
+    b->script.push_back([&](auto& send) {
+        send({2, WindowClose{}});
+        CHECK(b->wait_for([&] { return shows(b->last[1].get(), "Log"); }));   // back in the dock, as a tab
+    });
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    model_app(backend, window, model, [&](AppContext& c) { ctx = &c; });
+    CHECK(model.layout.get().floating.empty());
+    CHECK(b->closed == std::vector<WindowId>{2});
 }

@@ -34,6 +34,8 @@ struct DragRole {
     std::function<std::any(const WidgetNode& self, Point at)> source{};
     // The part of the widget that follows the pointer (a tab of a tab bar); none: all of it.
     std::function<std::optional<Rect>(const WidgetNode& self, Point at)> ghost_area{};
+    // A drag from this source let go outside the window (a dock tab: the panel floats).
+    std::function<void(const std::any&)> outside{};
     std::function<bool(const std::any&)> accepts{};            // a target: takes this value?
     std::function<void(const std::any&, DropPlace)> drop{};
     bool between = false;   // drops go before or after it (a list row): shown as a line, not an outline

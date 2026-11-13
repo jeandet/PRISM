@@ -20,6 +20,7 @@
 #include <variant>
 #include <atomic>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <prism/core/error_hub.hpp>
@@ -110,6 +111,25 @@ public:
         if (id == window_->id() || !window_open(id)) return;
         registry_->remove(id);
         backend_->close_window(id);
+        requested_.erase(id);   // a widget's window (below): its widget asked for this, no callback
+        on_window_closed_.erase(id);
+    }
+
+    // Lets the widgets of `tree` ask for windows of their own (a dock's floating panels,
+    // WidgetTree::request_window). Requests run after the current frame, never inside one.
+    void serve_window_requests(WidgetTree& tree) {
+        tree.set_window_opener(
+            [this](WidgetTree::WindowRequest r) { post([this, r = std::move(r)] { open_requested(r); }); },
+            [this](WindowId id) { post([this, id] { close_window(id); }); });
+    }
+    // From the event loop: the user closed window `id` (already gone from the registry).
+    void window_closed(WindowId id) {
+        auto it = on_window_closed_.find(id);
+        if (it == on_window_closed_.end()) return;
+        auto done = std::move(it->second);
+        on_window_closed_.erase(it);
+        requested_.erase(id);
+        if (done) done();
     }
 
     // Every window's look: ui::light_theme(), ui::dark_theme() or the app's own. Stops following
@@ -275,6 +295,23 @@ private:
     scheduler_type sched_;
     std::function<void(const FileDrop&)> file_drop_;
     bool follow_system_theme_ = false;
+    // What a widget asked a window to show (WidgetTree::request_window), as that window's model.
+    struct RequestedView {
+        std::function<void(WidgetTree::ViewBuilder&)> build;
+        void view(WidgetTree::ViewBuilder& vb) { vb.vstack([&] { build(vb); }); }
+    };
+    std::map<WindowId, std::unique_ptr<RequestedView>> requested_;
+    std::map<WindowId, std::function<void()>> on_window_closed_;
+    void open_requested(const WidgetTree::WindowRequest& r) {
+        auto model = std::make_unique<RequestedView>(RequestedView{r.build});
+        WindowId id = open_window(*model, {.title = r.title.c_str(), .width = 480, .height = 360});
+        if (id != 0) {
+            if (auto* e = registry_->find(id)) serve_window_requests(*e->tree);
+            requested_[id] = std::move(model);
+            on_window_closed_[id] = r.on_closed;
+        }
+        if (r.on_opened) r.on_opened(id);
+    }
     WindowGeometry* geometry_ = nullptr;
     bool system_dark_ = true;
     Theme theme_ = dark_theme();   // the windows' current theme, for windows opened later
@@ -412,6 +449,7 @@ void model_app(Backend& backend, Window& window, Model& model,
                                                    mutation_closed, mutation_drain_publish,
                                                    logic_wrapper_holder);
     registry.set_waker(ctx_holder->waker());
+    ctx_holder->serve_window_requests(*registry.find(primary_id)->tree);
     registry.set_text_measurer(backend.text_measurer());
     registry.set_clipboard(backend.clipboard());
 
@@ -496,6 +534,8 @@ void model_app(Backend& backend, Window& window, Model& model,
                             } else {
                                 registry.remove(wid);
                                 backend.close_window(wid);
+                                ctx_holder->window_closed(wid);   // a widget's window: tell the widget
+                                publish_dirty();                  // what that changed (a panel docked again)
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
                                 if (debug_window_id && wid == *debug_window_id)
                                     reset_debug_inspector();

@@ -230,3 +230,78 @@ TEST_CASE("while dragging a tab: the zone is shaded, and the ghost is that tab a
     CHECK(editor_titles == 0);
     route_event(tree, snap.get(), KeyPress{keys::escape, 0});
 }
+
+// --- floating panels ---------------------------------------------------------------------
+
+TEST_CASE("a floating panel is out of the dock's groups; an unknown one is dropped") {
+    DockLayout l{dock_split(false, {dock_group({"files"}), dock_group({"editor"})}), {"search", "gone"}};
+    auto fit = fitted(l, {"files", "editor", "search"});
+    CHECK(fit.floating == std::vector<std::string>{"search"});
+    CHECK(fit.root == dock_split(false, {dock_group({"files"}), dock_group({"editor"})}));   // not added back
+    // A panel both docked and floating counts as docked.
+    DockLayout both{dock_group({"files", "search"}), {"search"}};
+    CHECK(fitted(both, {"files", "search"}).floating.empty());
+}
+
+namespace {
+// Stands in for AppContext: records what the dock asks for.
+struct Windows {
+    std::vector<std::string> opened;
+    std::vector<WidgetId> closed;
+    std::vector<std::function<void()>> on_closed;
+    void install(WidgetTree& tree) {
+        tree.set_window_opener(
+            [this](WidgetTree::WindowRequest r) {
+                opened.push_back(r.title);
+                on_closed.push_back(r.on_closed);
+                if (r.on_opened) r.on_opened(static_cast<prism::app::WindowId>(100 + opened.size()));
+            },
+            [this](prism::app::WindowId id) { closed.push_back(id); });
+    }
+};
+}
+
+TEST_CASE("a tab dropped outside the window floats its panel in a window of its own") {
+    Ide model;
+    WidgetTree tree{model};
+    Windows windows;
+    windows.install(tree);
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto tab = text_at(*snap, "Search");
+    Point from{tab->x + DX{5}, tab->y + DY{5}};
+    Point outside{X{700}, Y{200}};   // past the window's right edge
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{outside});
+    route_event(tree, snap.get(), MouseButton{outside, buttons::left, false});
+    CHECK(model.layout.get().floating == std::vector<std::string>{"search"});
+    snap = tree.build_snapshot(600, 400, 2);
+    CHECK(windows.opened == std::vector<std::string>{"Search"});
+    CHECK_FALSE(text_at(*snap, "Search"));   // no longer a tab here
+    // Closing its window docks it again.
+    windows.on_closed.front()();
+    snap = tree.build_snapshot(600, 400, 3);
+    CHECK(model.layout.get().floating.empty());
+    CHECK(text_at(*snap, "Search"));
+}
+
+TEST_CASE("docking a floating panel from code closes its window; no opener keeps it docked") {
+    Ide model;
+    model.layout.set(float_panel(model.layout.get(), "search"));
+    {
+        WidgetTree tree{model};
+        Windows windows;
+        windows.install(tree);
+        auto snap = tree.build_snapshot(600, 400, 1);
+        REQUIRE(windows.opened.size() == 1);
+        model.layout.set(dock_panel(model.layout.get(), "search"));
+        snap = tree.build_snapshot(600, 400, 2);
+        CHECK(windows.closed == std::vector<WidgetId>{101});
+    }
+    model.layout.set(float_panel(model.layout.get(), "search"));
+    WidgetTree plain{model};   // no window opener (a test, the browser)
+    auto snap = plain.build_snapshot(600, 400, 1);
+    snap = plain.build_snapshot(600, 400, 2);
+    CHECK(model.layout.get().floating.empty());   // it stays in the dock
+    CHECK(text_at(*snap, "Search"));
+}

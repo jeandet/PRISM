@@ -23,6 +23,7 @@ struct DockNode {
 
 struct DockLayout {
     DockNode root{};
+    std::vector<std::string> floating{};   // panels in windows of their own (desktop)
     bool operator==(const DockLayout&) const = default;
 };
 
@@ -78,9 +79,15 @@ inline DockNode& first_group(DockNode& n) { return is_group(n) ? n : first_group
 inline DockLayout fitted(DockLayout layout, const std::vector<std::string>& names) {
     std::vector<std::string> seen;
     if (!dock_detail::prune(layout.root, names, seen)) layout.root = DockNode{};
+    std::vector<std::string> floating;   // known, not docked as well, once each
+    for (auto& f : layout.floating)
+        if (std::ranges::contains(names, f) && !std::ranges::contains(seen, f) && !std::ranges::contains(floating, f))
+            floating.push_back(f);
+    layout.floating = std::move(floating);
     auto& first = dock_detail::first_group(layout.root);
     for (const auto& name : names)
-        if (!std::ranges::contains(seen, name)) first.panels.push_back(name);
+        if (!std::ranges::contains(seen, name) && !std::ranges::contains(layout.floating, name))
+            first.panels.push_back(name);
     return layout;
 }
 
@@ -138,6 +145,25 @@ inline DockLayout move_panel(DockLayout layout, const std::string& name, std::st
     DockNode kept = std::move(target);
     target = first ? dock_split(vertical, {std::move(moved), std::move(kept)})
                    : dock_split(vertical, {std::move(kept), std::move(moved)});
+    return layout;
+}
+
+// The layout with panel `name` taken out of its group and floating, in a window of its own.
+inline DockLayout float_panel(DockLayout layout, const std::string& name) {
+    auto* from = dock_detail::group_of(layout.root, name);
+    if (!from || std::ranges::contains(layout.floating, name)) return layout;
+    std::erase(from->panels, name);
+    std::vector<std::string> left, seen;
+    dock_detail::names_in(layout.root, left);
+    if (!dock_detail::prune(layout.root, left, seen)) layout.root = DockNode{};
+    layout.floating.push_back(name);
+    return layout;
+}
+
+// The layout with panel `name` back in the dock (in its first group).
+inline DockLayout dock_panel(DockLayout layout, const std::string& name) {
+    if (std::erase(layout.floating, name) == 0) return layout;
+    dock_detail::first_group(layout.root).panels.push_back(name);
     return layout;
 }
 

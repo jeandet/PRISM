@@ -110,6 +110,10 @@ inline bool route_drag_release(WidgetTree& tree, const SceneSnapshot& snap, Poin
         tree.end_drag(std::nullopt);
         return false;
     }
+    if (!Rect{Point{X{0}, Y{0}}, snap.viewport}.contains(p)) {   // let go outside the window
+        tree.drop_outside();
+        return true;
+    }
     WidgetId target = drop_target_at(tree, snap, p, tree.drag()->value);
     tree.move_drag(p, target);
     auto rect = target ? find_widget_rect(snap, target) : std::nullopt;

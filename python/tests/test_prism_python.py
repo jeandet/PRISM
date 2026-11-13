@@ -4170,3 +4170,12 @@ def test_a_dock_layout_is_plain_data_and_a_new_one_rebuilds_the_dock():
     ide.layout.value = layout
     texts = prism._texts(ide)
     assert "LOG" in texts and "CODE" not in texts
+
+
+def test_a_dock_layout_keeps_its_floating_panels_apart():
+    ide = _ide()
+    assert ide.layout.floating == []
+    ide.layout.floating = ["log"]
+    root = ide.layout.value
+    ide.layout.value = root          # setting the arrangement keeps the floating list
+    assert ide.layout.floating == ["log"]

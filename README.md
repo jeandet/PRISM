@@ -517,7 +517,9 @@ vb.dock(layout, {
 Drag a panel's tab onto a group: its middle adds the panel to that group's tabs, an edge puts
 it beside the group in a new one. The area it would take is shaded while dragging. Groups left
 empty disappear. A moved panel keeps its widgets: its scroll position, caret, selection and
-focus stay, as with Qt's dock widgets. The System Monitor is built this way.
+focus stay, as with Qt's dock widgets. Let a tab go outside the window and its panel floats in
+a window of its own (desktop); close that window and the panel docks again. The System Monitor
+is built this way.
 
 ### More windows
 
