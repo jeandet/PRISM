@@ -3,6 +3,7 @@
 
 #include <prism/app/model_app.hpp>
 #include <prism/app/null_backend.hpp>
+#include <prism/app/test_backend.hpp>
 #include <prism/app/headless_window.hpp>
 #include <prism/core/field.hpp>
 #include <prism/core/shared.hpp>
@@ -1275,4 +1276,22 @@ TEST_CASE("model_app survives events the pump delivers after WindowClose") {
     prism::model_app(backend, window, model);
 
     CHECK(true); // reaching here without the run_loop destructor asserting is the test
+}
+
+TEST_CASE("while an app runs, only its logic thread may change the model") {
+    struct M {
+        prism::Field<int> value{0};
+        void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(value); }
+    };
+    M model;
+    auto backend = prism::Backend{std::make_unique<prism::TestBackend>(std::vector<prism::InputEvent>{})};
+    auto& window = backend.create_window({});
+    bool in_setup = false, from_worker = true;
+    prism::model_app(backend, window, model, [&](prism::AppContext&) {
+        in_setup = prism::core::may_change_model();
+        std::thread([&] { from_worker = prism::core::may_change_model(); }).join();
+    });
+    CHECK(in_setup);
+    CHECK_FALSE(from_worker);                 // a Field::set there would be a data race
+    CHECK(prism::core::may_change_model());   // the app is over: the model is the caller's again
 }

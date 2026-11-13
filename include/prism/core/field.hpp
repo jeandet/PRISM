@@ -1,8 +1,10 @@
 #pragma once
 
 #include <prism/core/connection.hpp>
+#include <prism/core/logic_thread.hpp>
 #include <prism/core/transaction.hpp>
 
+#include <cassert>
 #include <functional>
 #include <vector>
 
@@ -19,6 +21,8 @@ struct ObservableValue {
     operator const T&() const { return value; }
 
     void set(T new_value) {
+        assert(may_change_model() && "a model field set off the app's logic thread: hand it over "
+                                     "with AppContext::post, Shared<T> or Channel<T>");
         if (value == new_value) return;
         value = std::move(new_value);
         emit_or_defer(static_cast<void*>(&changed_), [this] { changed_.emit(value); });

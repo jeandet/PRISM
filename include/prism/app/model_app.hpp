@@ -503,6 +503,7 @@ void model_app(Backend& backend, Window& window, Model& model,
     });
     std::thread logic_thread([&, ctx_holder, mutation_queue, mutation_scheduled, mutation_closed, mutation_drain_publish] {
         detail_is_logic_thread = true;
+        core::logic_thread.store(std::this_thread::get_id());
         backend.wait_ready();
         registry.for_each([&](WindowId id, WindowRegistry::Entry& entry) {
             publish_entry(id, entry);
@@ -547,6 +548,7 @@ void model_app(Backend& backend, Window& window, Model& model,
         }
 
         loop.run();
+        core::logic_thread.store(std::thread::id{});   // the model is the caller's again
     });
 
     backend.run([&](const WindowEvent& we) {
