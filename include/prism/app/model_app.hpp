@@ -432,6 +432,29 @@ void model_app(Backend& backend, Window& window, Model& model,
         );
     };
 
+    // After input: one publish, queued behind the events already waiting, so a burst of
+    // them (key repeat, a fast wheel, clicks queued while the logic thread was busy) is drawn
+    // once with all of them applied, not once per event. A lone event still publishes at
+    // once: its publish is next in the queue. Resized windows publish even if nothing is dirty.
+    bool publish_queued = false;
+    std::vector<WindowId> resized;
+    auto publish_after_input = [&](std::optional<WindowId> resized_window) {
+        if (resized_window && !std::ranges::contains(resized, *resized_window)) resized.push_back(*resized_window);
+        if (std::exchange(publish_queued, true)) return;
+        exec::start_detached(
+            stdexec::schedule(sched)
+            | stdexec::then([&, logic_wrapper_holder, closed = mutation_closed] {
+                AppContext::apply_wrapper(logic_wrapper_holder, [&] {
+                    publish_queued = false;
+                    if (closed->load(std::memory_order_acquire)) return;
+                    for (auto id : std::exchange(resized, {}))
+                        if (auto* e = registry.find(id)) publish_entry(id, *e);
+                    publish_dirty();
+                });
+            })
+        );
+    };
+
     // Shared tail for §2 mutation queue: drain all Shared/Channel, publish dirty, tick.
     // Factored from tick path's for_each(drain_shared) + publish_dirty (not the
     // single-window drain_shared in the input path — secondary windows would starve).
@@ -538,6 +561,7 @@ void model_app(Backend& backend, Window& window, Model& model,
                         if (closed_copy->load(std::memory_order_acquire)) return;
                         if (std::holds_alternative<WindowClose>(ev)) {
                             if (wid == primary_id) {
+                                if (publish_queued) publish_dirty();   // the frame input still owes
                                 anim_clock.clear();
                                 closed_copy->store(true, std::memory_order_release);
                                 backend.quit();
@@ -590,8 +614,7 @@ void model_app(Backend& backend, Window& window, Model& model,
 
                         entry->tree->drain_shared();
                         if (post_dispatch_hook) post_dispatch_hook();
-                        if (needs_publish) publish_entry(wid, *entry);
-                        publish_dirty();
+                        publish_after_input(needs_publish ? std::optional{wid} : std::nullopt);
                         schedule_tick();
                         arm_deadlines();
                     };

@@ -235,10 +235,7 @@ public:
 
     void refresh() {
         auto rows = flatten_tree(*main_tree_, expanded_);
-        while (!debug_model_->rows.empty())
-            debug_model_->rows.erase(debug_model_->rows.size() - 1);
-        for (auto& row : rows)
-            debug_model_->rows.push_back(row);
+        debug_model_->rows.replace_all(rows);   // rows that did not change keep their widgets
 
         auto hovered = main_tree_->hovered_id();
         // `selected` records which id is hovered; NodeRow::hovered (populated by flatten_tree

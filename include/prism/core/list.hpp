@@ -3,6 +3,7 @@
 #include <prism/core/connection.hpp>
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <ranges>
 #include <vector>
@@ -39,13 +40,15 @@ public:
         updated_.emit(index, items_[index]);
     }
 
+    // The list becomes `new_values`: rows past its end are removed or added, and the ones in
+    // both are updated -- only those that changed, so views keep the widgets of the others.
     void replace_all(std::ranges::range auto&& new_values) {
         size_t n = std::ranges::size(new_values);
         while (items_.size() > n) erase(items_.size() - 1);
         size_t i = 0;
         for (auto&& v : new_values) {
-            if (i < items_.size()) set(i, std::forward<decltype(v)>(v));
-            else push_back(std::forward<decltype(v)>(v));
+            if (i >= items_.size()) push_back(std::forward<decltype(v)>(v));
+            else if (!same(items_[i], v)) set(i, std::forward<decltype(v)>(v));
             ++i;
         }
     }
@@ -62,6 +65,11 @@ public:
     SenderHub<size_t, const T&>& on_update() { return updated_; }
 
 private:
+    static bool same(const T& a, const auto& b) {
+        if constexpr (std::equality_comparable_with<T, decltype(b)>) return a == b;
+        else return false;
+    }
+
     std::vector<T> items_;
     SenderHub<size_t, const T&> inserted_;
     SenderHub<size_t> removed_;

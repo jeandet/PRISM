@@ -161,3 +161,12 @@ TEST_CASE("move takes an item out and puts it back at another place, as updates"
     l.move(1, 1);   // nowhere: nothing changes
     CHECK(l[1] == "b");
 }
+
+TEST_CASE("List::replace_all leaves equal items alone: no update for what did not change") {
+    prism::List<int> list;
+    for (int v : {1, 2, 3}) list.push_back(v);
+    std::vector<size_t> updated;
+    auto conn = list.on_update().connect([&](size_t i, const int&) { updated.push_back(i); });
+    list.replace_all(std::vector<int>{1, 20, 3});
+    CHECK(updated == std::vector<size_t>{1});
+}

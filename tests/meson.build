@@ -135,6 +135,7 @@ backend_base_tests = {
   'windows' : files('test_windows.cpp'),
   'image_decoder' : files('test_image_decoder.cpp'),
   'platform_services' : files('test_platform_services.cpp'),
+  'publish_batching' : files('test_publish_batching.cpp'),
   'text_area_scroll' : files('test_text_area_scroll.cpp'),
   'input_skew' : files('test_input_skew.cpp'),
   'menu_mnemonics' : files('test_menu_mnemonics.cpp'),
