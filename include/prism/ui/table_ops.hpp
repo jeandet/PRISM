@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <iterator>
 #include <numeric>
 #include <optional>
 #include <string>
@@ -17,11 +18,6 @@ inline constexpr float min_column_w = 24.f;
 inline constexpr float resize_grip = 4.f;
 
 // ---- Sorting ---------------------------------------------------------------
-
-struct SortKey {
-    std::optional<double> number;  // leading number, e.g. 12 for "12 MB"
-    std::string text;
-};
 
 inline std::optional<double> leading_number(std::string_view s) {
     auto first = s.find_first_not_of(" \t");
@@ -52,18 +48,35 @@ inline int compare_cells(std::string_view a, std::string_view b) {
 }
 
 // Stable, so equal cells keep data order in both directions.
-inline std::vector<size_t> sort_order(const TableSource& src, SortSpec spec) {
+namespace table_detail {
+inline std::vector<SortKey> sort_keys(const TableSource& src, size_t column) {
     size_t n = src.row_count();
     std::vector<SortKey> keys;
     keys.reserve(n);
-    for (size_t r = 0; r < n; ++r) keys.push_back(make_sort_key(src.cell_text(r, spec.column)));
-    std::vector<size_t> order(n);
-    std::iota(order.begin(), order.end(), size_t{0});
-    std::ranges::stable_sort(order, [&](size_t a, size_t b) {
+    for (size_t r = 0; r < n; ++r) keys.push_back(make_sort_key(src.cell_text(r, column)));
+    return keys;
+}
+
+// Rows by key, equal keys in row order: a total order, so a full sort and a merge of the
+// changed rows give the same result.
+inline auto row_less(const std::vector<SortKey>& keys, bool descending) {
+    return [&keys, descending](size_t a, size_t b) {
         int c = compare_keys(keys[a], keys[b]);
-        return spec.descending ? c > 0 : c < 0;
-    });
+        if (c != 0) return descending ? c > 0 : c < 0;
+        return a < b;
+    };
+}
+
+inline std::vector<size_t> sorted_rows(const std::vector<SortKey>& keys, bool descending) {
+    std::vector<size_t> order(keys.size());
+    std::iota(order.begin(), order.end(), size_t{0});
+    std::ranges::sort(order, row_less(keys, descending));
     return order;
+}
+} // namespace table_detail
+
+inline std::vector<size_t> sort_order(const TableSource& src, SortSpec spec) {
+    return table_detail::sorted_rows(table_detail::sort_keys(src, spec.column), spec.descending);
 }
 
 inline SortSpec next_sort(std::optional<SortSpec> current, size_t column) {
@@ -71,9 +84,6 @@ inline SortSpec next_sort(std::optional<SortSpec> current, size_t column) {
     return {column, false};
 }
 
-// simplify: re-sorts the whole table on every data change (keys are rebuilt from
-// cell_text). Fine to ~100k rows at a few updates/s; past that, re-sort only the
-// changed rows (or sort in the model) and merge.
 // Drops selected rows past the end of the data (rows were removed).
 inline void prune_selection(TableState& ts) {
     size_t n = ts.row_count();
@@ -84,17 +94,69 @@ inline void prune_selection(TableState& ts) {
     if (ts.anchor_row >= n) ts.anchor_row.reset();
 }
 
+namespace table_detail {
+// The rows updated or appended since the last sort (rows past the old order are the appended
+// ones), each once.
+inline std::vector<size_t> rows_to_resort(TableState& ts) {
+    auto rows = std::move(ts.changed_rows);
+    for (size_t r = ts.order.size(); r < ts.row_count(); ++r) rows.push_back(r);
+    std::erase_if(rows, [n = ts.row_count()](size_t r) { return r >= n; });
+    std::ranges::sort(rows);
+    rows.erase(std::ranges::unique(rows).begin(), rows.end());
+    return rows;
+}
+
+// The order kept, the changed rows taken out, re-keyed, sorted and merged back in:
+// O(n + k log k) for k changed rows, against O(n log n) and n keys built for a full sort.
+inline void resort_rows(TableState& ts, const std::vector<size_t>& rows, SortSpec spec) {
+    size_t n = ts.row_count();
+    ts.keys.resize(n);
+    std::vector<bool> moved(n);
+    for (auto r : rows) {
+        ts.keys[r] = make_sort_key(ts.source.cell_text(r, spec.column));
+        moved[r] = true;
+    }
+    std::erase_if(ts.order, [&](size_t r) { return moved[r]; });
+    auto sorted = rows;
+    auto less = row_less(ts.keys, spec.descending);
+    std::ranges::sort(sorted, less);
+    std::vector<size_t> order;
+    order.reserve(n);
+    std::ranges::merge(ts.order, sorted, std::back_inserter(order), less);
+    ts.order = std::move(order);
+}
+
+// Whether the kept order and keys can be patched: same sort, no change rows cannot tell
+// (order_stale), no row removed, and few enough changed rows that merging beats sorting.
+// simplify: a removal, an insert before the end, and any change to a column-storage table
+// still re-sort everything (100k rows: ~20 ms). Patching those needs the source to say which
+// rows moved where, as List does for updates and appends.
+inline bool can_patch(const TableState& ts, SortSpec spec, size_t changed) {
+    size_t n = ts.row_count();
+    return !ts.order_stale && ts.order_spec == spec && ts.keys.size() == ts.order.size()
+        && ts.order.size() <= n && changed <= n / 4;
+}
+} // namespace table_detail
+
 inline void refresh_order(TableState& ts) {
     prune_selection(ts);
     auto spec = ts.sort.get();
     if (!spec || spec->column >= ts.column_count) {
         ts.order.clear();
         ts.rank.clear();
+        ts.keys.clear();
+        ts.changed_rows.clear();
         ts.order_spec.reset();
         return;
     }
-    if (!ts.order_stale && ts.order_spec == spec && ts.order.size() == ts.row_count()) return;
-    ts.order = sort_order(ts.source, *spec);
+    auto rows = table_detail::rows_to_resort(ts);
+    if (!ts.order_stale && ts.order_spec == spec && rows.empty() && ts.order.size() == ts.row_count()) return;
+    if (table_detail::can_patch(ts, *spec, rows.size())) {
+        table_detail::resort_rows(ts, rows, *spec);
+    } else {
+        ts.keys = table_detail::sort_keys(ts.source, spec->column);
+        ts.order = table_detail::sorted_rows(ts.keys, spec->descending);
+    }
     ts.rank.assign(ts.order.size(), 0);
     for (size_t pos = 0; pos < ts.order.size(); ++pos) ts.rank[ts.order[pos]] = pos;
     ts.order_spec = spec;

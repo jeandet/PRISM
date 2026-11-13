@@ -712,6 +712,43 @@ TEST_CASE("RowStorage table updates on List remove") {
     CHECK(tree.any_dirty());
 }
 
+namespace {
+prism::ui::TableState& test_table_state(prism::WidgetTree& tree) {
+    auto find = [](auto& self, prism::WidgetNode& n) -> prism::WidgetNode* {
+        if (n.layout_kind == prism::LayoutKind::Table) return &n;
+        for (auto& c : n.children)
+            if (auto* t = self(self, c)) return t;
+        return nullptr;
+    };
+    auto* n = find(find, tree.root());
+    REQUIRE(n);
+    return **std::any_cast<std::shared_ptr<prism::ui::TableState>>(&n->edit_state);
+}
+}
+
+TEST_CASE("a sorted List table follows updates, appends and removals") {
+    RowModel model;
+    for (int i = 0; i < 40; ++i) model.rows.push_back(TestRow{.label = {"r"}, .value = {double((i * 7) % 13)}});
+    prism::WidgetTree tree(model);
+    (void)tree.build_snapshot(800, 600, 1);
+    auto& ts = test_table_state(tree);
+    ts.sort.set(prism::ui::SortSpec{1, true});
+    auto frame = [&, v = std::uint64_t{2}]() mutable { (void)tree.build_snapshot(800, 600, v++); };
+    auto full_sort = [&] { return prism::ui::sort_order(ts.source, prism::ui::SortSpec{1, true}); };
+    frame();
+    CHECK(ts.order == full_sort());
+    model.rows.set(3, TestRow{.label = {"x"}, .value = {50.0}});
+    frame();
+    CHECK(ts.order == full_sort());
+    model.rows.push_back(TestRow{.label = {"y"}, .value = {-1.0}});
+    frame();
+    CHECK(ts.order == full_sort());
+    model.rows.erase(0);
+    frame();
+    CHECK(ts.order == full_sort());
+    CHECK(ts.order.front() == 2);   // row 3 before the removal, now the largest
+}
+
 struct PlainRow {
     int id = 0;
     [[=prism::core::skip]] int hidden = 0;

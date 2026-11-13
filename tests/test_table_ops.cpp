@@ -306,3 +306,62 @@ TEST_CASE("one wheel notch scrolls a table once, through the shared scroll path"
     widget_detail::route_mouse_scroll(tree, *snap, MouseScroll{.position = Point{X{100.f}, Y{300.f}}, .dx = DX{0}, .dy = DY{1.f}});
     CHECK(ts.scroll_y.raw() == doctest::Approx(60.f));  // the shared wheel step, not 60 + 3 rows
 }
+
+// --- re-sorting only the rows that changed ----------------------------------------------
+
+namespace {
+struct LiveData {
+    std::vector<double> values;
+    prism::ui::TableSource source() {
+        return {.column_count = [] { return std::size_t{2}; },
+                .row_count = [this] { return values.size(); },
+                .cell_text = [this](std::size_t r, std::size_t c) {
+                    return c == 0 ? std::to_string(r) : std::to_string(values[r]);
+                },
+                .header = [](std::size_t) { return std::string_view{}; }};
+    }
+};
+}
+
+TEST_CASE("re-sorting only the changed rows gives the same order as a full sort") {
+    for (bool descending : {false, true}) {
+        LiveData data;
+        for (int i = 0; i < 500; ++i) data.values.push_back((i * 37) % 101);   // many ties
+        prism::ui::TableState ts;
+        ts.source = data.source();
+        ts.column_count = 2;
+        ts.rows_tracked = true;
+        ts.sort.set(prism::ui::SortSpec{1, descending});
+        prism::ui::refresh_order(ts);
+        unsigned seed = 7;
+        for (int round = 0; round < 40; ++round) {
+            for (int k = 0; k < 5; ++k) {   // a few rows change, as a live feed does
+                seed = seed * 1103515245u + 12345u;
+                std::size_t r = seed % data.values.size();
+                data.values[r] = (seed >> 8) % 120;
+                ts.changed_rows.push_back(r);
+            }
+            if (round % 10 == 0) {   // and now and then a row is appended
+                data.values.push_back(round);
+                ts.changed_rows.push_back(data.values.size() - 1);
+            }
+            prism::ui::refresh_order(ts);
+            CHECK(ts.order == prism::ui::sort_order(ts.source, prism::ui::SortSpec{1, descending}));
+            for (std::size_t pos = 0; pos < ts.order.size(); ++pos) CHECK(ts.rank[ts.order[pos]] == pos);
+        }
+    }
+}
+
+TEST_CASE("an unknown change still re-sorts everything") {
+    LiveData data{{3, 1, 2}};
+    prism::ui::TableState ts;
+    ts.source = data.source();
+    ts.column_count = 2;
+    ts.sort.set(prism::ui::SortSpec{1, false});
+    prism::ui::refresh_order(ts);
+    CHECK(ts.order == std::vector<std::size_t>{1, 2, 0});
+    data.values = {0, 9, 5};
+    ts.order_stale = true;   // a column-storage table's change: which rows, it cannot say
+    prism::ui::refresh_order(ts);
+    CHECK(ts.order == std::vector<std::size_t>{0, 2, 1});
+}

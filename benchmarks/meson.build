@@ -8,3 +8,7 @@ executable('bench_stall_latency', 'stall_latency.cpp',
 executable('bench_widget_scale', 'widget_scale.cpp',
   dependencies : [prism_core_dep, fmt_dep],
 )
+
+executable('bench_table_sort', 'table_sort.cpp',
+  dependencies : [prism_core_dep, fmt_dep],
+)

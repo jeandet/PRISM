@@ -56,6 +56,18 @@ void wire_list_signals(Node& container, List<T>& items) {
     };
 }
 
+// A sorted table over a List re-sorts only the rows updated or appended (ui::refresh_order):
+// the List reports updated rows, and appends only ever add rows at the end.
+template <typename T>
+void track_rows(TableState& ts, List<T>& list) {
+    ts.rows_tracked = true;
+    ts.row_watch.push_back(list.on_update().connect([&ts](size_t row, const T&) {
+        if (!ts.sort.get() || ts.order_stale) return;
+        ts.changed_rows.push_back(row);
+        if (ts.changed_rows.size() > ts.row_count() / 4) ts.order_stale = true;   // a full sort is cheaper
+    }));
+}
+
 inline void unbind_vlist_row(WidgetNode& wn) {
     wn.connections.clear();
     wn.draws.clear();
@@ -825,6 +837,7 @@ public:
         auto state = std::make_shared<TableState>();
         state->source = wrap_row_storage(list);
         state->column_count = state->source.column_count();
+        view_builder_detail::track_rows(*state, list);
         container.table_state = state;
 
         view_builder_detail::wire_list_signals(container, list);

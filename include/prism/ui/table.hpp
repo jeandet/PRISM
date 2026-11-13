@@ -240,6 +240,11 @@ TableSource wrap_soa_columns(T& data) {
 
 #endif // __cpp_impl_reflection
 
+struct SortKey {
+    std::optional<double> number;  // leading number, e.g. 12 for "12 MB"
+    std::string text;
+};
+
 struct SortSpec {
     size_t column = 0;
     bool descending = false;
@@ -282,7 +287,13 @@ struct TableState {
     std::vector<size_t> order;
     std::vector<size_t> rank;
     std::optional<SortSpec> order_spec;  // the spec `order` was built with
-    bool order_stale = true;             // set when the data changes
+    bool order_stale = true;             // set when the data changes in a way rows cannot tell
+    // Re-sorting only what changed (ui::refresh_order): every row's sort key, kept, and the rows
+    // updated or appended since. A table over a List<T> reports them (rows_tracked).
+    std::vector<SortKey> keys;
+    std::vector<size_t> changed_rows;
+    bool rows_tracked = false;
+    std::vector<Connection> row_watch;   // the List's per-row signals, for changed_rows
 
     std::vector<float> column_widths;  // user-resized widths; 0 or missing = auto
     float auto_column_w = 120.f;

@@ -1095,10 +1095,11 @@ private:
                 auto id = wn.id;
                 // Rows move on a removal, or on any change while sorted (it may re-sort); a cell
                 // update or an append to an unsorted table moves none, and a live feed updating
-                // every frame must not make every click stale.
+                // every frame must not make every click stale. A table tracking its rows knows
+                // which changed (TableState::rows_tracked): only a removal makes it re-sort all.
                 auto changed = [this, id, ts = node.table_state.get()](bool removal) {
                     if (ts) {
-                        ts->order_stale = true;
+                        if (removal || !ts->rows_tracked) ts->order_stale = true;
                         if (removal || ts->sort.get()) ts->shifted_at = next_frame_version();
                     }
                     set_dirty(id);
