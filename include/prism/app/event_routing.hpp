@@ -26,6 +26,21 @@ inline std::optional<Rect> popup_area(const WidgetTree& tree, const SceneSnapsho
     return r;
 }
 
+// Whether `pos` (window coordinates) is on the open popup: its area, or more of it outside
+// (a menu's open submenus, WidgetNode::popup_more).
+inline bool on_popup(const WidgetTree& tree, const SceneSnapshot& snap, Point pos) {
+    auto area = popup_area(tree, snap);
+    if (!area) return false;
+    if (area->contains(pos)) return true;
+    const WidgetNode* owner = tree.popup_node();
+    if (!owner || !owner->popup_area) return false;
+    DX dx = area->origin.x - owner->popup_area->origin.x;   // owner -> window
+    DY dy = area->origin.y - owner->popup_area->origin.y;
+    return std::ranges::any_of(owner->popup_more, [&](const Rect& r) {
+        return Rect{Point{r.origin.x + dx, r.origin.y + dy}, r.extent}.contains(pos);
+    });
+}
+
 inline void dispatch_to_popup(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev) {
     auto id = tree.popup_owner();
     auto rect = find_widget_rect(snap, id);
@@ -68,7 +83,7 @@ inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const
         tree.close_popup();
         return false;
     }
-    bool inside = area && area->contains(pos);
+    bool inside = on_popup(tree, snap, pos);
     // The dismissing press is swallowed: a right click outside an open menu only closes it.
     if (is_press && !inside) {
         if (auto* owner = tree.popup_node(); !owner || !owner->popup_modal) tree.close_popup();
@@ -225,9 +240,7 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
 inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
                                const MouseScroll& ms) {
     if (tree.popup_owner() != 0) {   // inside: the popup; outside: nothing scrolls under it
-        auto area = popup_area(tree, snap);
-        bool inside = area && area->contains(ms.position);
-        if (!inside) return;
+        if (!on_popup(tree, snap, ms.position)) return;
         if (!tree.open_content_popup()) return dispatch_to_popup(tree, snap, ms);
         // a popup holding widgets: its own scroll views scroll, as in the window
     }
@@ -276,9 +289,10 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
             tree.close_popup();
             return route_key_press(tree, ev, kp);
         }
-        if (kp.key == keys::escape && (!owner || !owner->popup_modal)) tree.close_popup();
-        else if (neighbour) tree.switch_menu(*neighbour);
-        else if (!bar_step || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
+        bool menu_keeps = owner && menu_detail::keeps_key(*owner, kp.key);   // a submenu to open or close
+        if (kp.key == keys::escape && !menu_keeps && (!owner || !owner->popup_modal)) tree.close_popup();
+        else if (neighbour && !menu_keeps) tree.switch_menu(*neighbour);
+        else if (!bar_step || menu_keeps || !tree.opens_menu(tree.popup_owner())) tree.dispatch(tree.popup_owner(), ev);
         tree.swallow_next_text_input(menu_detail::is_mnemonic_key(kp.key));   // only a letter types
         return;
     }

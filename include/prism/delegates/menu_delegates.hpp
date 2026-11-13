@@ -43,8 +43,15 @@ inline float widest(const Items& items, const TextMeasurer* m, auto text_of) {
     return w;
 }
 
+constexpr std::string_view submenu_arrow = "\xe2\x80\xba";   // ›
+
+inline bool opens_submenu(const MenuItem& item) { return !item.separator && !item.items.empty(); }
+
+// The column on the right: shortcuts, and the arrow of items that open a submenu.
 inline float shortcut_column_w(const Items& items, const TextMeasurer* m) {
-    float w = widest(items, m, [](const MenuItem& i) { return shortcut_text(i.shortcut); });
+    float w = widest(items, m, [](const MenuItem& i) {
+        return opens_submenu(i) ? std::string(submenu_arrow) : shortcut_text(i.shortcut);
+    });
     return w > 0.f ? shortcut_gap + w : 0.f;
 }
 
@@ -55,14 +62,50 @@ inline Size popup_size(const Items& items, const WidgetNode& n, float min_w) {
                 Height{row_top(items, items.size())}};
 }
 
-// The selectable item under a point in the owner's coordinates. The popup may have been moved
-// to stay inside the window, so this reads where it actually is.
-inline std::optional<std::size_t> item_at(const Items& items, const WidgetNode& node, Point p) {
-    if (!node.popup_area || !node.popup_area->contains(p)) return std::nullopt;
-    float y = p.y.raw() - node.popup_area->origin.y.raw();
-    for (std::size_t i = 0; i < items.size(); ++i) {
-        float top = row_top(items, i);
-        if (y >= top && y < top + row_h(items[i]).raw()) return selectable(items[i]) ? std::optional{i} : std::nullopt;
+using Path = std::vector<std::size_t>;
+
+// The items of the panel at `level`: the popup's (0), or a submenu's, opened from the item
+// highlighted one level up.
+inline const Items& panel_items(const Items& items, const Path& path, std::size_t level) {
+    const Items* at = &items;
+    for (std::size_t k = 0; k < level; ++k) at = &(*at)[path[k]].items;
+    return *at;
+}
+
+// Each open panel's place, in the owner's coordinates: the popup where it is (it may have been
+// moved to stay inside the window), each submenu to the right of its item.
+// simplify: a submenu always opens to the right, even past the window's edge; flip it to the
+// left (as place_popup flips the popup) when a deep menu at the right edge needs it.
+inline std::vector<Rect> panels(const Items& items, const WidgetNode& node, const Path& path) {
+    std::vector<Rect> out{*node.popup_area};
+    for (std::size_t level = 1; level < path.size(); ++level) {
+        const Rect& up = out.back();
+        const auto& above = panel_items(items, path, level - 1);
+        Point at{up.origin.x + DX{up.extent.w.raw()}, up.origin.y + DY{row_top(above, path[level - 1])}};
+        out.push_back(Rect{at, popup_size(panel_items(items, path, level), node, 0.f)});
+    }
+    return out;
+}
+
+// The panel and selectable item under a point; the panel alone when the point is on one of
+// its separators or disabled items. Deepest panel first: submenus are drawn on top.
+struct Hit {
+    std::size_t level;
+    std::optional<std::size_t> item;
+};
+
+inline std::optional<Hit> hit(const Items& items, const WidgetNode& node, const Path& path, Point p) {
+    auto rects = panels(items, node, path);
+    for (std::size_t level = rects.size(); level-- > 0;) {
+        if (!rects[level].contains(p)) continue;
+        const auto& its = panel_items(items, path, level);
+        float y = p.y.raw() - rects[level].origin.y.raw();
+        for (std::size_t i = 0; i < its.size(); ++i) {
+            float top = row_top(its, i);
+            if (y >= top && y < top + row_h(its[i]).raw())
+                return Hit{level, selectable(its[i]) ? std::optional{i} : std::nullopt};
+        }
+        return Hit{level, std::nullopt};
     }
     return std::nullopt;
 }
@@ -85,10 +128,43 @@ inline std::optional<std::size_t> item_for_key(const Items& items, std::int32_t 
     return std::nullopt;
 }
 
-inline std::optional<std::size_t> item_for_shortcut(const Items& items, const KeyPress& kp) {
-    for (std::size_t i = 0; i < items.size(); ++i)
-        if (selectable(items[i]) && matches(items[i].shortcut, kp)) return i;
+// The item a shortcut chooses, submenus included.
+inline std::optional<Path> path_for_shortcut(const Items& items, const KeyPress& kp) {
+    for (std::size_t i = 0; i < items.size(); ++i) {
+        if (!selectable(items[i])) continue;
+        if (opens_submenu(items[i])) {
+            if (auto sub = path_for_shortcut(items[i].items, kp)) {
+                sub->insert(sub->begin(), i);
+                return sub;
+            }
+        } else if (matches(items[i].shortcut, kp)) {
+            return Path{i};
+        }
+    }
     return std::nullopt;
+}
+
+// Keeps the highlight path valid for the items as they are now (the app may have changed
+// them), and records where the submenus are, for routing (WidgetNode::popup_more).
+inline void sync_panels(const Items& items, WidgetNode& node) {
+    auto& es = node.get_or_create<MenuEditState>();
+    if (es.path.empty()) es.path = {first_selectable(items)};
+    const Items* at = &items;
+    for (std::size_t level = 0; level < es.path.size(); ++level) {
+        if (at->empty()) { es.path.resize(level); break; }
+        es.path[level] = std::min(es.path[level], at->size() - 1);
+        if (level + 1 < es.path.size()) {
+            const auto& opener = (*at)[es.path[level]];
+            if (!selectable(opener) || !opens_submenu(opener)) { es.path.resize(level + 1); break; }
+            at = &opener.items;
+        }
+    }
+    if (es.path.empty()) es.path = {0};
+    const auto& last = panel_items(items, es.path, es.path.size() - 1);
+    es.opener_highlighted = es.path.back() < last.size() && selectable(last[es.path.back()])
+                         && opens_submenu(last[es.path.back()]);
+    auto rects = panels(items, node, es.path);
+    node.popup_more.assign(rects.begin() + 1, rects.end());
 }
 
 // Below `anchor`, left-aligned; routing flips it near the window edges (place_popup).
@@ -96,27 +172,60 @@ inline void open_at(const Items& items, WidgetNode& node, Rect anchor, float min
     Point below{anchor.origin.x, anchor.origin.y + DY{anchor.extent.h.raw()}};
     node.popup_area = Rect{below, popup_size(items, node, min_w)};
     node.popup_opened_from = anchor;
-    node.get_or_create<MenuEditState>().highlighted = first_selectable(items);
+    node.get_or_create<MenuEditState>() = MenuEditState{.path = {first_selectable(items)}};
+    sync_panels(items, node);
     node.dirty = true;
 }
 
 inline void close(WidgetNode& node) {
     node.popup_area.reset();
     node.popup_opened_from.reset();
+    node.popup_more.clear();
     node.overlay_draws.clear();
     node.dirty = true;
 }
 
-// Closes the menu and reports item i; a check item flips its mark first.
+// Closes the menu and reports the item at `path`; a check item flips its mark first.
 template <typename M>
-void choose(Field<M>& field, WidgetNode& node, std::size_t i) {
+void choose(Field<M>& field, WidgetNode& node, const Path& path) {
     auto m = field.get();
-    if (i >= m.items.size() || !selectable(m.items[i])) return;
+    Items* at = &m.items;
+    MenuItem* item = nullptr;
+    for (auto i : path) {
+        if (i >= at->size() || !selectable((*at)[i])) return;
+        item = &(*at)[i];
+        at = &item->items;
+    }
+    if (!item || opens_submenu(*item)) return;
     close(node);
-    if (auto& c = m.items[i].checked) c = !*c;
-    m.chosen = i;
+    if (auto& c = item->checked) c = !*c;
+    m.chosen = path.front();
+    m.chosen_path = path;
     ++m.activations;
     field.set(m);
+}
+
+// The user points at item `i` of the panel at `level` (hover, or keys): it is highlighted, and
+// its submenu, if any, opens beside it.
+inline void highlight(const Items& items, WidgetNode& node, std::size_t level, std::size_t i) {
+    auto& path = node.get_or_create<MenuEditState>().path;
+    path.resize(level + 1);
+    path[level] = i;
+    const auto& item = panel_items(items, path, level)[i];
+    if (opens_submenu(item)) path.push_back(first_selectable(item.items));
+    sync_panels(items, node);
+    node.dirty = true;
+}
+
+// Choosing item `i` of the panel at `level`: an item with a submenu opens it instead.
+template <typename M>
+void activate(Field<M>& field, WidgetNode& node, std::size_t level, std::size_t i) {
+    const auto& items = field.get().items;
+    auto path = node.get_or_create<MenuEditState>().path;
+    path.resize(level + 1);
+    path[level] = i;
+    if (opens_submenu(panel_items(items, path, level)[i])) highlight(items, node, level, i);
+    else choose(field, node, path);
 }
 
 // A label without its "&" marker, with the marked letter underlined.
@@ -145,52 +254,102 @@ inline void draw_item(DrawList& dl, const Items& items, std::size_t i, Rect row,
     if (item.icon) dl.image(item.icon, Rect{Point{slot, icon_y}, Size{Width{icon_size}, Height{icon_size}}}, icon_tint(item.icon, color));
     else if (item.checked.value_or(false)) dl.text("\xe2\x9c\x93", Point{slot + DX{2.f}, row.origin.y + DY{6.f}}, font_size, color);
     draw_label(dl, item.text, Point{row.origin.x + DX{label_offset(items)}, row.origin.y + DY{6.f}}, color, t.measurer);
-    if (auto keys = shortcut_text(item.shortcut); !keys.empty()) {
-        float w = text_width(t.measurer, keys, font_size);
-        dl.text(keys, Point{row.origin.x + DX{row.extent.w.raw() - pad - w}, row.origin.y + DY{6.f}}, font_size,
+    auto right = opens_submenu(item) ? std::string(submenu_arrow) : shortcut_text(item.shortcut);
+    if (!right.empty()) {
+        float w = text_width(t.measurer, right, font_size);
+        dl.text(right, Point{row.origin.x + DX{row.extent.w.raw() - pad - w}, row.origin.y + DY{6.f}}, font_size,
                 item.enabled && !highlighted ? t.text_muted : color);
     }
 }
 
-inline void draw_popup(const Items& items, WidgetNode& node) {
-    const Rect& area = *node.popup_area;
-    const auto& t = *node.theme;
-    std::size_t hl = node.get_or_create<MenuEditState>().highlighted;
-    node.overlay_draws.filled_rect(area, t.popup_bg);
-    node.overlay_draws.rect_outline(area, t.popup_border, 1.f);
+inline void draw_panel(DrawList& dl, const Items& items, Rect area, std::size_t highlighted, const Theme& t) {
+    dl.filled_rect(area, t.popup_bg);
+    dl.rect_outline(area, t.popup_border, 1.f);
     for (std::size_t i = 0; i < items.size(); ++i) {
         Rect row{Point{area.origin.x, area.origin.y + DY{row_top(items, i)}}, Size{area.extent.w, row_h(items[i])}};
-        draw_item(node.overlay_draws, items, i, row, i == hl && selectable(items[i]), t);
+        draw_item(dl, items, i, row, i == highlighted && selectable(items[i]), t);
     }
 }
 
-// Input for an open popup: hover highlights, a left press on an item or Enter/Space chooses,
-// Up/Down move past separators and disabled items. Returns false when the event is not the
-// popup's.
+inline void draw_popup(const Items& items, WidgetNode& node) {
+    sync_panels(items, node);
+    const auto& path = node.get_or_create<MenuEditState>().path;
+    auto rects = panels(items, node, path);
+    for (std::size_t level = 0; level < rects.size(); ++level)
+        draw_panel(node.overlay_draws, panel_items(items, path, level), rects[level], path[level], *node.theme);
+}
+
+// Whether a pointer moving from `from` to `to` heads for the deepest open submenu across its
+// parent panel: then the items it crosses on the way must not close the submenu. True when
+// `to` is inside the triangle from `from` to the submenu's near edge (the "safe triangle").
+inline bool heading_for_submenu(const std::vector<Rect>& rects, const Hit& h, Point from, Point to) {
+    if (rects.size() < 2 || h.level != rects.size() - 2) return false;
+    const Rect& sub = rects.back();
+    float ax = from.x.raw(), ay = from.y.raw();
+    float bx = sub.origin.x.raw(), by = sub.origin.y.raw();
+    float cy = by + sub.extent.h.raw();
+    auto side = [&](float x1, float y1, float x2, float y2) {
+        return (x2 - x1) * (to.y.raw() - y1) - (y2 - y1) * (to.x.raw() - x1);
+    };
+    float d1 = side(ax, ay, bx, by), d2 = side(bx, by, bx, cy), d3 = side(bx, cy, ax, ay);
+    bool has_neg = d1 < 0 || d2 < 0 || d3 < 0, has_pos = d1 > 0 || d2 > 0 || d3 > 0;
+    return !(has_neg && has_pos);
+}
+
+// Whether the open menu itself takes this arrow or Escape (a submenu to open or close), rather
+// than routing (switching menus in a bar, closing the menu).
+inline bool keeps_key(const WidgetNode& node, std::int32_t key) {
+    auto* es = std::any_cast<MenuEditState>(&node.edit_state);
+    if (!es) return false;
+    if (key == keys::right) return es->opener_highlighted;
+    if (key == keys::left || key == keys::escape) return es->path.size() > 1;
+    return false;
+}
+
+inline bool popup_key(auto& field, const KeyPress& kp, WidgetNode& node) {
+    const auto& items = field.get().items;
+    auto& path = node.get_or_create<MenuEditState>().path;
+    std::size_t level = path.size() - 1;
+    const auto& here = panel_items(items, path, level);
+    if (kp.key == keys::down || kp.key == keys::up) {
+        if (auto i = step(here, path.back(), kp.key == keys::down ? +1 : -1)) path.back() = *i;
+    } else if (kp.key == keys::right && keeps_key(node, kp.key)) {
+        highlight(items, node, level, path.back());
+    } else if ((kp.key == keys::left || kp.key == keys::escape) && level > 0) {
+        path.pop_back();
+    } else if (kp.key == keys::enter || kp.key == keys::space) {
+        if (path.back() < here.size() && selectable(here[path.back()])) activate(field, node, level, path.back());
+    } else if (auto i = item_for_key(here, kp.key); i && !mods::shortcut(kp.mods)) {
+        activate(field, node, level, *i);
+    } else {
+        return false;
+    }
+    if (node.popup_area) sync_panels(items, node);
+    node.dirty = true;
+    return true;
+}
+
+// Input for an open popup: hover highlights (and opens a submenu), a left press on an item or
+// Enter/Space chooses, Up/Down move past separators and disabled items, Right and Left open and
+// close submenus. Returns false when the event is not the popup's.
 template <typename M>
 bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
     const auto& items = field.get().items;
-    auto& es = node.get_or_create<MenuEditState>();
-    es.highlighted = std::min(es.highlighted, items.empty() ? 0 : items.size() - 1);   // items may have shrunk
+    sync_panels(items, node);
+    const auto& path = node.get_or_create<MenuEditState>().path;
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
-        if (!node.popup_area->contains(mb->position)) return false;
-        if (auto i = item_at(items, node, mb->position)) choose(field, node, *i);
+        auto h = hit(items, node, path, mb->position);
+        if (!h) return false;
+        if (h->item) activate(field, node, h->level, *h->item);
     } else if (auto* mm = std::get_if<MouseMove>(&ev)) {
-        if (auto i = item_at(items, node, mm->position); i && *i != es.highlighted) {
-            es.highlighted = *i;
-            node.dirty = true;
-        }
+        auto h = hit(items, node, path, mm->position);
+        auto& es = node.get_or_create<MenuEditState>();
+        auto from = std::exchange(es.pointer, mm->position);
+        bool on_the_way = h && from && heading_for_submenu(panels(items, node, path), *h, *from, mm->position);
+        if (h && h->item && !on_the_way && !(h->level < path.size() && path[h->level] == *h->item))
+            highlight(items, node, h->level, *h->item);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
-        if (kp->key == keys::down || kp->key == keys::up) {
-            if (auto i = step(items, es.highlighted, kp->key == keys::down ? +1 : -1)) es.highlighted = *i;
-        } else if (kp->key == keys::enter || kp->key == keys::space) {
-            choose(field, node, es.highlighted);
-        } else if (auto i = item_for_key(items, kp->key); i && !mods::shortcut(kp->mods)) {
-            choose(field, node, *i);
-        } else {
-            return false;
-        }
-        node.dirty = true;
+        return popup_key(field, *kp, node);
     } else {
         return false;
     }
@@ -200,9 +359,9 @@ bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
 // A shortcut chooses its item from anywhere, the menu closed or not.
 template <typename M>
 bool try_shortcut(Field<M>& field, const KeyPress& kp, WidgetNode& node) {
-    auto i = item_for_shortcut(field.get().items, kp);
-    if (!i) return false;
-    choose(field, node, *i);
+    auto path = path_for_shortcut(field.get().items, kp);
+    if (!path) return false;
+    choose(field, node, *path);
     return true;
 }
 
@@ -259,16 +418,22 @@ inline void Widget<ContextMenu>::handle_input(Field<ContextMenu>& field, const I
         open_at(field.get().items, node, Rect{mb->position, Size{Width{0}, Height{0}}}, 120.f);
 }
 
-// Calls `cb` with the chosen item's index each time the user chooses one (click, keys or
-// shortcut), and not when the app itself changes the menu (greys out or ticks an item).
-template <typename M>
-Connection on_choice(Field<M>& menu, std::function<void(std::size_t)> cb) {
+// Calls `cb` each time the user chooses an item (click, keys or shortcut), and not when the app
+// itself changes the menu (greys out or ticks an item). `cb` takes the item's index, and hears
+// top-level items only; or it takes the path to the item (std::vector<std::size_t>), submenus
+// included.
+template <typename M, typename F>
+Connection on_choice(Field<M>& menu, F cb) {
     // Shared: a signal calls a copy of its callback, so state inside the lambda would not stick.
     auto last = std::make_shared<std::uint64_t>(menu.get().activations);
-    return menu.on_change().connect([cb = std::move(cb), last](const M& m) {
+    return menu.on_change().connect([cb = std::move(cb), last](const M& m) mutable {
         if (m.activations == *last) return;
         *last = m.activations;
-        if (m.chosen) cb(*m.chosen);
+        if constexpr (std::invocable<F&, const std::vector<std::size_t>&>) {
+            if (!m.chosen_path.empty()) cb(m.chosen_path);
+        } else if (m.chosen && m.chosen_path.size() <= 1) {
+            cb(*m.chosen);
+        }
     });
 }
 

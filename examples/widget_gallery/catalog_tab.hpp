@@ -39,6 +39,7 @@ struct Samples {
     prism::core::Field<prism::ui::Button> quiet{{.text = "Cancel", .primary = false}};
     prism::core::Field<prism::ui::Menu> menu{{.title = "&File", .items = {
         {.text = "&Open…", .icon = icon("folder.svg")},
+        {.text = "Open &recent", .items = {{"notes.txt"}, {"todo.txt"}, {.text = "Older", .items = {{"draft.txt"}}}}},
         {.text = "&Save", .shortcut = {prism::input::keys::s, prism::input::mods::ctrl}, .icon = icon("save.svg")},
         {.separator = true},
         {.text = "&Delete", .icon = icon("trash.svg"), .enabled = false},
@@ -116,7 +117,7 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<ui::Button> save{{.text = \"Save\", .icon = icon}};",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.button); vb.gap(8.f); vb.widget(s.quiet); vb.spacer(); }); }},
         E{"Popups", "", "Things drawn above the window: menus, dialogs, popovers, tooltips.", "", nullptr},
-        E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it. An item can have an icon, a shortcut (Ctrl+S works from anywhere), a check mark, or be greyed out; {.separator = true} draws a line.",
+        E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it. An item can have an icon, a shortcut (Ctrl+S works from anywhere), a check mark, or be greyed out; {.separator = true} draws a line, and .items opens a submenu.",
           "core::Field<ui::Menu> file{{.title = \"&File\", .items = {\n    {.text = \"&Save\", .shortcut = {keys::s, mods::ctrl}},\n    {.separator = true},\n    {.text = \"&Word wrap\", .checked = true}}}};",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.menu); vb.spacer(); }); }},
         E{"Dialog", "Popups", "A modal question with buttons; it can hold a form too (vb.dialog(d, content)).",

@@ -702,14 +702,15 @@ def dock_layout(default):
 
 def _menu_items(items):
     """Normalizes menu items: a string is an item ("-" a separator); a dict may set text,
-    shortcut ("Ctrl+S"), enabled, checked (a check item's mark) and icon (an image file)."""
+    shortcut ("Ctrl+S"), enabled, checked (a check item's mark), icon (an image file) and
+    items (a submenu, items as these)."""
     out = []
     for it in items:
         if isinstance(it, str):
             it = {"separator": True} if it == "-" else {"text": it}
         elif not isinstance(it, dict):
             raise TypeError(f"menu item: expected a str or a dict, got {type(it).__name__}")
-        unknown = set(it) - {"text", "shortcut", "enabled", "checked", "icon", "separator"}
+        unknown = set(it) - {"text", "shortcut", "enabled", "checked", "icon", "separator", "items"}
         if unknown:
             raise TypeError(f"menu item: unknown keys {sorted(unknown)}")
         out.append({
@@ -719,6 +720,7 @@ def _menu_items(items):
             "checked": None if it.get("checked") is None else bool(it["checked"]),
             "icon": None if it.get("icon") is None else str(it["icon"]),
             "separator": bool(it.get("separator", False)),
+            "items": _menu_items(it.get("items", [])),
         })
     return out
 
@@ -727,8 +729,9 @@ def menu(title, items, *, tooltip=None):
     """A menu (C++ ``Menu``): a title that opens a list of items; menus side by side form a
     menu bar. ``"&File"`` makes Alt+F open it. An item is a string (``"-"`` for a separator)
     or a dict: ``{"text": "&Save", "shortcut": "Ctrl+S", "enabled": True, "checked": None,
-    "icon": "save.svg"}``. A shortcut chooses its item from anywhere in the window.
-    ``handle.on_choice(cb)`` runs ``cb(label)`` on each choice."""
+    "icon": "save.svg"}``; ``{"text": "Recent", "items": [...]}`` opens a submenu. A shortcut
+    chooses its item from anywhere in the window. ``handle.on_choice(cb)`` runs ``cb(label)``
+    on each choice, submenu items included."""
     return _tooltipped(_FieldDescriptor(
         0, kind="menu", meta={"title": str(title), "items": _menu_items(items)}
     ), tooltip)

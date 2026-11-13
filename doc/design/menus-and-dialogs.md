@@ -16,7 +16,10 @@ Since 2026-11-12 an item is a `ui::MenuItem` (text, `Shortcut`, icon, enabled, c
 separator). Menus are the app's actions: on a key press with no popup open,
 `WidgetTree::trigger_shortcut` chooses the first enabled item with that shortcut, unless the
 focused text widget keeps the key (`ui/shortcut.hpp`, `text_widget_keeps`).
-Not yet: popovers anchored to arbitrary widgets, submenus.
+Since 2026-11-13 an item with `items` opens a submenu beside it (hover, Right; Left and Escape
+close it; a pointer heading for it across other items keeps it open). `chosen_path` and an
+`on_choice` callback taking a path report nested choices.
+Not yet: popovers anchored to arbitrary widgets.
 
 ## Decision
 

@@ -1358,7 +1358,7 @@ BoundWidgetValue<M, std::int64_t> make_bound_menu(std::shared_ptr<SlotBase> owne
 
 // Menu items from the normalized dicts python/prism/__init__.py builds (_menu_items): text,
 // shortcut ("Ctrl+S", or ""), enabled, checked (None, or the mark), icon (None, or a file),
-// separator.
+// separator, items (a submenu, as these).
 inline std::vector<MenuItem> py_menu_items(const std::vector<nb::dict>& items) {
     std::vector<MenuItem> out;
     for (const auto& d : items) {
@@ -1377,6 +1377,7 @@ inline std::vector<MenuItem> py_menu_items(const std::vector<nb::dict>& items) {
             if (!loaded) throw nb::value_error(("menu icon: " + loaded.error()).c_str());
             it.icon = *loaded;
         }
+        it.items = py_menu_items(nb::cast<std::vector<nb::dict>>(d["items"]));
         out.push_back(std::move(it));
     }
     return out;
@@ -1385,6 +1386,26 @@ inline std::vector<MenuItem> py_menu_items(const std::vector<nb::dict>& items) {
 // Whether `label` names the item: as written ("&Save") or as shown ("Save").
 inline bool names_item(const MenuItem& item, const std::string& label) {
     return !item.separator && (item.text == label || prism::ui::menu_text(item) == label);
+}
+
+// Calls fn on each item named `label`, in submenus too.
+inline void for_items_named(std::vector<MenuItem>& items, const std::string& label, auto fn) {
+    for (auto& it : items) {
+        if (names_item(it, label)) fn(it);
+        for_items_named(it.items, label, fn);
+    }
+}
+
+// The item at `path` (an index per submenu level), if there is one.
+inline const MenuItem* item_at_path(const std::vector<MenuItem>& items, const std::vector<std::size_t>& path) {
+    const std::vector<MenuItem>* at = &items;
+    const MenuItem* item = nullptr;
+    for (auto i : path) {
+        if (i >= at->size()) return nullptr;
+        item = &(*at)[i];
+        at = &item->items;
+    }
+    return item;
 }
 
 inline BoundButton make_bound_button(std::shared_ptr<SlotBase> owner, Field<Button>* f) {
@@ -2487,25 +2508,30 @@ void bind_menu(nb::module_& m, const char* name, const char* doc) {
         }, "The items' labels, as shown; separators left out.")
         .def_prop_ro("chosen", [](const H& h) -> std::optional<std::string> {
             auto s = h.state();
-            if (!s.chosen || *s.chosen >= s.items.size()) return std::nullopt;
-            return prism::ui::menu_text(s.items[*s.chosen]);
+            auto* item = item_at_path(s.items, s.chosen_path);
+            if (!item) return std::nullopt;
+            return prism::ui::menu_text(*item);
         }, "The label of the item chosen last, or None.")
         .def("on_choice", [](nb::object self, nb::callable cb) {
             auto& h = nb::cast<H&>(self);
             if (!h.field) throw nb::value_error("on_choice(): handle is not bound to a Model");
             auto* f = h.field;
-            auto conn = prism::ui::on_choice(*f, [wc = WeakCallback(cb), f](std::size_t i) { wc(prism::ui::menu_text(f->get().items[i])); });
+            auto conn = prism::ui::on_choice(*f, [wc = WeakCallback(cb), f](const std::vector<std::size_t>& path) {
+                if (auto* item = item_at_path(f->get().items, path)) wc(prism::ui::menu_text(*item));
+            });
             if (h.owner) conn.keep_alive(h.owner);
             return keep_connection(self, std::move(conn), cb);
         }, nb::arg("callback"),
              "Runs callback(label) on the logic thread each time the user chooses an item; not when "
              "the app changes the menu.")
         .def("set_enabled", [](H& h, std::string label, bool on) {
-            h.modify([label, on](auto& menu) { for (auto& it : menu.items) if (names_item(it, label)) it.enabled = on; });
+            h.modify([label, on](auto& menu) { for_items_named(menu.items, label, [on](MenuItem& it) { it.enabled = on; }); });
         }, nb::arg("label"), nb::arg("enabled"), "Greys an item out (False) or back. Any thread; posted.")
         .def("checked", [](const H& h, std::string label) -> std::optional<bool> {
-            for (auto& it : h.state().items) if (names_item(it, label)) return it.checked;
-            return std::nullopt;
+            auto items = h.state().items;
+            std::optional<bool> mark;
+            for_items_named(items, label, [&](MenuItem& it) { if (!mark) mark = it.checked; });
+            return mark;
         }, nb::arg("label"), "An item's check mark, or None if it is not a check item.");
 }
 

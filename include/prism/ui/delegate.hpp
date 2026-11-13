@@ -273,22 +273,28 @@ struct MenuItem {
     bool enabled = true;         // false: shown greyed, cannot be chosen
     std::optional<bool> checked{};   // set: a check item; choosing it flips the mark
     bool separator = false;      // a thin line between groups; the other fields are ignored
+    std::vector<MenuItem> items{};   // a submenu: opens beside the item, which is not chosen itself
     bool operator==(const MenuItem&) const = default;
 };
 
 // A menu: a title that opens a popup list of items (see doc/design/menus-and-dialogs.md).
 // `activations` bumps on every choice, so choosing the same item again still notifies.
-// simplify: no submenus; an item that opens another menu needs nested menu popups.
+// `chosen` is the top-level item; `chosen_path` goes down through submenus ({1, 0}: the first
+// item of the second item's submenu).
 struct Menu {
     std::string title;
     std::vector<MenuItem> items;
     std::optional<std::size_t> chosen{};
+    std::vector<std::size_t> chosen_path{};
     std::uint64_t activations = 0;
     bool operator==(const Menu&) const = default;
 };
 
+// The highlighted item of each open panel: the popup, then each submenu open beside it.
 struct MenuEditState {
-    std::size_t highlighted = 0;
+    std::vector<std::size_t> path{0};
+    bool opener_highlighted = false;   // the last panel's highlighted item has a submenu
+    std::optional<Point> pointer{};    // where the last pointer move was
 };
 
 // A popup menu with no title, opened by a right click anywhere in the container it is
@@ -296,6 +302,7 @@ struct MenuEditState {
 struct ContextMenu {
     std::vector<MenuItem> items;
     std::optional<std::size_t> chosen{};
+    std::vector<std::size_t> chosen_path{};
     std::uint64_t activations = 0;
     bool operator==(const ContextMenu&) const = default;
 };

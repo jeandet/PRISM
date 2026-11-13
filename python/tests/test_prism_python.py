@@ -4055,6 +4055,28 @@ def test_menu_items_can_be_greyed_out_and_read_back():
     assert e.edit.items == ["Copy", "Paste"]
 
 
+def test_a_submenu_item_is_reported_and_greyed_by_its_label():
+    class Editor(prism.Model):
+        file = prism.menu("&File", [
+            "New",
+            {"text": "Recent", "items": ["notes.txt", {"text": "todo.txt", "shortcut": "Ctrl+T"}]},
+        ])
+
+        def view(self, vb):
+            vb.widget(self.file)
+
+    e = Editor()
+    seen = []
+    e.file.on_choice(seen.append)
+    prism._press_keys(e, ["Ctrl+T"])
+    assert seen == ["todo.txt"]
+    assert e.file.chosen == "todo.txt"
+    e.file.set_enabled("todo.txt", False)
+    prism._press_keys(e, ["Ctrl+T"])
+    assert seen == ["todo.txt"]
+    assert e.file.items == ["New", "Recent"]
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

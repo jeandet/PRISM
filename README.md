@@ -344,6 +344,7 @@ struct Editor {
     core::Field<ui::Menu> file{{.title = "&File", .items = {
         {.text = "&Open…", .shortcut = {input::keys::o, input::mods::ctrl}},
         {.text = "&Save", .shortcut = {input::keys::s, input::mods::ctrl}},
+        {.text = "Open &recent", .items = {{"notes.txt"}, {"todo.txt"}}},   // a submenu
         {.separator = true},
         {.text = "&Word wrap", .checked = true},
     }}};

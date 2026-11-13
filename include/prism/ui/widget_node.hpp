@@ -49,6 +49,9 @@ struct WidgetNode {
     // What the popup opened from (a menu's title, a right click's point), same coordinates:
     // near a window edge the popup flips to its other side. None: just kept inside the window.
     std::optional<Rect> popup_opened_from;
+    // More of the same popup outside popup_area (a menu's open submenus), same coordinates:
+    // input there is the popup's too.
+    std::vector<Rect> popup_more;
     // A leaf that scrolls its own content (TextArea): drawn with a scrollbar like a scroll
     // container's. viewport is in the widget's coordinates.
     struct InnerScroll { Rect viewport; Height content_h; DY offset; };
