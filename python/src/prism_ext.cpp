@@ -2896,7 +2896,10 @@ NB_MODULE(_prism_ext, m) {
     bind_widget_value<BoundButton, std::int64_t>(m, "BoundButton",
         "Bound handle for a Model's button: .value counts the clicks; observe() fires on each.")
         .def_prop_ro("text", [](const BoundButton& h) { return h.state().text; })
-        .def_prop_ro("has_icon", [](const BoundButton& h) { return h.state().icon != nullptr; });
+        .def_prop_ro("has_icon", [](const BoundButton& h) { return h.state().icon != nullptr; })
+        .def_prop_rw("checked", [](const BoundButton& h) { return h.state().checked; },
+                     [](BoundButton& h, std::optional<bool> v) { h.modify([v](Button& b) { b.checked = v; }); },
+                     "A toggle's state (True or False), or None for a plain button. Any thread; posted.");
     bind_widget_value<BoundComboBox, std::string>(m, "BoundComboBox",
         "Bound handle for a Model's combo box: .value is the text (free text, not only an option).")
         .def_prop_rw("options", [](const BoundComboBox& h) { return h.state().options; },
@@ -3240,7 +3243,8 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(ProgressBar{.value = v, .min = mn, .max = mx, .label = std::move(label), .busy = busy});
                 return make_bound_progress(std::move(owner), p);
             }, nb::arg("value"), nb::arg("min"), nb::arg("max"), nb::arg("label"), nb::arg("busy") = false)
-        .def("_add_button_internal", [](PyModel& self, std::string text, std::optional<std::string> icon, std::string keys){
+        .def("_add_button_internal", [](PyModel& self, std::string text, std::optional<std::string> icon, std::string keys,
+                                        std::optional<bool> checked){
                 std::shared_ptr<const prism::render::Image> img;
                 if (icon) {
                     auto loaded = prism::render::load_image(*icon, Size{Width{16}, Height{16}});
@@ -3254,9 +3258,10 @@ NB_MODULE(_prism_ext, m) {
                     shortcut = *s;
                 }
                 auto [owner, p] = self.add_widget_slot(Button{.text = std::move(text), .click_count = 0, .icon = std::move(img),
-                                                              .shortcut = shortcut});
+                                                              .shortcut = shortcut, .checked = checked});
                 return make_bound_button(std::move(owner), p);
-            }, nb::arg("text"), nb::arg("icon") = nb::none(), nb::arg("shortcut") = "")
+            }, nb::arg("text"), nb::arg("icon") = nb::none(), nb::arg("shortcut") = "",
+               nb::arg("checked") = nb::none())
         .def("_add_combobox_internal", [](PyModel& self, std::string v, std::vector<std::string> options, std::string placeholder){
                 auto [owner, p] = self.add_widget_slot(ComboBox{.value = std::move(v), .placeholder = std::move(placeholder),
                                                                 .max_length = 0, .options = std::move(options)});

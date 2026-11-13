@@ -728,6 +728,7 @@ struct Button {
     std::shared_ptr<const Image> icon{};
     bool primary = true;   // false: a quieter button beside the main one (a dialog's Cancel)
     Shortcut shortcut{};   // presses it from anywhere in the window, shown after the text
+    std::optional<bool> checked{};   // set: a toggle, each click flips it; drawn pressed while true
     bool operator==(const Button&) const = default;
 };
 
@@ -746,15 +747,19 @@ struct Widget<Button> {
     }
     static constexpr float shortcut_gap = 12.f;   // between the text and the shortcut
     static constexpr Role access_role = Role::Button;
-    static void describe(const Field<Button>& f, AccessInfo& a) { a.name = f.get().text; }
+    static void describe(const Field<Button>& f, AccessInfo& a) {
+        a.name = f.get().text;
+        a.checked = f.get().checked;
+    }
 
     static void record(DrawList& dl, const Field<Button>& field, WidgetNode& node) {
         auto& vs = node_vs(node);
         auto& t = node_theme(node);
         Width w = delegate_detail::widget_w(node);
         const auto& b = field.get();
-        Color bg = b.primary ? (vs.pressed ? t.primary_active : vs.hovered ? t.primary_hover : t.primary)
-                             : (vs.pressed ? t.surface_active : vs.hovered ? t.surface_hover : t.surface);
+        bool down = vs.pressed || b.checked.value_or(false);
+        Color bg = b.primary ? (down ? t.primary_active : vs.hovered ? t.primary_hover : t.primary)
+                             : (down ? t.surface_active : vs.hovered ? t.surface_hover : t.surface);
         dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), bg);
         if (b.primary) dl.rect_outline(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), t.primary_outline, 1.0f);
         float x = 8.f;
@@ -776,18 +781,20 @@ struct Widget<Button> {
 
     static bool try_shortcut(Field<Button>& field, const KeyPress& kp, WidgetNode&) {
         if (!matches(field.get().shortcut, kp)) return false;
-        auto btn = field.get();
-        btn.click_count++;
-        field.set(btn);
+        press(field);
         return true;
     }
 
+    // A click: counted, and a toggle flips.
+    static void press(Field<Button>& field) {
+        auto btn = field.get();
+        btn.click_count++;
+        if (btn.checked) btn.checked = !*btn.checked;
+        field.set(btn);
+    }
+
     static void handle_input(Field<Button>& field, const InputEvent& ev, WidgetNode& node) {
-        if (delegate_detail::is_activation_event(ev, node)) {
-            auto btn = field.get();
-            btn.click_count++;
-            field.set(btn);
-        }
+        if (delegate_detail::is_activation_event(ev, node)) press(field);
     }
 };
 

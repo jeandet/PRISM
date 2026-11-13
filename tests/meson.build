@@ -85,6 +85,7 @@ headless_tests = {
   'combo_box' : files('test_combo_box.cpp'),
   'menu' : files('test_menu.cpp'),
   'menu_items' : files('test_menu_items.cpp'),
+  'buttons' : files('test_buttons.cpp'),
   'submenus' : files('test_submenus.cpp'),
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),

@@ -4089,6 +4089,20 @@ def test_a_button_shortcut_presses_it():
     assert f.run.value == 1
 
 
+def test_a_toggle_button_flips_and_can_be_set():
+    class Form(prism.Model):
+        bold = prism.button("Bold", shortcut="Ctrl+B", checked=False)
+
+        def view(self, vb):
+            vb.widget(self.bold)
+
+    f = Form()
+    prism._press_keys(f, ["Ctrl+B"])
+    assert f.bold.checked is True
+    f.bold.checked = False
+    assert f.bold.checked is False
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):
