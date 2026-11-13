@@ -1297,6 +1297,7 @@ using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
 using BoundChoice = BoundWidgetValue<Choice, std::optional<std::string>>;   // .value: the option, or None
 using BoundPicture = BoundWidgetValue<Picture, std::int64_t>;               // .value: unused (0)
 using BoundLink = BoundWidgetValue<Link, std::int64_t>;                     // .value: clicks so far
+using BoundExpander = BoundWidgetValue<Expander, bool>;                     // .value: open
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
 using BoundProgress = BoundWidgetValue<ProgressBar, double>;
@@ -1466,6 +1467,15 @@ inline std::shared_ptr<const Image> picture_image(const std::string& path, std::
     auto loaded = prism::render::load_image(path, box);
     if (!loaded) throw nb::value_error(("picture: " + loaded.error()).c_str());
     return *loaded;
+}
+
+inline BoundExpander make_bound_expander(std::shared_ptr<SlotBase> owner, Field<Expander>* f) {
+    BoundExpander h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Expander& e) { return e.open; };
+    h.write = [](Expander& e, const bool& v) { e.open = v; };
+    return h;
 }
 
 inline BoundLink make_bound_link(std::shared_ptr<SlotBase> owner, Field<Link>* f) {
@@ -1973,6 +1983,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundChoice*)nullptr)) return;
     if (connect_field((BoundPicture*)nullptr)) return;
     if (connect_field((BoundLink*)nullptr)) return;
+    if (connect_field((BoundExpander*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
     if (connect_field((BoundProgress*)nullptr)) return;
@@ -2029,6 +2040,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundChoice>(h)) vb.widget(*nb::cast<BoundChoice&>(h).field);
     else if (nb::isinstance<BoundPicture>(h)) vb.widget(*nb::cast<BoundPicture&>(h).field);
     else if (nb::isinstance<BoundLink>(h)) vb.widget(*nb::cast<BoundLink&>(h).field);
+    else if (nb::isinstance<BoundExpander>(h)) vb.widget(*nb::cast<BoundExpander&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
     else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
@@ -2070,6 +2082,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundChoice>(h)) return declare(nb::cast<BoundChoice&>(h).field);
     if (nb::isinstance<BoundPicture>(h)) return declare(nb::cast<BoundPicture&>(h).field);
     if (nb::isinstance<BoundLink>(h)) return declare(nb::cast<BoundLink&>(h).field);
+    if (nb::isinstance<BoundExpander>(h)) return declare(nb::cast<BoundExpander&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
     if (nb::isinstance<BoundProgress>(h)) return declare(nb::cast<BoundProgress&>(h).field);
@@ -2941,6 +2954,9 @@ NB_MODULE(_prism_ext, m) {
         .def("set", &validated_set<BoundCheckboxValue, bool>, nb::arg("value"),
              "Any thread; posted to the logic thread. Same as assigning .value.");
 
+    bind_widget_value<BoundExpander, bool>(m, "BoundExpander",
+        "Bound handle for a Model's section header: .value is True while the section is open.")
+        .def_prop_ro("title", [](const BoundExpander& h) { return h.state().title; });
     bind_widget_value<BoundLink, std::int64_t>(m, "BoundLink",
         "Bound handle for a Model's link: .value counts the clicks; observe() fires on each.")
         .def_prop_ro("text", [](const BoundLink& h) { return h.state().text; })
@@ -3213,6 +3229,18 @@ NB_MODULE(_prism_ext, m) {
             }, nb::arg("handle"), nb::arg("content") = nb::none(),
              "A modal dialog, shown when the handle's .open is True; content(vb), if given, places a "
              "form between its message and its buttons.")
+        .def("section", [](ViewBuilder& vb, nb::object h, nb::object content) {
+                if (!nb::isinstance<BoundExpander>(h)) throw nb::type_error("ViewBuilder.section: needs a prism.expander() handle");
+                auto holder = std::make_shared<PyHolder>(std::move(content));
+                // Built on the logic thread when the section opens: take the GIL there.
+                vb.section(*nb::cast<BoundExpander&>(h).field, [holder](ViewBuilder& inner) {
+                    nb::gil_scoped_acquire gil;
+                    try { holder->obj(nb::cast(&inner, nb::rv_policy::reference)); }
+                    catch (...) { report_python_callback_error(); }
+                });
+            }, nb::arg("handle"), nb::arg("content"),
+             "A section the user folds and unfolds: the handle's header, then content(vb), built only "
+             "while it is open.")
         .def("dock", [](ViewBuilder& vb, nb::object h, nb::list panels) {
                 if (!nb::isinstance<BoundDockLayout>(h))
                     throw nb::type_error("ViewBuilder.dock: needs a prism.dock_layout() handle");
@@ -3317,6 +3345,10 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_checkbox_slot(v, label);
                 BoundCheckboxValue h; h.owner = std::move(owner); h.field = p; h.label = std::move(label); return h;
             }, nb::arg("value")=false, nb::arg("label")="")
+        .def("_add_expander_internal", [](PyModel& self, std::string title, bool open){
+                auto [owner, p] = self.add_widget_slot(Expander{.title = std::move(title), .open = open});
+                return make_bound_expander(std::move(owner), p);
+            }, nb::arg("title"), nb::arg("open"))
         .def("_add_link_internal", [](PyModel& self, std::string text, std::string url){
                 auto [owner, p] = self.add_widget_slot(Link{.text = std::move(text), .url = std::move(url)});
                 return make_bound_link(std::move(owner), p);

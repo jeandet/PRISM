@@ -503,6 +503,30 @@ public:
     void hstack(auto&... args) { push_container(LayoutKind::Row, [&] { (item(args), ...); }); }
     WidgetId vstack(std::invocable auto&& fn) { return push_container(LayoutKind::Column, fn).id; }
 
+    // A titled section the user folds and unfolds: `state`'s header, then the content `build`
+    // places (as a tab's builder does), built only while the section is open -- folded-away
+    // widgets take no focus and no clicks.
+    void section(Field<Expander>& state, std::function<void(ViewBuilder&)> build) {
+        vstack([&] {
+            widget(state);
+            probe_placed(build);
+            auto built_open = std::make_shared<std::optional<bool>>();
+            Node c;
+            c.id = tree_.next_id_++;
+            c.is_leaf = false;
+            c.layout_kind = LayoutKind::Column;
+            c.on_change = view_builder_detail::adapt_on_change(state);   // a flip: the next frame checks
+            c.content_stale = [&state, built_open] { return *built_open != state.get().open; };
+            c.build_content = [&state, built_open, build, &tree = tree_](Node& target) {
+                *built_open = state.get().open;
+                if (!state.get().open) return;
+                ViewBuilder vb{tree, target};
+                build(vb);
+            };
+            current_parent().children.push_back(std::move(c));
+        });
+    }
+
     // A row of tools across the window (buttons, toggles), on the window's chrome colour.
     WidgetId toolbar(std::invocable auto&& fn) { return framed(LayoutKind::Row, {FrameLook::Toolbar}, fn); }
     // A row of short status texts, usually last in the window.
@@ -544,6 +568,15 @@ private:
     template <typename T>
     void item(Shared<T>& s) { widget(s); }
     void item(component_type auto& comp) { component(comp); }
+    // Runs `build` once into a scratch node, only to learn which fields it places: content built
+    // later (a dock's panels, a section's) counts as placed by the view.
+    void probe_placed(const std::function<void(ViewBuilder&)>& build) {
+        Node scratch;
+        ViewBuilder probe{tree_, scratch};
+        build(probe);
+        placed_.insert(probe.placed().begin(), probe.placed().end());
+    }
+
     WidgetId framed(LayoutKind kind, Framing frame, std::invocable auto&& fn) {
         auto& node = push_container(kind, fn);
         node.frame = std::move(frame);

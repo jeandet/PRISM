@@ -4184,6 +4184,22 @@ def test_a_link_shows_its_text_and_keeps_its_url():
     assert a.docs.value == 0          # clicks so far
 
 
+def test_a_section_shows_its_content_only_while_open():
+    class Settings(prism.Model):
+        advanced = prism.expander("Advanced")
+        verbose = prism.field(False)
+
+        def view(self, vb):
+            vb.section(self.advanced, lambda inner: inner.widget(self.verbose))
+
+    s = Settings()
+    assert "Advanced" in prism._texts(s)
+    assert "verbose" not in " ".join(prism._texts(s)).lower()   # folded away: nothing drawn
+    assert s.advanced.value is False
+    s.advanced.value = True
+    assert s.advanced.value is True
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

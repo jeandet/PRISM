@@ -734,6 +734,45 @@ struct Widget<Link> {
     }
 };
 
+// The header of a section the user folds and unfolds (vb.section): an arrow and the title;
+// a click, Enter or Space flips `open`. The section's content exists only while it is open.
+struct Expander {
+    std::string title;
+    bool open = false;
+    bool operator==(const Expander&) const = default;
+};
+
+template <>
+struct Widget<Expander> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr float font_size = 14.f;
+    static constexpr Height header_h{28};
+    static constexpr Role access_role = Role::Button;
+    static void describe(const Field<Expander>& f, AccessInfo& a) {
+        a.name = f.get().title;
+        a.expanded = f.get().open;
+    }
+
+    static void record(DrawList& dl, const Field<Expander>& field, WidgetNode& node) {
+        auto& vs = node_vs(node);
+        auto& t = node_theme(node);
+        Width w = delegate_detail::widget_w(node);
+        const auto& e = field.get();
+        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, header_h),
+                       vs.pressed ? t.surface_active : vs.hovered ? t.surface_hover : Color::rgba(0, 0, 0, 0));
+        dl.text(e.open ? "\xe2\x96\xbe" : "\xe2\x96\xb8", delegate_detail::make_point(X{6}, Y{5}), font_size, t.text_muted);   // ▾ ▸
+        dl.text(e.title, delegate_detail::make_point(X{22}, Y{5}), font_size, t.text);
+        if (vs.focused) delegate_detail::draw_focus_ring(dl, w, header_h, t);
+    }
+
+    static void handle_input(Field<Expander>& field, const InputEvent& ev, WidgetNode& node) {
+        if (!delegate_detail::is_activation_event(ev, node)) return;
+        auto e = field.get();
+        e.open = !e.open;
+        field.set(e);
+    }
+};
+
 enum class Orientation { Horizontal, Vertical };
 
 // Sentinel: numeric slider with min/max/step bounds

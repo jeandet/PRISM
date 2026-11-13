@@ -148,6 +148,7 @@ __all__ = [
     "choice",
     "picture",
     "link",
+    "expander",
     "spinbox",
     "progress",
     "button",
@@ -474,6 +475,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"])
         elif self.kind == "checkbox":
             h = instance._add_checkbox_internal(self.default, self.meta["label"])
+        elif self.kind == "expander":
+            h = instance._add_expander_internal(self.meta["title"], self.default)
         elif self.kind == "link":
             h = instance._add_link_internal(self.meta["text"], self.meta["url"])
         elif self.kind == "picture":
@@ -607,6 +610,13 @@ def choice(options, default=None, placeholder="", *, tooltip=None):
         raise ValueError(f"choice(): {default!r} is not one of the options {options!r}")
     return _tooltipped(_FieldDescriptor(default, kind="choice",
                                         meta={"options": options, "placeholder": str(placeholder)}), tooltip)
+
+
+def expander(title, open=False, *, tooltip=None):
+    """The header of a section the user folds and unfolds (C++ ``Expander``), placed with
+    ``vb.section(handle, fn)`` where ``fn(vb)`` places its content. ``.value`` is True while
+    it is open; its content exists only then."""
+    return _tooltipped(_FieldDescriptor(bool(open), kind="expander", meta={"title": str(title)}), tooltip)
 
 
 def link(text, url="", *, tooltip=None):

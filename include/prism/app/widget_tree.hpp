@@ -1513,7 +1513,8 @@ private:
     // A container built while the app runs (a dock): its content again from its builder, on the
     // first frame and whenever it is stale.
     void materialize_content(WidgetNode& node) {
-        if (!node.children.empty() && !(node.content_stale && node.content_stale())) return;
+        if (node.content_built && !(node.content_stale && node.content_stale())) return;
+        node.content_built = true;
         for (auto& c : node.children) park_kept(c);
         for (auto& c : node.children) unindex_subtree(c);
         node.children.clear();
