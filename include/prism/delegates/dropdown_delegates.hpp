@@ -194,4 +194,26 @@ void Widget<Dropdown<T>>::handle_input(Field<Dropdown<T>>& field, const InputEve
         });
 }
 
+// --- Widget<Choice> method bodies ---
+
+inline void Widget<Choice>::record(DrawList& dl, const Field<Choice>& field, WidgetNode& node) {
+    const auto& c = field.get();
+    auto* chosen = c.chosen();
+    dropdown_detail::DropdownLabelResolver resolver{
+        .label_at = [&c](size_t i) { return c.options[i]; },
+        .count = c.options.size()
+    };
+    dropdown_detail::dropdown_record(dl, node, chosen ? *chosen : c.placeholder, resolver);
+}
+
+inline void Widget<Choice>::handle_input(Field<Choice>& field, const InputEvent& ev, WidgetNode& node) {
+    auto c = field.get();
+    if (c.options.empty()) return;   // nothing to open or step to
+    size_t current = c.chosen() ? *c.selected : 0;
+    dropdown_detail::dropdown_handle_input(ev, node, current, c.options.size(), [&](size_t idx) {
+        c.selected = idx;
+        field.set(c);
+    });
+}
+
 } // namespace prism::ui

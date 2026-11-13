@@ -4119,6 +4119,24 @@ def test_toolbar_status_bar_and_group_frame_their_widgets():
     assert "Bold" in texts and "Ready" in texts
 
 
+def test_a_choice_takes_one_of_its_options_or_none():
+    class Form(prism.Model):
+        port = prism.choice(["ttyUSB0", "ttyUSB1"], placeholder="Pick a port")
+
+        def view(self, vb):
+            vb.widget(self.port)
+
+    f = Form()
+    assert f.port.value is None
+    f.port.value = "ttyUSB1"
+    assert f.port.value == "ttyUSB1"
+    with pytest.raises(ValueError):
+        f.port.value = "COM3"
+    f.port.options = ["ttyACM0"]   # the ports changed: the old choice is gone
+    assert f.port.value is None
+    assert f.port.options == ["ttyACM0"]
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

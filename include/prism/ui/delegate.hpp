@@ -337,6 +337,21 @@ struct Dropdown {
     bool operator==(const Dropdown&) const = default;
 };
 
+// A fixed choice among strings known only at run time (serial ports, recent files): a dropdown
+// that, unlike ComboBox, takes nothing else. `selected` indexes `options`; none (or one past
+// their end, once the app shortened them) is no choice, and `placeholder` shows.
+struct Choice {
+    std::vector<std::string> options{};
+    std::optional<std::size_t> selected{};
+    std::string placeholder{};
+    bool operator==(const Choice&) const = default;
+
+    // The chosen option, if there is one.
+    [[nodiscard]] const std::string* chosen() const {
+        return selected && *selected < options.size() ? &options[*selected] : nullptr;
+    }
+};
+
 // Ephemeral state for open dropdown popup
 struct DropdownEditState {
     bool open = false;
@@ -902,6 +917,17 @@ struct Widget<Dropdown<T>> {
 
     static void record(DrawList& dl, const Field<Dropdown<T>>& field, WidgetNode& node);
     static void handle_input(Field<Dropdown<T>>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+template <>
+struct Widget<Choice> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::ComboBox;
+    static void describe(const Field<Choice>& f, AccessInfo& a) {
+        if (auto* s = f.get().chosen()) a.value = *s;
+    }
+    static void record(DrawList& dl, const Field<Choice>& field, WidgetNode& node);
+    static void handle_input(Field<Choice>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <>

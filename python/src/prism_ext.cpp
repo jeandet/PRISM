@@ -1294,6 +1294,7 @@ struct BoundWidgetValue {
 };
 
 using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
+using BoundChoice = BoundWidgetValue<Choice, std::optional<std::string>>;   // .value: the option, or None
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
 using BoundProgress = BoundWidgetValue<ProgressBar, double>;
@@ -1432,6 +1433,29 @@ inline BoundPopup make_bound_popup(std::shared_ptr<SlotBase> owner, Field<Popup>
     h.field = f;
     h.read = [](const Popup& p) { return p.open; };
     h.write = [](Popup& p, const bool& v) { p.open = v; };
+    return h;
+}
+
+// The option's index in `options`, or none.
+inline std::optional<std::size_t> option_index(const std::vector<std::string>& options, const std::optional<std::string>& v) {
+    if (!v) return std::nullopt;
+    auto it = std::ranges::find(options, *v);
+    return it == options.end() ? std::nullopt : std::optional{static_cast<std::size_t>(it - options.begin())};
+}
+
+inline BoundChoice make_bound_choice(std::shared_ptr<SlotBase> owner, Field<Choice>* f) {
+    BoundChoice h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Choice& c) -> std::optional<std::string> {
+        if (auto* s = c.chosen()) return *s;
+        return std::nullopt;
+    };
+    h.write = [](Choice& c, const std::optional<std::string>& v) { c.selected = option_index(c.options, v); };
+    h.check = [](const Choice& c, const std::optional<std::string>& v) {
+        if (v && !option_index(c.options, v))
+            throw nb::value_error(("choice: '" + *v + "' is not one of the options").c_str());
+    };
     return h;
 }
 
@@ -1919,6 +1943,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_slider()) return;
     if (connect_field((BoundCheckboxValue*)nullptr)) return;
     if (connect_field((BoundRadio*)nullptr)) return;
+    if (connect_field((BoundChoice*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
     if (connect_field((BoundProgress*)nullptr)) return;
@@ -1972,6 +1997,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     }
     else if (nb::isinstance<BoundCheckboxValue>(h)) vb.widget(*nb::cast<BoundCheckboxValue&>(h).field);
     else if (nb::isinstance<BoundRadio>(h)) vb.widget(*nb::cast<BoundRadio&>(h).field);
+    else if (nb::isinstance<BoundChoice>(h)) vb.widget(*nb::cast<BoundChoice&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
     else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
@@ -2010,6 +2036,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     }
     if (nb::isinstance<BoundCheckboxValue>(h)) return declare(nb::cast<BoundCheckboxValue&>(h).field);
     if (nb::isinstance<BoundRadio>(h)) return declare(nb::cast<BoundRadio&>(h).field);
+    if (nb::isinstance<BoundChoice>(h)) return declare(nb::cast<BoundChoice&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
     if (nb::isinstance<BoundProgress>(h)) return declare(nb::cast<BoundProgress&>(h).field);
@@ -2881,6 +2908,18 @@ NB_MODULE(_prism_ext, m) {
         .def("set", &validated_set<BoundCheckboxValue, bool>, nb::arg("value"),
              "Any thread; posted to the logic thread. Same as assigning .value.");
 
+    bind_widget_value<BoundChoice, std::optional<std::string>>(m, "BoundChoice",
+        "Bound handle for a Model's choice: .value is the chosen option or None; a string that is "
+        "not one of the options raises ValueError.")
+        .def_prop_rw("options", [](const BoundChoice& h) { return h.state().options; },
+                     [](BoundChoice& h, std::vector<std::string> opts) {
+                         h.modify([opts = std::move(opts)](Choice& c) {
+                             auto chosen = c.chosen() ? std::optional{*c.chosen()} : std::nullopt;
+                             c.options = opts;
+                             c.selected = option_index(c.options, chosen);   // kept if still there
+                         });
+                     },
+                     "The options; a choice no longer among them becomes None. Any thread; posted.");
     bind_widget_value<BoundRadio, std::string>(m, "BoundRadio",
         "Bound handle for a Model's radio field: .value is the chosen option. Setting a string "
         "that is not one of the options raises ValueError.");
@@ -3230,6 +3269,13 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_checkbox_slot(v, label);
                 BoundCheckboxValue h; h.owner = std::move(owner); h.field = p; h.label = std::move(label); return h;
             }, nb::arg("value")=false, nb::arg("label")="")
+        .def("_add_choice_internal", [](PyModel& self, std::optional<std::string> v, std::vector<std::string> options,
+                                        std::string placeholder){
+                Choice c{.options = std::move(options), .placeholder = std::move(placeholder)};
+                c.selected = option_index(c.options, v);
+                auto [owner, p] = self.add_widget_slot(std::move(c));
+                return make_bound_choice(std::move(owner), p);
+            }, nb::arg("value").none(), nb::arg("options"), nb::arg("placeholder"))
         .def("_add_radio_internal", [](PyModel& self, std::string v, std::vector<std::string> options){
                 auto it = std::ranges::find(options, v);
                 if (it == options.end()) throw nb::value_error(("radio(): '" + v + "' is not one of the options").c_str());

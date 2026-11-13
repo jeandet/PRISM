@@ -145,6 +145,7 @@ __all__ = [
     "slider",
     "checkbox",
     "radio",
+    "choice",
     "spinbox",
     "progress",
     "button",
@@ -471,6 +472,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"])
         elif self.kind == "checkbox":
             h = instance._add_checkbox_internal(self.default, self.meta["label"])
+        elif self.kind == "choice":
+            h = instance._add_choice_internal(self.default, self.meta["options"], self.meta["placeholder"])
         elif self.kind == "radio":
             h = instance._add_radio_internal(self.default, self.meta["options"])
         elif self.kind == "spinbox":
@@ -582,6 +585,21 @@ def checkbox(default, label=None, validator=None, *, tooltip=None):
     return _tooltipped(_FieldDescriptor(
         bool(default), validator=validator, kind="checkbox", meta={"label": label or ""}
     ), tooltip)
+
+
+def choice(options, default=None, placeholder="", *, tooltip=None):
+    """Value may be set from any thread (posted to the logic thread).
+
+    One of ``options``, known at run time (serial ports, recent files), picked from a
+    dropdown (C++ ``Choice``). ``.value`` is the chosen option, or None; setting a string
+    that is not an option raises ``ValueError``. ``.options`` can be replaced; a choice no
+    longer among them becomes None. ``placeholder`` shows while nothing is chosen.
+    """
+    options = [str(o) for o in options]
+    if default is not None and default not in options:
+        raise ValueError(f"choice(): {default!r} is not one of the options {options!r}")
+    return _tooltipped(_FieldDescriptor(default, kind="choice",
+                                        meta={"options": options, "placeholder": str(placeholder)}), tooltip)
 
 
 def radio(default, options, validator=None, *, tooltip=None):

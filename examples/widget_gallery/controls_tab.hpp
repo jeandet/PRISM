@@ -26,6 +26,8 @@ struct ControlsTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Controls", .heading = true}};
     prism::core::Field<prism::ui::TextField<>> name{{.placeholder = "Your name"}};
     prism::core::Field<prism::ui::Password<>> secret{{.placeholder = "Password"}};
+    prism::core::Field<prism::ui::Choice> port{{.options = {"/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyACM0"},
+                                                .placeholder = "Pick a port"}};
     prism::core::Field<prism::ui::ComboBox> fruit{{.value = "", .placeholder = "Pick or type a fruit",
                                      .options = {"Apple", "Apricot", "Banana", "Blueberry", "Cherry", "Mango"}}};
     prism::core::Field<prism::ui::SpinBox<int>> copies{{.value = 2, .min = 1, .max = 20, .step = 1}};
@@ -78,6 +80,7 @@ struct ControlsTab {
         });
         vb.gap(6.f);
         vb.widget(fruit).tooltip("A combo box: type freely, or pick a suggestion with the arrows");
+        vb.widget(port).tooltip("A choice among options known at run time, nothing else");
         vb.gap(6.f);
         vb.widget(lock).tooltip("Greys out the settings below, down to the checkboxes");
         vb.gap(6.f);
