@@ -146,6 +146,7 @@ __all__ = [
     "checkbox",
     "radio",
     "choice",
+    "picture",
     "spinbox",
     "progress",
     "button",
@@ -472,6 +473,9 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"])
         elif self.kind == "checkbox":
             h = instance._add_checkbox_internal(self.default, self.meta["label"])
+        elif self.kind == "picture":
+            m = self.meta
+            h = instance._add_picture_internal(m["path"], m["size"], m["description"])
         elif self.kind == "choice":
             h = instance._add_choice_internal(self.default, self.meta["options"], self.meta["placeholder"])
         elif self.kind == "radio":
@@ -600,6 +604,16 @@ def choice(options, default=None, placeholder="", *, tooltip=None):
         raise ValueError(f"choice(): {default!r} is not one of the options {options!r}")
     return _tooltipped(_FieldDescriptor(default, kind="choice",
                                         meta={"options": options, "placeholder": str(placeholder)}), tooltip)
+
+
+def picture(path=None, *, width=None, height=None, description="", tooltip=None):
+    """An image shown on its own (C++ ``Picture``): a file (PNG, JPEG, SVG), at its own size or
+    fitted into ``width`` x ``height`` with its proportions kept. ``handle.load(path)`` shows
+    another file; a file that cannot be read raises ``ValueError``."""
+    size = None if width is None or height is None else (float(width), float(height))
+    return _tooltipped(_FieldDescriptor(0, kind="picture",
+                                        meta={"path": None if path is None else str(path), "size": size,
+                                              "description": str(description)}), tooltip)
 
 
 def radio(default, options, validator=None, *, tooltip=None):

@@ -4151,6 +4151,26 @@ def test_a_wrapped_label_breaks_into_lines():
     assert "".join(texts).replace(" ", "") == long.replace(" ", "")
 
 
+def test_a_picture_shows_an_image_file_and_can_load_another(tmp_path):
+    svg = tmp_path / "logo.svg"
+    svg.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20">'
+                   '<rect width="40" height="20" fill="#08f"/></svg>')
+
+    class Page(prism.Model):
+        logo = prism.picture(str(svg), width=80, height=80, description="Logo")
+
+        def view(self, vb):
+            vb.widget(self.logo)
+
+    p = Page()
+    assert p.logo.has_image
+    assert p.logo.description == "Logo"
+    with pytest.raises(ValueError):
+        p.logo.load(str(tmp_path / "missing.png"))
+    p.logo.load(str(svg))
+    assert p.logo.has_image
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

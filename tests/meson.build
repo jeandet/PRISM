@@ -89,6 +89,7 @@ headless_tests = {
   'frames' : files('test_frames.cpp'),
   'choice' : files('test_choice.cpp'),
   'label_wrap' : files('test_label_wrap.cpp'),
+  'picture' : files('test_picture.cpp'),
   'submenus' : files('test_submenus.cpp'),
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),

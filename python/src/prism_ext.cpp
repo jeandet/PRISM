@@ -1295,6 +1295,7 @@ struct BoundWidgetValue {
 
 using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
 using BoundChoice = BoundWidgetValue<Choice, std::optional<std::string>>;   // .value: the option, or None
+using BoundPicture = BoundWidgetValue<Picture, std::int64_t>;               // .value: unused (0)
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
 using BoundProgress = BoundWidgetValue<ProgressBar, double>;
@@ -1456,6 +1457,22 @@ inline BoundChoice make_bound_choice(std::shared_ptr<SlotBase> owner, Field<Choi
         if (v && !option_index(c.options, v))
             throw nb::value_error(("choice: '" + *v + "' is not one of the options").c_str());
     };
+    return h;
+}
+
+// An image file, as a picture shows it; ValueError if it cannot be read.
+inline std::shared_ptr<const Image> picture_image(const std::string& path, std::optional<Size> box) {
+    auto loaded = prism::render::load_image(path, box);
+    if (!loaded) throw nb::value_error(("picture: " + loaded.error()).c_str());
+    return *loaded;
+}
+
+inline BoundPicture make_bound_picture(std::shared_ptr<SlotBase> owner, Field<Picture>* f) {
+    BoundPicture h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Picture&) { return std::int64_t{0}; };
+    h.write = [](Picture&, const std::int64_t&) {};
     return h;
 }
 
@@ -1944,6 +1961,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundCheckboxValue*)nullptr)) return;
     if (connect_field((BoundRadio*)nullptr)) return;
     if (connect_field((BoundChoice*)nullptr)) return;
+    if (connect_field((BoundPicture*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
     if (connect_field((BoundProgress*)nullptr)) return;
@@ -1998,6 +2016,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundCheckboxValue>(h)) vb.widget(*nb::cast<BoundCheckboxValue&>(h).field);
     else if (nb::isinstance<BoundRadio>(h)) vb.widget(*nb::cast<BoundRadio&>(h).field);
     else if (nb::isinstance<BoundChoice>(h)) vb.widget(*nb::cast<BoundChoice&>(h).field);
+    else if (nb::isinstance<BoundPicture>(h)) vb.widget(*nb::cast<BoundPicture&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
     else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
@@ -2037,6 +2056,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundCheckboxValue>(h)) return declare(nb::cast<BoundCheckboxValue&>(h).field);
     if (nb::isinstance<BoundRadio>(h)) return declare(nb::cast<BoundRadio&>(h).field);
     if (nb::isinstance<BoundChoice>(h)) return declare(nb::cast<BoundChoice&>(h).field);
+    if (nb::isinstance<BoundPicture>(h)) return declare(nb::cast<BoundPicture&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
     if (nb::isinstance<BoundProgress>(h)) return declare(nb::cast<BoundProgress&>(h).field);
@@ -2908,6 +2928,15 @@ NB_MODULE(_prism_ext, m) {
         .def("set", &validated_set<BoundCheckboxValue, bool>, nb::arg("value"),
              "Any thread; posted to the logic thread. Same as assigning .value.");
 
+    bind_widget_value<BoundPicture, std::int64_t>(m, "BoundPicture", "Bound handle for a Model's picture.")
+        .def_prop_ro("has_image", [](const BoundPicture& h) { return h.state().image != nullptr; })
+        .def_prop_rw("description", [](const BoundPicture& h) { return h.state().description; },
+                     [](BoundPicture& h, std::string d) { h.modify([d = std::move(d)](Picture& p) { p.description = d; }); },
+                     "What it shows, for assistive tech. Any thread; posted.")
+        .def("load", [](BoundPicture& h, std::string path) {
+                auto img = picture_image(path, h.state().size);   // read here: a bad file raises now
+                h.modify([img](Picture& p) { p.image = img; });
+            }, nb::arg("path"), "Shows the image in `path` instead. Any thread; posted.");
     bind_widget_value<BoundChoice, std::optional<std::string>>(m, "BoundChoice",
         "Bound handle for a Model's choice: .value is the chosen option or None; a string that is "
         "not one of the options raises ValueError.")
@@ -3269,6 +3298,14 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_checkbox_slot(v, label);
                 BoundCheckboxValue h; h.owner = std::move(owner); h.field = p; h.label = std::move(label); return h;
             }, nb::arg("value")=false, nb::arg("label")="")
+        .def("_add_picture_internal", [](PyModel& self, std::optional<std::string> path,
+                                         std::optional<std::pair<float, float>> size, std::string description){
+                Picture pic{.description = std::move(description)};
+                if (size) pic.size = Size{Width{size->first}, Height{size->second}};
+                if (path) pic.image = picture_image(*path, pic.size);
+                auto [owner, p] = self.add_widget_slot(std::move(pic));
+                return make_bound_picture(std::move(owner), p);
+            }, nb::arg("path").none(), nb::arg("size").none(), nb::arg("description"))
         .def("_add_choice_internal", [](PyModel& self, std::optional<std::string> v, std::vector<std::string> options,
                                         std::string placeholder){
                 Choice c{.options = std::move(options), .placeholder = std::move(placeholder)};

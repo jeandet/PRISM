@@ -646,6 +646,49 @@ struct Widget<Label<T>> {
     static void handle_input(Field<Label<T>>&, const InputEvent&, WidgetNode&) {}
 };
 
+// An image shown on its own: a logo, a preview, a plot rendered elsewhere. Drawn in a box of
+// `size` (none: the image's own size), scaled to fit it with its proportions kept, centred.
+// render::load_image reads one from a file.
+struct Picture {
+    std::shared_ptr<const Image> image{};
+    std::optional<Size> size{};
+    std::string description{};   // what it shows, for assistive tech
+    bool operator==(const Picture&) const = default;
+};
+
+template <>
+struct Widget<Picture> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::none;
+    // simplify: AccessKit has an Image role; add it to ui::Role (computed from the crate's
+    // source, see ui/access.hpp) when the accessibility bridge lands. A label until then.
+    static constexpr Role access_role = Role::Label;
+    static void describe(const Field<Picture>& f, AccessInfo& a) { a.name = f.get().description; }
+
+    static Size box(const Picture& p) {
+        if (p.size) return *p.size;
+        if (p.image) return Size{Width{static_cast<float>(p.image->width())}, Height{static_cast<float>(p.image->height())}};
+        return Size{Width{0}, Height{0}};
+    }
+    static float intrinsic_width(const Field<Picture>& f, const WidgetNode&) { return box(f.get()).w.raw(); }
+
+    // The image's rect inside `area`: as large as fits, proportions kept, centred.
+    static Rect fitted(const Image& img, Size area) {
+        float scale = std::min(area.w.raw() / static_cast<float>(img.width()), area.h.raw() / static_cast<float>(img.height()));
+        Size s{Width{static_cast<float>(img.width()) * scale}, Height{static_cast<float>(img.height()) * scale}};
+        return Rect{Point{X{(area.w.raw() - s.w.raw()) / 2}, Y{(area.h.raw() - s.h.raw()) / 2}}, s};
+    }
+
+    static void record(DrawList& dl, const Field<Picture>& field, WidgetNode& node) {
+        const auto& p = field.get();
+        Size area = box(p);
+        dl.filled_rect(Rect{Point{X{0}, Y{0}}, area}, Color::rgba(0, 0, 0, 0));   // the box is the widget's, image or not
+        if (p.image && area.w.raw() > 0 && area.h.raw() > 0)
+            dl.image(p.image, fitted(*p.image, area), icon_tint(p.image, node_theme(node).text));
+    }
+
+    static void handle_input(Field<Picture>&, const InputEvent&, WidgetNode&) {}
+};
+
 enum class Orientation { Horizontal, Vertical };
 
 // Sentinel: numeric slider with min/max/step bounds
