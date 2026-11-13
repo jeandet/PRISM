@@ -33,11 +33,11 @@ struct TreeSource {
     std::function<TreeNodeId(TreeNodeId, size_t)> child_at;
     std::function<std::string(TreeNodeId)> label;
     std::function<bool(TreeNodeId)> has_children;
-    std::function<std::optional<std::string>(TreeNodeId)> icon;   // a glyph from the icon font
+    std::function<std::optional<std::string>(TreeNodeId)> icon{};   // a glyph from the icon font
     // An image icon (render::load_image reads one from a file); it wins over the glyph. Images
     // draw the same everywhere, while the web build ships only a few of the font's glyphs.
-    std::function<std::shared_ptr<const Image>(TreeNodeId)> image;
-    std::function<std::vector<std::pair<std::string, std::string>>(TreeNodeId)> attributes;
+    std::function<std::shared_ptr<const Image>(TreeNodeId)> image{};
+    std::function<std::vector<std::pair<std::string, std::string>>(TreeNodeId)> attributes{};
 };
 
 template <typename T>
@@ -177,7 +177,7 @@ struct Widget<std::optional<TreeDetail>> {
 namespace tree_detail {
 inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
                           const std::set<TreeNodeId>& expanded,
-                          std::optional<TreeNodeId> selected,
+                          const std::set<TreeNodeId>& selected,
                           std::vector<TreeRow>& out) {
     TreeRow row;
     row.id = id;
@@ -187,7 +187,7 @@ inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
     row.depth = depth;
     row.has_children = source.has_children(id);
     row.expanded = expanded.contains(id);
-    row.selected = selected.has_value() && *selected == id;
+    row.selected = selected.contains(id);
     out.push_back(row);
 
     if (row.has_children && row.expanded) {
@@ -200,7 +200,7 @@ inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
 
 inline std::vector<TreeRow> visible_rows(const TreeSource& source,
                                           const std::set<TreeNodeId>& expanded,
-                                          std::optional<TreeNodeId> selected = std::nullopt) {
+                                          const std::set<TreeNodeId>& selected = {}) {
     std::vector<TreeRow> rows;
     size_t n = source.root_count();
     for (size_t i = 0; i < n; ++i)
@@ -214,11 +214,19 @@ enum class TreeDrop { Before, After, Inside };
 class TreeController {
 public:
     explicit TreeController(TreeSource source) : source_(std::move(source)) {
+        // The app setting `selected` selects that node alone (the controller's own moves go
+        // through set_current and keep the selection they make).
+        follow_ = selected.on_change().connect([this](const std::optional<TreeNodeId>& s) {
+            if (setting_current_) return;
+            selection.set(s ? std::vector<TreeNodeId>{*s} : std::vector<TreeNodeId>{});
+            refresh();
+        });
         refresh();
     }
 
     List<TreeRow> rows;
-    Field<std::optional<TreeNodeId>> selected;
+    Field<std::optional<TreeNodeId>> selected;          // the current node (keys move from it)
+    Field<std::vector<TreeNodeId>> selection;           // every selected node, in the rows' order
     Field<std::optional<TreeDetail>> detail;
     // Set it to let the user drag nodes (doc/design/drag-and-docking.md): called with the node,
     // the node it was dropped on and where; the app moves it in its data, then the rows refresh.
@@ -248,13 +256,30 @@ public:
     }
 
     void refresh() {
-        auto fresh = visible_rows(source_, expanded_, selected.get());
+        auto sel = selection.get();
+        auto fresh = visible_rows(source_, expanded_, std::set<TreeNodeId>(sel.begin(), sel.end()));
         while (!rows.empty()) rows.erase(rows.size() - 1);
         for (auto& r : fresh) rows.push_back(r);
     }
 
-    void on_row_clicked(size_t, const TreeRow& row) {
-        selected.set(row.id);
+    // A click on row `index`: Ctrl toggles it in the selection, Shift selects the range from the
+    // last click, a plain click selects it alone (and opens or closes it).
+    void on_row_clicked(size_t index, const TreeRow& row, std::uint16_t m = 0) {
+        if (mods::shortcut(m)) {
+            toggle(row.id);
+            anchor_ = index;
+            set_current(row.id);
+            refresh();
+            return;
+        }
+        if (m & mods::shift) {
+            select_range(index);
+            refresh();
+            return;
+        }
+        anchor_ = index;
+        set_current(row.id);
+        selection.set({row.id});
         if (row.has_children) {
             if (expanded_.contains(row.id)) expanded_.erase(row.id);
             else expanded_.insert(row.id);
@@ -281,16 +306,21 @@ public:
                 if (snapshot[i].id == *sel) { cur = i; has_cur = true; break; }
         }
 
-        if (kp->key == keys::down) {
-            size_t next = has_cur ? cur + 1 : 0;
+        bool extend = (kp->mods & mods::shift) != 0;
+        if (kp->key == keys::down || kp->key == keys::up) {
+            bool down = kp->key == keys::down;
+            if (!down && (!has_cur || cur == 0)) return std::nullopt;
+            size_t next = down ? (has_cur ? cur + 1 : 0) : cur - 1;
             if (next >= snapshot.size()) return std::nullopt;
-            select_row(snapshot[next].id);
+            if (extend && has_cur) {
+                if (!anchor_) anchor_ = cur;
+                select_range(next);
+                refresh();
+            } else {
+                anchor_ = next;
+                select_row(snapshot[next].id);
+            }
             return next;
-        }
-        if (kp->key == keys::up) {
-            if (!has_cur || cur == 0) return std::nullopt;
-            select_row(snapshot[cur - 1].id);
-            return cur - 1;
         }
         if (kp->key == keys::right) {
             if (!has_cur) return std::nullopt;
@@ -332,9 +362,45 @@ public:
 
 private:
     void select_row(TreeNodeId id) {
-        selected.set(id);
+        set_current(id);
+        selection.set({id});
         populate_detail(id);
         refresh();
+    }
+
+    void set_current(TreeNodeId id) {
+        setting_current_ = true;
+        selected.set(id);
+        setting_current_ = false;
+    }
+
+    void toggle(TreeNodeId id) {
+        auto s = selection.get();
+        if (std::erase(s, id) == 0) s.push_back(id);
+        selection.set(in_row_order(std::move(s)));
+    }
+
+    // The rows from the anchor (the last plain or Ctrl click) to `to`, both included; `to`
+    // becomes the current node.
+    void select_range(size_t to) {
+        if (to >= rows.size()) return;
+        size_t from = anchor_.value_or(to);
+        if (from >= rows.size()) from = to;
+        std::vector<TreeNodeId> s;
+        for (size_t i = std::min(from, to); i <= std::max(from, to); ++i) s.push_back(rows[i].id);
+        selection.set(std::move(s));
+        set_current(rows[to].id);
+    }
+
+    // `ids` sorted as the rows show them (ids not shown keep their place at the end).
+    std::vector<TreeNodeId> in_row_order(std::vector<TreeNodeId> ids) const {
+        auto pos = [&](TreeNodeId id) {
+            for (size_t i = 0; i < rows.size(); ++i)
+                if (rows[i].id == id) return i;
+            return rows.size();
+        };
+        std::ranges::stable_sort(ids, {}, pos);
+        return ids;
     }
 
     void populate_detail(TreeNodeId id) {
@@ -347,6 +413,9 @@ private:
 
     TreeSource source_;
     std::set<TreeNodeId> expanded_;
+    std::optional<size_t> anchor_;   // the row a Shift-click or Shift+arrow range starts from
+    bool setting_current_ = false;
+    Connection follow_;
 };
 
 #if __cpp_impl_reflection

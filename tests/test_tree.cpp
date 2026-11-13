@@ -113,7 +113,7 @@ TEST_CASE("visible_rows marks the selected node's row") {
     FixtureTree data;
     auto src = prism::wrap_tree_storage(data);
     std::set<prism::TreeNodeId> expanded{1};
-    auto rows = prism::visible_rows(src, expanded, prism::TreeNodeId{3});
+    auto rows = prism::visible_rows(src, expanded, {prism::TreeNodeId{3}});
     REQUIRE(rows.size() == 3);
     CHECK(rows[0].selected == false); // id 1
     CHECK(rows[1].selected == false); // id 2

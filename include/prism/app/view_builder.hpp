@@ -874,7 +874,7 @@ public:
                             if (delegate_detail::is_activation_event(ev, node) && std::holds_alternative<MouseButton>(ev)
                                 && index < ctrl.rows.size()) {
                                 tree.set_focused(container_id);
-                                ctrl.on_row_clicked(index, ctrl.rows[index]);
+                                ctrl.on_row_clicked(index, ctrl.rows[index], std::get<MouseButton>(ev).mods);
                             }
                         })
                     );
