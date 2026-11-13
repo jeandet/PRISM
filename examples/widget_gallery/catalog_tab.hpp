@@ -10,6 +10,7 @@
 #include <cmath>
 #include <deque>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,30 @@ namespace gallery {
 using Vb = prism::app::WidgetTree::ViewBuilder;
 
 enum class Shape { Circle, Square, Triangle };
+
+// A to-do list as a tree: rooms hold chores; a chore has a checkbox; anything can be renamed.
+struct Chores {
+    struct Node {
+        std::string name;
+        std::vector<prism::ui::TreeNodeId> children;
+        std::optional<bool> done;   // rooms have no box
+    };
+    std::vector<Node> nodes{{"Kitchen", {2, 3}, {}}, {"Garden", {4}, {}},
+                            {"Dishes", {}, true}, {"Floor", {}, false}, {"Water the plants", {}, false}};
+    std::size_t root_count() const { return 2; }
+    prism::ui::TreeNodeId root_at(std::size_t i) const { return i; }
+    std::size_t child_count(prism::ui::TreeNodeId id) const { return nodes[id].children.size(); }
+    prism::ui::TreeNodeId child_at(prism::ui::TreeNodeId id, std::size_t i) const { return nodes[id].children[i]; }
+    std::string label(prism::ui::TreeNodeId id) const { return nodes[id].name; }
+    bool has_children(prism::ui::TreeNodeId id) const { return !nodes[id].children.empty(); }
+    std::optional<bool> checked(prism::ui::TreeNodeId id) const { return nodes[id].done; }
+    void set_checked(prism::ui::TreeNodeId id, bool on) { nodes[id].done = on; }
+    bool rename(prism::ui::TreeNodeId id, std::string_view to) {
+        if (to.empty()) return false;   // refused: the editor stays open, outlined in red
+        nodes[id].name = std::string(to);
+        return true;
+    }
+};
 
 // The fields the samples show, with sample data.
 struct Samples {
@@ -68,11 +93,17 @@ struct Samples {
     prism::core::Field<prism::ui::Label<>> right_click{{"Right-click here"}};
     prism::core::Field<prism::ui::Button> hover_me{{"Rest the pointer here"}};
     prism::core::List<std::string> list;
+    prism::core::Field<std::optional<std::size_t>> list_selected{std::nullopt};
+    Chores chores;
+    prism::ui::TreeController chore_tree{prism::ui::wrap_tree_storage(chores)};
     prism::plot::PlotModel plot;
     std::vector<prism::core::Connection> wiring;
 
     Samples() {
         for (auto s : {"Milk", "Eggs", "Flour", "Sugar"}) list.push_back(s);
+        for (std::size_t i = chore_tree.rows.size(); i-- > 0;)   // open the rooms
+            if (chore_tree.rows[i].has_children) chore_tree.on_row_clicked(i, chore_tree.rows[i]);
+        chore_tree.selected.set(std::nullopt);
         std::vector<double> xs, ys;
         for (int i = 0; i < 200; ++i) {
             xs.push_back(i * 0.05);
@@ -171,8 +202,12 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "vb.widget(save).tooltip(\"Write the file to disk\");",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.hover_me).tooltip("This is a tooltip"); vb.spacer(); }); }},
         E{"Data", "", "Views over collections. Only the visible rows cost anything.", "", nullptr},
-        E{"List", "Data", "One row per item of a core::List<T>; it follows push_back and erase.",
-          "core::List<std::string> items; ... vb.list(items);", [&s](Vb& vb) { vb.list(s.list); }},
+        E{"List", "Data", "One row per item of a core::List<T>; it follows push_back and erase. .selection(field) keeps the selected row.",
+          "core::List<std::string> items; ... vb.list(items).selection(selected);",
+          [&s](Vb& vb) { vb.list(s.list).selection(s.list_selected); }},
+        E{"Tree", "Data", "Nodes from your source. Ctrl/Shift-click select several; checked() adds boxes, rename() lets F2 rename.",
+          "ui::TreeController tree{ui::wrap_tree_storage(chores)}; ... vb.tree(tree, false);",
+          [&s](Vb& vb) { vb.tree(s.chore_tree, /*detail=*/false); }},
         E{"Plot", "Data", "A chart: drag to pan, the wheel to zoom, right-click to fit.",
           "plot::PlotModel plot; ... vb.canvas(plot).depends_on(plot.revision);",
           [&s](Vb& vb) { vb.canvas(s.plot).depends_on(s.plot.x_range, s.plot.y_range, s.plot.view, s.plot.cursor, s.plot.revision); }},

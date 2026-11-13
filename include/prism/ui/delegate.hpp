@@ -545,6 +545,23 @@ inline void draw_check_box(DrawList& dl, X x, Y y, bool checked,
                     border);
 }
 
+// A one-line text editor drawn over a table cell or a tree row: a field in `box`, the
+// selection, the text and the caret; outlined in the error colour when the last commit was refused.
+inline void draw_line_editor(DrawList& dl, const TextEdit& e, bool rejected, Rect box, float size, const Theme& t) {
+    std::string_view text = e.text;
+    auto [lo, hi] = text_edit::selection(e);
+    float x0 = box.origin.x.raw() + 4.f, y0 = box.origin.y.raw(), h = box.extent.h.raw();
+    auto x_at = [&](size_t i) { return x0 + text_width(t.measurer, text.substr(0, i), size); };
+    dl.filled_rect(box, t.surface);
+    if (lo != hi)
+        dl.filled_rect(Rect{Point{X{x_at(lo)}, Y{y0 + 3}}, Size{Width{x_at(hi) - x_at(lo)}, Height{h - 6.f}}}, t.text_selection);
+    dl.text(std::string(text), Point{X{x0}, Y{y0 + (h - size) / 2 - 1.f}}, size, t.text);
+    float caret = x_at(e.cursor);
+    dl.line(Point{X{caret}, Y{y0 + 4}}, Point{X{caret}, Y{y0 + h - 4.f}}, t.text, 1.f);
+    dl.rect_outline(Rect{Point{X{box.origin.x.raw() + 0.5f}, Y{y0 + 0.5f}}, Size{Width{box.extent.w.raw() - 1}, Height{h - 1}}},
+                    rejected ? t.error : t.accent, 1.f);
+}
+
 template <>
 struct Widget<Checkbox> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;

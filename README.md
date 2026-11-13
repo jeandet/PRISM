@@ -316,6 +316,10 @@ each node an `icon(id)` (a glyph) or an `image(id)` (any image). A tree comes wi
 showing the selected row's details; `vb.tree(ctrl, /*detail=*/false)` leaves it out, for an app
 that shows the selection its own way, for example with `vb.pages(field, ...)`: tabs without the
 header, where the app picks the page.
+A tree selects several nodes with Ctrl-click, Shift-click and Shift+arrows. A source with
+`checked(id)` and `set_checked(id, on)` gets checkboxes (a click on the box or Space toggles it);
+one with `rename(id, name)` renames nodes in place with F2 or a double-click, and refuses a name
+by returning false.
 Click a table header to sort (numbers sort by value), drag a header edge to resize a column,
 and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
 A sorted table re-sorts when it hears about a change: a `List<T>` notifies it, and column

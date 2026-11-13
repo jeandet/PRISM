@@ -2760,7 +2760,8 @@ def test_tree_rows_return_namedtuples_with_named_fields():
     row = rows[1]
     assert isinstance(row, tuple)
     assert isinstance(row, prism.TreeRow)
-    assert row._fields == ("label", "depth", "has_children", "expanded", "selected")
+    assert row._fields == ("label", "depth", "has_children", "expanded", "selected", "checked")
+    assert row.checked is None   # no checkbox
     assert row.label == "n1"
     assert row.depth == 0
     assert row.has_children is False
@@ -4225,6 +4226,41 @@ def test_a_python_table_with_set_cell_takes_edits():
         set_cell = None
 
     assert prism._table_editable(ReadOnly(), 0) is False
+
+
+def test_a_python_tree_source_with_checkboxes_and_rename():
+    class Tasks:
+        def __init__(self):
+            self.names = {1: "wash", 2: "cook"}
+            self.done = {1: False}
+
+        def root_count(self): return 2
+        def root_at(self, i): return i + 1
+        def child_count(self, nid): return 0
+        def child_at(self, nid, i): return 0
+        def label(self, nid): return self.names[nid]
+        def has_children(self, nid): return False
+        def checked(self, nid): return self.done.get(nid)   # node 2 has no box
+        def set_checked(self, nid, on): self.done[nid] = on
+
+        def rename(self, nid, name):
+            if not name:
+                return False
+            self.names[nid] = name
+
+    t = Tasks()
+    assert prism._tree_toggle_check(t, 1) is True
+    assert t.done[1] is True
+    assert prism._tree_toggle_check(t, 2) is None
+    assert prism._tree_rename(t, 1, "scrub") is True
+    assert t.names[1] == "scrub"
+    assert prism._tree_rename(t, 1, "") is False
+    assert t.names[1] == "scrub"
+
+    class Plain(Tasks):
+        rename = None
+
+    assert prism._tree_rename(Plain(), 1, "x") is None
 
 
 def test_an_unknown_shortcut_is_a_clear_error():

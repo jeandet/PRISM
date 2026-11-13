@@ -342,3 +342,37 @@ TEST_CASE("a tree placed without its detail pane is the tree alone") {
         if (dl) for (auto& c : dl->commands)
             if (auto* t = std::get_if<prism::TextCmd>(&c)) CHECK(t->text != "No selection");
 }
+
+namespace {
+struct Long {
+    size_t root_count() const { return 50; }
+    prism::TreeNodeId root_at(size_t i) const { return i; }
+    size_t child_count(prism::TreeNodeId) const { return 0; }
+    prism::TreeNodeId child_at(prism::TreeNodeId, size_t) const { return 0; }
+    std::string label(prism::TreeNodeId id) const { return "r" + std::to_string(id); }
+    bool has_children(prism::TreeNodeId) const { return false; }
+};
+struct LongModel {
+    Long data;
+    prism::TreeController ctrl{prism::wrap_tree_storage(data)};
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl, false); }
+};
+bool draws(const prism::SceneSnapshot& s, std::string_view text) {
+    for (auto& dl : s.draw_lists)
+        for (auto& c : dl->commands)
+            if (auto* t = std::get_if<prism::TextCmd>(&c); t && t->text == text) return true;
+    return false;
+}
+}
+
+// SDL's sign: a wheel turned toward the user (down) is negative, and shows what is further down.
+TEST_CASE("the wheel turned down over a row scrolls the tree down") {
+    LongModel m;
+    prism::WidgetTree tree(m);
+    auto snap = tree.build_snapshot(300, 200, 1);
+    REQUIRE(draws(*snap, "r0"));
+    prism::widget_detail::route_event(tree, snap.get(),
+        prism::MouseScroll{prism::Point{prism::X{40}, prism::Y{30}}, prism::DX{0}, prism::DY{-2}});
+    snap = tree.build_snapshot(300, 200, 2);
+    CHECK_FALSE(draws(*snap, "r0"));
+}

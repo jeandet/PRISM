@@ -76,6 +76,8 @@ from ._prism_ext import (
     _drag_text,
     _texts,
     _table_set_cell,
+    _tree_rename,
+    _tree_toggle_check,
     _table_editable,
     _window_count,
     _is_running,
@@ -114,6 +116,9 @@ class TreeSource(Protocol):
             # optional:
             def attributes(self, nid: TreeNodeId) -> dict[str, str]: ...
             def icon(self, nid: TreeNodeId) -> str | None: ...
+            def checked(self, nid: TreeNodeId) -> bool | None: ...   # None: no checkbox
+            def set_checked(self, nid: TreeNodeId, on: bool) -> None: ...
+            def rename(self, nid: TreeNodeId, name: str) -> bool | None: ...   # False refuses
     """
 
     def root_count(self) -> int: ...

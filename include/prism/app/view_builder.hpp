@@ -843,9 +843,12 @@ public:
 
             container.build_widget = [&ctrl, container_id = container.id, &tree = tree_](WidgetNode& wn) {
                 wn.focus_policy = FocusPolicy::tab_and_click;
+                wn.keeps_keys = [&ctrl](const KeyPress&) { return ctrl.renaming(); };
                 wn.wire = [&ctrl, container_id, &tree](WidgetNode& self) {
                     self.connections.push_back(
                         self.on_input.connect([&ctrl, container_id, &tree](const InputEvent& ev) {
+                            if (auto* ti = std::get_if<TextInput>(&ev)) return ctrl.on_text(ti->text);
+                            if (auto* p = std::get_if<Paste>(&ev)) return ctrl.on_text(text_detail::single_line(p->text));
                             auto idx = ctrl.on_key(ev);
                             if (idx)
                                 tree.scroll_row_into_view(container_id, *idx, Widget<TreeRow>::row_h);
@@ -874,7 +877,7 @@ public:
                             if (delegate_detail::is_activation_event(ev, node) && std::holds_alternative<MouseButton>(ev)
                                 && index < ctrl.rows.size()) {
                                 tree.set_focused(container_id);
-                                ctrl.on_row_clicked(index, ctrl.rows[index], std::get<MouseButton>(ev).mods);
+                                ctrl.on_row_click(index, std::get<MouseButton>(ev));
                             }
                         })
                     );

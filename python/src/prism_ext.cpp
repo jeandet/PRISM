@@ -964,7 +964,38 @@ struct PythonTreeSource {
             }
             return std::nullopt;
         };
+        add_edits(src, held);
         return src;
+    }
+
+    // A source with `checked` (and `set_checked`) gets checkboxes; one with `rename` renames in
+    // place, refusing a name when it returns False (None accepts it, as for table cells).
+    static void add_edits(prism::ui::TreeSource& src, const std::shared_ptr<nb::object>& held) {
+        auto has = [&](const char* name) { return nb::hasattr(*held, name) && !held->attr(name).is_none(); };
+        if (has("checked")) {
+            src.checked = [held](prism::ui::TreeNodeId id) -> std::optional<bool> {
+                nb::gil_scoped_acquire g;
+                auto o = *held;
+                if (!nb::hasattr(o, "checked")) return std::nullopt;
+                auto v = o.attr("checked")(to_py_id(id));
+                if (v.is_none()) return std::nullopt;
+                return nb::cast<bool>(v);
+            };
+            src.set_checked = [held](prism::ui::TreeNodeId id, bool on) {
+                nb::gil_scoped_acquire g;
+                auto o = *held;
+                if (nb::hasattr(o, "set_checked")) o.attr("set_checked")(to_py_id(id), on);
+            };
+        }
+        if (has("rename")) {
+            src.rename = [held](prism::ui::TreeNodeId id, std::string_view text) -> bool {
+                nb::gil_scoped_acquire g;
+                auto o = *held;
+                if (!nb::hasattr(o, "rename")) return false;
+                auto r = o.attr("rename")(to_py_id(id), std::string(text));
+                return r.is_none() || nb::cast<bool>(r);
+            };
+        }
     }
 };
 struct SlotTree : SlotBase {
@@ -1079,7 +1110,7 @@ static std::vector<prism::ui::TreeRow> snapshot_tree_rows(const prism::ui::TreeC
     return out;
 }
 // rows() returns a list of this namedtuple (label, depth, has_children, expanded,
-// selected) rather than anonymous dicts, so rows[0].label works. Created in
+// selected, checked) rather than anonymous dicts, so rows[0].label works. Created in
 // NB_MODULE; deliberately leaked — a static nb::object would decref at static
 // destruction, possibly after interpreter finalization.
 static nb::object* g_tree_row_type = nullptr;
@@ -1088,7 +1119,8 @@ static nb::list tree_rows_to_pylist(const std::vector<prism::ui::TreeRow>& rows)
     for (auto& r : rows) {
         out.append((*g_tree_row_type)(
             nb::str(r.label.c_str()), nb::int_(r.depth), nb::bool_(r.has_children),
-            nb::bool_(r.expanded), nb::bool_(r.selected)));
+            nb::bool_(r.expanded), nb::bool_(r.selected),
+            r.checked ? nb::object(nb::bool_(*r.checked)) : nb::none()));
     }
     return out;
 }
@@ -3130,7 +3162,7 @@ NB_MODULE(_prism_ext, m) {
     g_tree_row_type = new nb::object(
         nb::module_::import_("collections").attr("namedtuple")(
             "TreeRow",
-            nb::make_tuple("label", "depth", "has_children", "expanded", "selected")));
+            nb::make_tuple("label", "depth", "has_children", "expanded", "selected", "checked")));
     // namedtuple() infers __module__ from the calling frame — meaningless from
     // C++; point it at the public package instead.
     nb::setattr(*g_tree_row_type, "__module__", nb::str("prism"));
@@ -3633,6 +3665,21 @@ NB_MODULE(_prism_ext, m) {
         PyTableData d{std::make_shared<nb::object>(src), {}};
         nb::gil_scoped_release rel;   // as the logic thread calls it
         return d.set_cell(r, c, text);
+    });
+    // Test helpers: a Python tree source's rename (None: it has none) and a click on a node's box
+    // (the node's state afterwards), through the same TreeController the widget uses.
+    m.def("_tree_rename", [](nb::object src, int64_t id, std::string text) -> std::optional<bool> {
+        auto s = PythonTreeSource::make(std::make_shared<nb::object>(src));
+        if (!s.rename) return std::nullopt;
+        nb::gil_scoped_release rel;
+        return s.rename(static_cast<prism::ui::TreeNodeId>(id), text);
+    });
+    m.def("_tree_toggle_check", [](nb::object src, int64_t id) -> std::optional<bool> {
+        auto s = PythonTreeSource::make(std::make_shared<nb::object>(src));
+        nb::gil_scoped_release rel;
+        prism::ui::TreeController c{s};
+        c.toggle_check(static_cast<prism::ui::TreeNodeId>(id));
+        return s.checked ? s.checked(static_cast<prism::ui::TreeNodeId>(id)) : std::nullopt;
     });
     m.def("_table_editable", [](nb::object src, size_t c) {
         PyTableData d{std::make_shared<nb::object>(src), {}};

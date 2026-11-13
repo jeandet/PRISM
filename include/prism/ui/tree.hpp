@@ -4,6 +4,7 @@
 #include <prism/core/list.hpp>
 #include <prism/core/reflect_leaf.hpp>
 #include <prism/core/types.hpp>
+#include <prism/delegates/text_delegates.hpp>
 #include <prism/input/input_event.hpp>
 #include <prism/ui/delegate.hpp>
 
@@ -38,6 +39,12 @@ struct TreeSource {
     // draw the same everywhere, while the web build ships only a few of the font's glyphs.
     std::function<std::shared_ptr<const Image>(TreeNodeId)> image{};
     std::function<std::vector<std::pair<std::string, std::string>>(TreeNodeId)> attributes{};
+    // A checkbox on the node (nullopt: none), and what a click on it does.
+    // simplify: two states only; a parent showing "some children ticked" needs a third.
+    std::function<std::optional<bool>(TreeNodeId)> checked{};
+    std::function<void(TreeNodeId, bool)> set_checked{};
+    // Renames the node in place (F2, double-click); false refuses the name and keeps the editor.
+    std::function<bool(TreeNodeId, std::string_view)> rename{};
 };
 
 template <typename T>
@@ -68,8 +75,22 @@ TreeSource wrap_tree_storage(T& data) {
     if constexpr (requires(const T& t, TreeNodeId id) { t.attributes(id); }) {
         src.attributes = [&data](TreeNodeId id) { return data.attributes(id); };
     }
+    if constexpr (requires(T& t, TreeNodeId id) { t.checked(id); t.set_checked(id, true); }) {
+        src.checked = [&data](TreeNodeId id) { return data.checked(id); };
+        src.set_checked = [&data](TreeNodeId id, bool on) { data.set_checked(id, on); };
+    }
+    if constexpr (requires(T& t, TreeNodeId id, std::string_view s) { { t.rename(id, s) } -> std::convertible_to<bool>; }) {
+        src.rename = [&data](TreeNodeId id, std::string_view s) { return data.rename(id, s); };
+    }
     return src;
 }
+
+// A node's name being edited in place.
+struct TreeRename {
+    TextEdit text{};
+    bool rejected = false;   // the source refused the last commit
+    bool operator==(const TreeRename&) const = default;
+};
 
 struct TreeRow {
     TreeNodeId id = 0;
@@ -80,6 +101,8 @@ struct TreeRow {
     bool expanded = false;
     bool selected = false;
     std::shared_ptr<const Image> image{};   // drawn in the icon slot instead of `icon`
+    std::optional<bool> checked{};          // the node's checkbox, if it has one
+    std::optional<TreeRename> rename{};     // the editor over the label, while renaming
 
     bool operator==(const TreeRow&) const = default;
 };
@@ -99,9 +122,17 @@ struct Widget<TreeRow> {
         const auto& r = f.get();
         a.name = r.label;
         a.selected = r.selected;
+        a.checked = r.checked;
         if (r.has_children) a.expanded = r.expanded;
     }
     static constexpr Height row_h{22.f};
+    static constexpr float font = 13.f, marker_slot = 14.f, check_slot = 20.f, box = 16.f;
+
+    // Where a row's checkbox starts, and whether a click at `x` (row-local) lands on it.
+    static float check_x(const TreeRow& row) { return 8.f + static_cast<float>(row.depth) * 16.f + marker_slot; }
+    static bool on_check(const TreeRow& row, float x) {
+        return row.checked && x >= check_x(row) && x < check_x(row) + box;
+    }
 
     static void record(DrawList& dl, const Field<TreeRow>& field, WidgetNode& node) {
         auto& row = field.get();
@@ -115,11 +146,15 @@ struct Widget<TreeRow> {
         // Marker, icon and label are separate commands in fixed slots: icon glyphs (Nerd Font,
         // via the mono fallback) ink wider than their advance, so in one string they ran into
         // the label once the UI font's space was narrower than the mono font's.
-        constexpr float font = 13.f, marker_slot = 14.f, icon_slot = 1.6f * font;
+        constexpr float icon_slot = 1.6f * font;
         X x = X{8.f} + DX{static_cast<float>(row.depth) * 16.f};
         if (row.has_children)
             dl.text(row.expanded ? "v" : ">", delegate_detail::make_point(x, Y{4.f}), font, t.text);
         x = x + DX{marker_slot};
+        if (row.checked) {
+            draw_check_box(dl, x, Y{(row_h.raw() - box) / 2}, *row.checked, WidgetVisualState{}, t);
+            x = x + DX{check_slot};
+        }
         if (row.image) {
             constexpr float image_size = 16.f;
             dl.image(row.image, Rect{delegate_detail::make_point(x, Y{(row_h.raw() - image_size) / 2}),
@@ -130,7 +165,12 @@ struct Widget<TreeRow> {
             dl.text(*row.icon, delegate_detail::make_point(x, Y{4.f}), font, t.text);
             x = x + DX{icon_slot};
         }
-        dl.text(row.label, delegate_detail::make_point(x, Y{4.f}), font, t.text);
+        if (row.rename)
+            draw_line_editor(dl, row.rename->text, row.rename->rejected,
+                             Rect{delegate_detail::make_point(x - DX{4.f}, Y{1.f}), Size{Width{w.raw() - x.raw() + 2.f}, Height{row_h.raw() - 2.f}}},
+                             font, t);
+        else
+            dl.text(row.label, delegate_detail::make_point(x, Y{4.f}), font, t.text);
     }
 
     // Selection/expand-toggle/keyboard nav are handled centrally by TreeController via the
@@ -188,6 +228,7 @@ inline void flatten_node(const TreeSource& source, TreeNodeId id, int depth,
     row.has_children = source.has_children(id);
     row.expanded = expanded.contains(id);
     row.selected = selected.contains(id);
+    row.checked = source.checked ? source.checked(id) : std::nullopt;
     out.push_back(row);
 
     if (row.has_children && row.expanded) {
@@ -258,8 +299,71 @@ public:
     void refresh() {
         auto sel = selection.get();
         auto fresh = visible_rows(source_, expanded_, std::set<TreeNodeId>(sel.begin(), sel.end()));
+        if (rename_)
+            for (auto& r : fresh)
+                if (r.id == rename_->first) r.rename = rename_->second;
         while (!rows.empty()) rows.erase(rows.size() - 1);
         for (auto& r : fresh) rows.push_back(r);
+    }
+
+    [[nodiscard]] bool renaming() const { return rename_.has_value(); }
+
+    // A click on row `index` at `mb` (row-local): on the checkbox it toggles it; a double-click
+    // renames the node when the source can; anything else selects (on_row_clicked). A click on
+    // another row ends a rename first.
+    // simplify: a click inside the editor does not move the caret; it is ignored.
+    void on_row_click(size_t index, const MouseButton& mb) {
+        if (index >= rows.size()) return;
+        auto row = rows[index];
+        if (rename_ && rename_->first == row.id) return;
+        if (rename_ && !commit_rename()) cancel_rename();
+        if (Widget<TreeRow>::on_check(row, mb.position.x.raw())) return toggle_check(row.id);
+        if (mb.clicks >= 2 && source_.rename) {
+            anchor_ = index;
+            set_current(row.id);
+            selection.set({row.id});
+            return begin_rename(row.id);
+        }
+        on_row_clicked(index, row, mb.mods);
+    }
+
+    // Text typed or pasted while renaming.
+    void on_text(std::string_view text) {
+        if (!rename_) return;
+        rename_->second.text = text_edit::insert(rename_->second.text, text, 0);
+        rename_->second.rejected = false;
+        show_rename();
+    }
+
+    void begin_rename(TreeNodeId id) {
+        if (!source_.rename) return;
+        rename_.emplace(id, TreeRename{text_edit::select_all(TextEdit{source_.label(id)})});
+        refresh();
+    }
+
+    void cancel_rename() {
+        rename_.reset();
+        refresh();
+    }
+
+    // Hands the name to the source: true and closed if it took it, false and marked if not.
+    bool commit_rename() {
+        if (!rename_) return true;
+        auto& [id, r] = *rename_;
+        if (!source_.rename(id, r.text.text)) {
+            r.rejected = true;
+            show_rename();
+            return false;
+        }
+        rename_.reset();
+        refresh();
+        return true;
+    }
+
+    void toggle_check(TreeNodeId id) {
+        if (!source_.checked || !source_.set_checked) return;
+        if (auto on = source_.checked(id)) source_.set_checked(id, !*on);
+        refresh();
     }
 
     // A click on row `index`: Ctrl toggles it in the selection, Shift selects the range from the
@@ -293,6 +397,10 @@ public:
     std::optional<size_t> on_key(const InputEvent& ev) {
         auto* kp = std::get_if<KeyPress>(&ev);
         if (!kp) return std::nullopt;
+        if (rename_) {
+            rename_key(*kp);
+            return std::nullopt;
+        }
 
         std::vector<TreeRow> snapshot;
         for (size_t i = 0; i < rows.size(); ++i) snapshot.push_back(rows[i]);
@@ -352,6 +460,15 @@ public:
             }
             return std::nullopt;
         }
+        if (kp->key == keys::f2) {
+            if (!has_cur) return std::nullopt;
+            begin_rename(snapshot[cur].id);
+            return cur;
+        }
+        if (kp->key == keys::space && has_cur && snapshot[cur].checked) {
+            toggle_check(snapshot[cur].id);
+            return cur;
+        }
         if (kp->key == keys::enter || kp->key == keys::space) {
             if (!has_cur) return std::nullopt;
             on_row_clicked(cur, snapshot[cur]);
@@ -361,6 +478,31 @@ public:
     }
 
 private:
+    // Keys while renaming: Enter commits, Escape cancels, the rest edit the text. Every key
+    // stays in the editor (the container keeps them, see vb.tree).
+    void rename_key(const KeyPress& kp) {
+        auto& e = rename_->second.text;
+        if (kp.key == keys::enter) commit_rename();
+        else if (kp.key == keys::escape) cancel_rename();
+        else if (kp.key == keys::home || kp.key == keys::end) {
+            e = text_edit::move_to(e, kp.key == keys::home ? 0 : e.text.size(), (kp.mods & mods::shift) != 0);
+            show_rename();
+        } else if (auto after = text_detail::common_edit_key(e, kp)) {
+            e = *after;
+            show_rename();
+        }
+    }
+
+    // Puts the editor's state into its row alone (a keystroke changes one row).
+    void show_rename() {
+        for (size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].id != rename_->first) continue;
+            auto r = rows[i];
+            r.rename = rename_->second;
+            rows.set(i, r);
+        }
+    }
+
     void select_row(TreeNodeId id) {
         set_current(id);
         selection.set({id});
@@ -414,6 +556,7 @@ private:
     TreeSource source_;
     std::set<TreeNodeId> expanded_;
     std::optional<size_t> anchor_;   // the row a Shift-click or Shift+arrow range starts from
+    std::optional<std::pair<TreeNodeId, TreeRename>> rename_;
     bool setting_current_ = false;
     Connection follow_;
 };
