@@ -991,6 +991,60 @@ struct SlotTree : SlotBase {
         if (py_src_holder) release_py_object_guarded(*py_src_holder);
     }
 };
+// A table over a Python object with column_count(), row_count(), cell_text(row, col) and,
+// optionally, header(col) (prism.TableSource). Called on the logic thread: each call takes the
+// GIL. The ONE holder is shared with SlotTable, so clearing it to None neutralizes the calls.
+struct PyTableData {
+    std::shared_ptr<nb::object> held;
+    mutable std::vector<std::string> headers;   // header() returns a view: kept here
+    size_t column_count() const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        return nb::hasattr(o, "column_count") ? nb::cast<size_t>(o.attr("column_count")()) : 0;
+    }
+    size_t row_count() const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        return nb::hasattr(o, "row_count") ? nb::cast<size_t>(o.attr("row_count")()) : 0;
+    }
+    std::string cell_text(size_t r, size_t c) const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        return nb::hasattr(o, "cell_text") ? nb::cast<std::string>(nb::str(o.attr("cell_text")(r, c))) : std::string{};
+    }
+    std::string_view header(size_t c) const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        if (headers.size() <= c) headers.resize(c + 1);
+        headers[c] = nb::hasattr(o, "header") ? nb::cast<std::string>(nb::str(o.attr("header")(c))) : std::string{};
+        return headers[c];
+    }
+};
+
+struct SlotTable : SlotBase {
+    std::shared_ptr<nb::object> py_src_holder;
+    PyTableData data;
+    Field<std::int64_t> revision{0};   // refresh() bumps it: the table re-reads the source
+    explicit SlotTable(nb::object py_obj)
+        : py_src_holder(std::make_shared<nb::object>(std::move(py_obj))), data{py_src_holder, {}} {}
+    void build(ViewBuilder& vb) override { vb.table(data).depends_on(revision); }
+    void traverse(visitproc visit, void* arg) override {
+        if (py_src_holder) if (PyObject* o = py_src_holder->ptr()) visit(o, arg);
+    }
+    void clear() override { if (py_src_holder) *py_src_holder = nb::none(); }
+    ~SlotTable() override { if (py_src_holder) release_py_object_guarded(*py_src_holder); }
+};
+
+struct BoundTable {
+    std::shared_ptr<SlotBase> owner;
+    SlotTable* slot = nullptr;
+    void refresh() {
+        if (!slot) return;
+        auto* s = slot;
+        list_op_dispatch(owner, [s] { s->revision.set(s->revision.get() + 1); });
+    }
+};
+
 // The posted reader may run on the logic thread after the interpreter is finalized
 // (see try_post_via_handle_impl's drain path), so it must not construct any nb::
 // object — TreeRow is plain C++ data, safe to copy there. The namedtuple
@@ -2165,6 +2219,13 @@ struct PyModel {
         slots.push_back(s);
         return {s, p};
     }
+    std::pair<std::shared_ptr<SlotBase>, SlotTable*> add_table_slot(nb::object py_obj) {
+        auto s = std::make_shared<SlotTable>(std::move(py_obj));
+        auto* p = s.get();
+        std::lock_guard<std::mutex> lk(slots_mutex);
+        slots.push_back(s);
+        return {s, p};
+    }
     std::pair<std::shared_ptr<SlotBase>, prism::ui::TreeController*> add_tree_slot(nb::object py_obj) {
         auto s = std::make_shared<SlotTree>(py_obj);
         auto* p = &s->ctrl;
@@ -2917,6 +2978,12 @@ NB_MODULE(_prism_ext, m) {
     nb::setattr(*g_tree_row_type, "__module__", nb::str("prism"));
     m.attr("TreeRow") = *g_tree_row_type;
 
+    nb::class_<BoundTable>(m, "BoundTable", nb::dynamic_attr(), nb::is_weak_referenceable(),
+                           "Bound handle for a Model's table over a Python object "
+                           "(prism.table_field): place it with vb.table(handle).")
+        .def("refresh", &BoundTable::refresh,
+             "The source changed: the table reads it again. Any thread; posted to the logic thread.");
+
     nb::class_<BoundTree>(m, "BoundTree", nb::dynamic_attr(), nb::is_weak_referenceable(),
                           "Bound handle for a Model's tree field. refresh() may be called "
                           "from any thread (posted to the logic thread); rows() is a "
@@ -2973,6 +3040,16 @@ NB_MODULE(_prism_ext, m) {
              "and takes no input. drag: a callable giving the Python object a drag from this "
              "widget carries (None: nothing to drag). drop: callable(value, x, y) for objects "
              "dropped here, of type accepts (a type or tuple of types; any object if None).")
+        .def("table", [](ViewBuilder& vb, nb::object h, nb::object sort_column, bool descending) {
+                if (!nb::isinstance<BoundTable>(h)) throw nb::type_error("ViewBuilder.table: needs a prism.table_field() handle");
+                auto* s = nb::cast<BoundTable&>(h).slot;
+                if (!s) throw nb::value_error("ViewBuilder.table: handle is not bound to a Model");
+                auto t = vb.table(s->data);
+                std::move(t).depends_on(s->revision);
+                if (!sort_column.is_none()) std::move(t).sort(nb::cast<std::size_t>(sort_column), descending);
+            }, nb::arg("handle"), nb::arg("sort_column") = nb::none(), nb::arg("descending") = false,
+             "A table over the handle's Python source; sorted by sort_column if given (the user can "
+             "click a header to sort too).")
         .def("tabs", [](ViewBuilder& vb, nb::object h, nb::list pages) {
                 if (!nb::isinstance<BoundTabs>(h)) throw nb::type_error("ViewBuilder.tabs: needs a prism.tabs() handle");
                 std::vector<std::pair<std::string, std::shared_ptr<PyHolder>>> built;
@@ -3268,6 +3345,10 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_plot_slot();
                 BoundPlot h; h.owner = std::move(owner); h.plot = p; return h;
             })
+        .def("_add_table_internal", [](PyModel& self, nb::object py_obj){
+                auto [owner, p] = self.add_table_slot(std::move(py_obj));
+                BoundTable h; h.owner = std::move(owner); h.slot = p; return h;
+            }, nb::arg("source"))
         .def("_add_tree_internal", [](PyModel& self, nb::object py_obj){
                 auto [owner, p] = self.add_tree_slot(py_obj);
                 BoundTree h; h.owner = std::move(owner); h.ctrl = p; return h;

@@ -4238,3 +4238,62 @@ def test_a_dialog_opens_and_reports_the_button_chosen():
     assert got == ["Discard"]
     assert d.ask.open is False
     assert d.ask.chosen == "Discard"
+
+
+# --- tables from a Python object ---------------------------------------------------------
+
+
+class _Readings:
+    def __init__(self):
+        self.data = [["cpu", "3.2"], ["mem", "1.8"]]
+
+    def column_count(self):
+        return 2
+
+    def row_count(self):
+        return len(self.data)
+
+    def cell_text(self, row, col):
+        return self.data[row][col]
+
+    def header(self, col):
+        return ["Name", "Value"][col]
+
+
+def test_a_table_shows_a_python_source():
+    src = _Readings()
+
+    class Board(prism.Model):
+        readings = prism.table_field(src)
+
+        def view(self, vb):
+            vb.table(self.readings, sort_column=1, descending=True)
+
+    b = Board()
+    texts = prism._texts(b)
+    assert {"Name", "Value", "cpu", "3.2", "mem"} <= set(texts)
+    assert texts.index("cpu") < texts.index("mem")   # sorted by value, highest first
+    src.data.append(["disk", "9.9"])
+    b.readings.refresh()
+    texts = prism._texts(b)
+    assert "disk" in texts and texts.index("disk") < texts.index("cpu")
+
+
+def test_a_table_source_without_header_gets_empty_titles():
+    class NoHeader:
+        def column_count(self):
+            return 1
+
+        def row_count(self):
+            return 1
+
+        def cell_text(self, row, col):
+            return "only"
+
+    class Board(prism.Model):
+        t = prism.table_field(NoHeader())
+
+        def view(self, vb):
+            vb.table(self.t)
+
+    assert "only" in prism._texts(Board())

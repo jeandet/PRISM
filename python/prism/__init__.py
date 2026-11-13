@@ -121,22 +121,8 @@ class TreeSource(Protocol):
 
 @runtime_checkable
 class TableSource(Protocol):
-    """Pythonic structural type for future ``prism.table_field(source)``.
-
-    The typed form mirrors the C++ ``TableSource`` struct
-    (``include/prism/ui/table.hpp:27``) — the runtime container whose
-    ``header`` member is optional (consumer checks
-    ``source.header ? source.header(col) : \"\"``, see ``table.hpp:272``).
-    The ``ColumnStorage`` *concept* at ``table.hpp:35`` conversely requires
-    ``header()`` unconditionally at compile time; the distinction matters
-    only once a Python binding exists.
-
-    Not yet wired to a Python binding — added now so table adapters can be
-    written against a typed protocol and work unchanged once
-    ``table_field`` lands. The three methods below will be required;
-    ``header`` will be optional (a future ``PythonTableSource`` binding is
-    intended to mirror ``PythonTreeSource`` via ``hasattr`` and fall back
-    to ``\"\"`` when missing)::
+    """What ``prism.table_field(source)`` reads: three methods, and ``header`` optionally
+    (a column without one has an empty title). They are called on the logic thread::
 
         class MyTable(TableSource):
             def column_count(self) -> int: ...
@@ -162,6 +148,7 @@ __all__ = [
     "combobox",
     "popup",
     "dock_layout",
+    "table_field",
     "label",
     "text_area",
     "tabs",
@@ -1127,6 +1114,29 @@ def plot_field():
 
 TreeSourceLike = TreeSource | dict  # type: ignore[valid-type]
 TreeFieldSource = TreeSourceLike | _Callable[[], TreeSourceLike] | None  # type: ignore[valid-type]
+
+
+class _TableDescriptor(_Descriptor):
+    def __init__(self, source):
+        super().__init__()
+        self.source = source
+
+    def _allocate(self, instance):
+        cache, h = self._cached(instance)
+        if h is not None:
+            return h
+        src = self.source() if callable(self.source) and not hasattr(self.source, "row_count") else self.source
+        h = instance._add_table_internal(src)  # type: ignore[attr-defined]
+        cache[self.name] = h
+        return h
+
+
+def table_field(source):
+    """A table over ``source`` (a ``prism.TableSource``: ``column_count()``, ``row_count()``,
+    ``cell_text(row, col)``, optionally ``header(col)``), or a zero-arg callable returning one.
+    Place it with ``vb.table(handle, sort_column=None, descending=False)``; call
+    ``handle.refresh()`` when the source's data changed. The source is read on the logic thread."""
+    return _TableDescriptor(source)
 
 
 def tree_field(source: TreeFieldSource = None):  # type: ignore[assignment]

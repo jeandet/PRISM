@@ -690,6 +690,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.text_area(text, rows=6, read_only=False)` | `Field<TextArea<>>` | read-only: selectable, UI font |
 | `prism.tabs()` + `vb.tabs(h, [(title, fn), ...])` | `Field<TabBar<>>` + `vb.tabs` | `.value` is the selected page |
 | `prism.dialog(title, message, buttons)` + `vb.dialog(h, content=None)` | `Field<Dialog>` + `vb.dialog` | `.open = True` asks; `.on_choice(cb)` gets the button |
+| `prism.table_field(source)` + `vb.table(h, sort_column=None)` | `vb.table(ColumnStorage)` | source: `column_count`, `row_count`, `cell_text`, `header`; `.refresh()` after a change |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |
