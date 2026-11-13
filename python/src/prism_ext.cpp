@@ -1296,6 +1296,7 @@ struct BoundWidgetValue {
 using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
 using BoundChoice = BoundWidgetValue<Choice, std::optional<std::string>>;   // .value: the option, or None
 using BoundPicture = BoundWidgetValue<Picture, std::int64_t>;               // .value: unused (0)
+using BoundLink = BoundWidgetValue<Link, std::int64_t>;                     // .value: clicks so far
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
 using BoundProgress = BoundWidgetValue<ProgressBar, double>;
@@ -1465,6 +1466,15 @@ inline std::shared_ptr<const Image> picture_image(const std::string& path, std::
     auto loaded = prism::render::load_image(path, box);
     if (!loaded) throw nb::value_error(("picture: " + loaded.error()).c_str());
     return *loaded;
+}
+
+inline BoundLink make_bound_link(std::shared_ptr<SlotBase> owner, Field<Link>* f) {
+    BoundLink h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Link& l) { return static_cast<std::int64_t>(l.click_count); };
+    h.write = [](Link& l, const std::int64_t& v) { l.click_count = static_cast<std::uint64_t>(std::max<std::int64_t>(0, v)); };
+    return h;
 }
 
 inline BoundPicture make_bound_picture(std::shared_ptr<SlotBase> owner, Field<Picture>* f) {
@@ -1962,6 +1972,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundRadio*)nullptr)) return;
     if (connect_field((BoundChoice*)nullptr)) return;
     if (connect_field((BoundPicture*)nullptr)) return;
+    if (connect_field((BoundLink*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
     if (connect_field((BoundProgress*)nullptr)) return;
@@ -2017,6 +2028,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundRadio>(h)) vb.widget(*nb::cast<BoundRadio&>(h).field);
     else if (nb::isinstance<BoundChoice>(h)) vb.widget(*nb::cast<BoundChoice&>(h).field);
     else if (nb::isinstance<BoundPicture>(h)) vb.widget(*nb::cast<BoundPicture&>(h).field);
+    else if (nb::isinstance<BoundLink>(h)) vb.widget(*nb::cast<BoundLink&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
     else if (nb::isinstance<BoundProgress>(h)) vb.widget(*nb::cast<BoundProgress&>(h).field);
@@ -2057,6 +2069,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundRadio>(h)) return declare(nb::cast<BoundRadio&>(h).field);
     if (nb::isinstance<BoundChoice>(h)) return declare(nb::cast<BoundChoice&>(h).field);
     if (nb::isinstance<BoundPicture>(h)) return declare(nb::cast<BoundPicture&>(h).field);
+    if (nb::isinstance<BoundLink>(h)) return declare(nb::cast<BoundLink&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
     if (nb::isinstance<BoundProgress>(h)) return declare(nb::cast<BoundProgress&>(h).field);
@@ -2928,6 +2941,12 @@ NB_MODULE(_prism_ext, m) {
         .def("set", &validated_set<BoundCheckboxValue, bool>, nb::arg("value"),
              "Any thread; posted to the logic thread. Same as assigning .value.");
 
+    bind_widget_value<BoundLink, std::int64_t>(m, "BoundLink",
+        "Bound handle for a Model's link: .value counts the clicks; observe() fires on each.")
+        .def_prop_ro("text", [](const BoundLink& h) { return h.state().text; })
+        .def_prop_rw("url", [](const BoundLink& h) { return h.state().url; },
+                     [](BoundLink& h, std::string u) { h.modify([u = std::move(u)](Link& l) { l.url = u; }); },
+                     "What a click opens. Any thread; posted.");
     bind_widget_value<BoundPicture, std::int64_t>(m, "BoundPicture", "Bound handle for a Model's picture.")
         .def_prop_ro("has_image", [](const BoundPicture& h) { return h.state().image != nullptr; })
         .def_prop_rw("description", [](const BoundPicture& h) { return h.state().description; },
@@ -3298,6 +3317,10 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_checkbox_slot(v, label);
                 BoundCheckboxValue h; h.owner = std::move(owner); h.field = p; h.label = std::move(label); return h;
             }, nb::arg("value")=false, nb::arg("label")="")
+        .def("_add_link_internal", [](PyModel& self, std::string text, std::string url){
+                auto [owner, p] = self.add_widget_slot(Link{.text = std::move(text), .url = std::move(url)});
+                return make_bound_link(std::move(owner), p);
+            }, nb::arg("text"), nb::arg("url"))
         .def("_add_picture_internal", [](PyModel& self, std::optional<std::string> path,
                                          std::optional<std::pair<float, float>> size, std::string description){
                 Picture pic{.description = std::move(description)};

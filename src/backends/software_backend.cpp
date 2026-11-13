@@ -550,6 +550,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                     drain_window_requests();
                     drain_close_requests();
                     clipboard_.drain([](const std::string& text) { SDL_SetClipboardText(text.c_str()); });
+                    url_opener_.drain([](const std::string& url) { SDL_OpenURL(url.c_str()); });
                     show_platform_requests();
                     break;
                 case SDL_EVENT_WINDOW_EXPOSED:

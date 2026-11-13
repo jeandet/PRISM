@@ -4,6 +4,7 @@
 #include <prism/ui/shortcut.hpp>
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/context.hpp>
+#include <prism/ui/url_opener.hpp>
 #include <prism/ui/text_metrics.hpp>
 #include <prism/ui/text_edit.hpp>
 #include <prism/ui/access.hpp>
@@ -395,6 +396,7 @@ struct WidgetNode;
 
 // Declared here, defined in widget_node.hpp (after WidgetNode is complete).
 const WidgetVisualState& node_vs(const WidgetNode& n);
+void set_node_cursor(WidgetNode& n, CursorShape c);   // the pointer's shape over the widget
 Size node_allocated(const WidgetNode& n);
 const Theme& node_theme(const WidgetNode& n);
 
@@ -687,6 +689,49 @@ struct Widget<Picture> {
     }
 
     static void handle_input(Field<Picture>&, const InputEvent&, WidgetNode&) {}
+};
+
+// Text that opens `url` when clicked (or Enter while focused), in the user's browser through
+// the backend's opener (Theme::url_opener). `click_count` counts the clicks either way: a link
+// with no URL is the app's to act on, as a button is.
+struct Link {
+    std::string text;
+    std::string url{};
+    std::uint64_t click_count = 0;
+    bool operator==(const Link&) const = default;
+};
+
+template <>
+struct Widget<Link> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr float font_size = 14.f;
+    // simplify: AccessKit has a Link role; add it to ui::Role with the accessibility bridge.
+    static constexpr Role access_role = Role::Button;
+    static void describe(const Field<Link>& f, AccessInfo& a) { a.name = f.get().text; }
+    static float intrinsic_width(const Field<Link>& f, const WidgetNode& n) {
+        return 8.f + text_width(node_theme(n).measurer, f.get().text, font_size);
+    }
+
+    static void record(DrawList& dl, const Field<Link>& field, WidgetNode& node) {
+        auto& vs = node_vs(node);
+        auto& t = node_theme(node);
+        const auto& l = field.get();
+        set_node_cursor(node, CursorShape::Pointer);
+        Color c = vs.pressed ? t.accent_active : vs.hovered ? t.accent_hover : t.accent;
+        float w = text_width(t.measurer, l.text, font_size);
+        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, Width{w + 8.f}, Height{24}), Color::rgba(0, 0, 0, 0));
+        dl.text(l.text, delegate_detail::make_point(X{4}, Y{4}), font_size, c);
+        dl.line(Point{X{4}, Y{20}}, Point{X{4 + w}, Y{20}}, c, 1.f);
+        if (vs.focused) delegate_detail::draw_focus_ring(dl, Width{w + 8.f}, Height{24}, t);
+    }
+
+    static void handle_input(Field<Link>& field, const InputEvent& ev, WidgetNode& node) {
+        if (!delegate_detail::is_activation_event(ev, node)) return;
+        auto l = field.get();
+        ++l.click_count;
+        if (!l.url.empty() && node_theme(node).url_opener) node_theme(node).url_opener->open(l.url);
+        field.set(l);
+    }
 };
 
 enum class Orientation { Horizontal, Vertical };

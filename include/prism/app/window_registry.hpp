@@ -31,6 +31,7 @@ public:
         if (waker_) e.tree->bind_waker(waker_);
         e.tree->set_text_measurer(measurer_);
         e.tree->set_clipboard(clipboard_);
+        e.tree->set_url_opener(url_opener_);
         auto [w, h] = window.size();
         if (window.decoration_mode() == DecorationMode::Custom)
             h -= static_cast<int>(WindowChrome::title_bar_h.raw());
@@ -45,6 +46,11 @@ public:
     void set_clipboard(const Clipboard* c) {
         clipboard_ = c;
         for (auto& [id, entry] : entries_) entry.tree->set_clipboard(c);
+    }
+
+    void set_url_opener(const UrlOpener* o) {
+        url_opener_ = o;
+        for (auto& [id, entry] : entries_) entry.tree->set_url_opener(o);
     }
 
     void set_text_measurer(const TextMeasurer* m) {
@@ -81,6 +87,7 @@ private:
     std::function<void()> waker_;
     const TextMeasurer* measurer_ = nullptr;
     const Clipboard* clipboard_ = nullptr;
+    const UrlOpener* url_opener_ = nullptr;
 };
 
 } // namespace prism::app

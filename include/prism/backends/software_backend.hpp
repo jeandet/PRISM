@@ -50,6 +50,7 @@ public:
     std::optional<PresentStats> present_stats(WindowId id) const override;
     const ui::TextMeasurer* text_measurer() const override { return measurer_.get(); }
     const ui::Clipboard* clipboard() const override { return &clipboard_; }
+    const ui::UrlOpener* url_opener() const override { return &url_opener_; }
     app::PlatformServices* platform_services() override { return &platform_; }
 
 private:
@@ -61,6 +62,7 @@ private:
     std::unique_ptr<SdlTextMeasurer> measurer_;
     // SDL's clipboard is main-thread only: copies queue here and are applied in run().
     QueuedClipboard clipboard_{[this] { wake(); }};
+    QueuedUrlOpener url_opener_{[this] { wake(); }};
     // SDL's dialogs and message boxes start on the main thread too: requests queue here.
     QueuedPlatformServices platform_{[this] { wake(); }};
     void show_platform_requests();   // run(): shows what platform_ queued   // logic thread's own font; see the class

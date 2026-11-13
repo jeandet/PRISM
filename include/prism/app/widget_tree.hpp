@@ -106,6 +106,7 @@ public:
     // Every node points at theme_, so this reaches all widgets, including ones built later.
     // Everything re-records: widgets recorded before (with the estimate) must pick up real metrics.
     void set_clipboard(const Clipboard* c) { theme_.clipboard = c; }
+    void set_url_opener(const UrlOpener* o) { theme_.url_opener = o; }
 
     void set_text_measurer(const TextMeasurer* m) {
         if (theme_.measurer == m) return;
@@ -118,6 +119,7 @@ public:
     void set_theme(Theme t) {
         t.measurer = theme_.measurer;
         t.clipboard = theme_.clipboard;
+        t.url_opener = theme_.url_opener;
         theme_ = t;
         mark_all_dirty_impl(root_);
         tooltip_dirty_ = true;

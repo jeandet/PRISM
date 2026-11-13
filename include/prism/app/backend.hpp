@@ -5,6 +5,7 @@
 #include <prism/app/window.hpp>
 #include <prism/app/platform_services.hpp>
 #include <prism/ui/clipboard.hpp>
+#include <prism/ui/url_opener.hpp>
 #include <prism/ui/text_metrics.hpp>
 
 #include <chrono>
@@ -44,6 +45,8 @@ public:
     virtual const ui::TextMeasurer* text_measurer() const { return nullptr; }
     // Copy/cut target, owned by the backend. Null = no system clipboard.
     virtual const ui::Clipboard* clipboard() const { return nullptr; }
+    // Opens links' URLs, owned by the backend. Null = links only count their clicks.
+    virtual const ui::UrlOpener* url_opener() const { return nullptr; }
     // File dialogs and message boxes, owned by the backend. Null = none (AppContext then
     // answers file requests with an error).
     virtual PlatformServices* platform_services() { return nullptr; }
@@ -69,6 +72,7 @@ public:
     std::optional<PresentStats> present_stats(WindowId w) const { return impl_->present_stats(w); }
     const ui::TextMeasurer* text_measurer() const { return impl_->text_measurer(); }
     const ui::Clipboard* clipboard() const { return impl_->clipboard(); }
+    const ui::UrlOpener* url_opener() const { return impl_->url_opener(); }
     PlatformServices* platform_services() { return impl_->platform_services(); }
 
     Backend(Backend&&) noexcept = default;

@@ -147,6 +147,7 @@ __all__ = [
     "radio",
     "choice",
     "picture",
+    "link",
     "spinbox",
     "progress",
     "button",
@@ -473,6 +474,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"])
         elif self.kind == "checkbox":
             h = instance._add_checkbox_internal(self.default, self.meta["label"])
+        elif self.kind == "link":
+            h = instance._add_link_internal(self.meta["text"], self.meta["url"])
         elif self.kind == "picture":
             m = self.meta
             h = instance._add_picture_internal(m["path"], m["size"], m["description"])
@@ -604,6 +607,13 @@ def choice(options, default=None, placeholder="", *, tooltip=None):
         raise ValueError(f"choice(): {default!r} is not one of the options {options!r}")
     return _tooltipped(_FieldDescriptor(default, kind="choice",
                                         meta={"options": options, "placeholder": str(placeholder)}), tooltip)
+
+
+def link(text, url="", *, tooltip=None):
+    """Text that opens ``url`` in the user's browser when clicked (C++ ``Link``). ``.value``
+    counts the clicks, so ``handle.observe(cb)`` runs on each; with no ``url`` the click is
+    the app's to act on."""
+    return _tooltipped(_FieldDescriptor(0, kind="link", meta={"text": str(text), "url": str(url)}), tooltip)
 
 
 def picture(path=None, *, width=None, height=None, description="", tooltip=None):

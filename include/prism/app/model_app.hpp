@@ -485,6 +485,7 @@ void model_app(Backend& backend, Window& window, Model& model,
     ctx_holder->serve_window_requests(*registry.find(primary_id)->tree);
     registry.set_text_measurer(backend.text_measurer());
     registry.set_clipboard(backend.clipboard());
+    registry.set_url_opener(backend.url_opener());
 
     // Timed wakes of the logic thread (a tooltip's delay). The timer thread only posts; the
     // ticks run on the logic thread, which then publishes and arms the next deadline.

@@ -2,6 +2,7 @@
 
 #include <prism/core/mpsc_queue.hpp>
 #include <prism/ui/clipboard.hpp>
+#include <prism/ui/url_opener.hpp>
 
 #include <functional>
 #include <string>
@@ -23,6 +24,26 @@ public:
     template <typename Apply>
     void drain(Apply&& apply) {
         while (auto text = pending_.pop()) apply(*text);
+    }
+
+private:
+    mutable core::mpsc_queue<std::string> pending_;
+    std::function<void()> wake_;
+};
+
+// The same for opening URLs (SDL_OpenURL runs on the main thread): open() queues and wakes.
+class QueuedUrlOpener final : public ui::UrlOpener {
+public:
+    explicit QueuedUrlOpener(std::function<void()> wake) : wake_(std::move(wake)) {}
+
+    void open(std::string url) const override {
+        pending_.push(std::move(url));
+        if (wake_) wake_();
+    }
+
+    template <typename Apply>
+    void drain(Apply&& apply) {
+        while (auto url = pending_.pop()) apply(*url);
     }
 
 private:

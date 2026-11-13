@@ -10,6 +10,7 @@ using namespace prism::render;
 
 struct TextMeasurer;
 struct Clipboard;
+struct UrlOpener;
 
 struct Theme {
     // Surface backgrounds (widget fill)
@@ -93,6 +94,7 @@ struct Theme {
     const TextMeasurer* measurer = nullptr;
     // Where copy/cut puts text; same ownership rules as measurer. Null = copy does nothing.
     const Clipboard* clipboard = nullptr;
+    const UrlOpener* url_opener = nullptr;   // links open through it; null: they only count clicks
 };
 
 inline Theme default_theme() { return {}; }

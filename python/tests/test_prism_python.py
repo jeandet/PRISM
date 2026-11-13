@@ -4171,6 +4171,19 @@ def test_a_picture_shows_an_image_file_and_can_load_another(tmp_path):
     assert p.logo.has_image
 
 
+def test_a_link_shows_its_text_and_keeps_its_url():
+    class About(prism.Model):
+        docs = prism.link("Read the docs", url="https://example.org/docs")
+
+        def view(self, vb):
+            vb.widget(self.docs)
+
+    a = About()
+    assert "Read the docs" in prism._texts(a)
+    assert a.docs.url == "https://example.org/docs"
+    assert a.docs.value == 0          # clicks so far
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

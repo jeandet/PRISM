@@ -257,8 +257,9 @@ SDL_Cursor* sdl_cursor_for(CursorShape shape) {
         SDL_SYSTEM_CURSOR_NESW_RESIZE, // ResizeNESW
         SDL_SYSTEM_CURSOR_NWSE_RESIZE, // ResizeNWSE
         SDL_SYSTEM_CURSOR_NOT_ALLOWED, // NotAllowed: a drag over a widget that refuses it
+        SDL_SYSTEM_CURSOR_POINTER,     // Pointer: a link
     };
-    static_assert(std::size(system_cursors) == 7);
+    static_assert(std::size(system_cursors) == 8);
     // Magic-static: C++11 guarantees thread-safe one-time init, so the whole cache is
     // built eagerly on first call — no per-index lazy read-modify-write to race on now
     // that both the app thread and the backend thread can reach this concurrently.

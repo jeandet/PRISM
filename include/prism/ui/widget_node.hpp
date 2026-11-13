@@ -182,6 +182,7 @@ inline std::pair<ItemIndex, ItemIndex> compute_visible_range(
 }
 
 inline const WidgetVisualState& node_vs(const WidgetNode& n) { return n.visual_state; }
+inline void set_node_cursor(WidgetNode& n, CursorShape c) { n.visual_state.cursor = c; }
 
 inline bool is_enabled(const WidgetNode& n) { return !n.enabled || n.enabled(); }
 
