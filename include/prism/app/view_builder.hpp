@@ -68,6 +68,25 @@ void track_rows(TableState& ts, List<T>& list) {
     }));
 }
 
+// A list row that shows whether it is `selected`, and selects itself when pressed.
+inline void show_selection(WidgetNode& wn, size_t index, Field<std::optional<std::size_t>>& selected) {
+    wn.record = [record = std::move(wn.record), index, &selected](WidgetNode& node) {
+        record(node);
+        if (selected.get() != index) return;
+        Rect row{Point{X{0}, Y{0}}, Size{delegate_detail::widget_w(node), node.draws.bounding_box().extent.h}};
+        node.draws.filled_rect(row, node_theme(node).text_selection);
+    };
+    wn.record(wn);
+    wn.wire = [wire = std::move(wn.wire), index, &selected](WidgetNode& node) {
+        wire(node);
+        node.connections.push_back(node.on_input.connect([index, &selected](const InputEvent& ev) {
+            if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left)
+                selected.set(index);
+        }));
+        node.connections.push_back(selected.on_change().connect([&node](const auto&) { node.dirty = true; }));
+    };
+}
+
 inline void unbind_vlist_row(WidgetNode& wn) {
     wn.connections.clear();
     wn.draws.clear();
@@ -721,6 +740,22 @@ public:
         // The user can drag rows to put them in another order (List::move).
         ListHandle&& reorderable() && {
             node_ref.row_drag = [&items = items](std::size_t i) { return view_builder_detail::list_row_drag(items, i); };
+            return std::move(*this);
+        }
+        // `selected` holds the selected row: a click selects it, the row is highlighted, and a
+        // removal keeps it on the same item (none, once that item goes).
+        // simplify: the arrow keys do not move the selection yet (rows are the items' own
+        // widgets and take the keys); add a list-level key handler when a list needs it.
+        ListHandle&& selection(Field<std::optional<std::size_t>>& selected) && {
+            auto follow = std::make_shared<Connection>(items.on_remove().connect([&selected](std::size_t gone) {
+                auto s = selected.get();
+                if (!s || *s < gone) return;
+                selected.set(*s == gone ? std::nullopt : std::optional{*s - 1});
+            }));
+            node_ref.vlist_bind_row = [bind = std::move(node_ref.vlist_bind_row), &selected, follow](WidgetNode& wn, size_t index) {
+                bind(wn, index);
+                view_builder_detail::show_selection(wn, index, selected);
+            };
             return std::move(*this);
         }
     };
