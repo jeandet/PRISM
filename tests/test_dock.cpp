@@ -202,3 +202,31 @@ TEST_CASE("a moved panel keeps its widgets: same widget, focus and wiring") {
     route_event(tree, snap.get(), TextInput{"!"});
     CHECK(model.editor.get().value.find('!') != std::string::npos);   // and still wired
 }
+
+TEST_CASE("while dragging a tab: the zone is shaded, and the ghost is that tab alone") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto tab = text_at(*snap, "Search");
+    auto files = text_rect(*snap, "FILES");
+    Point from{tab->x + DX{5}, tab->y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{Point{X{files->origin.x.raw() + 0.9f * 290.f}, Y{200}}});
+    snap = tree.build_snapshot(600, 400, 2);
+    // The right half of the files group, shaded.
+    bool shaded = false;
+    for (auto& c : snap->overlay.commands)
+        if (auto* r = std::get_if<FilledRect>(&c); r && r->color.a < 255 && r->rect.origin.x.raw() > 100.f) shaded = true;
+    CHECK(shaded);
+    // The ghost shows "Search" but not the other tab's title.
+    int editor_titles = 0, search_titles = 0;
+    for (auto& c : snap->overlay.commands)
+        if (auto* t = std::get_if<TextCmd>(&c)) {
+            editor_titles += t->text == "Editor";
+            search_titles += t->text == "Search";
+        }
+    CHECK(search_titles == 1);
+    CHECK(editor_titles == 0);
+    route_event(tree, snap.get(), KeyPress{keys::escape, 0});
+}

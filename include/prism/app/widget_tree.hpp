@@ -991,7 +991,12 @@ private:
         if (target_rect) draw_drop_marker(snap.overlay, *target_rect);
         auto it = index_.find(drag_->source);
         if (it == index_.end()) return;
-        DrawList ghost = it->second->draws;
+        DrawList ghost;
+        Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
+        auto area = it->second->drag.ghost_area ? it->second->drag.ghost_area(*it->second, press) : std::nullopt;
+        for (const auto& c : it->second->draws.commands)   // only what lies in the dragged part
+            if (!area) ghost.commands.push_back(c);
+            else if (auto kept = cut_to(c, *area)) ghost.commands.push_back(*kept);
         Point at = drag_->pointer - drag_->grab;
         layout_detail::translate_draw_list(ghost, DX{at.x.raw()}, DY{at.y.raw()});
         fade(ghost, 0.6f);
@@ -1009,6 +1014,25 @@ private:
         bool after = y_in > h / 2;
         Y y = after ? r.origin.y + DY{r.extent.h.raw()} : r.origin.y;
         dl.line(Point{r.origin.x, y}, Point{r.origin.x + DX{r.extent.w.raw()}, y}, theme_.accent, 2.f);
+    }
+
+    // The part of a draw command inside `area`: a rectangle cut to it, text whose origin is in
+    // it; nothing for the rest (lines, clips, what lies outside).
+    static std::optional<DrawCmd> cut_to(const DrawCmd& cmd, Rect area) {
+        return std::visit([&](const auto& c) -> std::optional<DrawCmd> {
+            if constexpr (requires { c.rect; }) {
+                float x0 = std::max(c.rect.origin.x.raw(), area.origin.x.raw());
+                float x1 = std::min(c.rect.origin.x.raw() + c.rect.extent.w.raw(), area.origin.x.raw() + area.extent.w.raw());
+                if (x1 <= x0) return std::nullopt;
+                auto cut = c;
+                cut.rect = Rect{Point{X{x0}, c.rect.origin.y}, Size{Width{x1 - x0}, c.rect.extent.h}};
+                return cut;
+            } else if constexpr (requires { c.origin; }) {
+                return area.contains(c.origin) ? std::optional<DrawCmd>{c} : std::nullopt;
+            } else {
+                return std::nullopt;
+            }
+        }, cmd);
     }
 
     // A dock group under a dragged panel: the area the panel would take, shaded (ui/dock.hpp).

@@ -396,8 +396,17 @@ public:
         fn();
         for (auto i = first; i < parent.children.size(); ++i) {
             auto& d = parent.children[i].drag;
-            if (role.source) d.source = role.source;
-            if (role.accepts) { d.accepts = role.accepts; d.drop = role.drop; d.between = role.between; }
+            if (role.source) {
+                d.source = role.source;
+                d.ghost_area = role.ghost_area;
+            }
+            if (role.accepts) {
+                d.accepts = role.accepts;
+                d.drop = role.drop;
+                d.between = role.between;
+                d.inside_middle = role.inside_middle;
+                d.zones = role.zones;
+            }
         }
     }
 
@@ -415,7 +424,15 @@ public:
     void dock(Field<DockLayout>& layout, std::vector<DockPanel> panels) {
         placed_.insert(&layout);
         auto state = std::make_shared<view_builder_detail::DockState>();
-        for (auto& p : panels) state->names.push_back(p.name);
+        for (auto& p : panels) {
+            state->names.push_back(p.name);
+            // Built later, when the dock builds: run once now, as popups do, to learn the
+            // fields it places (they count as placed by the view).
+            Node scratch;
+            ViewBuilder probe{tree_, scratch};
+            p.build(probe);
+            placed_.insert(probe.placed().begin(), probe.placed().end());
+        }
         auto shared_panels = std::make_shared<std::vector<DockPanel>>(std::move(panels));
         Node c;
         c.id = tree_.next_id_++;
@@ -994,10 +1011,18 @@ private:
                 if (bar_build) bar_build(wn);
             };
             if (tab_drag)   // a tab pressed and moved drags what tab_drag gives for it
+            {
                 bar.drag.source = [tab_drag](const WidgetNode& n, Point at) {
                     auto i = tabs_detail::tab_at(n, at.x);
                     return i ? tab_drag(*i) : std::any{};
                 };
+                bar.drag.ghost_area = [](const WidgetNode& n, Point at) -> std::optional<Rect> {   // that tab only
+                    auto i = tabs_detail::tab_at(n, at.x);
+                    if (!i) return std::nullopt;
+                    auto [x0, x1] = n.peek<TabBarEditState>().header_x_ranges[*i];
+                    return Rect{Point{x0, Y{0}}, Size{Width{x1.raw() - x0.raw()}, delegate_detail::widget_h(n)}};
+                };
+            }
             tabs_node.children.push_back(std::move(bar));
         } else {
             Node none;
