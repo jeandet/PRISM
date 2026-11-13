@@ -329,26 +329,18 @@ inline void txn_flush_batch() {
         ensure_idle_wake();
         return;
     }
-    // Off-thread: distinguish no-app (direct) vs closed (drop) vs live (post)
-    // NoApp takes priority after run has cleared handle — future txns are direct, not dropped.
-    PostResult pr;
-    {
-        std::lock_guard<std::mutex> lk(g_handle_mutex);
-        if (!g_has_handle.load(std::memory_order_acquire) || !g_post_handle) pr = PostResult::NoApp;
-        else if (g_app_closed.load(std::memory_order_acquire)) pr = PostResult::Closed;
-        else pr = PostResult::Posted; // will attempt post below
-    }
-    if (pr == PostResult::NoApp) {
-        std::lock_guard<std::recursive_mutex> direct_lk(g_direct_dispatch_mutex);
+    // Off-thread: posted to a live app, dropped once it closed, or applied directly with no
+    // app -- decided as a single set decides it (try_post_via_handle_impl), which waits out
+    // the startup window where the app runs but cannot take posts yet. Deciding here without
+    // that wait applied the batch directly while the logic thread was already running.
+    auto shared = std::make_shared<std::vector<std::function<void()>>>(std::move(batch));
+    auto apply = [shared] {
         prism::TransactionGuard g;
-        for (auto& fn : batch) fn();
-        return;
-    }
-    if (pr == PostResult::Closed) return; // drop batch per spec
-    (void)try_post_via_handle([batch = std::move(batch)]() mutable {
-        prism::TransactionGuard g;
-        for (auto& fn : batch) fn();
-    });
+        for (auto& fn : *shared) fn();
+    };
+    if (try_post_via_handle_impl(apply, false) != PostResult::NoApp) return;
+    std::lock_guard<std::recursive_mutex> direct_lk(g_direct_dispatch_mutex);
+    apply();
 }
 
 template <typename T>
