@@ -95,17 +95,50 @@ void SdlWindow::ensure_created() {
     if (!sdl_window_) create_sdl_window();
 }
 
+namespace {
+// Whether a window's title bar at (x, y), `w` wide, would show on one of the screens: a place
+// remembered on a screen since unplugged is not used.
+bool on_a_screen(int x, int y, int w) {
+    int count = 0;
+    SDL_DisplayID* displays = SDL_GetDisplays(&count);
+    SDL_Rect title{x, y, w, 32};
+    bool seen = false;
+    for (int i = 0; i < count && !seen; ++i) {
+        SDL_Rect bounds;
+        seen = SDL_GetDisplayBounds(displays[i], &bounds) && SDL_HasRectIntersection(&title, &bounds);
+    }
+    SDL_free(displays);
+    return seen;
+}
+
+SDL_Window* create_window_at(const std::string& title, const WindowConfig& config, uint64_t flags) {
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title.c_str());
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, config.width);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, config.height);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, static_cast<Sint64>(flags));
+    if (config.x && config.y && on_a_screen(*config.x, *config.y, config.width)) {
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, *config.x);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, *config.y);
+    }
+    SDL_Window* w = SDL_CreateWindowWithProperties(props);
+    SDL_DestroyProperties(props);
+    return w;
+}
+}
+
 void SdlWindow::create_sdl_window() {
     uint64_t flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | platform_window_flags();
     if (config_.resizable) flags |= SDL_WINDOW_RESIZABLE;
     if (config_.fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
+    if (config_.maximized) flags |= SDL_WINDOW_MAXIMIZED;
     if (decoration_ == DecorationMode::Custom || decoration_ == DecorationMode::None)
         flags |= SDL_WINDOW_BORDERLESS;
 #ifdef __APPLE__
     if (wgpu_ctx_) flags |= SDL_WINDOW_METAL;   // a CAMetalLayer for the WebGPU surface
 #endif
 
-    sdl_window_ = SDL_CreateWindow(title_.c_str(), config_.width, config_.height, flags);
+    sdl_window_ = create_window_at(title_, config_, flags);
     if (wgpu_ctx_ && sdl_window_) gpu_ = make_webgpu_target(*wgpu_ctx_, sdl_window_);
     if (!gpu_) renderer_ = SDL_CreateRenderer(sdl_window_, nullptr);
     // Without this SDL ignores the alpha of draw colours (blend mode NONE): the translucent

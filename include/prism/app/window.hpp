@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include <prism/input/input_event.hpp>
 #include <prism/render/scene_snapshot.hpp>
 #include <prism/ui/cursor.hpp>
@@ -29,6 +31,8 @@ struct WindowConfig {
     // unavailable in this project's own dev environment (Wayland gives none at all) -- Native
     // as a default has silently produced a chromeless, uncloseable window twice already.
     DecorationMode decoration = DecorationMode::Custom;
+    std::optional<int> x{}, y{};   // where on the desktop (none: the platform picks; Wayland always does)
+    bool maximized = false;
 };
 
 // How a backend draws. Sdl is SDL_Renderer; WebGpu needs a build with -Dwebgpu=enabled and a

@@ -21,7 +21,10 @@ struct Paste       { std::string text; };   // clipboard contents, read by the b
 // Input-method preedit (e.g. pinyin before it becomes 你): shown at the caret, not yet text.
 // start/length locate the IME's caret/selection inside it; -1 when the IME gives none.
 struct Composition { std::string text; int32_t start = -1; int32_t length = -1; };
-struct WindowResize { int width, height; };
+// A window's new size, or its new place on the desktop (where the platform tells: not Wayland).
+// `maximized`: it fills the screen, and the size or place to come back to is the one before.
+struct WindowResize { int width, height; bool maximized = false; };
+struct WindowMove { int x, y; bool maximized = false; };
 struct WindowClose {};
 struct MouseLeave {};   // the pointer left the window's content (or went onto its title bar)
 // Dropped from another app: the files of one drop together, or text. Where the pointer was.
@@ -33,7 +36,7 @@ struct SystemTheme { bool dark = true; };
 using InputEvent = std::variant<
     MouseMove, MouseButton, MouseScroll,
     KeyPress, KeyRelease, TextInput, Paste, Composition,
-    WindowResize, WindowClose, MouseLeave, FileDrop, TextDrop, SystemTheme
+    WindowResize, WindowMove, WindowClose, MouseLeave, FileDrop, TextDrop, SystemTheme
 >;
 
 namespace keys {

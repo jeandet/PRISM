@@ -135,6 +135,21 @@ struct Layout {
 };
 }
 
+TEST_CASE("a remembered place and maximized state reopen the window there") {
+    app::WindowGeometry g;
+    auto plain = g.applied_to({.width = 640, .height = 480});
+    CHECK(!plain.x);
+    CHECK(!plain.maximized);
+    g.x.set(-1200);   // a screen left of the main one
+    g.y.set(40);
+    g.positioned.set(true);
+    g.maximized.set(true);
+    auto cfg = g.applied_to({.width = 640, .height = 480});
+    CHECK(cfg.x == -1200);
+    CHECK(cfg.y == 40);
+    CHECK(cfg.maximized);
+}
+
 TEST_CASE("window geometry and pane sizes are settings too") {
     settings_test::Layout l;
     l.window.width.set(1200);

@@ -146,15 +146,25 @@ public:
     [[nodiscard]] bool system_prefers_dark() const { return system_dark_; }
     [[nodiscard]] const Theme& theme() const { return theme_; }   // the windows' current one
 
-    // Keeps `g` at the main window's size as the user resizes it (whole window, title bar
-    // included, as WindowConfig takes it). `g` must outlive the run.
+    // Keeps `g` at the main window's size and place as the user changes them (whole window,
+    // title bar included, as WindowConfig takes it). `g` must outlive the run.
     void remember_window_size(WindowGeometry& g) { geometry_ = &g; }
     // From the event loop, on the main window's WindowResize (its content size).
-    void main_window_resized(int w, int content_h) {
+    void main_window_resized(const WindowResize& r) {
         if (!geometry_) return;
+        geometry_->maximized.set(r.maximized);
+        if (r.maximized) return;   // the size to come back to stays
+        int w = r.width, content_h = r.height;
         bool custom = window_->decoration_mode() == DecorationMode::Custom;
         geometry_->width.set(w);
         geometry_->height.set(content_h + (custom ? static_cast<int>(WindowChrome::title_bar_h.raw()) : 0));
+    }
+    // From the event loop, on the main window's WindowMove.
+    void main_window_moved(const WindowMove& m) {
+        if (!geometry_ || m.maximized) return;
+        geometry_->x.set(m.x);
+        geometry_->y.set(m.y);
+        geometry_->positioned.set(true);
     }
     // From the event loop, on a SystemTheme event.
     void system_theme_changed(bool dark) {
@@ -558,8 +568,10 @@ void model_app(Backend& backend, Window& window, Model& model,
                             entry->width = resize->width;
                             entry->height = resize->height;
                             needs_publish = true;
-                            if (wid == primary_id) ctx_holder->main_window_resized(resize->width, resize->height);
+                            if (wid == primary_id) ctx_holder->main_window_resized(*resize);
                         }
+                        if (auto* move = std::get_if<WindowMove>(&ev); move && wid == primary_id)
+                            ctx_holder->main_window_moved(*move);
                         if (auto* kp = std::get_if<KeyPress>(&ev)) {
                             // Sees every key, shortcuts included (e.g. Ctrl+V, which the focused
                             // text widget also gets as a Paste event) -- not a consuming handler.

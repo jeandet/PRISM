@@ -221,6 +221,23 @@ TEST_CASE("a theme the app chose stays when the OS changes") {
     CHECK(b->last->window.background == ui::light_theme().canvas_bg);
 }
 
+TEST_CASE("remember_window_size keeps where the window was, and whether it was maximized") {
+    Form model;
+    auto impl = std::make_unique<DropBackend>();
+    impl->events = {WindowResize{900, 650}, WindowMove{120, 80},
+                    WindowResize{1920, 1000, true}, WindowMove{0, 0, true}};
+    Backend backend{std::move(impl)};
+    auto& window = backend.create_window({});
+    WindowGeometry geometry;
+    model_app(backend, window, model, [&](AppContext& ctx) { ctx.remember_window_size(geometry); });
+    CHECK(geometry.maximized.get());
+    // A maximized window's size and place are the screen's: the ones to restore to stay.
+    CHECK(geometry.width.get() == 900);
+    CHECK(geometry.x.get() == 120);
+    CHECK(geometry.y.get() == 80);
+    CHECK(geometry.positioned.get());
+}
+
 TEST_CASE("remember_window_size keeps the window's size in the app's settings") {
     Form model;
     auto impl = std::make_unique<DropBackend>();

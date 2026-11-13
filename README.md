@@ -462,7 +462,8 @@ theme = "System"
 font_size = 12
 ```
 
-The window's size and a splitter's pane sizes are settings like any other. Put an
+The window's size, place and maximized state, and a splitter's pane sizes, are settings like
+any other (Wayland does not let an app place its window: there, only size and maximized). Put an
 `app::WindowGeometry` and a `core::Field<ui::SplitSizes>` in the struct, then:
 
 ```cpp

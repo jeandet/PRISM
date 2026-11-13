@@ -30,6 +30,13 @@ using namespace prism::render;
 using namespace prism::ui;
 using namespace prism::app;
 
+namespace {
+bool is_maximized(SDL_WindowID id) {
+    auto* w = SDL_GetWindowFromID(id);
+    return w && (SDL_GetWindowFlags(w) & SDL_WINDOW_MAXIMIZED);
+}
+}
+
 std::string SoftwareBackend::ui_font_path() const {
     return find_font(render_config_.font_path, PRISM_UI_FONT_PATH, backend_library_dir(),
                      PRISM_UI_FONT_INSTALL_PATH);
@@ -415,9 +422,12 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                             win && win->decoration_mode() == DecorationMode::Custom)
                             rh -= static_cast<int>(WindowChrome::title_bar_h.raw());
                     }
-                    event_cb(WindowEvent{wid, WindowResize{ev.window.data1, rh}});
+                    event_cb(WindowEvent{wid, WindowResize{ev.window.data1, rh, is_maximized(ev.window.windowID)}});
                     break;
                 }
+                case SDL_EVENT_WINDOW_MOVED:
+                    event_cb(WindowEvent{wid, WindowMove{ev.window.data1, ev.window.data2, is_maximized(ev.window.windowID)}});
+                    break;
                 case SDL_EVENT_MOUSE_MOTION: {
                     {
                         std::lock_guard<std::mutex> lk(windows_mutex_);
