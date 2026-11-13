@@ -4137,6 +4137,20 @@ def test_a_choice_takes_one_of_its_options_or_none():
     assert f.port.options == ["ttyACM0"]
 
 
+def test_a_wrapped_label_breaks_into_lines():
+    long = "A higher sampling rate gives finer detail, but the files grow with it, quickly."
+
+    class Page(prism.Model):
+        help = prism.label(long, wrap=True)
+
+        def view(self, vb):
+            vb.widget(self.help)
+
+    texts = prism._texts(Page())
+    assert long not in texts                      # not drawn as one line
+    assert "".join(texts).replace(" ", "") == long.replace(" ", "")
+
+
 def test_an_unknown_shortcut_is_a_clear_error():
     with pytest.raises(ValueError, match="Ctrl\\+Banana"):
         class Bad(prism.Model):

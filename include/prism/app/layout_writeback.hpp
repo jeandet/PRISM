@@ -85,7 +85,9 @@ inline void update_split_state(LayoutNode& layout_node) {
         update_split_state(child);
 }
 
-inline void update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
+// Returns whether a widget re-recorded at its new size changed height (a label that wraps):
+// then the layout it was placed by is stale, and the caller lays out again.
+inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
     // Propagate absolute position and the window size to all indexed widget nodes
     bool window_changed = false;
     if (layout_node.id != 0 && layout_node.source) {
@@ -127,13 +129,17 @@ inline void update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
                 Point{X{0}, Y{0}},
                 layout_node.allocated.extent
             };
+            float height_before = wn->draws.bounding_box().extent.h.raw();
             wn->record(*wn);
             layout_node.overlay_draws = wn->overlay_draws;
+            return wn->draws.bounding_box().extent.h.raw() != height_before;
         }
-        return;
+        return false;
     }
+    bool changed = false;
     for (auto& child : layout_node.children)
-        update_canvas_bounds(child, viewport);
+        changed |= update_canvas_bounds(child, viewport);
+    return changed;
 }
 
 } // namespace prism::app::widget_detail

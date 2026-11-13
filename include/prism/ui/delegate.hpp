@@ -65,6 +65,7 @@ template <StringLike T = std::string>
 struct Label {
     T value{};
     bool heading = false;   // a title: larger and brighter, with no box behind it
+    bool wrap = false;      // breaks into lines to fit its width, and grows as tall as they are
     bool operator==(const Label&) const = default;
 };
 
@@ -628,11 +629,18 @@ struct Widget<Label<T>> {
         auto& t = node_theme(node);
         Width w = delegate_detail::widget_w(node);
         const auto& l = field.get();
+        std::string_view text(l.value.data(), l.value.size());
+        auto lines = l.wrap ? wrap_lines(text, Width{std::max(1.f, w.raw() - 8.f)}, t.measurer, size_of(l), FontRole::Ui)
+                            : std::vector<LineSpan>{{0, text.size()}};
+        float line_h = line_height(t.measurer, size_of(l));
+        float one_line = l.heading ? 30.f : 24.f;
+        Height h{one_line + line_h * static_cast<float>(std::max<std::size_t>(lines.size(), 1) - 1)};
         // A heading's box is clear: it still gives the widget its height.
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{l.heading ? 30.f : 24.f}),
-                       l.heading ? Color::rgba(0, 0, 0, 0) : t.surface);
-        dl.text(std::string(l.value.data(), l.value.size()), delegate_detail::make_point(X{4}, Y{4}), size_of(l),
-                l.heading ? t.text : t.text_muted);
+        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, h), l.heading ? Color::rgba(0, 0, 0, 0) : t.surface);
+        for (std::size_t i = 0; i < lines.size(); ++i)
+            dl.text(std::string(text.substr(lines[i].start, lines[i].length)),
+                    delegate_detail::make_point(X{4}, Y{4 + line_h * static_cast<float>(i)}), size_of(l),
+                    l.heading ? t.text : t.text_muted);
     }
 
     static void handle_input(Field<Label<T>>&, const InputEvent&, WidgetNode&) {}

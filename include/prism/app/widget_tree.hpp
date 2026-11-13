@@ -788,7 +788,13 @@ public:
             ++layout_passes;
         }
 
-        update_canvas_bounds(layout, Size{Width{w}, Height{h}});
+        // A widget whose height follows its width (a wrapped label) learns its height only
+        // once placed: lay out again with it, so it shows right in this frame, not the next.
+        if (update_canvas_bounds(layout, Size{Width{w}, Height{h}})) {
+            layout = do_layout();
+            ++layout_passes;
+            update_canvas_bounds(layout, Size{Width{w}, Height{h}});
+        }
         if (popup) update_canvas_bounds(popup->content, Size{Width{w}, Height{h}});
         adopt_popup(root_);
 

@@ -3327,10 +3327,11 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(ContextMenu{.items = py_menu_items(items)});
                 return make_bound_menu(std::move(owner), p);
             }, nb::arg("items"))
-        .def("_add_label_internal", [](PyModel& self, std::string text, bool heading){
-                auto [owner, p] = self.add_widget_slot(Label<std::string>{.value = std::move(text), .heading = heading});
+        .def("_add_label_internal", [](PyModel& self, std::string text, bool heading, bool wrap){
+                auto [owner, p] = self.add_widget_slot(Label<std::string>{.value = std::move(text), .heading = heading,
+                                                                          .wrap = wrap});
                 return make_bound_text<BoundLabel>(std::move(owner), p);
-            }, nb::arg("text"), nb::arg("heading"))
+            }, nb::arg("text"), nb::arg("heading"), nb::arg("wrap") = false)
         .def("_add_text_area_internal", [](PyModel& self, std::string text, std::size_t rows, bool read_only,
                                            std::string placeholder){
                 auto [owner, p] = self.add_widget_slot(TextArea<std::string>{

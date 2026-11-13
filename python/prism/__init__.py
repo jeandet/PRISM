@@ -491,7 +491,7 @@ class _FieldDescriptor(_Descriptor):
         elif self.kind == "popup":
             h = instance._add_popup_internal(self.meta["modal"])
         elif self.kind == "label":
-            h = instance._add_label_internal(self.default, self.meta["heading"])
+            h = instance._add_label_internal(self.default, self.meta["heading"], self.meta["wrap"])
         elif self.kind == "text_area":
             m = self.meta
             h = instance._add_text_area_internal(self.default, m["rows"], m["read_only"], m["placeholder"])
@@ -677,9 +677,11 @@ def combobox(default="", options=(), placeholder="", validator=None, *, tooltip=
     ), tooltip)
 
 
-def label(text="", heading=False, *, tooltip=None):
-    """Text shown, not edited (C++ ``Label``); ``heading`` makes it a title. ``.value`` is the text."""
-    return _tooltipped(_FieldDescriptor(str(text), kind="label", meta={"heading": bool(heading)}), tooltip)
+def label(text="", heading=False, *, wrap=False, tooltip=None):
+    """Text shown, not edited (C++ ``Label``); ``heading`` makes it a title, ``wrap`` breaks it
+    into lines to fit its width. ``.value`` is the text."""
+    return _tooltipped(_FieldDescriptor(str(text), kind="label",
+                                        meta={"heading": bool(heading), "wrap": bool(wrap)}), tooltip)
 
 
 def text_area(default="", rows=6, read_only=False, placeholder="", *, tooltip=None):
