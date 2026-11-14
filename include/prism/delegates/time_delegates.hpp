@@ -2,6 +2,7 @@
 
 #include <prism/ui/widget_node.hpp>
 
+#include <cctype>
 #include <charconv>
 #include <cstdio>
 #include <optional>
@@ -24,6 +25,8 @@ inline std::string to_text(TimeOfDay t) {
 inline std::optional<TimeOfDay> parse(std::string_view s) {
     if (s.size() != 5 || s[2] != ':') return std::nullopt;
     auto number = [&](std::size_t at) -> std::optional<int> {
+        if (!std::isdigit(static_cast<unsigned char>(s[at])) || !std::isdigit(static_cast<unsigned char>(s[at + 1])))
+            return std::nullopt;   // from_chars would take a sign
         int v = 0;
         auto [end, err] = std::from_chars(s.data() + at, s.data() + at + 2, v);
         if (err != std::errc{} || end != s.data() + at + 2) return std::nullopt;
@@ -105,7 +108,9 @@ inline void on_text(TimeEditState& es, std::string_view text, Field<TimeOfDay>& 
 inline void Widget<TimeOfDay>::describe(const Field<TimeOfDay>& f, AccessInfo& a) { a.value = time_detail::to_text(f.get()); }
 
 inline void Widget<TimeOfDay>::record(DrawList& dl, const Field<TimeOfDay>& field, WidgetNode& node) {
-    time_detail::draw(dl, field.get(), node.get_or_create<TimeEditState>(), node);
+    auto& es = node.get_or_create<TimeEditState>();
+    if (!node_vs(node).focused) es.pending.reset();   // a half-typed part ends with the focus
+    time_detail::draw(dl, field.get(), es, node);
 }
 
 inline void Widget<TimeOfDay>::handle_input(Field<TimeOfDay>& field, const InputEvent& ev, WidgetNode& node) {
@@ -116,11 +121,14 @@ inline void Widget<TimeOfDay>::handle_input(Field<TimeOfDay>& field, const Input
         es.pending.reset();
         node.dirty = true;
     } else if (auto* ms = std::get_if<MouseScroll>(&ev); ms && ms->dy.raw() != 0) {
+        es.pending.reset();
         field.set(time_detail::step(field.get(), es.part, ms->dy.raw() > 0 ? 1 : -1));   // dy > 0: away from the user
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         time_detail::on_key(es, kp->key, field, node);
     } else if (auto* ti = std::get_if<TextInput>(&ev)) {
         time_detail::on_text(es, ti->text, field, node);
+    } else if (auto* p = std::get_if<Paste>(&ev)) {
+        time_detail::on_text(es, p->text, field, node);   // "12:45": its digits, typed
     }
 }
 

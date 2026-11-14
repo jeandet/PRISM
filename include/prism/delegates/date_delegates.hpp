@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <charconv>
 #include <chrono>
 #include <cstdio>
@@ -33,6 +34,8 @@ inline std::string to_iso(year_month_day d) {
 inline std::optional<year_month_day> parse_iso(std::string_view s) {
     if (s.size() != 10 || s[4] != '-' || s[7] != '-') return std::nullopt;
     auto number = [&](std::size_t at, std::size_t len) -> std::optional<int> {
+        for (std::size_t i = at; i < at + len; ++i)
+            if (!std::isdigit(static_cast<unsigned char>(s[i]))) return std::nullopt;   // from_chars would take a sign
         int v = 0;
         auto [end, err] = std::from_chars(s.data() + at, s.data() + at + len, v);
         if (err != std::errc{} || end != s.data() + at + len) return std::nullopt;

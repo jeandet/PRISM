@@ -107,3 +107,44 @@ TEST_CASE("the wheel steps the picked part") {
     f.frame();
     CHECK(f.now() == TimeOfDay{15, 30});
 }
+
+TEST_CASE("negative parts are not a time") {
+    CHECK_FALSE(time_detail::parse("-5:00"));
+    CHECK_FALSE(time_detail::parse("05:-1"));
+    CHECK_FALSE(date_detail::parse_iso("-123-05-01"));
+}
+
+TEST_CASE("the wheel ends a half-typed part") {
+    Fixture f;
+    f.click(Point{X{8 + 30}, Y{15}});   // the minutes
+    f.type("5");                        // 05, waiting for a second digit
+    route_event(f.tree, f.snap.get(), MouseScroll{Point{X{38}, Y{15}}, DX{0}, DY{1}});
+    f.frame();
+    f.type("7");
+    CHECK(f.now() == TimeOfDay{14, 7});
+}
+
+TEST_CASE("losing the focus ends a half-typed part") {
+    struct Two {
+        Field<TimeOfDay> a{{14, 30}}, b{{8, 0}};
+        void view(WidgetTree::ViewBuilder& vb) { vb.vstack(a, b); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    uint64_t v = 1;
+    auto send = [&](const InputEvent& ev) { route_event(tree, snap.get(), ev); snap = tree.build_snapshot(400, 300, ++v); };
+    send(KeyPress{keys::tab, 0});
+    send(TextInput{"1"});               // hour 01, waiting
+    send(KeyPress{keys::tab, 0});       // to b
+    send(KeyPress{keys::tab, mods::shift});   // back to a
+    send(TextInput{"2"});
+    CHECK(m.a.get().hour == 2);
+}
+
+TEST_CASE("a paste types its digits") {
+    Fixture f;
+    f.key(keys::tab);
+    route_event(f.tree, f.snap.get(), Paste{"12:45"});
+    f.frame();
+    CHECK(f.now() == TimeOfDay{12, 45});
+}
