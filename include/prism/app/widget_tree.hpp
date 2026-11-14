@@ -767,6 +767,7 @@ public:
             // would silently never apply.
             if (auto* ss = std::any_cast<SplitState>(&root_.edit_state); ss && ss->engaged)
                 layout.split_sizes = ss->pane_sizes;
+            layout_kept = 0;   // a later pass builds everything: only the last pass's count holds
             LayoutCacheCursor cursor{keep_layout ? &*last_layout_ : nullptr, 0, &layout_kept};
             keep_layout = false;
             bool root_splits = splits(root_);
@@ -776,7 +777,7 @@ public:
             }
             layout.children.reserve(root_.children.size());
             for (auto& c : root_.children)
-                build_layout(c, layout);
+                build_layout(c, layout, /*keep=*/true);
 
             layout_measure(layout, LayoutAxis::Vertical);
             layout_arrange(layout, {Point{X{0}, Y{0}}, Size{Width{w}, Height{h}}});

@@ -58,7 +58,9 @@ inline std::optional<ScrollView> get_scroll_view(WidgetNode& node) {
     return std::nullopt;
 }
 
-inline void build_layout(WidgetNode& node, LayoutNode& parent);
+// `keep`: move over the subtrees link_layout_cache() just marked as still holding. Only a
+// layout linked right before may say so; any other caller builds everything.
+inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep = false);
 
 // --- Keeping the layout tree between publishes ---
 // A widget subtree with nothing changed since the last publish keeps its layout nodes: they are
@@ -132,16 +134,16 @@ inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
 
 // Appends the layout nodes of node's children to `into`, allocating once: a LayoutNode is
 // large, and growing the vector one child at a time moved every earlier sibling each time.
-inline void build_children(WidgetNode& node, LayoutNode& into) {
+inline void build_children(WidgetNode& node, LayoutNode& into, bool keep) {
     into.children.reserve(into.children.size() + node.children.size());
     for (auto& c : node.children)
-        build_layout(c, into);
+        build_layout(c, into, keep);
 }
 
-inline void build_layout(WidgetNode& node, LayoutNode& parent) {
+inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep) {
     using LK = LayoutKind;
 
-    if (node.layout_reusable && node.cached_layout) {
+    if (keep && node.layout_reusable && node.cached_layout) {
         parent.children.push_back(std::move(*node.cached_layout));
         node.cached_layout = nullptr;
         return;
@@ -200,7 +202,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         container.theme = node.theme;
         if (auto* ss = std::any_cast<ScrollState>(&node.edit_state))
             container.scroll_offset = ss->offset_y;
-        build_children(node, container);
+        build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::VirtualList) {
         LayoutNode container;
@@ -215,7 +217,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             container.vlist_visible_start = vls->visible_start.raw();
             container.vlist_item_height = vls->item_height;
         }
-        build_children(node, container);
+        build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Table) {
         LayoutNode container;
@@ -234,7 +236,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
             container.table_scroll_x = ts->scroll_x;
         }
         container.overlay_draws = node.overlay_draws;
-        build_children(node, container);
+        build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Tabs) {
         LayoutNode container;
@@ -242,7 +244,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         container.id = node.id;
         container.source = &node;
         container.theme = node.theme;
-        build_children(node, container);
+        build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Row || node.layout_kind == LK::Column) {
         LayoutNode container;
@@ -254,11 +256,11 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent) {
         if (auto* ss = std::any_cast<SplitState>(&node.edit_state); ss && ss->engaged)
             container.split_sizes = ss->pane_sizes;
         container.frame = node.frame;
-        build_children(node, container);
+        build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else {
         for (auto& c : node.children)
-            build_layout(c, parent);
+            build_layout(c, parent, keep);
     }
 }
 

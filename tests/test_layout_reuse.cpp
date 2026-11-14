@@ -112,3 +112,15 @@ TEST_CASE("a resize lays the reused nodes out at the new size") {
     f = fresh.build_snapshot(250, 300, 2);
     CHECK(geometry(*snap) == geometry(*f));
 }
+
+TEST_CASE("a publish that lays out twice reports nothing kept: the second pass built it all") {
+    Rows m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 300, 1);
+    tree.clear_dirty();
+    snap = tree.build_snapshot(400, 300, 2);
+    tree.clear_dirty();
+    snap = tree.build_snapshot(400, 200, 3);   // the scroll view's viewport shrinks: a second pass
+    REQUIRE(snap->layout_pass_count > 1);
+    CHECK(snap->layout_nodes_reused == 0);
+}
