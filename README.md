@@ -320,6 +320,9 @@ A tree selects several nodes with Ctrl-click, Shift-click and Shift+arrows. A so
 `checked(id)` and `set_checked(id, on)` gets checkboxes (a click on the box or Space toggles it);
 one with `rename(id, name)` renames nodes in place with F2 or a double-click, and refuses a name
 by returning false.
+A table cell can hold a checkbox (`cell_check(row, col)`; a click hands `set_cell` "true" or
+"false", and a `bool` member of a `List<struct>` row gets one for free) or an icon before its
+text (`cell_image(row, col)`).
 Click a table header to sort (numbers sort by value), drag a header edge to resize a column,
 and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
 A sorted table re-sorts when it hears about a change: a `List<T>` notifies it, and column

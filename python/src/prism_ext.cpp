@@ -1031,6 +1031,8 @@ struct SlotTree : SlotBase {
 struct PyTableData {
     std::shared_ptr<nb::object> held;
     mutable std::vector<std::string> headers;   // header() returns a view: kept here
+    // cell_image paths, decoded once (cells are drawn on every repaint).
+    mutable std::unordered_map<std::string, std::shared_ptr<const prism::render::Image>> images;
     size_t column_count() const {
         nb::gil_scoped_acquire g;
         auto o = *held;
@@ -1061,6 +1063,29 @@ struct PyTableData {
         if (!nb::hasattr(o, "set_cell") || o.attr("set_cell").is_none()) return false;
         return !nb::hasattr(o, "editable") || nb::cast<bool>(o.attr("editable")(c));
     }
+    // cell_check(row, col): True or False draws a checkbox (a click hands set_cell "true" or
+    // "false"); None, or no such method, a plain cell.
+    std::optional<bool> cell_check(size_t r, size_t c) const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        if (!nb::hasattr(o, "cell_check") || o.attr("cell_check").is_none()) return std::nullopt;
+        auto v = o.attr("cell_check")(r, c);
+        if (v.is_none()) return std::nullopt;
+        return nb::cast<bool>(v);
+    }
+    // cell_image(row, col): the path of an icon drawn before the text, or None. A file that
+    // cannot be read shows no icon.
+    std::shared_ptr<const prism::render::Image> cell_image(size_t r, size_t c) const {
+        nb::gil_scoped_acquire g;
+        auto o = *held;
+        if (!nb::hasattr(o, "cell_image") || o.attr("cell_image").is_none()) return nullptr;
+        auto v = o.attr("cell_image")(r, c);
+        if (v.is_none()) return nullptr;
+        auto path = nb::cast<std::string>(v);
+        if (auto it = images.find(path); it != images.end()) return it->second;
+        auto loaded = prism::render::load_image(path, Size{Width{16}, Height{16}});
+        return images[path] = loaded ? *loaded : nullptr;
+    }
     // set_cell's answer: False refuses the text (the editor stays open); None or anything else
     // takes it. An exception is reported and refuses it.
     bool set_cell(size_t r, size_t c, std::string_view text) {
@@ -1080,7 +1105,7 @@ struct SlotTable : SlotBase {
     PyTableData data;
     Field<std::int64_t> revision{0};   // refresh() bumps it: the table re-reads the source
     explicit SlotTable(nb::object py_obj)
-        : py_src_holder(std::make_shared<nb::object>(std::move(py_obj))), data{py_src_holder, {}} {}
+        : py_src_holder(std::make_shared<nb::object>(std::move(py_obj))), data{py_src_holder, {}, {}} {}
     void build(ViewBuilder& vb) override { vb.table(data).depends_on(revision); }
     void traverse(visitproc visit, void* arg) override {
         if (py_src_holder) if (PyObject* o = py_src_holder->ptr()) visit(o, arg);
@@ -3662,7 +3687,7 @@ NB_MODULE(_prism_ext, m) {
     // Test helper: every text the model's view draws (after two frames, so built-on-demand parts
     // such as a dock are there).
     m.def("_table_set_cell", [](nb::object src, size_t r, size_t c, std::string text) {
-        PyTableData d{std::make_shared<nb::object>(src), {}};
+        PyTableData d{std::make_shared<nb::object>(src), {}, {}};
         nb::gil_scoped_release rel;   // as the logic thread calls it
         return d.set_cell(r, c, text);
     });
@@ -3681,8 +3706,13 @@ NB_MODULE(_prism_ext, m) {
         c.toggle_check(static_cast<prism::ui::TreeNodeId>(id));
         return s.checked ? s.checked(static_cast<prism::ui::TreeNodeId>(id)) : std::nullopt;
     });
+    m.def("_table_cell_check", [](nb::object src, size_t r, size_t c) {
+        PyTableData d{std::make_shared<nb::object>(src), {}, {}};
+        nb::gil_scoped_release rel;
+        return prism::ui::wrap_column_storage(d).cell_check(r, c);
+    });
     m.def("_table_editable", [](nb::object src, size_t c) {
-        PyTableData d{std::make_shared<nb::object>(src), {}};
+        PyTableData d{std::make_shared<nb::object>(src), {}, {}};
         nb::gil_scoped_release rel;
         return d.editable(c);
     });

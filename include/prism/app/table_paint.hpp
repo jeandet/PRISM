@@ -22,6 +22,20 @@ inline void paint_cell_editor(DrawList& dl, const CellEdit& e, Size cell, const 
     draw_line_editor(dl, e.text, e.rejected, Rect{Point{X{0}, Y{0}}, cell}, 14.f, theme);
 }
 
+// A cell's content (clip-relative): its box, or its icon and text.
+inline void paint_cell(DrawList& dl, const TableState& ts, size_t row, size_t c, const Theme& theme) {
+    constexpr float box = 16.f;
+    Y mid{(ts.row_height.raw() - box) / 2};
+    if (auto on = ts.source.cell_check ? ts.source.cell_check(row, c) : std::nullopt)
+        return draw_check_box(dl, X{4.f}, mid, *on, WidgetVisualState{}, theme);
+    X x{4.f};
+    if (auto img = ts.source.cell_image ? ts.source.cell_image(row, c) : nullptr) {
+        dl.image(img, Rect{Point{x, mid}, Size{Width{box}, Height{box}}}, icon_tint(img, theme.text));
+        x = x + DX{box + 4.f};
+    }
+    dl.text(ts.source.cell_text(row, c), Point{x, Y{4.f}}, 14.f, theme.text);
+}
+
 // Paints one row (recycled from the pool when possible): zebra/selection
 // background, per-cell clipped text, and column dividers.
 inline WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::vector<float>& edges, const Theme& theme) {
@@ -50,7 +64,7 @@ inline WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::ve
         if (ts.editing && ts.editing->row == row && ts.editing->column == c)
             paint_cell_editor(wn.draws, *ts.editing, Size{cw, ts.row_height}, theme);
         else
-            wn.draws.text(ts.source.cell_text(row, c), Point{X{4.f}, Y{4.f}}, 14.f, theme.text);  // clip-relative
+            paint_cell(wn.draws, ts, row, c, theme);
         wn.draws.clip_pop();
         if (c > 0)
             wn.draws.filled_rect(Rect{Point{cx, Y{0}}, Size{Width{1.f}, ts.row_height}},

@@ -53,12 +53,27 @@ inline TableInputResult header_press(TableState& ts, Point local) {
     return {false, CursorShape::Default};
 }
 
+// The column whose checkbox (4 to 20 px into the cell) is under `local`, in source row `row`.
+// simplify: Space does not toggle a box yet (the keys move rows); add it with a current cell.
+inline std::optional<size_t> check_box_at(const TableState& ts, size_t row, Point local) {
+    auto edges = column_edges(ts);
+    float x = content_x(ts, local);
+    auto c = column_at(edges, x);
+    if (!c || !is_check_cell(ts, row, *c)) return std::nullopt;
+    float in = x - edges[*c];
+    return in >= 4.f && in < 20.f ? c : std::nullopt;
+}
+
 inline TableInputResult body_press(TableState& ts, Point local, uint16_t m, uint8_t clicks) {
     if (ts.editing && !commit_edit(ts)) cancel_edit(ts);   // a click elsewhere ends the edit
     float body_y = local.y.raw() - ts.row_height.raw() + ts.scroll_y.raw();
     auto pos = static_cast<size_t>(body_y / ts.row_height.raw());
     if (pos >= ts.row_count()) return {true, CursorShape::Default};
     size_t row = source_row(ts, pos);
+    if (auto c = check_box_at(ts, row, local)) {   // every click on a box flips it
+        toggle_check(ts, row, *c);
+        return {true, CursorShape::Default};
+    }
     if (clicks >= 2) {   // a double-click edits the cell
         select_single(ts, row);
         if (auto c = column_at(column_edges(ts), content_x(ts, local))) begin_edit(ts, row, *c);
@@ -118,7 +133,7 @@ inline TableInputResult edit_key(TableState& ts, const KeyPress& kp) {
     else if (kp.key == keys::escape) cancel_edit(ts);
     else if (kp.key == keys::tab) {
         size_t row = e.row, col = e.column;
-        auto next = next_editable_column(ts, col, (kp.mods & mods::shift) ? -1 : +1);
+        auto next = next_editable_column(ts, col, (kp.mods & mods::shift) ? -1 : +1, row);
         if (commit_edit(ts) && next) begin_edit(ts, row, *next);
     } else if (kp.key == keys::home || kp.key == keys::end) {
         e.text = text_edit::move_to(e.text, kp.key == keys::home ? 0 : e.text.text.size(), (kp.mods & mods::shift) != 0);
@@ -133,7 +148,7 @@ inline TableInputResult edit_key(TableState& ts, const KeyPress& kp) {
 inline TableInputResult on_key(TableState& ts, const KeyPress& kp) {
     if (ts.editing) return edit_key(ts, kp);
     if (kp.key == keys::f2 && ts.selected_row.get()) {
-        if (auto c = first_editable_column(ts)) begin_edit(ts, *ts.selected_row.get(), *c);
+        if (auto c = first_editable_column(ts, *ts.selected_row.get())) begin_edit(ts, *ts.selected_row.get(), *c);
         return {true, std::nullopt};
     }
     size_t n = ts.row_count();

@@ -271,15 +271,32 @@ inline bool column_editable(const TableState& ts, size_t column) {
     return editable(ts) && column < ts.column_count && (!ts.source.column_editable || ts.source.column_editable(column));
 }
 
-// The editable column after (or, `step` -1, before) `from`, if any.
-inline std::optional<size_t> next_editable_column(const TableState& ts, size_t from, int step) {
+inline bool is_check_cell(const TableState& ts, size_t row, size_t column) {
+    return ts.source.cell_check && row < ts.row_count() && ts.source.cell_check(row, column).has_value();
+}
+
+// Whether the text editor may open on a cell: an editable column, not a checkbox.
+inline bool text_editable(const TableState& ts, std::optional<size_t> row, size_t column) {
+    return column_editable(ts, column) && !(row && is_check_cell(ts, *row, column));
+}
+
+// The column after (or, `step` -1, before) `from` whose cell in `row` takes text, if any.
+inline std::optional<size_t> next_editable_column(const TableState& ts, size_t from, int step,
+                                                  std::optional<size_t> row = std::nullopt) {
     for (auto c = static_cast<std::ptrdiff_t>(from) + step; c >= 0 && c < static_cast<std::ptrdiff_t>(ts.column_count); c += step)
-        if (column_editable(ts, static_cast<size_t>(c))) return static_cast<size_t>(c);
+        if (text_editable(ts, row, static_cast<size_t>(c))) return static_cast<size_t>(c);
     return std::nullopt;
 }
 
-inline std::optional<size_t> first_editable_column(const TableState& ts) {
-    return column_editable(ts, 0) ? std::optional<size_t>{0} : next_editable_column(ts, 0, +1);
+inline std::optional<size_t> first_editable_column(const TableState& ts, std::optional<size_t> row = std::nullopt) {
+    return text_editable(ts, row, 0) ? std::optional<size_t>{0} : next_editable_column(ts, 0, +1, row);
+}
+
+// Flips a checkbox cell through set_cell; false when the cell has no box, the column takes no
+// edits, or the source refuses.
+inline bool toggle_check(TableState& ts, size_t row, size_t column) {
+    if (!column_editable(ts, column) || !is_check_cell(ts, row, column)) return false;
+    return ts.source.set_cell(row, column, *ts.source.cell_check(row, column) ? "false" : "true");
 }
 
 // Scrolls sideways just enough to show column `c` (its left edge, if it is wider than the view).
@@ -293,7 +310,7 @@ inline void reveal_column(TableState& ts, size_t c) {
 
 // Opens the editor on a cell (source row, column), its text all selected, scrolled into view.
 inline void begin_edit(TableState& ts, size_t row, size_t column) {
-    if (!column_editable(ts, column) || row >= ts.row_count()) return;
+    if (!text_editable(ts, row, column) || row >= ts.row_count()) return;
     reveal_column(ts, column);
     ts.editing = CellEdit{row, column, text_edit::select_all(TextEdit{ts.source.cell_text(row, column)})};
 }

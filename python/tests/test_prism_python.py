@@ -4228,6 +4228,27 @@ def test_a_python_table_with_set_cell_takes_edits():
     assert prism._table_editable(ReadOnly(), 0) is False
 
 
+def test_a_python_table_with_checkbox_cells():
+    class Todo:
+        def __init__(self):
+            self.done = [False, True]
+
+        def column_count(self): return 2
+        def row_count(self): return 2
+        def cell_text(self, r, c): return "task"
+        def header(self, c): return ["Done", "Task"][c]
+        def cell_check(self, r, c): return self.done[r] if c == 0 else None
+
+        def set_cell(self, r, c, text):
+            self.done[r] = text == "true"
+
+    t = Todo()
+    assert prism._table_cell_check(t, 1, 0) is True
+    assert prism._table_cell_check(t, 1, 1) is None
+    assert prism._table_set_cell(t, 0, 0, "true") is True
+    assert prism._table_cell_check(t, 0, 0) is True
+
+
 def test_a_python_tree_source_with_checkboxes_and_rename():
     class Tasks:
         def __init__(self):

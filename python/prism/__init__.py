@@ -76,6 +76,7 @@ from ._prism_ext import (
     _drag_text,
     _texts,
     _table_set_cell,
+    _table_cell_check,
     _tree_rename,
     _tree_toggle_check,
     _table_editable,
@@ -139,6 +140,11 @@ class TableSource(Protocol):
             def row_count(self) -> int: ...
             def cell_text(self, row: int, col: int) -> str: ...
             def header(self, col: int) -> str: ...  # optional
+            # optional, for editing:
+            def set_cell(self, row: int, col: int, text: str) -> bool | None: ...  # False refuses
+            def editable(self, col: int) -> bool: ...
+            def cell_check(self, row: int, col: int) -> bool | None: ...  # a checkbox cell
+            def cell_image(self, row: int, col: int) -> str | None: ...   # an icon's file path
     """
 
     def column_count(self) -> int: ...

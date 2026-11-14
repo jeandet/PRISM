@@ -13,6 +13,7 @@
 #include <cassert>
 #include <charconv>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -36,6 +37,11 @@ struct TableSource {
     std::function<bool(size_t row, size_t col, std::string_view text)> set_cell{};
     // Which columns take edits; unset: all of them (when set_cell is set).
     std::function<bool(size_t col)> column_editable{};
+    // A cell holding a checkbox (nullopt: a plain cell): it draws the box instead of its text,
+    // and a click toggles it through set_cell, with "true" or "false".
+    std::function<std::optional<bool>(size_t row, size_t col)> cell_check{};
+    // An icon drawn before the cell's text (nullptr: none).
+    std::function<std::shared_ptr<const Image>(size_t row, size_t col)> cell_image{};
 };
 
 template <typename T>
@@ -64,6 +70,23 @@ std::function<bool(size_t)> column_editable_of(T& data) {
         return {};
 }
 
+// The source's cell_check(row, col) and cell_image(row, col), if it has them.
+template <ColumnStorage T>
+std::function<std::optional<bool>(size_t, size_t)> column_cell_check(T& data) {
+    if constexpr (requires(size_t r) { { data.cell_check(r, r) } -> std::convertible_to<std::optional<bool>>; })
+        return [d = &data](size_t r, size_t c) -> std::optional<bool> { return d->cell_check(r, c); };
+    else
+        return {};
+}
+
+template <ColumnStorage T>
+std::function<std::shared_ptr<const Image>(size_t, size_t)> column_cell_image(T& data) {
+    if constexpr (requires(size_t r) { { data.cell_image(r, r) } -> std::convertible_to<std::shared_ptr<const Image>>; })
+        return [d = &data](size_t r, size_t c) -> std::shared_ptr<const Image> { return d->cell_image(r, c); };
+    else
+        return {};
+}
+
 template <ColumnStorage T>
 TableSource wrap_column_storage(T& data) {
     return TableSource{
@@ -77,6 +100,8 @@ TableSource wrap_column_storage(T& data) {
         },
         .set_cell = column_set_cell(data),
         .column_editable = column_editable_of(data),
+        .cell_check = column_cell_check(data),
+        .cell_image = column_cell_image(data),
     };
 }
 
@@ -215,6 +240,27 @@ TableSource wrap_row_storage(L& list) {
                 };
             return set;
         }(),
+        // A bool column is a checkbox column.
+        .cell_check = [&list](size_t row, size_t col) -> std::optional<bool> {
+            size_t idx = 0;
+            std::optional<bool> result;
+            const auto& r = list[row];
+            template for (constexpr auto m : members) {
+                using M = std::remove_cvref_t<decltype(r.[:m:])>;
+                if constexpr (any_field_member) {
+                    if constexpr (is_field_v<M>) {
+                        if constexpr (std::is_same_v<M, Field<bool>>)
+                            if (idx == col) result = r.[:m:].get();
+                        ++idx;
+                    }
+                } else if constexpr (!has_annotation<m, decltype(skip)>() && LeafType<M>) {
+                    if constexpr (std::is_same_v<M, bool>)
+                        if (idx == col) result = r.[:m:];
+                    ++idx;
+                }
+            }
+            return result;
+        },
     };
 }
 
