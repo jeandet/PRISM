@@ -4448,6 +4448,37 @@ def test_a_time_of_day_field_shows_hh_mm_and_takes_new_ones():
         prism.time_of_day("7:30")
 
 
+def test_a_tree_selection_is_readable_and_settable():
+    class Flat:
+        def root_count(self): return 3
+        def root_at(self, i): return i + 1
+        def child_count(self, nid): return 0
+        def child_at(self, nid, i): return 0
+        def label(self, nid): return f"node {nid}"
+        def has_children(self, nid): return False
+
+    class Browser(prism.Model):
+        nodes = prism.tree_field(Flat())
+
+        def view(self, vb):
+            vb.tree(self.nodes)
+
+    b = Browser()
+    seen = []
+    assert b.nodes.selected is None
+    assert b.nodes.selection == []
+    b.nodes.observe_selection(lambda ids: seen.append(ids))
+    b.nodes.selected = 2
+    assert b.nodes.selected == 2
+    assert b.nodes.selection == [2]
+    assert seen[-1] == [2]
+    prism._press_keys(b, ["Tab", "Shift+Down"])
+    assert b.nodes.selection == [2, 3]
+    assert b.nodes.selected == 3
+    b.nodes.selected = None
+    assert b.nodes.selection == []
+
+
 # --- docking ----------------------------------------------------------------------------
 
 

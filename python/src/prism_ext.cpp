@@ -1171,6 +1171,28 @@ struct BoundTree {
         auto snapshot = dispatch_sync_read<std::vector<prism::ui::TreeRow>>([p](){ return snapshot_tree_rows(p); });
         return tree_rows_to_pylist(snapshot);
     }
+    // The current node and every selected one (Ctrl/Shift-click, Shift+arrows), in row order.
+    std::optional<prism::ui::TreeNodeId> get_selected() const {
+        if (!ctrl) return std::nullopt;
+        auto* p = ctrl;
+        return dispatch_sync_read<std::optional<prism::ui::TreeNodeId>>([p] { return p->selected.get(); });
+    }
+    void set_selected(std::optional<prism::ui::TreeNodeId> id) {
+        if (!ctrl) return;
+        auto* p = ctrl;
+        list_op_dispatch(owner, [p, id] { p->selected.set(id); });
+    }
+    std::vector<prism::ui::TreeNodeId> selection() const {
+        if (!ctrl) return {};
+        auto* p = ctrl;
+        return dispatch_sync_read<std::vector<prism::ui::TreeNodeId>>([p] { return p->selection.get(); });
+    }
+    Connection observe_selection(nb::callable cb) {
+        if (!ctrl) throw nb::value_error("observe_selection(): handle is not bound to a Model");
+        auto c = ctrl->selection.on_change().connect(WeakCallback(cb));
+        if (owner) c.keep_alive(owner);
+        return c;
+    }
 };
 struct TreeHandle {
     std::shared_ptr<prism::ui::TreeController> ctrl;
@@ -3307,6 +3329,13 @@ NB_MODULE(_prism_ext, m) {
                           "dispatched read that blocks until the logic thread answers.")
         .def("refresh", &BoundTree::refresh,
              "Any thread; posted to the logic thread. Re-pulls rows from the tree source.")
+        .def_prop_rw("selected", &BoundTree::get_selected, &BoundTree::set_selected,
+                     "The current node's id (None: none). Setting it selects that node alone. Any thread.")
+        .def_prop_ro("selection", &BoundTree::selection,
+                     "Every selected node's id, in the order the rows show (Ctrl/Shift-click, Shift+arrows).")
+        .def("observe_selection", [](nb::object self, nb::callable cb) {
+            return keep_connection(self, nb::cast<BoundTree&>(self).observe_selection(cb), cb);
+        }, nb::arg("callback"), kObserveDoc)
         .def("rows", &BoundTree::rows,
              "Any thread; dispatched read. Returns the visible rows as a list of TreeRow "
              "namedtuples (label, depth, has_children, expanded, selected).");
