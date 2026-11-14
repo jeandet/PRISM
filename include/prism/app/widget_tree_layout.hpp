@@ -81,8 +81,8 @@ inline bool passes_through(const WidgetNode& n) {
 }
 // A splitter rewrites its panes' size hints while measuring, so they are measured afresh.
 inline bool splits(const WidgetNode& n) {
-    return std::any_cast<SplitState>(&n.edit_state)
-        || std::ranges::any_of(n.children, [](const WidgetNode& c) { return c.layout_kind == LayoutKind::Handle; });
+    return n.is_container && (std::any_cast<SplitState>(&n.edit_state)
+        || std::ranges::any_of(n.children, [](const WidgetNode& c) { return c.layout_kind == LayoutKind::Handle; }));
 }
 
 // The last publish's layout children of one node, walked in order to find each widget's own.
@@ -118,16 +118,17 @@ inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
     LayoutNode* cached = siblings.take(node);
     node.cached_layout = cached;
     bool children_kept = true;
+    bool split = splits(node);
     if (node.is_container) {
         LayoutCacheCursor inner{cached, 0, siblings.kept};
         for (auto& c : node.children) children_kept &= link_layout_cache(c, inner);
         children_kept &= inner.consumed();
-        if (splits(node))
+        if (split)
             for (auto& c : node.children) c.layout_reusable = false;
     }
-    node.layout_reusable = cached && cached->id == node.id && !node.dirty && !node.relayout
-        && node.overlay_draws.empty() && cached->overlay_draws.empty()
-        && cached->measured_axis.has_value() && children_kept && !keeps_state(node) && !splits(node);
+    node.layout_reusable = cached && children_kept && !split && cached->id == node.id && !node.dirty
+        && !node.relayout && node.overlay_draws.empty() && cached->overlay_draws.empty()
+        && cached->measured_axis.has_value() && !keeps_state(node);
     if (node.layout_reusable && siblings.kept) ++*siblings.kept;
     return node.layout_reusable;
 }
