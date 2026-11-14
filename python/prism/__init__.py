@@ -162,6 +162,7 @@ __all__ = [
     "picture",
     "link",
     "color",
+    "date",
     "expander",
     "spinbox",
     "progress",
@@ -214,6 +215,7 @@ __all__ = [
 ]
 
 
+import datetime as _datetime_mod
 import re as _re_mod
 import weakref as _wr_mod
 import atexit as _atexit_mod
@@ -496,6 +498,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_link_internal(self.meta["text"], self.meta["url"])
         elif self.kind == "color":
             h = instance._add_color_internal(self.default)
+        elif self.kind == "date":
+            h = instance._add_date_internal(self.default)
         elif self.kind == "picture":
             m = self.meta
             h = instance._add_picture_internal(m["path"], m["size"], m["description"])
@@ -650,6 +654,23 @@ def color(value="#000000", *, tooltip=None):
     if not _re_mod.fullmatch(r"#?[0-9a-fA-F]{6}", str(value)):
         raise ValueError(f'prism.color(): expected "#RRGGBB", got {value!r}')
     return _tooltipped(_FieldDescriptor(str(value), kind="color"), tooltip)
+
+
+def _is_iso_date(text):
+    try:
+        return bool(_re_mod.fullmatch(r"\d{4}-\d{2}-\d{2}", text)) and bool(_datetime_mod.date.fromisoformat(text))
+    except ValueError:
+        return False
+
+
+def date(value, *, tooltip=None):
+    """A date picker (C++ ``Field<std::chrono::year_month_day>``): the date as text; a click
+    opens a month calendar (arrows move by day and week, Page Up/Down by month). ``.value`` is
+    ``"YYYY-MM-DD"``; setting it takes the same. A malformed or impossible date raises
+    ``ValueError``."""
+    if not _is_iso_date(str(value)):
+        raise ValueError(f'prism.date(): expected a real "YYYY-MM-DD", got {value!r}')
+    return _tooltipped(_FieldDescriptor(str(value), kind="date"), tooltip)
 
 
 def picture(path=None, *, width=None, height=None, description="", tooltip=None):

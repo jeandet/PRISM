@@ -132,3 +132,52 @@ TEST_CASE("the keyboard opens it: Space or Enter on the focused swatch") {
     f.key(keys::space);
     CHECK(f.popup_images().size() == 2);
 }
+
+TEST_CASE("dragging the hue of black redraws the square, though the color stays black") {
+    Fixture f;
+    f.open();
+    auto square = f.popup_images()[0];
+    auto bar = f.popup_images()[1];
+    f.click(inside(square, 0.5f, 0.999f));   // black
+    auto image_of_square = [&] {
+        for (auto& c : f.snap->overlay.commands)
+            if (auto* i = std::get_if<ImageCmd>(&c)) return i->image;
+        return std::shared_ptr<const Image>{};
+    };
+    f.press(inside(bar, 0.5f, 0.5f));
+    route_event(f.tree, f.snap.get(), MouseMove{inside(bar, 0.5f, 0.4f)});   // the first move also hovers
+    f.frame();
+    auto before = image_of_square();
+    route_event(f.tree, f.snap.get(), MouseMove{inside(bar, 0.5f, 0.25f)});   // the drag goes on
+    f.frame();
+    CHECK(f.p.ink.get() == Color::rgba(0, 0, 0, 200));
+    CHECK(image_of_square() != before);
+}
+
+TEST_CASE("Tab away closes the popup") {
+    Fixture f;
+    f.open();
+    f.key(keys::tab);
+    CHECK(f.popup_images().empty());
+}
+
+TEST_CASE("near the window's right edge the popup slides left to stay inside") {
+    struct Right {
+        Field<Color> ink{Color::rgba(0x33, 0x66, 0xCC)};
+        void view(WidgetTree::ViewBuilder& vb) { vb.hstack([&] { vb.spacer(); vb.widget(ink); }); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 400, 1);
+    Rect box{};
+    for (auto& [id, r] : snap->geometry)
+        if (r.extent.w.raw() > 0 && r.extent.w.raw() < 200) box = r;
+    REQUIRE(box.origin.x.raw() > 250.f);
+    route_event(tree, snap.get(), MouseButton{box.center(), buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{box.center(), buttons::left, false});
+    snap = tree.build_snapshot(400, 400, 2);
+    float right = 0;
+    for (auto& c : snap->overlay.commands)
+        if (auto* i = std::get_if<ImageCmd>(&c)) right = std::max(right, i->rect.origin.x.raw() + i->rect.extent.w.raw());
+    CHECK(right > 0.f);
+    CHECK(right <= 400.f);
+}

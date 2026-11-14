@@ -1379,6 +1379,7 @@ using BoundChoice = BoundWidgetValue<Choice, std::optional<std::string>>;   // .
 using BoundPicture = BoundWidgetValue<Picture, std::int64_t>;               // .value: unused (0)
 using BoundLink = BoundWidgetValue<Link, std::int64_t>;                     // .value: clicks so far
 using BoundColor = BoundWidgetValue<Color, std::string>;                    // .value: "#RRGGBB"
+using BoundDate = BoundWidgetValue<std::chrono::year_month_day, std::string>; // .value: "YYYY-MM-DD"
 using BoundExpander = BoundWidgetValue<Expander, bool>;                     // .value: open
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
@@ -1579,6 +1580,20 @@ inline BoundColor make_bound_color(std::shared_ptr<SlotBase> owner, Field<Color>
     };
     h.check = [](const Color&, const std::string& v) {
         if (!prism::ui::color_detail::parse_hex(v)) throw nb::value_error("color: expected \"#RRGGBB\"");
+    };
+    return h;
+}
+
+inline BoundDate make_bound_date(std::shared_ptr<SlotBase> owner, Field<std::chrono::year_month_day>* f) {
+    BoundDate h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const std::chrono::year_month_day& d) { return prism::ui::date_detail::to_iso(d); };
+    h.write = [](std::chrono::year_month_day& d, const std::string& v) {
+        if (auto p = prism::ui::date_detail::parse_iso(v)) d = *p;
+    };
+    h.check = [](const std::chrono::year_month_day&, const std::string& v) {
+        if (!prism::ui::date_detail::parse_iso(v)) throw nb::value_error("date: expected a real \"YYYY-MM-DD\"");
     };
     return h;
 }
@@ -2097,6 +2112,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundPicture*)nullptr)) return;
     if (connect_field((BoundLink*)nullptr)) return;
     if (connect_field((BoundColor*)nullptr)) return;
+    if (connect_field((BoundDate*)nullptr)) return;
     if (connect_field((BoundExpander*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
@@ -2155,6 +2171,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundPicture>(h)) vb.widget(*nb::cast<BoundPicture&>(h).field);
     else if (nb::isinstance<BoundLink>(h)) vb.widget(*nb::cast<BoundLink&>(h).field);
     else if (nb::isinstance<BoundColor>(h)) vb.widget(*nb::cast<BoundColor&>(h).field);
+    else if (nb::isinstance<BoundDate>(h)) vb.widget(*nb::cast<BoundDate&>(h).field);
     else if (nb::isinstance<BoundExpander>(h)) vb.widget(*nb::cast<BoundExpander&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
@@ -2198,6 +2215,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundPicture>(h)) return declare(nb::cast<BoundPicture&>(h).field);
     if (nb::isinstance<BoundLink>(h)) return declare(nb::cast<BoundLink&>(h).field);
     if (nb::isinstance<BoundColor>(h)) return declare(nb::cast<BoundColor&>(h).field);
+    if (nb::isinstance<BoundDate>(h)) return declare(nb::cast<BoundDate&>(h).field);
     if (nb::isinstance<BoundExpander>(h)) return declare(nb::cast<BoundExpander&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
@@ -3089,6 +3107,9 @@ NB_MODULE(_prism_ext, m) {
     bind_widget_value<BoundColor, std::string>(m, "BoundColor",
         "Bound handle for a Model's color picker: .value is \"#RRGGBB\"; setting it takes the same, "
         "with or without '#' (anything else raises ValueError).");
+    bind_widget_value<BoundDate, std::string>(m, "BoundDate",
+        "Bound handle for a Model's date picker: .value is \"YYYY-MM-DD\"; setting it takes the same "
+        "(anything else, or a date that does not exist, raises ValueError).");
     bind_widget_value<BoundPicture, std::int64_t>(m, "BoundPicture", "Bound handle for a Model's picture.")
         .def_prop_ro("has_image", [](const BoundPicture& h) { return h.state().image != nullptr; })
         .def_prop_rw("description", [](const BoundPicture& h) { return h.state().description; },
@@ -3492,6 +3513,12 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(*c);
                 return make_bound_color(std::move(owner), p);
             }, nb::arg("hex"))
+        .def("_add_date_internal", [](PyModel& self, std::string iso){
+                auto d = prism::ui::date_detail::parse_iso(iso);
+                if (!d) throw nb::value_error("date: expected a real \"YYYY-MM-DD\"");
+                auto [owner, p] = self.add_widget_slot(*d);
+                return make_bound_date(std::move(owner), p);
+            }, nb::arg("iso"))
         .def("_add_picture_internal", [](PyModel& self, std::optional<std::string> path,
                                          std::optional<std::pair<float, float>> size, std::string description){
                 Picture pic{.description = std::move(description)};

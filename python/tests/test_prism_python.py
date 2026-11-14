@@ -4408,6 +4408,28 @@ def test_a_color_field_shows_its_hex_code_and_takes_new_ones():
         prism.color("#12345")
 
 
+def test_a_date_field_shows_iso_dates_and_takes_new_ones():
+    seen = []
+
+    class Trip(prism.Model):
+        leave = prism.date("2026-11-14")
+
+        def view(self, vb):
+            vb.widget(self.leave)
+
+    t = Trip()
+    assert t.leave.value == "2026-11-14"
+    assert "2026-11-14" in prism._texts(t)
+    t.leave.observe(lambda v: seen.append(v))
+    t.leave.value = "2027-01-31"
+    assert t.leave.value == "2027-01-31"
+    assert seen == ["2027-01-31"]
+    with pytest.raises(ValueError):
+        t.leave.value = "2027-02-30"
+    with pytest.raises(ValueError):
+        prism.date("14/11/2026")
+
+
 # --- docking ----------------------------------------------------------------------------
 
 

@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <any>
+#include <chrono>
 #include <memory>
 #include <optional>
 #if __cpp_impl_reflection
@@ -1079,6 +1080,25 @@ struct Widget<Color> {
     static void describe(const Field<Color>& f, AccessInfo& a);
     static void record(DrawList& dl, const Field<Color>& field, WidgetNode& node);
     static void handle_input(Field<Color>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+// Ephemeral state for an open date picker: the month the calendar shows.
+struct DateEditState {
+    bool open = false;
+    std::chrono::year_month shown{std::chrono::year{1970}, std::chrono::January};
+    Rect popup_rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
+};
+
+// A Field<std::chrono::year_month_day>: the date as ISO text; a click opens a month calendar.
+// Defined in delegates/date_delegates.hpp.
+template <>
+struct Widget<std::chrono::year_month_day> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::Button;
+    static float intrinsic_width(const Field<std::chrono::year_month_day>&, const WidgetNode&) { return 130.f; }
+    static void describe(const Field<std::chrono::year_month_day>& f, AccessInfo& a);
+    static void record(DrawList& dl, const Field<std::chrono::year_month_day>& field, WidgetNode& node);
+    static void handle_input(Field<std::chrono::year_month_day>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 // ScopedEnum delegate -- declared here, defined in widget_tree.hpp

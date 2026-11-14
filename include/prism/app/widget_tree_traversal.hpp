@@ -85,7 +85,7 @@ inline void close_overlays_impl(WidgetNode& node) {
         // Only an overlay's own state (a dropdown's or menu's open list): a combo box keeps its
         // text editing state (caret, undo) when its suggestions close.
         if (std::any_cast<DropdownEditState>(&node.edit_state) || std::any_cast<MenuEditState>(&node.edit_state)
-            || std::any_cast<ColorEditState>(&node.edit_state))
+            || std::any_cast<ColorEditState>(&node.edit_state) || std::any_cast<DateEditState>(&node.edit_state))
             node.edit_state.reset();
         node.popup_area.reset();   // or the tree would adopt it again as the open popup
         node.popup_opened_from.reset();

@@ -65,16 +65,19 @@ constexpr float popup_w = pad + square_side + pad + bar_w + pad;
 constexpr float popup_h = pad + square_side + pad;
 constexpr float nudge = 0.02f;   // an arrow key's step in saturation or value
 
-inline Rect square_rect(Y popup_y) { return Rect{Point{X{pad}, popup_y + DY{pad}}, Size{Width{square_side}, Height{square_side}}}; }
-inline Rect bar_rect(Y popup_y) {
-    return Rect{Point{X{pad + square_side + pad}, popup_y + DY{pad}}, Size{Width{bar_w}, Height{square_side}}};
+inline Rect square_rect(Point popup) {
+    return Rect{Point{popup.x + DX{pad}, popup.y + DY{pad}}, Size{Width{square_side}, Height{square_side}}};
+}
+inline Rect bar_rect(Point popup) {
+    return Rect{Point{popup.x + DX{pad + square_side + pad}, popup.y + DY{pad}}, Size{Width{bar_w}, Height{square_side}}};
 }
 
 inline std::shared_ptr<const Image> render_image(int w, int h, auto&& color_at) {
     std::vector<uint8_t> px(static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
     for (int y = 0; y < h; ++y)
         for (int x = 0; x < w; ++x) {
-            Color c = color_at(static_cast<float>(x) / static_cast<float>(w - 1), static_cast<float>(y) / static_cast<float>(h - 1));
+            Color c = color_at(static_cast<float>(x) / static_cast<float>(std::max(w - 1, 1)),
+                               static_cast<float>(y) / static_cast<float>(std::max(h - 1, 1)));
             auto* p = &px[(static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)) * 4];
             p[0] = c.r, p[1] = c.g, p[2] = c.b, p[3] = 255;
         }
@@ -101,11 +104,6 @@ inline void sync_hsv(ColorEditState& es, Color c) {
     es.hsv = fresh;
 }
 
-inline Y popup_top(const WidgetNode& node) {
-    if (node.viewport_height.raw() <= 0) return Y{box_h};
-    float top = node.absolute_y.raw();
-    return Y{place_on_axis(popup_h, top, top + box_h, node.viewport_height.raw()) - top};
-}
 
 inline void draw_box(DrawList& dl, Color c, const WidgetNode& node, const Theme& t) {
     auto& vs = node_vs(node);
@@ -125,15 +123,15 @@ inline void draw_marker(DrawList& dl, Point at, float half) {
     dl.rect_outline(in, Color::rgba(255, 255, 255), 1.f);
 }
 
-inline void draw_popup(DrawList& dl, ColorEditState& es, Y top, const Theme& t) {
-    Rect area{Point{X{0}, top}, Size{Width{popup_w}, Height{popup_h}}};
+inline void draw_popup(DrawList& dl, ColorEditState& es, Point origin, const Theme& t) {
+    Rect area{origin, Size{Width{popup_w}, Height{popup_h}}};
     dl.filled_rect(area, t.popup_bg);
     dl.rect_outline(area, t.popup_border, 1.f);
     if (es.square_hue != es.hsv.h) {
         es.square = square_image(es.hsv.h);
         es.square_hue = es.hsv.h;
     }
-    Rect sq = square_rect(top), bar = bar_rect(top);
+    Rect sq = square_rect(origin), bar = bar_rect(origin);
     dl.image(es.square, sq);
     dl.image(bar_image(), bar);
     draw_marker(dl, Point{sq.origin.x + DX{es.hsv.s * square_side}, sq.origin.y + DY{(1.f - es.hsv.v) * square_side}}, 5.f);
@@ -144,26 +142,33 @@ inline void draw_popup(DrawList& dl, ColorEditState& es, Y top, const Theme& t) 
 
 inline float fraction(float pos, float start) { return std::clamp((pos - start) / square_side, 0.f, 1.f); }
 
+// The picked color changed: the field takes it, and the popup redraws even when the field does not
+// change (a new hue for black is still black).
+inline void apply(ColorEditState& es, Field<Color>& field, WidgetNode& node) {
+    field.set(from_hsv(es.hsv, field.get().a));
+    node.dirty = true;
+}
+
 // Moves the picked color to the pointer, in the part the drag started in.
-inline void drag_to(ColorEditState& es, Point at, Field<Color>& field) {
-    Y top = es.popup_rect.origin.y;
+inline void drag_to(ColorEditState& es, Point at, Field<Color>& field, WidgetNode& node) {
+    Point popup = es.popup_rect.origin;
     if (es.drag == ColorEditState::Drag::square) {
-        Rect sq = square_rect(top);
+        Rect sq = square_rect(popup);
         es.hsv.s = fraction(at.x.raw(), sq.origin.x.raw());
         es.hsv.v = 1.f - fraction(at.y.raw(), sq.origin.y.raw());
     } else if (es.drag == ColorEditState::Drag::bar) {
-        es.hsv.h = std::min(fraction(at.y.raw(), bar_rect(top).origin.y.raw()) * 360.f, 359.999f);
+        es.hsv.h = std::min(fraction(at.y.raw(), bar_rect(popup).origin.y.raw()) * 360.f, 359.999f);
     }
-    field.set(from_hsv(es.hsv, field.get().a));
+    apply(es, field, node);
 }
 
 inline void press(ColorEditState& es, Point at, Field<Color>& field, WidgetNode& node) {
     if (es.open) {
-        Y top = es.popup_rect.origin.y;
-        es.drag = square_rect(top).contains(at) ? ColorEditState::Drag::square
-                : bar_rect(top).contains(at)    ? ColorEditState::Drag::bar
-                                                : ColorEditState::Drag::none;
-        if (es.drag != ColorEditState::Drag::none) return drag_to(es, at, field);
+        Point popup = es.popup_rect.origin;
+        es.drag = square_rect(popup).contains(at) ? ColorEditState::Drag::square
+                : bar_rect(popup).contains(at)    ? ColorEditState::Drag::bar
+                                                  : ColorEditState::Drag::none;
+        if (es.drag != ColorEditState::Drag::none) return drag_to(es, at, field, node);
         if (es.popup_rect.contains(at)) return;   // the popup's margin
     }
     es.open = !es.open;
@@ -177,7 +182,7 @@ inline void key(ColorEditState& es, int32_t k, Field<Color>& field, WidgetNode& 
     }
     auto step = [&](float& part, float by) {
         part = std::clamp(part + by, 0.f, 1.f);
-        field.set(from_hsv(es.hsv, field.get().a));
+        apply(es, field, node);
     };
     switch (k) {
     case keys::escape:
@@ -200,7 +205,9 @@ inline void Widget<Color>::record(DrawList& dl, const Field<Color>& field, Widge
     color_detail::sync_hsv(es, field.get());
     color_detail::draw_box(dl, field.get(), node, t);
     node.overlay_draws.clear();
-    if (es.open) color_detail::draw_popup(node.overlay_draws, es, color_detail::popup_top(node), t);
+    if (es.open)
+        color_detail::draw_popup(node.overlay_draws, es,
+                                 popup_origin(node, Size{Width{color_detail::popup_w}, Height{color_detail::popup_h}}, color_detail::box_h), t);
 }
 
 inline void Widget<Color>::handle_input(Field<Color>& field, const InputEvent& ev, WidgetNode& node) {
@@ -210,7 +217,7 @@ inline void Widget<Color>::handle_input(Field<Color>& field, const InputEvent& e
         if (mb->pressed) color_detail::press(es, mb->position, field, node);
         else es.drag = ColorEditState::Drag::none;
     } else if (auto* mm = std::get_if<MouseMove>(&ev); mm && es.drag != ColorEditState::Drag::none) {
-        color_detail::drag_to(es, mm->position, field);
+        color_detail::drag_to(es, mm->position, field, node);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         color_detail::key(es, kp->key, field, node);
     }
