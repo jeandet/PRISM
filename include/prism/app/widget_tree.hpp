@@ -1027,26 +1027,28 @@ private:
         }
     }
 
-    // While dragging: a marker on the target under the pointer, the dock's edge buttons when the
-    // pointer is over a dock, and the dragged widget (or the part dragged) following the pointer
-    // where it was grabbed (app/drag_draw.hpp).
+    // While dragging: a marker on the target under the pointer, the dragged widget (or the part
+    // dragged) following the pointer where it was grabbed, then over it a dock's guides
+    // (app/drag_draw.hpp).
     void draw_drag(SceneSnapshot& snap) const {
         std::optional<Rect> target_rect;
         for (auto& [id, rect] : snap.geometry)
             if (id == drag_->target && id != 0) target_rect = rect;
         if (!target_rect) target_rect = drop_area_rect(drag_->target);
-        if (auto t = index_.find(drag_->target); target_rect && t != index_.end())
-            drag_draw::drop_marker(snap.overlay, *target_rect, drag_->pointer, t->second->drag, theme_.accent);
-        if (auto* outer = edge_drop_container()) {
+        auto target = index_.find(drag_->target);
+        if (target_rect && target != index_.end())
+            drag_draw::drop_marker(snap.overlay, *target_rect, drag_->pointer, target->second->drag, theme_.accent);
+        if (auto it = index_.find(drag_->source); it != index_.end()) {
+            Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
+            auto area = it->second->drag.ghost_area ? it->second->drag.ghost_area(*it->second, press) : std::nullopt;
+            auto ghost = drag_draw::ghost(it->second->draws, area, drag_->pointer - drag_->grab);
+            snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
+        }
+        if (target_rect && target != index_.end())
+            drag_draw::drop_guide(snap.overlay, *target_rect, drag_->pointer, target->second->drag, theme_.accent);
+        if (auto* outer = edge_drop_container())
             if (auto rect = drop_area_rect(outer->id))
                 drag_draw::edge_guide(snap.overlay, *rect, drag_->pointer, theme_.accent);
-        }
-        auto it = index_.find(drag_->source);
-        if (it == index_.end()) return;
-        Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
-        auto area = it->second->drag.ghost_area ? it->second->drag.ghost_area(*it->second, press) : std::nullopt;
-        auto ghost = drag_draw::ghost(it->second->draws, area, drag_->pointer - drag_->grab);
-        snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
     }
 
     // The container around the drop target whose edges take drops (a dock): it shows its edge

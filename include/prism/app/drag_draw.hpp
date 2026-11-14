@@ -73,9 +73,26 @@ inline void guide_button(DrawList& dl, Rect r, DockZone zone, bool lit, Color ac
     if (zone != DockZone::Middle) dl.filled_rect(zone_area(window, zone), ink);
 }
 
-// A group's guide: the five buttons (ui::dock_guide), the one the pointer is on lit.
+// The cross's bounds grown by a margin: a light plate behind the buttons, so they read over
+// whatever the group shows.
+inline void guide_plate(DrawList& dl, Rect r, Size group, Color accent) {
+    auto buttons = ui::dock_guide(group);
+    Rect left = buttons[1].second, right = buttons[2].second, top = buttons[3].second, bottom = buttons[4].second;
+    float pad = left.extent.w.raw() / 4.f;
+    float x0 = left.origin.x.raw() - pad, x1 = right.origin.x.raw() + right.extent.w.raw() + pad;
+    float y0 = top.origin.y.raw() - pad, y1 = bottom.origin.y.raw() + bottom.extent.h.raw() + pad;
+    Rect plate{Point{r.origin.x + DX{x0}, r.origin.y + DY{y0}}, Size{Width{x1 - x0}, Height{y1 - y0}}};
+    auto edge = accent;
+    edge.a = 90;
+    dl.rounded_rect(plate, Color::rgba(250, 250, 252, 200), 8.f);
+    dl.rounded_rect(plate, edge, 8.f, 1.f);
+}
+
+// A group's guide: a plate, and the five buttons on it (ui::dock_guide), the one the pointer
+// is on lit.
 inline void guide(DrawList& dl, Rect r, DropPlace at, Color accent) {
     DockZone over = ui::dock_zone(at);
+    guide_plate(dl, r, at.size, accent);
     for (auto& [zone, local] : ui::dock_guide(at.size)) {
         Rect button{Point{r.origin.x + DX{local.origin.x.raw()}, r.origin.y + DY{local.origin.y.raw()}}, local.extent};
         guide_button(dl, button, zone, zone == over, accent);
@@ -100,12 +117,13 @@ inline void preview(DrawList& dl, Rect area, Color accent) {
     dl.rect_outline(area, accent, 2.f);
 }
 
-// A dock group under a dragged panel: its guide, and the area the panel would take (ui/dock.hpp).
+inline DropPlace place_in(Rect r, Point pointer) {
+    return {Point{X{pointer.x.raw() - r.origin.x.raw()}, Y{pointer.y.raw() - r.origin.y.raw()}}, r.extent};
+}
+
+// A dock group under a dragged panel: the area the panel would take (ui/dock.hpp).
 inline void dock_zone(DrawList& dl, Rect r, Point pointer, Color accent) {
-    Point at{X{pointer.x.raw() - r.origin.x.raw()}, Y{pointer.y.raw() - r.origin.y.raw()}};
-    DropPlace place{at, r.extent};
-    preview(dl, zone_area(r, ui::dock_zone(place)), accent);
-    guide(dl, r, place, accent);
+    preview(dl, zone_area(r, ui::dock_zone(place_in(r, pointer))), accent);
 }
 
 // A dock under a dragged panel: the whole side an edge button would give it, or an outline while
@@ -115,6 +133,12 @@ inline void dock_edge_marker(DrawList& dl, Rect r, Point pointer, Color accent) 
     auto side = ui::dock_edge_zone(DropPlace{at, r.extent});
     if (!side) return dl.rect_outline(r, accent, 2.f);
     preview(dl, zone_area(r, *side), accent);
+}
+
+// The guide of a dock group under the pointer, drawn last, over the dragged panel, as docking
+// libraries do: the button under the pointer stays in sight.
+inline void drop_guide(DrawList& dl, Rect r, Point pointer, const DragRole& role, Color accent) {
+    if (role.zones) guide(dl, r, place_in(r, pointer), accent);
 }
 
 // Where a drop on target `r` would land: a dock group's zone, a line on the nearer edge of a

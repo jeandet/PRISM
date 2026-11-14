@@ -389,6 +389,37 @@ TEST_CASE("while dragging a tab: the zone is shaded, and the ghost is that tab a
     route_event(tree, snap.get(), KeyPress{keys::escape, 0});
 }
 
+TEST_CASE("the guide is drawn over the dragged tab, on a plate of its own") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto tab = text_at(*snap, "Search");
+    auto group = group_rect(tree, *snap, "Files");
+    REQUIRE(tab);
+    REQUIRE(group);
+    Point centre = group->center();
+    Point from{tab->x + DX{5}, tab->y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{centre});   // on the Middle button
+    snap = tree.build_snapshot(600, 400, 2);
+    auto& cmds = snap->overlay.commands;
+    std::size_t ghost_text = 0, last_button = 0;
+    float button = dock_guide(group->extent)[0].second.extent.w.raw();
+    bool plate = false;
+    for (std::size_t i = 0; i < cmds.size(); ++i) {
+        if (auto* t = std::get_if<TextCmd>(&cmds[i]); t && t->text == "Search") ghost_text = i;
+        if (auto* r = std::get_if<RoundedRect>(&cmds[i])) {
+            last_button = i;
+            plate |= r->rect.contains(centre) && r->rect.extent.w.raw() > 2.5f * button;
+        }
+    }
+    CHECK(ghost_text > 0);
+    CHECK(last_button > ghost_text);   // the button under the pointer stays visible
+    CHECK(plate);                      // the cross reads over any content
+    route_event(tree, snap.get(), KeyPress{keys::escape, 0});
+}
+
 // --- floating panels ---------------------------------------------------------------------
 
 TEST_CASE("a floating panel is out of the dock's groups; an unknown one is dropped") {
