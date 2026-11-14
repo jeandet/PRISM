@@ -4365,6 +4365,27 @@ def test_a_list_can_be_reordered_by_dragging():
     assert t.items.to_list() == ["b", "c", "a", "d"]
 
 
+def test_a_list_selection_follows_the_keys_and_the_app():
+    seen = []
+
+    class Todo(prism.Model):
+        items = prism.list_field(["a", "b", "c"])
+
+        def view(self, vb):
+            vb.list(self.items, selectable=True)
+
+    t = Todo()
+    assert t.items.selected is None
+    t.items.observe_selected(lambda s: seen.append(s))
+    prism._press_keys(t, ["Tab", "Down", "Down"])
+    assert t.items.selected == 1
+    assert seen == [0, 1]
+    t.items.selected = 2
+    assert t.items.selected == 2
+    t.items.selected = None
+    assert t.items.selected is None
+
+
 # --- docking ----------------------------------------------------------------------------
 
 

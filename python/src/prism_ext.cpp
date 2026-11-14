@@ -703,6 +703,7 @@ struct SlotChannel : SlotBase {
 template <typename T>
 struct SlotList : SlotBase {
     List<T> list;
+    Field<std::optional<std::size_t>> selected{std::nullopt};   // vb.list(h, selectable=True)
     explicit SlotList(std::vector<T> init = {}) { for (auto v : init) list.push_back(v); }
     void build(ViewBuilder& vb) override { vb.list(list); }
 };
@@ -1881,6 +1882,23 @@ template <typename T>
 struct BoundList {
     std::shared_ptr<SlotBase> owner;
     List<T>* list = nullptr;
+    Field<std::optional<std::size_t>>* selected = nullptr;
+    std::optional<std::size_t> get_selected() const {
+        if (!selected) return std::nullopt;
+        auto* f = selected;
+        return dispatch_sync_read<std::optional<std::size_t>>([f] { return f->get(); });
+    }
+    void set_selected(std::optional<std::size_t> row) {
+        if (!selected) return;
+        auto* f = selected;
+        list_op_dispatch(owner, [f, row] { f->set(row); });
+    }
+    Connection observe_selected(nb::callable cb) {
+        if (!selected) throw nb::value_error("observe_selected(): handle is not bound to a Model");
+        auto c = selected->on_change().connect(WeakCallback(cb));
+        if (owner) c.keep_alive(owner);
+        return c;
+    }
     void push(T v) { if(list) { auto* p=list; list_op_dispatch(owner, [p, v=std::move(v)]() mutable { p->push_back(std::move(v)); }); } }
     void erase(size_t i) { if(list) { auto* p=list; list_op_dispatch(owner, [p,i](){ if(i<p->size()) p->erase(i); }); } }
     void set(size_t i, T v) { if(list) { auto* p=list; list_op_dispatch(owner, [p,i,v=std::move(v)]() mutable { if(i<p->size()) p->set(i,std::move(v)); }); } }
@@ -2175,14 +2193,15 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     throw nb::type_error("tooltip: this kind of field has no single widget to hover");
 }
 
-inline void py_list_dispatch(ViewBuilder& vb, nb::object h, bool reorderable = false) {
-    auto place = [&](auto& items) {
-        auto handle = vb.list(items);
+inline void py_list_dispatch(ViewBuilder& vb, nb::object h, bool reorderable = false, bool selectable = false) {
+    auto place = [&](auto& bound) {
+        auto handle = vb.list(*bound.list);
         if (reorderable) std::move(handle).reorderable();
+        if (selectable) std::move(handle).selection(*bound.selected);
     };
-    if (nb::isinstance<BoundList<int>>(h)) place(*nb::cast<BoundList<int>&>(h).list);
-    else if (nb::isinstance<BoundList<double>>(h)) place(*nb::cast<BoundList<double>&>(h).list);
-    else if (nb::isinstance<BoundList<std::string>>(h)) place(*nb::cast<BoundList<std::string>&>(h).list);
+    if (nb::isinstance<BoundList<int>>(h)) place(nb::cast<BoundList<int>&>(h));
+    else if (nb::isinstance<BoundList<double>>(h)) place(nb::cast<BoundList<double>&>(h));
+    else if (nb::isinstance<BoundList<std::string>>(h)) place(nb::cast<BoundList<std::string>&>(h));
     else throw nb::type_error("ViewBuilder.list: unsupported handle type");
 }
 
@@ -2795,6 +2814,12 @@ void bind_list(nb::module_& m, const char* suffix) {
         }, nb::arg("callback"), kObserveDoc)
         .def("observe_update", [](nb::object self, nb::callable cb) {
             return keep_connection(self, nb::cast<BoundList<T>&>(self).observe_update(cb), cb);
+        }, nb::arg("callback"), kObserveDoc)
+        .def_prop_rw("selected", &BoundList<T>::get_selected, &BoundList<T>::set_selected,
+                     "The selected row (None: none), for a list placed with selectable=True. "
+                     "A removal keeps it on the same item. Any thread.")
+        .def("observe_selected", [](nb::object self, nb::callable cb) {
+            return keep_connection(self, nb::cast<BoundList<T>&>(self).observe_selected(cb), cb);
         }, nb::arg("callback"), kObserveDoc);
 }
 
@@ -3356,10 +3381,13 @@ NB_MODULE(_prism_ext, m) {
             }, nb::arg("flag"), nb::arg("fn"),
              "Everything fn() places is greyed out and takes no input while flag (a bool field, "
              "derived bool or checkbox) is false.")
-        .def("list", [](ViewBuilder& vb, nb::object h, bool reorderable){ py_list_dispatch(vb, h, reorderable); },
-             nb::arg("handle"), nb::arg("reorderable") = false,
+        .def("list", [](ViewBuilder& vb, nb::object h, bool reorderable, bool selectable){
+                py_list_dispatch(vb, h, reorderable, selectable);
+             },
+             nb::arg("handle"), nb::arg("reorderable") = false, nb::arg("selectable") = false,
              "Add a list widget for a bound list handle (list_field()). reorderable: the user "
-             "can drag rows to another place.")
+             "can drag rows to another place. selectable: a click or the arrow keys select a row, "
+             "read and set through handle.selected (None: no row).")
         .def("canvas", [](ViewBuilder& vb, nb::object h){ py_canvas_dispatch(vb, h); }, nb::arg("handle"),
              "Add a canvas widget for a bound plot handle (plot_field()).")
         .def("tree", [](ViewBuilder& vb, nb::object h){ py_tree_dispatch(vb, h); }, nb::arg("handle"),
@@ -3610,17 +3638,17 @@ NB_MODULE(_prism_ext, m) {
         .def("_add_list_int_internal", [](PyModel& self, nb::list py){
                 std::vector<int> vec; vec.reserve(nb::len(py)); for(auto h: py) vec.push_back(nb::cast<int>(h));
                 auto [owner, p] = self.add_list_int_slot(std::move(vec));
-                BoundList<int> h; h.owner = std::move(owner); h.list = p; return h;
+                BoundList<int> h; h.selected = &static_cast<SlotList<int>&>(*owner).selected; h.owner = std::move(owner); h.list = p; return h;
             }, nb::arg("values") = nb::list())
         .def("_add_list_float_internal", [](PyModel& self, nb::list py){
                 std::vector<double> vec; vec.reserve(nb::len(py)); for(auto h: py) vec.push_back(nb::cast<double>(h));
                 auto [owner, p] = self.add_list_float_slot(std::move(vec));
-                BoundList<double> h; h.owner = std::move(owner); h.list = p; return h;
+                BoundList<double> h; h.selected = &static_cast<SlotList<double>&>(*owner).selected; h.owner = std::move(owner); h.list = p; return h;
             }, nb::arg("values") = nb::list())
         .def("_add_list_str_internal", [](PyModel& self, nb::list py){
                 std::vector<std::string> vec; vec.reserve(nb::len(py)); for(auto h: py) vec.push_back(nb::cast<std::string>(h));
                 auto [owner, p] = self.add_list_str_slot(std::move(vec));
-                BoundList<std::string> h; h.owner = std::move(owner); h.list = p; return h;
+                BoundList<std::string> h; h.selected = &static_cast<SlotList<std::string>&>(*owner).selected; h.owner = std::move(owner); h.list = p; return h;
             }, nb::arg("values") = nb::list())
         .def("_add_plot_internal", [](PyModel& self){
                 auto [owner, p] = self.add_plot_slot();

@@ -68,8 +68,10 @@ void track_rows(TableState& ts, List<T>& list) {
     }));
 }
 
-// A list row that shows whether it is `selected`, and selects itself when pressed.
-inline void show_selection(WidgetNode& wn, size_t index, Field<std::optional<std::size_t>>& selected) {
+// A list row that shows whether it is `selected`, and selects itself when pressed. A row that
+// takes no focus of its own hands it to the list, so the arrow keys reach the list.
+inline void show_selection(WidgetNode& wn, size_t index, Field<std::optional<std::size_t>>& selected,
+                           WidgetTree& tree, WidgetId list_id) {
     wn.record = [record = std::move(wn.record), index, &selected](WidgetNode& node) {
         record(node);
         if (selected.get() != index) return;
@@ -77,13 +79,46 @@ inline void show_selection(WidgetNode& wn, size_t index, Field<std::optional<std
         node.draws.filled_rect(row, node_theme(node).text_selection);
     };
     wn.record(wn);
-    wn.wire = [wire = std::move(wn.wire), index, &selected](WidgetNode& node) {
+    wn.wire = [wire = std::move(wn.wire), index, &selected, &tree, list_id](WidgetNode& node) {
         wire(node);
-        node.connections.push_back(node.on_input.connect([index, &selected](const InputEvent& ev) {
-            if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left)
-                selected.set(index);
+        node.connections.push_back(node.on_input.connect([index, &selected, &tree, list_id, &node](const InputEvent& ev) {
+            auto* mb = std::get_if<MouseButton>(&ev);
+            if (!mb || !mb->pressed || mb->button != buttons::left) return;
+            if (node.focus_policy == FocusPolicy::none) tree.set_focused(list_id);
+            selected.set(index);
         }));
         node.connections.push_back(selected.on_change().connect([&node](const auto&) { node.dirty = true; }));
+    };
+}
+
+// The row a key moves a list's selection to: Up/Down step, Home/End jump; none for other keys.
+inline std::optional<std::size_t> list_key_target(std::optional<std::size_t> selected, std::size_t count,
+                                                  int32_t key) {
+    if (count == 0) return std::nullopt;
+    std::size_t last = count - 1;
+    switch (key) {
+    case keys::down: return selected ? std::min(*selected + 1, last) : 0;
+    case keys::up: return selected ? (*selected == 0 ? 0 : *selected - 1) : 0;
+    case keys::home: return 0;
+    case keys::end: return last;
+    default: return std::nullopt;
+    }
+}
+
+// The list itself takes the focus and moves the selection with the keys.
+template <typename T>
+void select_by_keys(WidgetNode& wn, List<T>& items, Field<std::optional<std::size_t>>& selected, WidgetTree& tree) {
+    wn.focus_policy = FocusPolicy::tab_and_click;
+    wn.wire = [&items, &selected, &tree](WidgetNode& self) {
+        self.connections.push_back(self.on_input.connect([&items, &selected, &tree, &self](const InputEvent& ev) {
+            auto* kp = std::get_if<KeyPress>(&ev);
+            if (!kp) return;
+            auto to = list_key_target(selected.get(), items.size(), kp->key);
+            if (!to) return;
+            selected.set(*to);
+            if (auto* vls = std::any_cast<std::shared_ptr<VirtualListState>>(&self.edit_state))
+                tree.scroll_row_into_view(self.id, *to, (*vls)->item_height);
+        }));
     };
 }
 
@@ -745,6 +780,8 @@ public:
     struct ListHandle {
         Node& node_ref;
         List<T>& items;
+        WidgetTree& tree;
+        std::set<const void*>& placed;
         // The user can drag rows to put them in another order (List::move).
         ListHandle&& reorderable() && {
             node_ref.row_drag = [&items = items](std::size_t i) { return view_builder_detail::list_row_drag(items, i); };
@@ -752,17 +789,22 @@ public:
         }
         // `selected` holds the selected row: a click selects it, the row is highlighted, and a
         // removal keeps it on the same item (none, once that item goes).
-        // simplify: the arrow keys do not move the selection yet (rows are the items' own
-        // widgets and take the keys); add a list-level key handler when a list needs it.
+        // The list takes the focus: Up/Down/Home/End move the selection (a row whose own widget
+        // takes the focus, an editor, keeps the keys).
         ListHandle&& selection(Field<std::optional<std::size_t>>& selected) && {
+            placed.insert(&selected);
             auto follow = std::make_shared<Connection>(items.on_remove().connect([&selected](std::size_t gone) {
                 auto s = selected.get();
                 if (!s || *s < gone) return;
                 selected.set(*s == gone ? std::nullopt : std::optional{*s - 1});
             }));
-            node_ref.vlist_bind_row = [bind = std::move(node_ref.vlist_bind_row), &selected, follow](WidgetNode& wn, size_t index) {
+            node_ref.vlist_bind_row = [bind = std::move(node_ref.vlist_bind_row), &selected, follow, &tree = tree,
+                                       list_id = node_ref.id](WidgetNode& wn, size_t index) {
                 bind(wn, index);
-                view_builder_detail::show_selection(wn, index, selected);
+                view_builder_detail::show_selection(wn, index, selected, tree, list_id);
+            };
+            node_ref.build_widget = [&items = items, &selected, &tree = tree](WidgetNode& wn) {
+                view_builder_detail::select_by_keys(wn, items, selected, tree);
             };
             return std::move(*this);
         }
@@ -836,7 +878,7 @@ public:
         };
 
         current_parent().children.push_back(std::move(container));
-        return {current_parent().children.back(), items};
+        return {current_parent().children.back(), items, tree_, placed_};
     }
 
     // A tree, with a pane beside it showing the selected row's details; `detail = false` places

@@ -520,6 +520,10 @@ controller has `on_move(node, target, where)`: dropped on the middle of a folder
 inside it, near an edge before or after; never into its own subtree. The app moves it in its
 data and the tree refreshes.
 
+A list keeps a selected row in an app field, `vb.list(items).selection(selected)`
+(`Field<std::optional<size_t>>`): a click selects a row, Up/Down/Home/End move the selection and
+scroll it into view, and a removal keeps it on the same item.
+
 A click lands on the release, over the widget that was pressed, as on every platform: sliding
 off a button before letting go cancels it, and a drag that starts on a button is not a click.
 
@@ -716,6 +720,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.set_theme("light" / "dark" / "system")` | `AppContext::set_theme`, `follow_system_theme` | any thread, while an app runs |
 | `vb.widget(h, drag=fn, drop=fn, accepts=Type)` | `.drag_source`, `.drop_target` | `drag()` gives any Python object; `drop(value, x, y)` |
 | `vb.list(h, reorderable=True)` | `vb.list(items).reorderable()` | rows dragged into another order |
+| `vb.list(h, selectable=True)`, `h.selected` | `vb.list(items).selection(field)` | a click or Up/Down/Home/End selects; `None`: no row |
 | `prism.dock_layout(prism.dock_split(prism.dock_group("a"), ...))` + `vb.dock(h, [(name, title, fn), ...])` | `Field<DockLayout>` + `vb.dock` | `.value` is the layout as nested dicts |
 | `prism.label(text, heading=False, wrap=False)` | `Field<Label<>>` | display only; `wrap` breaks it into lines |
 | `prism.text_area(text, rows=6, read_only=False)` | `Field<TextArea<>>` | read-only: selectable, UI font |

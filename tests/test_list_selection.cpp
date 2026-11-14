@@ -47,6 +47,7 @@ struct Fixture {
         route_event(tree, snap.get(), MouseButton{c, buttons::left, false});
         frame();
     }
+    void key(int32_t k) { route_event(tree, snap.get(), KeyPress{k, 0}); frame(); }
     bool highlighted(std::size_t i) const {
         auto r = row(i);
         auto sel = tree.theme().text_selection;
@@ -76,4 +77,51 @@ TEST_CASE("a removal keeps the selection on the same item, or clears it") {
     CHECK(f.m.selected.get() == std::optional<std::size_t>{1});   // still 30
     f.m.items.erase(1);
     CHECK_FALSE(f.m.selected.get().has_value());                   // 30 itself is gone
+}
+
+TEST_CASE("Up and Down move the selection; Home and End jump; the ends stop it") {
+    Fixture f;
+    f.click_row(1);
+    f.key(keys::down);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{2});
+    f.key(keys::up);
+    f.key(keys::up);
+    f.key(keys::up);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{0});
+    f.key(keys::end);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{3});
+    f.key(keys::down);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{3});
+    f.key(keys::home);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{0});
+    CHECK(f.highlighted(0));
+}
+
+TEST_CASE("Tab reaches the list; Down with nothing selected selects the first row") {
+    Fixture f;
+    f.key(keys::tab);
+    f.key(keys::down);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{0});
+}
+
+TEST_CASE("a row moved to by key scrolls into view") {
+    struct Long {
+        List<int> items;
+        Field<std::optional<std::size_t>> selected{std::nullopt};
+        Long() {
+            for (int v = 0; v < 100; ++v) items.push_back(v);
+        }
+        void view(WidgetTree::ViewBuilder& vb) { vb.list(items).selection(selected); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(300, 300, 1);
+    route_event(tree, snap.get(), KeyPress{keys::tab, 0});
+    route_event(tree, snap.get(), KeyPress{keys::end, 0});
+    snap = tree.build_snapshot(300, 300, 2);
+    CHECK(m.selected.get() == std::optional<std::size_t>{99});
+    bool shows_last = false;
+    for (auto& dl : snap->draw_lists)
+        for (auto& c : dl->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->text == "99") shows_last = true;
+    CHECK(shows_last);
 }
