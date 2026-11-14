@@ -87,17 +87,20 @@ inline void update_split_state(LayoutNode& layout_node) {
 
 // Returns whether a widget re-recorded at its new size changed height (a label that wraps):
 // then the layout it was placed by is stale, and the caller lays out again.
-inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
+// `scrolled`: how far the scroll views around this node are scrolled; layout positions are in
+// their content, the absolute ones are in the window.
+inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport, DY scrolled = DY{0}) {
     // Propagate absolute position and the window size to all indexed widget nodes
     bool window_changed = false;
     if (layout_node.id != 0 && layout_node.source) {
         {
             auto& n = *layout_node.source;
+            Y on_screen_y = layout_node.allocated.origin.y - scrolled;
             window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
                           || n.absolute_x != layout_node.allocated.origin.x
-                          || n.absolute_y != layout_node.allocated.origin.y;
+                          || n.absolute_y != on_screen_y;
             n.absolute_x = layout_node.allocated.origin.x;
-            n.absolute_y = layout_node.allocated.origin.y;
+            n.absolute_y = on_screen_y;
             n.viewport_height = viewport.h;
             n.viewport_width = viewport.w;
             n.arranged_extent = layout_node.allocated.extent;
@@ -121,10 +124,12 @@ inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
         auto* wn = layout_node.widget;   // set by build_layout() for these three kinds
         // layout_node reads wn->draws in place (ui::content_draws), so a re-record here is
         // what layout_flatten() sees; overlay_draws is still a copy and is refreshed.
-        // Popup anchors place their popup relative to the window, so they also re-record
-        // when the window or their position in it changes.
+        // Popup anchors and widgets showing their own overlay (a dropdown's list, a calendar)
+        // place it relative to the window, so they also re-record when the window or their
+        // position in it changes.
         bool resized = wn && wn->canvas_bounds.extent != layout_node.allocated.extent;
-        if (wn && wn->record && (resized || (window_changed && wn->popup_anchor))) {
+        bool places_popup = wn && (wn->popup_anchor || !wn->overlay_draws.empty());
+        if (wn && wn->record && (resized || (window_changed && places_popup))) {
             wn->canvas_bounds = Rect{
                 Point{X{0}, Y{0}},
                 layout_node.allocated.extent
@@ -138,7 +143,7 @@ inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport) {
     }
     bool changed = false;
     for (auto& child : layout_node.children)
-        changed |= update_canvas_bounds(child, viewport);
+        changed |= update_canvas_bounds(child, viewport, scrolled + layout_node.scroll_offset);
     return changed;
 }
 

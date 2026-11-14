@@ -5,7 +5,9 @@
 #include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 
+#include <array>
 #include <chrono>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -137,4 +139,95 @@ TEST_CASE("near the window's right edge the calendar slides left to stay inside"
         if (auto* r = std::get_if<FilledRect>(&c)) right = std::max(right, r->rect.origin.x.raw() + r->rect.extent.w.raw());
     CHECK(right > 0.f);
     CHECK(right <= 400.f);
+}
+
+TEST_CASE("an open calendar leaves the app's shortcuts working") {
+    struct Form {
+        Field<year_month_day> leave{2026y / November / 14d};
+        Field<Button> save{{.text = "Save", .shortcut = {keys::s, mods::ctrl}}};
+        void view(WidgetTree::ViewBuilder& vb) { vb.vstack(leave, save); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 400, 1);
+    route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{10}}, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{10}}, buttons::left, false});
+    snap = tree.build_snapshot(400, 400, 2);
+    REQUIRE_FALSE(snap->overlay.commands.empty());
+    route_event(tree, snap.get(), KeyPress{keys::s, mods::ctrl});
+    CHECK(m.save.get().click_count == 1);
+}
+
+TEST_CASE("a date that is not one (a default-made field) opens on a real month") {
+    struct Blank {
+        Field<year_month_day> when{};
+        void view(WidgetTree::ViewBuilder& vb) { vb.widget(when); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 400, 1);
+    route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{10}}, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{Point{X{10}, Y{10}}, buttons::left, false});
+    snap = tree.build_snapshot(400, 400, 2);
+    bool titled = false;
+    for (auto& c : snap->overlay.commands)
+        if (auto* t = std::get_if<TextCmd>(&c); t && t->text == "January 1970") titled = true;
+    CHECK(titled);
+}
+
+namespace {
+// The rectangle of the widget drawing `text`, as on screen.
+Rect rect_showing(const SceneSnapshot& snap, std::string_view text) {
+    for (std::size_t i = 0; i < snap.draw_lists.size(); ++i)
+        for (auto& c : snap.draw_lists[i]->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->text == text) return snap.geometry[i].second;
+    return {};
+}
+Rect popup_card(const SceneSnapshot& snap) {
+    for (auto& c : snap.overlay.commands)
+        if (auto* r = std::get_if<FilledRect>(&c)) return r->rect;   // the card's background comes first
+    return {};
+}
+}
+
+TEST_CASE("in a scrolled view the calendar opens at the box, not where the box would be unscrolled") {
+    struct Long {
+        std::array<Field<int>, 30> filler{};
+        Field<year_month_day> leave{2026y / November / 14d};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.scroll([&] {
+                for (auto& f : filler) vb.widget(f);
+                vb.widget(leave);
+            });
+        }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 400, 1);
+    for (int i = 0; i < 40; ++i)
+        route_event(tree, snap.get(), MouseScroll{Point{X{100}, Y{200}}, DX{0}, DY{-3}});   // towards the user: down
+    snap = tree.build_snapshot(400, 400, 2);
+    Rect box = rect_showing(*snap, "2026-11-14");
+    REQUIRE(box.extent.h.raw() > 0);
+    route_event(tree, snap.get(), MouseButton{box.center(), buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{box.center(), buttons::left, false});
+    snap = tree.build_snapshot(400, 400, 3);
+    Rect card = popup_card(*snap);
+    float box_top = box.origin.y.raw(), box_bottom = box_top + box.extent.h.raw();
+    float card_top = card.origin.y.raw(), card_bottom = card_top + card.extent.h.raw();
+    CHECK((std::abs(card_top - box_bottom) < 2.f || std::abs(card_bottom - box_top) < 2.f));
+}
+
+TEST_CASE("an open calendar follows its box when the window narrows") {
+    struct Narrowing {
+        Field<year_month_day> leave{2026y / November / 14d};
+        void view(WidgetTree::ViewBuilder& vb) { vb.hstack([&] { vb.spacer(); vb.widget(leave); }); }
+    } m;
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(400, 400, 1);
+    Rect box = rect_showing(*snap, "2026-11-14");
+    route_event(tree, snap.get(), MouseButton{box.center(), buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{box.center(), buttons::left, false});
+    snap = tree.build_snapshot(400, 400, 2);
+    snap = tree.build_snapshot(300, 400, 3);
+    Rect card = popup_card(*snap);
+    CHECK(card.extent.w.raw() > 0);
+    CHECK(card.origin.x.raw() + card.extent.w.raw() <= 300.f);
 }

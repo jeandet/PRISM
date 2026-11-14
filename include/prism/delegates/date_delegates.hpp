@@ -134,7 +134,11 @@ inline void pick(DateEditState& es, Field<year_month_day>& field, year_month_day
     field.set(d);
 }
 
+// A field holding no real date (default-made: year 0, month 0) opens on this one's month.
+constexpr year_month_day fallback{std::chrono::year{1970}, std::chrono::January, std::chrono::day{1}};
+
 inline void open(DateEditState& es, year_month_day d, WidgetNode& node) {
+    if (!d.ok()) d = fallback;
     es.open = true;
     es.shown = d.year() / d.month();
     node.dirty = true;
@@ -167,7 +171,7 @@ inline void key(DateEditState& es, int32_t k, Field<year_month_day>& field, Widg
         if (k == keys::space || k == keys::enter) open(es, field.get(), node);
         return;
     }
-    auto d = field.get();
+    auto d = field.get().ok() ? field.get() : fallback;
     switch (k) {
     case keys::escape:
     case keys::enter: close(es, node); break;

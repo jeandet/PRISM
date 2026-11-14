@@ -297,14 +297,14 @@ inline void route_key_press(WidgetTree& tree, const InputEvent& ev,
         return;
     }
     if (tree.popup_owner() == 0 && tree.focused_keeps(kp)) return tree.dispatch(tree.focused_id(), ev);
-    // A widget showing its own overlay (a dropdown's list, a calendar) takes the page keys too.
-    if (kp.key != keys::tab && tree.focused_id() != 0 && tree.has_open_overlay(tree.focused_id()))
-        return tree.dispatch(tree.focused_id(), ev);
     if (tree.popup_owner() == 0 && tree.trigger_shortcut(kp)) return;   // not while a dialog is up
+    bool paging = kp.key == keys::page_up || kp.key == keys::page_down;
     if (kp.key == keys::tab) {
         tree.close_overlays();   // a dropdown's list or a picker's popup stays with its widget
         if (kp.mods & mods::shift) tree.focus_prev();
         else tree.focus_next();
+    } else if (paging && tree.focused_id() != 0 && tree.has_open_overlay(tree.focused_id())) {
+        tree.dispatch(tree.focused_id(), ev);   // an open list or calendar pages itself
     } else if (kp.key == keys::page_up && tree.focused_id() != 0) {
         tree.scroll_at(tree.focused_id(), DY{-page_delta});
     } else if (kp.key == keys::page_down && tree.focused_id() != 0) {
