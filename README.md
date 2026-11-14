@@ -158,6 +158,7 @@ struct Editor {
     core::Field<ui::SpinBox<int>> copies{{.value = 1, .min = 1, .max = 99}};    // number with steppers
     core::Field<ui::ProgressBar>  done{{.value = 0.4, .label = "Exporting"}};   // progress; .busy for unknown length
     core::Field<ui::Choice>       port{{.options = {"COM1", "COM3"}}};         // one of a list known at run time
+    core::Field<core::Color>      ink{core::Color::rgba(0x33, 0x66, 0xCC)};    // color picker: hue bar + square
     core::Field<ui::Button>       bold{{.text = "Bold", .checked = false}};     // a toggle: stays pressed
     core::Field<ui::Label<>>      help{{.value = "Long help...", .wrap = true}}; // wraps to its width
     core::Field<ui::Link>         docs{{.text = "Docs", .url = "https://..."}};  // opens in the browser
@@ -709,6 +710,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.button(text, icon=path, shortcut="F5", checked=None)` | `Field<Button>` | `.value` counts clicks; `checked=False` makes a toggle (`.checked`) |
 | `prism.choice(options, placeholder=)` | `Field<Choice>` | `.value` is the option or None; `.options` can change |
 | `prism.link(text, url=)` | `Field<Link>` | opens the URL; `.value` counts clicks |
+| `prism.color("#RRGGBB")` | `Field<Color>` | a picker; `.value` is `"#RRGGBB"`, the alpha is kept |
 | `prism.picture(path, width=, height=)` | `Field<Picture>` | `.load(path)` shows another file |
 | `prism.expander(title)` + `vb.section(h, fn)` | `Field<Expander>` + `vb.section` | content built only while open |
 | `vb.toolbar(fn)`, `vb.status_bar(fn)`, `vb.group(title, fn)` | the same | containers with a look |

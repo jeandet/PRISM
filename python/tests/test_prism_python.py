@@ -4386,6 +4386,28 @@ def test_a_list_selection_follows_the_keys_and_the_app():
     assert t.items.selected is None
 
 
+def test_a_color_field_shows_its_hex_code_and_takes_new_ones():
+    seen = []
+
+    class Paint(prism.Model):
+        ink = prism.color("#3366cc")
+
+        def view(self, vb):
+            vb.widget(self.ink)
+
+    p = Paint()
+    assert p.ink.value == "#3366CC"
+    assert "#3366CC" in prism._texts(p)
+    p.ink.observe(lambda v: seen.append(v))
+    p.ink.value = "ff0000"
+    assert p.ink.value == "#FF0000"
+    assert seen == ["#FF0000"]
+    with pytest.raises(ValueError):
+        p.ink.value = "red"
+    with pytest.raises(ValueError):
+        prism.color("#12345")
+
+
 # --- docking ----------------------------------------------------------------------------
 
 

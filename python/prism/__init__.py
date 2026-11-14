@@ -161,6 +161,7 @@ __all__ = [
     "choice",
     "picture",
     "link",
+    "color",
     "expander",
     "spinbox",
     "progress",
@@ -213,6 +214,7 @@ __all__ = [
 ]
 
 
+import re as _re_mod
 import weakref as _wr_mod
 import atexit as _atexit_mod
 import contextlib as _contextlib_mod
@@ -492,6 +494,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_expander_internal(self.meta["title"], self.default)
         elif self.kind == "link":
             h = instance._add_link_internal(self.meta["text"], self.meta["url"])
+        elif self.kind == "color":
+            h = instance._add_color_internal(self.default)
         elif self.kind == "picture":
             m = self.meta
             h = instance._add_picture_internal(m["path"], m["size"], m["description"])
@@ -637,6 +641,15 @@ def link(text, url="", *, tooltip=None):
     counts the clicks, so ``handle.observe(cb)`` runs on each; with no ``url`` the click is
     the app's to act on."""
     return _tooltipped(_FieldDescriptor(0, kind="link", meta={"text": str(text), "url": str(url)}), tooltip)
+
+
+def color(value="#000000", *, tooltip=None):
+    """A color picker (C++ ``Field<Color>``): a swatch and its hex code; a click opens a
+    saturation/brightness square and a hue bar. ``.value`` is ``"#RRGGBB"``; setting it takes the
+    same, with or without ``#``. A malformed code raises ``ValueError``."""
+    if not _re_mod.fullmatch(r"#?[0-9a-fA-F]{6}", str(value)):
+        raise ValueError(f'prism.color(): expected "#RRGGBB", got {value!r}')
+    return _tooltipped(_FieldDescriptor(str(value), kind="color"), tooltip)
 
 
 def picture(path=None, *, width=None, height=None, description="", tooltip=None):

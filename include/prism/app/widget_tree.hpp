@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/delegates/color_delegates.hpp>
 #include <prism/delegates/dropdown_delegates.hpp>
 #include <prism/delegates/menu_delegates.hpp>
 #include <prism/delegates/dialog_delegates.hpp>
@@ -962,8 +963,8 @@ private:
                 if (node.vlist_bind_row) vls->bind_row = node.vlist_bind_row;
                 if (node.vlist_unbind_row) vls->unbind_row = node.vlist_unbind_row;
                 wn.edit_state = vls;
-                // Opt-in only: no existing .list() caller sets build_widget, so this is a no-op
-                // for every VirtualList container except the one ViewBuilder::tree() builds below.
+                // Opt-in: vb.tree() and vb.list(...).selection() make the container itself take
+                // the focus and the keys.
                 if (node.build_widget)
                     node.build_widget(wn);
             } else if (node.layout_kind == LayoutKind::Table && node.table_state) {

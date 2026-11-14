@@ -1378,6 +1378,7 @@ using BoundRadio = BoundWidgetValue<RadioGroup, std::string>;
 using BoundChoice = BoundWidgetValue<Choice, std::optional<std::string>>;   // .value: the option, or None
 using BoundPicture = BoundWidgetValue<Picture, std::int64_t>;               // .value: unused (0)
 using BoundLink = BoundWidgetValue<Link, std::int64_t>;                     // .value: clicks so far
+using BoundColor = BoundWidgetValue<Color, std::string>;                    // .value: "#RRGGBB"
 using BoundExpander = BoundWidgetValue<Expander, bool>;                     // .value: open
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
@@ -1565,6 +1566,20 @@ inline BoundLink make_bound_link(std::shared_ptr<SlotBase> owner, Field<Link>* f
     h.field = f;
     h.read = [](const Link& l) { return static_cast<std::int64_t>(l.click_count); };
     h.write = [](Link& l, const std::int64_t& v) { l.click_count = static_cast<std::uint64_t>(std::max<std::int64_t>(0, v)); };
+    return h;
+}
+
+inline BoundColor make_bound_color(std::shared_ptr<SlotBase> owner, Field<Color>* f) {
+    BoundColor h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const Color& c) { return prism::ui::color_detail::to_hex(c); };
+    h.write = [](Color& c, const std::string& v) {
+        if (auto p = prism::ui::color_detail::parse_hex(v)) c = Color::rgba(p->r, p->g, p->b, c.a);
+    };
+    h.check = [](const Color&, const std::string& v) {
+        if (!prism::ui::color_detail::parse_hex(v)) throw nb::value_error("color: expected \"#RRGGBB\"");
+    };
     return h;
 }
 
@@ -2081,6 +2096,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundChoice*)nullptr)) return;
     if (connect_field((BoundPicture*)nullptr)) return;
     if (connect_field((BoundLink*)nullptr)) return;
+    if (connect_field((BoundColor*)nullptr)) return;
     if (connect_field((BoundExpander*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
@@ -2138,6 +2154,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundChoice>(h)) vb.widget(*nb::cast<BoundChoice&>(h).field);
     else if (nb::isinstance<BoundPicture>(h)) vb.widget(*nb::cast<BoundPicture&>(h).field);
     else if (nb::isinstance<BoundLink>(h)) vb.widget(*nb::cast<BoundLink&>(h).field);
+    else if (nb::isinstance<BoundColor>(h)) vb.widget(*nb::cast<BoundColor&>(h).field);
     else if (nb::isinstance<BoundExpander>(h)) vb.widget(*nb::cast<BoundExpander&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
@@ -2180,6 +2197,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundChoice>(h)) return declare(nb::cast<BoundChoice&>(h).field);
     if (nb::isinstance<BoundPicture>(h)) return declare(nb::cast<BoundPicture&>(h).field);
     if (nb::isinstance<BoundLink>(h)) return declare(nb::cast<BoundLink&>(h).field);
+    if (nb::isinstance<BoundColor>(h)) return declare(nb::cast<BoundColor&>(h).field);
     if (nb::isinstance<BoundExpander>(h)) return declare(nb::cast<BoundExpander&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
@@ -3068,6 +3086,9 @@ NB_MODULE(_prism_ext, m) {
         .def_prop_rw("url", [](const BoundLink& h) { return h.state().url; },
                      [](BoundLink& h, std::string u) { h.modify([u = std::move(u)](Link& l) { l.url = u; }); },
                      "What a click opens. Any thread; posted.");
+    bind_widget_value<BoundColor, std::string>(m, "BoundColor",
+        "Bound handle for a Model's color picker: .value is \"#RRGGBB\"; setting it takes the same, "
+        "with or without '#' (anything else raises ValueError).");
     bind_widget_value<BoundPicture, std::int64_t>(m, "BoundPicture", "Bound handle for a Model's picture.")
         .def_prop_ro("has_image", [](const BoundPicture& h) { return h.state().image != nullptr; })
         .def_prop_rw("description", [](const BoundPicture& h) { return h.state().description; },
@@ -3465,6 +3486,12 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(Link{.text = std::move(text), .url = std::move(url)});
                 return make_bound_link(std::move(owner), p);
             }, nb::arg("text"), nb::arg("url"))
+        .def("_add_color_internal", [](PyModel& self, std::string hex){
+                auto c = prism::ui::color_detail::parse_hex(hex);
+                if (!c) throw nb::value_error("color: expected \"#RRGGBB\"");
+                auto [owner, p] = self.add_widget_slot(*c);
+                return make_bound_color(std::move(owner), p);
+            }, nb::arg("hex"))
         .def("_add_picture_internal", [](PyModel& self, std::optional<std::string> path,
                                          std::optional<std::pair<float, float>> size, std::string description){
                 Picture pic{.description = std::move(description)};

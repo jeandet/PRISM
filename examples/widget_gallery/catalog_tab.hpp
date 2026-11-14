@@ -94,6 +94,7 @@ struct Samples {
     prism::core::Field<prism::ui::Button> hover_me{{"Rest the pointer here"}};
     prism::core::List<std::string> list;
     prism::core::Field<std::optional<std::size_t>> list_selected{std::nullopt};
+    prism::core::Field<prism::core::Color> ink{prism::core::Color::rgba(0x33, 0x66, 0xCC)};
     Chores chores;
     prism::ui::TreeController chore_tree{prism::ui::wrap_tree_storage(chores)};
     prism::plot::PlotModel plot;
@@ -154,6 +155,8 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<Shape> shape{Shape::Triangle};", one(s.dropdown)},
         E{"Choice", "Inputs", "One of a list known only at run time (ports, recent files); nothing else, unlike a ComboBox.",
           "core::Field<ui::Choice> port{{.options = ports(), .placeholder = \"Pick a port\"}};", one(s.port)},
+        E{"Color", "Inputs", "A swatch and its hex code. A click opens a saturation/brightness square and a hue bar; the arrows nudge it.",
+          "core::Field<core::Color> ink{core::Color::rgba(0x33, 0x66, 0xCC)};", one(s.ink)},
         E{"Display", "", "Widgets that show something: text, progress, actions.", "", nullptr},
         E{"Label", "Display", "Read-only text. .heading makes a title; .wrap breaks it into lines.",
           "core::Field<ui::Label<>> status{{\"Ready\"}};", [&s](Vb& vb) { vb.vstack(s.heading, s.label, s.wrapped); }},
@@ -202,7 +205,7 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "vb.widget(save).tooltip(\"Write the file to disk\");",
           [&s](Vb& vb) { vb.hstack([&] { vb.widget(s.hover_me).tooltip("This is a tooltip"); vb.spacer(); }); }},
         E{"Data", "", "Views over collections. Only the visible rows cost anything.", "", nullptr},
-        E{"List", "Data", "One row per item of a core::List<T>; it follows push_back and erase. .selection(field) keeps the selected row.",
+        E{"List", "Data", "One row per item of a core::List<T>; it follows push_back and erase. .selection(field) keeps the selected row; a click or the arrow keys move it.",
           "core::List<std::string> items; ... vb.list(items).selection(selected);",
           [&s](Vb& vb) { vb.list(s.list).selection(s.list_selected); }},
         E{"Tree", "Data", "Nodes from your source. Ctrl/Shift-click select several; checked() adds boxes, rename() lets F2 rename.",

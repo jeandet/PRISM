@@ -361,6 +361,24 @@ struct DropdownEditState {
     Rect popup_rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
 };
 
+// A color as hue (degrees, [0, 360)), saturation and value ([0, 1]).
+struct Hsv {
+    float h = 0, s = 0, v = 0;
+};
+
+// Ephemeral state for an open color picker. `hsv` is the color being picked: it keeps a hue that
+// the color itself has lost (black, greys). `square` is the saturation/value image, drawn for
+// `square_hue`.
+struct ColorEditState {
+    enum class Drag { none, square, bar };
+    bool open = false;
+    Hsv hsv{};
+    Drag drag = Drag::none;
+    Rect popup_rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
+    std::shared_ptr<const Image> square{};
+    float square_hue = -1;
+};
+
 // Sentinel: tab bar — selected index only; tab names defined in view()
 template <typename S = void>
 struct TabBar {
@@ -1049,6 +1067,18 @@ struct Widget<TextArea<T>> {
     static TextAreaEditState& ensure_edit_state(WidgetNode& node);
     static void record(DrawList& dl, const Field<TextArea<T>>& field, WidgetNode& node);
     static void handle_input(Field<TextArea<T>>& field, const InputEvent& ev, WidgetNode& node);
+};
+
+// A Field<Color>: a swatch and its hex code; a click opens a saturation/value square and a hue
+// bar. Defined in delegates/color_delegates.hpp.
+template <>
+struct Widget<Color> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::Button;
+    static float intrinsic_width(const Field<Color>&, const WidgetNode&) { return 110.f; }
+    static void describe(const Field<Color>& f, AccessInfo& a);
+    static void record(DrawList& dl, const Field<Color>& field, WidgetNode& node);
+    static void handle_input(Field<Color>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 // ScopedEnum delegate -- declared here, defined in widget_tree.hpp
