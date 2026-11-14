@@ -19,6 +19,9 @@ enum class Theme { System, Light, Dark };
 // What the gallery remembers between runs (app/settings.hpp): saved as settings.toml.
 struct Prefs {
     prism::core::Field<Theme> theme{Theme::System};   // a bare enum: a dropdown; applied by main.cpp
+    // The Docking tab's panels, as the user arranged them (doc/design/drag-and-docking.md).
+    prism::core::Field<prism::ui::DockLayout> layout{{prism::ui::dock_split(
+        false, {prism::ui::dock_group({"notes", "list"}), prism::ui::dock_group({"controls", "log"})})}};
     prism::app::WindowGeometry window;
 };
 

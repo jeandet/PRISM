@@ -623,7 +623,7 @@ struct Settings {
 [`examples/`](examples/README.md) holds four complete apps, all of which also run in the
 [browser](https://jeandet.github.io/PRISM/):
 
-- [`widget_gallery`](examples/widget_gallery/): every widget, in five tabs. Start here.
+- [`widget_gallery`](examples/widget_gallery/): every widget, in seven tabs, docking and drag and drop included. Start here.
 - [`model_notes`](examples/model_notes/): a small editor with a file tree, search, menus and undo.
 - [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a
   sortable process table and tree (Linux `/proc`, or a simulated machine elsewhere).

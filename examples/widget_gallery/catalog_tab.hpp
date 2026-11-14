@@ -92,6 +92,11 @@ struct Samples {
     prism::core::Field<prism::ui::ContextMenu> context{{.items = {{"Cut"}, {"Copy"}, {"Paste"}}}};
     prism::core::Field<prism::ui::Label<>> right_click{{"Right-click here"}};
     prism::core::Field<prism::ui::Button> hover_me{{"Rest the pointer here"}};
+    // Drag and drop: chips that drag their name, and the label that takes one.
+    prism::core::Field<prism::ui::Button> chip_a{{"Alpha"}};
+    prism::core::Field<prism::ui::Button> chip_b{{"Beta"}};
+    prism::core::Field<prism::ui::Button> chip_c{{"Gamma"}};
+    prism::core::Field<prism::ui::Label<>> drop_zone{{"Drop a chip here"}};
     prism::core::List<std::string> list;
     prism::core::Field<std::optional<std::size_t>> list_selected{std::nullopt};
     prism::core::Field<prism::core::Color> ink{prism::core::Color::rgba(0x33, 0x66, 0xCC)};
@@ -220,6 +225,25 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
         E{"Plot", "Data", "A chart: drag to pan, the wheel to zoom, right-click to fit.",
           "plot::PlotModel plot; ... vb.canvas(plot).depends_on(plot.revision);",
           [&s](Vb& vb) { vb.canvas(s.plot).depends_on(s.plot.x_range, s.plot.y_range, s.plot.view, s.plot.cursor, s.plot.revision); }},
+        E{"Interaction", "", "What the user does to widgets beyond clicking them.", "", nullptr},
+        E{"Drag and drop", "Interaction",
+          "Drag a chip onto the zone below. A drag carries a value of any type; a target takes one type.",
+          "vb.widget(chip).drag_source(value); vb.widget(zone).drop_target(on_drop);",
+          [&s](Vb& vb) {
+              vb.vstack([&] {
+                  vb.hstack([&] {
+                      vb.widget(s.chip_a).drag_source([] { return std::string("Alpha"); });
+                      vb.gap(8.f);
+                      vb.widget(s.chip_b).drag_source([] { return std::string("Beta"); });
+                      vb.gap(8.f);
+                      vb.widget(s.chip_c).drag_source([] { return std::string("Gamma"); });
+                      vb.spacer();
+                  });
+                  vb.widget(s.drop_zone).drop_target([&s](const std::string& v, prism::ui::DropPlace) {
+                      s.drop_zone.set({v});
+                  });
+              });
+          }},
     };
 }
 

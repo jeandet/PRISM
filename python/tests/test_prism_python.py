@@ -4365,6 +4365,19 @@ def test_a_list_can_be_reordered_by_dragging():
     assert t.items.to_list() == ["b", "c", "a", "d"]
 
 
+def test_docking_and_drag_example_drops_a_chip_on_its_zone():
+    m = _load_example("15_docking_and_drag").Workspace()
+    prism._drag_text(m, "Alpha", "Drop a chip here")
+    assert m.drop.value.startswith("Alpha (")   # "Alpha (x, y)"
+
+
+def test_docking_and_drag_example_builds_its_dock():
+    m = _load_example("15_docking_and_drag").Workspace()
+    texts = prism._texts(m)
+    assert "Notes" in texts and "Log" in texts   # the two tab groups' titles
+    assert m.layout.value["parts"][0]["panels"] == ["notes", "list"]
+
+
 def test_a_list_selection_follows_the_keys_and_the_app():
     seen = []
 

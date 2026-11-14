@@ -30,6 +30,7 @@ PYTHONPATH=builddir/python python3 python/examples/11_error_handling.py
 PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py
 PYTHONPATH=builddir/python python3 python/examples/13_pickers.py
 PYTHONPATH=builddir/python python3 python/examples/14_table_and_tree_editing.py
+PYTHONPATH=builddir/python python3 python/examples/15_docking_and_drag.py
 ```
 
 Each opens a window (`prism.run` blocks, releases the GIL). Close the window to exit.
@@ -66,6 +67,7 @@ PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py --headle
 | `12_asyncio_bridge.py` | an asyncio loop pumped from a single `prism.worker` (no raw thread), `run_coroutine_threadsafe` from an observer, a coroutine feeding a `channel` back, `--headless` mode |
 | `13_pickers.py` | `color()`, `date()`, `time_of_day()` pickers and a `selectable=True` list, summarized in a status bar |
 | `14_table_and_tree_editing.py` | a `TableSource` with `set_cell`, a checkbox column, icons and `handle.columns`; a `TreeSource` with boxes, rename and multi-select (`handle.selection`) |
+| `15_docking_and_drag.py` | `dock_layout()` + `vb.dock(...)` with tabs the user drags between panels (and out to float), and `vb.widget(h, drag=..., drop=..., accepts=str)` dragging a chip onto a drop zone |
 
 ## Notes
 
