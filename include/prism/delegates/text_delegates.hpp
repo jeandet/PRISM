@@ -274,53 +274,89 @@ std::optional<TextEdit> mouse_edit(const TextEdit& e, EditState& es, const Input
     return std::nullopt;
 }
 
+// `takes_composition`: false when the widget refuses an IME composition (a secret field, a
+// read-only area); `allow_copy`: false for secret fields (Password), which must never reach the
+// clipboard. The history key applies its own edit and ends the event, as it does in both widgets.
+enum class SharedText { Done, Edit, NotShared };
+
+struct SharedTextOutcome {
+    SharedText kind = SharedText::NotShared;   // NotShared: the widget's own keys and mouse
+    std::optional<TextEdit> edit;              // Edit: the caller's `after`
+};
+
+// The part of a text event TextField and TextArea handle the same way: composition, typed and
+// pasted text, and the history and clipboard keys (pasteFn normalises the pasted text).
+template <typename Sentinel, typename EditState, typename PasteFn>
+SharedTextOutcome shared_text_event(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node,
+                                    EditState& es, const TextEdit& before, PasteFn paste_fn,
+                                    bool takes_composition, bool allow_copy) {
+    if (auto* co = std::get_if<Composition>(&ev)) {
+        if (takes_composition) set_composition(es, node, *co);
+        return {SharedText::Done, std::nullopt};
+    }
+    if (std::holds_alternative<TextInput>(ev) || std::holds_alternative<Paste>(ev)) es.preedit.clear();
+
+    std::optional<TextEdit> after;
+    if (auto* ti = std::get_if<TextInput>(&ev)) {
+        after = text_edit::insert(before, ti->text, field.get().max_length);
+    } else if (auto* pa = std::get_if<Paste>(&ev)) {
+        after = text_edit::insert(before, paste_fn(pa->text), field.get().max_length);
+    } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
+        if (auto h = history_key(es.history, before, *kp)) {
+            if (*h) apply_edit(field, node, es, before, **h);
+            return {SharedText::Done, std::nullopt};   // an undo step is not itself recorded
+        }
+        auto* cb = node.theme ? node.theme->clipboard : nullptr;
+        if (auto c = clipboard_key(before, *kp, cb, allow_copy)) after = c;
+        else return {SharedText::NotShared, std::nullopt};
+    } else {
+        return {SharedText::NotShared, std::nullopt};
+    }
+    return {SharedText::Edit, after};
+}
+
+// The tail both widgets end an edit with: one history step, then the edit itself.
+template <typename Sentinel, typename EditState>
+void record_and_apply(Field<Sentinel>& field, WidgetNode& node, EditState& es, const TextEdit& before,
+                      const TextEdit& after, const InputEvent& ev) {
+    es.history.record(before, after, std::holds_alternative<TextInput>(ev)
+                                          ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
+    apply_edit(field, node, es, before, after);
+}
+
 // allow_copy: false for secret fields (Password), which must never reach the clipboard.
 template <typename Sentinel, typename DisplayFn>
 void text_field_handle_input(Field<Sentinel>& field, const InputEvent& ev, WidgetNode& node,
                              DisplayFn display_fn, bool allow_copy) {
     const TextMeasurer* m = node.theme ? node.theme->measurer : nullptr;
-    const Clipboard* cb = node.theme ? node.theme->clipboard : nullptr;
     auto& es = node.get_or_create<TextEditState>();
     const TextEdit before = current_edit(field, es);
-    std::optional<TextEdit> after;
 
-    if (auto* co = std::get_if<Composition>(&ev)) {
-        if (allow_copy) set_composition(es, node, *co);   // a secret field never shows plaintext
-        return;
-    }
-    if (std::holds_alternative<TextInput>(ev) || std::holds_alternative<Paste>(ev)) es.preedit.clear();
-
-    if (auto* ti = std::get_if<TextInput>(&ev)) {
-        after = text_edit::insert(before, ti->text, field.get().max_length);
-    } else if (auto* pa = std::get_if<Paste>(&ev)) {
-        after = text_edit::insert(before, single_line(pa->text), field.get().max_length);
-    } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
-        bool shift = (kp->mods & mods::shift) != 0;
-        if (auto h = history_key(es.history, before, *kp)) {
-            if (*h) apply_edit(field, node, es, before, **h);
-            return;   // an undo step is not itself recorded
+    // A secret field never shows plaintext, so it refuses a composition too.
+    auto shared = shared_text_event(field, ev, node, es, before, single_line, allow_copy, allow_copy);
+    if (shared.kind == SharedText::Done) return;
+    std::optional<TextEdit> after = shared.edit;
+    if (shared.kind == SharedText::NotShared) {
+        if (auto* kp = std::get_if<KeyPress>(&ev)) {
+            bool shift = (kp->mods & mods::shift) != 0;
+            if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
+            else if (kp->key == keys::end) after = text_edit::move_to(before, before.text.size(), shift);
+            // A secret field shows dots, which read left to right: its arrows stay logical.
+            else if (auto to = allow_copy ? visual_arrow(before.text, before.cursor, before, *kp, m, tf_font_size,
+                                                         FontRole::Ui, TextDirection::Auto)
+                                          : std::nullopt)
+                after = text_edit::move_to(before, *to, shift);
+            else after = common_edit_key(before, *kp);
+        } else {
+            Width area_w = delegate_detail::widget_w(node) - tf_padding_x * 2.f;
+            float x0 = text_x0(m, before.text, area_w, display_fn);
+            after = mouse_edit(before, es, ev, [&](Point p) {
+                return cursor_at(m, before.text, p.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw() - x0,
+                                 display_fn);
+            });
         }
-        if (auto c = clipboard_key(before, *kp, cb, allow_copy)) after = c;
-        else if (kp->key == keys::home) after = text_edit::move_to(before, 0, shift);
-        else if (kp->key == keys::end) after = text_edit::move_to(before, before.text.size(), shift);
-        // A secret field shows dots, which read left to right: its arrows stay logical.
-        else if (auto to = allow_copy ? visual_arrow(before.text, before.cursor, before, *kp, m, tf_font_size,
-                                                     FontRole::Ui, TextDirection::Auto)
-                                      : std::nullopt)
-            after = text_edit::move_to(before, *to, shift);
-        else after = common_edit_key(before, *kp);
-    } else {
-        Width area_w = delegate_detail::widget_w(node) - tf_padding_x * 2.f;
-        float x0 = text_x0(m, before.text, area_w, display_fn);
-        after = mouse_edit(before, es, ev, [&](Point p) {
-            return cursor_at(m, before.text, p.x.raw() - tf_padding_x.raw() + es.scroll_offset.raw() - x0, display_fn);
-        });
     }
-    if (after) {
-        es.history.record(before, *after, std::holds_alternative<TextInput>(ev)
-                                              ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
-        apply_edit(field, node, es, before, *after);
-    }
+    if (after) record_and_apply(field, node, es, before, *after, ev);
 
     Width w = delegate_detail::widget_w(node);
     Width text_area_w = w - tf_padding_x * 2.f;
@@ -591,24 +627,12 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
         return at_line_col(to, to_col);
     };
 
-    if (auto* co = std::get_if<Composition>(&ev)) {
-        if (!field.get().read_only) set_composition(es, node, *co);
-        return;
-    }
-    if (std::holds_alternative<TextInput>(ev) || std::holds_alternative<Paste>(ev)) es.preedit.clear();
-
-    if (auto* ti = std::get_if<TextInput>(&ev)) {
-        after = text_edit::insert(before, ti->text, field.get().max_length);
-    } else if (auto* pa = std::get_if<Paste>(&ev)) {
-        after = text_edit::insert(before, normalized_lines(pa->text), field.get().max_length);
-    } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
+    auto shared = shared_text_event(field, ev, node, es, before, normalized_lines, !field.get().read_only, true);
+    if (shared.kind == SharedText::Done) return;
+    if (shared.kind == SharedText::Edit) after = shared.edit;
+    else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         bool shift = (kp->mods & mods::shift) != 0;
-        if (auto h = history_key(es.history, before, *kp)) {
-            if (*h) apply_edit(field, node, es, before, **h);
-            return;   // an undo step is not itself recorded
-        }
-        if (auto c = clipboard_key(before, *kp, node.theme ? node.theme->clipboard : nullptr, true)) after = c;
-        else switch (kp->key) {
+        switch (kp->key) {
         case keys::enter: after = text_edit::insert(before, "\n", field.get().max_length); break;
         case keys::home: after = text_edit::move_to(before, line_col_to_cursor(value, line, 0, wrapped), shift); break;
         case keys::end:
@@ -647,11 +671,7 @@ void text_area_handle_input(Field<Sentinel>& field, const InputEvent& ev, Widget
     // is dropped, so a cut only copies. (A return, not after.reset(): GCC 14 then warns that the
     // reset optional may be read below, a false maybe-uninitialized.)
     if (after && field.get().read_only && after->text != before.text) return;
-    if (after) {
-        es.history.record(before, *after, std::holds_alternative<TextInput>(ev)
-                                              ? EditHistory::Kind::Typing : EditHistory::Kind::Other);
-        apply_edit(field, node, es, before, *after);
-    }
+    if (after) record_and_apply(field, node, es, before, *after, ev);
     if (vertical) es.goal_cursor = es.cursor;
     if (after) es.upstream = upstream_after;
 
