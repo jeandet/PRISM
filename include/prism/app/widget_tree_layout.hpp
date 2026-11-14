@@ -60,6 +60,76 @@ inline std::optional<ScrollView> get_scroll_view(WidgetNode& node) {
 
 inline void build_layout(WidgetNode& node, LayoutNode& parent);
 
+// --- Keeping the layout tree between publishes ---
+// A widget subtree with nothing changed since the last publish keeps its layout nodes: they are
+// moved over, already measured, instead of being built and measured again. Arrange still runs
+// over the whole tree, so positions are always fresh.
+
+// Containers whose layout nodes carry state read at build time (scroll offsets, visible rows,
+// table columns, the selected tab) are always built again; their children may still be kept.
+inline bool keeps_state(const WidgetNode& n) {
+    using LK = LayoutKind;
+    return n.layout_kind == LK::Scroll || n.layout_kind == LK::VirtualList || n.layout_kind == LK::Table
+        || n.layout_kind == LK::Tabs;
+}
+// A container that hands its children to its parent's layout node (no node of its own).
+inline bool passes_through(const WidgetNode& n) {
+    using LK = LayoutKind;
+    return n.is_container && !keeps_state(n) && n.layout_kind != LK::Row && n.layout_kind != LK::Column;
+}
+// A splitter rewrites its panes' size hints while measuring, so they are measured afresh.
+inline bool splits(const WidgetNode& n) {
+    return std::any_cast<SplitState>(&n.edit_state)
+        || std::ranges::any_of(n.children, [](const WidgetNode& c) { return c.layout_kind == LayoutKind::Handle; });
+}
+
+// The last publish's layout children of one node, walked in order to find each widget's own.
+struct LayoutCacheCursor {
+    LayoutNode* owner = nullptr;
+    std::size_t next = 0;
+    std::size_t* kept = nullptr;   // counts the nodes that can be kept, for the snapshot's stats
+    // A few nodes ahead at most: rows inserted or removed shift the rest by little, and a miss
+    // only costs a rebuild.
+    LayoutNode* take(const WidgetNode& n) {
+        if (!owner) return nullptr;
+        std::size_t end = std::min(next + 4, owner->children.size());
+        for (std::size_t k = next; k < end; ++k)
+            if (owner->children[k].source == &n) {
+                next = k + 1;
+                return &owner->children[k];
+            }
+        return nullptr;
+    }
+    bool consumed() const { return !owner || next == owner->children.size(); }
+};
+
+// Links `node` and its subtree to their layout nodes from the last publish and marks which can
+// be kept as they are. Returns whether all of it can.
+inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
+    node.layout_reusable = false;
+    if (passes_through(node)) {
+        node.cached_layout = nullptr;
+        bool all = true;
+        for (auto& c : node.children) all &= link_layout_cache(c, siblings);
+        return all;
+    }
+    LayoutNode* cached = siblings.take(node);
+    node.cached_layout = cached;
+    bool children_kept = true;
+    if (node.is_container) {
+        LayoutCacheCursor inner{cached, 0, siblings.kept};
+        for (auto& c : node.children) children_kept &= link_layout_cache(c, inner);
+        children_kept &= inner.consumed();
+        if (splits(node))
+            for (auto& c : node.children) c.layout_reusable = false;
+    }
+    node.layout_reusable = cached && cached->id == node.id && !node.dirty && !node.relayout
+        && node.overlay_draws.empty() && cached->overlay_draws.empty()
+        && cached->measured_axis.has_value() && children_kept && !keeps_state(node) && !splits(node);
+    if (node.layout_reusable && siblings.kept) ++*siblings.kept;
+    return node.layout_reusable;
+}
+
 // Appends the layout nodes of node's children to `into`, allocating once: a LayoutNode is
 // large, and growing the vector one child at a time moved every earlier sibling each time.
 inline void build_children(WidgetNode& node, LayoutNode& into) {
@@ -71,6 +141,12 @@ inline void build_children(WidgetNode& node, LayoutNode& into) {
 inline void build_layout(WidgetNode& node, LayoutNode& parent) {
     using LK = LayoutKind;
 
+    if (node.layout_reusable && node.cached_layout) {
+        parent.children.push_back(std::move(*node.cached_layout));
+        node.cached_layout = nullptr;
+        return;
+    }
+    node.relayout = false;
     if (!node.is_container) {
         if (node.layout_kind == LK::Spacer) {
             LayoutNode spacer;

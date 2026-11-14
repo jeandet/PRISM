@@ -114,6 +114,9 @@ struct LayoutNode {
     // after layout reach its state through it, not through an id lookup per node.
     WidgetNode* source = nullptr;
     std::optional<Framing> frame;   // Row/Column: drawn around the children, which it insets
+    // Set once measured along this axis; a node kept from the last publish keeps it, so its
+    // subtree is not measured again.
+    std::optional<LayoutAxis> measured_axis;
 };
 
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis);
@@ -234,7 +237,17 @@ inline void arrange_uniform_rows(LayoutNode& node, Rect available, Height item_h
 
 } // namespace layout_detail
 
+namespace layout_detail {
+inline void measure_node(LayoutNode& node, LayoutAxis parent_axis);
+}
+
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
+    if (node.measured_axis == parent_axis) return;   // kept from the last publish, unchanged
+    layout_detail::measure_node(node, parent_axis);
+    node.measured_axis = parent_axis;
+}
+
+inline void layout_detail::measure_node(LayoutNode& node, LayoutAxis parent_axis) {
     switch (node.kind) {
     case LayoutNode::Kind::Spacer:
         // A stretchy spacer stretches along its row or column only: one at the end of a menu

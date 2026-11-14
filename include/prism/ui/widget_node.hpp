@@ -26,6 +26,7 @@ using namespace prism::core;
 using namespace prism::render;
 using namespace prism::input;
 
+struct LayoutNode;
 
 struct WidgetNode {
     WidgetId id = 0;
@@ -82,6 +83,12 @@ struct WidgetNode {
     std::string debug_name;
 #endif
     bool dirty = false;
+    // Layout kept between publishes (app/widget_tree_layout.hpp, link_layout_cache): this
+    // node's layout node from the last publish, and whether it still holds as it is. `relayout`
+    // marks a widget re-recorded after layout (its size changed), which must be measured again.
+    LayoutNode* cached_layout = nullptr;
+    bool layout_reusable = false;
+    bool relayout = false;
     bool is_container = false;
     FocusPolicy focus_policy = FocusPolicy::none;
     WidgetVisualState visual_state;

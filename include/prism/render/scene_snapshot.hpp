@@ -49,6 +49,7 @@ struct SceneSnapshot {
     std::size_t draw_command_count = 0;
     std::size_t approx_bytes = 0;
     std::size_t layout_pass_count = 0;  // 1 normally, 2 when a VirtualList/Table viewport changed
+    std::size_t layout_nodes_reused = 0;   // layout nodes kept from the last publish, not rebuilt
     std::chrono::steady_clock::time_point built_at{};  // when build_snapshot() finished
 };
 

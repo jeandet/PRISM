@@ -97,6 +97,7 @@ headless_tests = {
   'color_picker' : files('test_color_picker.cpp'),
   'date_picker' : files('test_date_picker.cpp'),
   'time_picker' : files('test_time_picker.cpp'),
+  'layout_reuse' : files('test_layout_reuse.cpp'),
   'tree_selection' : files('test_tree_selection.cpp'),
   'tree_edit' : files('test_tree_edit.cpp'),
   'table_cells' : files('test_table_cells.cpp'),

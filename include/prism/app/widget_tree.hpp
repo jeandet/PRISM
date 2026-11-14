@@ -747,6 +747,10 @@ public:
         materialize_all_virtual_lists(root_);
 
         std::optional<PopupLayout> popup;   // the open popup's content, laid out by do_layout
+        std::size_t layout_kept = 0;
+        // The first layout of a publish keeps what it can of the last publish's; a second one
+        // (a viewport or a wrapped label changed) builds everything again.
+        bool keep_layout = last_layout_.has_value();
         auto do_layout = [&] {
             LayoutNode layout;
             assert(root_.layout_kind != LayoutKind::Spacer);
@@ -763,6 +767,14 @@ public:
             // would silently never apply.
             if (auto* ss = std::any_cast<SplitState>(&root_.edit_state); ss && ss->engaged)
                 layout.split_sizes = ss->pane_sizes;
+            LayoutCacheCursor cursor{keep_layout ? &*last_layout_ : nullptr, 0, &layout_kept};
+            keep_layout = false;
+            bool root_splits = splits(root_);
+            for (auto& c : root_.children) {
+                link_layout_cache(c, cursor);
+                if (root_splits) c.layout_reusable = false;
+            }
+            layout.children.reserve(root_.children.size());
             for (auto& c : root_.children)
                 build_layout(c, layout);
 
@@ -831,6 +843,7 @@ public:
 
         snap->dirty_widget_count = dirty_widgets;
         snap->layout_pass_count = layout_passes;
+        snap->layout_nodes_reused = layout_kept;
         snap->draw_command_count = snap->overlay.size();
         snap->approx_bytes = snap->overlay.approx_bytes();
         for (auto& dl : snap->draw_lists) {
@@ -841,6 +854,7 @@ public:
         snap->build_time_ms = std::chrono::duration<double, std::milli>(
             build_end - build_start).count();
         snap->built_at = build_end;
+        last_layout_ = std::move(layout);
         return snap;
     }
 
@@ -875,6 +889,7 @@ private:
     TooltipState tooltip_;
     bool tooltip_dirty_ = false;
     std::optional<Rect> popup_card_;   // see popup_card()
+    std::optional<LayoutNode> last_layout_;   // the last publish's layout, kept for the next one
     bool swallow_text_ = false;
     std::uint64_t last_built_version_ = 0;
     std::uint64_t input_frame_ = UINT64_MAX;   // none known: as new as it gets   // shown or hidden since the last publish
