@@ -163,6 +163,7 @@ __all__ = [
     "link",
     "color",
     "date",
+    "time_of_day",
     "expander",
     "spinbox",
     "progress",
@@ -500,6 +501,8 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_color_internal(self.default)
         elif self.kind == "date":
             h = instance._add_date_internal(self.default)
+        elif self.kind == "time_of_day":
+            h = instance._add_time_internal(self.default)
         elif self.kind == "picture":
             m = self.meta
             h = instance._add_picture_internal(m["path"], m["size"], m["description"])
@@ -671,6 +674,15 @@ def date(value, *, tooltip=None):
     if not _is_iso_date(str(value)):
         raise ValueError(f'prism.date(): expected a real "YYYY-MM-DD", got {value!r}')
     return _tooltipped(_FieldDescriptor(str(value), kind="date"), tooltip)
+
+
+def time_of_day(value="00:00", *, tooltip=None):
+    """A time of day to the minute (C++ ``Field<ui::TimeOfDay>``), shown as ``HH:MM``: a click
+    picks the hour or the minutes, Up/Down or the wheel step that part, digits type it.
+    ``.value`` is ``"HH:MM"``; setting it takes the same. Anything else raises ``ValueError``."""
+    if not _re_mod.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(value)):
+        raise ValueError(f'prism.time_of_day(): expected "HH:MM", got {value!r}')
+    return _tooltipped(_FieldDescriptor(str(value), kind="time_of_day"), tooltip)
 
 
 def picture(path=None, *, width=None, height=None, description="", tooltip=None):

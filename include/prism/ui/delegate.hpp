@@ -1101,6 +1101,33 @@ struct Widget<std::chrono::year_month_day> {
     static void handle_input(Field<std::chrono::year_month_day>& field, const InputEvent& ev, WidgetNode& node);
 };
 
+// A time of day, to the minute (hour 0-23, minute 0-59).
+struct TimeOfDay {
+    int hour = 0;
+    int minute = 0;
+    bool operator==(const TimeOfDay&) const = default;
+};
+
+// Ephemeral state of a time field: the part the keys act on, and a first digit typed into it
+// that a second one may complete.
+struct TimeEditState {
+    enum class Part { hour, minute };
+    Part part = Part::hour;
+    std::optional<int> pending{};
+};
+
+// A Field<TimeOfDay>: "HH:MM". A click picks the hour or the minutes; Up/Down or the wheel step
+// that part, Left/Right switch, digits type it. Defined in delegates/time_delegates.hpp.
+template <>
+struct Widget<TimeOfDay> {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static constexpr Role access_role = Role::SpinButton;
+    static float intrinsic_width(const Field<TimeOfDay>&, const WidgetNode&) { return 80.f; }
+    static void describe(const Field<TimeOfDay>& f, AccessInfo& a);
+    static void record(DrawList& dl, const Field<TimeOfDay>& field, WidgetNode& node);
+    static void handle_input(Field<TimeOfDay>& field, const InputEvent& ev, WidgetNode& node);
+};
+
 // ScopedEnum delegate -- declared here, defined in widget_tree.hpp
 template <ScopedEnum T>
     requires (!TextEditable<T>)

@@ -96,6 +96,7 @@ struct Samples {
     prism::core::Field<std::optional<std::size_t>> list_selected{std::nullopt};
     prism::core::Field<prism::core::Color> ink{prism::core::Color::rgba(0x33, 0x66, 0xCC)};
     prism::core::Field<std::chrono::year_month_day> day{std::chrono::year{2026} / std::chrono::November / 14};
+    prism::core::Field<prism::ui::TimeOfDay> alarm{{7, 30}};
     Chores chores;
     prism::ui::TreeController chore_tree{prism::ui::wrap_tree_storage(chores)};
     prism::plot::PlotModel plot;
@@ -160,6 +161,8 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<core::Color> ink{core::Color::rgba(0x33, 0x66, 0xCC)};", one(s.ink)},
         E{"Date", "Inputs", "A date. A click opens a month calendar; the arrows move by day and week, Page Up/Down by month.",
           "core::Field<std::chrono::year_month_day> day{2026y / November / 14};", one(s.day)},
+        E{"Time", "Inputs", "A time of day. Click the hour or the minutes, then Up/Down, the wheel or digits; Left/Right switch.",
+          "core::Field<ui::TimeOfDay> alarm{{7, 30}};", one(s.alarm)},
         E{"Display", "", "Widgets that show something: text, progress, actions.", "", nullptr},
         E{"Label", "Display", "Read-only text. .heading makes a title; .wrap breaks it into lines.",
           "core::Field<ui::Label<>> status{{\"Ready\"}};", [&s](Vb& vb) { vb.vstack(s.heading, s.label, s.wrapped); }},

@@ -160,6 +160,7 @@ struct Editor {
     core::Field<ui::Choice>       port{{.options = {"COM1", "COM3"}}};         // one of a list known at run time
     core::Field<core::Color>      ink{core::Color::rgba(0x33, 0x66, 0xCC)};    // color picker: hue bar + square
     core::Field<std::chrono::year_month_day> leave{2026y / November / 14};     // date picker: a month calendar
+    core::Field<ui::TimeOfDay>    wake{{7, 30}};                                // HH:MM; arrows, wheel or digits
     core::Field<ui::Button>       bold{{.text = "Bold", .checked = false}};     // a toggle: stays pressed
     core::Field<ui::Label<>>      help{{.value = "Long help...", .wrap = true}}; // wraps to its width
     core::Field<ui::Link>         docs{{.text = "Docs", .url = "https://..."}};  // opens in the browser
@@ -713,6 +714,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.link(text, url=)` | `Field<Link>` | opens the URL; `.value` counts clicks |
 | `prism.color("#RRGGBB")` | `Field<Color>` | a picker; `.value` is `"#RRGGBB"`, the alpha is kept |
 | `prism.date("YYYY-MM-DD")` | `Field<std::chrono::year_month_day>` | a month calendar; `.value` is ISO text |
+| `prism.time_of_day("HH:MM")` | `Field<ui::TimeOfDay>` | hour and minutes stepped or typed; `.value` is `"HH:MM"` |
 | `prism.picture(path, width=, height=)` | `Field<Picture>` | `.load(path)` shows another file |
 | `prism.expander(title)` + `vb.section(h, fn)` | `Field<Expander>` + `vb.section` | content built only while open |
 | `vb.toolbar(fn)`, `vb.status_bar(fn)`, `vb.group(title, fn)` | the same | containers with a look |

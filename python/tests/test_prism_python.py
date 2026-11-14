@@ -4430,6 +4430,24 @@ def test_a_date_field_shows_iso_dates_and_takes_new_ones():
         prism.date("14/11/2026")
 
 
+def test_a_time_of_day_field_shows_hh_mm_and_takes_new_ones():
+    class Alarm(prism.Model):
+        wake = prism.time_of_day("07:30")
+
+        def view(self, vb):
+            vb.widget(self.wake)
+
+    a = Alarm()
+    assert a.wake.value == "07:30"
+    assert "07:30" in prism._texts(a)
+    a.wake.value = "23:59"
+    assert a.wake.value == "23:59"
+    with pytest.raises(ValueError):
+        a.wake.value = "24:00"
+    with pytest.raises(ValueError):
+        prism.time_of_day("7:30")
+
+
 # --- docking ----------------------------------------------------------------------------
 
 

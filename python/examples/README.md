@@ -28,6 +28,7 @@ PYTHONPATH=builddir/python python3 python/examples/08_dashboard.py
 PYTHONPATH=builddir/python python3 python/examples/10_worker_pool_plot.py
 PYTHONPATH=builddir/python python3 python/examples/11_error_handling.py
 PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py
+PYTHONPATH=builddir/python python3 python/examples/13_pickers.py
 ```
 
 Each opens a window (`prism.run` blocks, releases the GIL). Close the window to exit.
@@ -62,6 +63,7 @@ PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py --headle
 | `10_worker_pool_plot.py` | `ThreadPoolExecutor(max_workers=4)` computing a pure-Python (`cmath`) FFT spectrum per window inside a `prism.worker`, each window posted via `plot.replace_series()`, `--headless` mode |
 | `11_error_handling.py` | `prism.on_error(handler)`, an observer + a worker that raise, `--headless` mode |
 | `12_asyncio_bridge.py` | an asyncio loop pumped from a single `prism.worker` (no raw thread), `run_coroutine_threadsafe` from an observer, a coroutine feeding a `channel` back, `--headless` mode |
+| `13_pickers.py` | `color()`, `date()`, `time_of_day()` pickers and a `selectable=True` list, summarized in a status bar |
 
 ## Notes
 

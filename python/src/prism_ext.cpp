@@ -1380,6 +1380,7 @@ using BoundPicture = BoundWidgetValue<Picture, std::int64_t>;               // .
 using BoundLink = BoundWidgetValue<Link, std::int64_t>;                     // .value: clicks so far
 using BoundColor = BoundWidgetValue<Color, std::string>;                    // .value: "#RRGGBB"
 using BoundDate = BoundWidgetValue<std::chrono::year_month_day, std::string>; // .value: "YYYY-MM-DD"
+using BoundTime = BoundWidgetValue<prism::ui::TimeOfDay, std::string>;        // .value: "HH:MM"
 using BoundExpander = BoundWidgetValue<Expander, bool>;                     // .value: open
 using BoundSpinBoxInt = BoundWidgetValue<SpinBox<std::int64_t>, std::int64_t>;
 using BoundSpinBoxFloat = BoundWidgetValue<SpinBox<double>, double>;
@@ -1594,6 +1595,20 @@ inline BoundDate make_bound_date(std::shared_ptr<SlotBase> owner, Field<std::chr
     };
     h.check = [](const std::chrono::year_month_day&, const std::string& v) {
         if (!prism::ui::date_detail::parse_iso(v)) throw nb::value_error("date: expected a real \"YYYY-MM-DD\"");
+    };
+    return h;
+}
+
+inline BoundTime make_bound_time(std::shared_ptr<SlotBase> owner, Field<prism::ui::TimeOfDay>* f) {
+    BoundTime h;
+    h.owner = std::move(owner);
+    h.field = f;
+    h.read = [](const prism::ui::TimeOfDay& t) { return prism::ui::time_detail::to_text(t); };
+    h.write = [](prism::ui::TimeOfDay& t, const std::string& v) {
+        if (auto p = prism::ui::time_detail::parse(v)) t = *p;
+    };
+    h.check = [](const prism::ui::TimeOfDay&, const std::string& v) {
+        if (!prism::ui::time_detail::parse(v)) throw nb::value_error("time_of_day: expected \"HH:MM\"");
     };
     return h;
 }
@@ -2113,6 +2128,7 @@ void derived_attach_dep(std::shared_ptr<SlotDerived<T>> slot, nb::object dep) {
     if (connect_field((BoundLink*)nullptr)) return;
     if (connect_field((BoundColor*)nullptr)) return;
     if (connect_field((BoundDate*)nullptr)) return;
+    if (connect_field((BoundTime*)nullptr)) return;
     if (connect_field((BoundExpander*)nullptr)) return;
     if (connect_field((BoundSpinBoxInt*)nullptr)) return;
     if (connect_field((BoundSpinBoxFloat*)nullptr)) return;
@@ -2172,6 +2188,7 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundLink>(h)) vb.widget(*nb::cast<BoundLink&>(h).field);
     else if (nb::isinstance<BoundColor>(h)) vb.widget(*nb::cast<BoundColor&>(h).field);
     else if (nb::isinstance<BoundDate>(h)) vb.widget(*nb::cast<BoundDate&>(h).field);
+    else if (nb::isinstance<BoundTime>(h)) vb.widget(*nb::cast<BoundTime&>(h).field);
     else if (nb::isinstance<BoundExpander>(h)) vb.widget(*nb::cast<BoundExpander&>(h).field);
     else if (nb::isinstance<BoundSpinBoxInt>(h)) vb.widget(*nb::cast<BoundSpinBoxInt&>(h).field);
     else if (nb::isinstance<BoundSpinBoxFloat>(h)) vb.widget(*nb::cast<BoundSpinBoxFloat&>(h).field);
@@ -2216,6 +2233,7 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     if (nb::isinstance<BoundLink>(h)) return declare(nb::cast<BoundLink&>(h).field);
     if (nb::isinstance<BoundColor>(h)) return declare(nb::cast<BoundColor&>(h).field);
     if (nb::isinstance<BoundDate>(h)) return declare(nb::cast<BoundDate&>(h).field);
+    if (nb::isinstance<BoundTime>(h)) return declare(nb::cast<BoundTime&>(h).field);
     if (nb::isinstance<BoundExpander>(h)) return declare(nb::cast<BoundExpander&>(h).field);
     if (nb::isinstance<BoundSpinBoxInt>(h)) return declare(nb::cast<BoundSpinBoxInt&>(h).field);
     if (nb::isinstance<BoundSpinBoxFloat>(h)) return declare(nb::cast<BoundSpinBoxFloat&>(h).field);
@@ -3110,6 +3128,9 @@ NB_MODULE(_prism_ext, m) {
     bind_widget_value<BoundDate, std::string>(m, "BoundDate",
         "Bound handle for a Model's date picker: .value is \"YYYY-MM-DD\"; setting it takes the same "
         "(anything else, or a date that does not exist, raises ValueError).");
+    bind_widget_value<BoundTime, std::string>(m, "BoundTime",
+        "Bound handle for a Model's time of day: .value is \"HH:MM\"; setting it takes the same "
+        "(anything else raises ValueError).");
     bind_widget_value<BoundPicture, std::int64_t>(m, "BoundPicture", "Bound handle for a Model's picture.")
         .def_prop_ro("has_image", [](const BoundPicture& h) { return h.state().image != nullptr; })
         .def_prop_rw("description", [](const BoundPicture& h) { return h.state().description; },
@@ -3519,6 +3540,12 @@ NB_MODULE(_prism_ext, m) {
                 auto [owner, p] = self.add_widget_slot(*d);
                 return make_bound_date(std::move(owner), p);
             }, nb::arg("iso"))
+        .def("_add_time_internal", [](PyModel& self, std::string text){
+                auto t = prism::ui::time_detail::parse(text);
+                if (!t) throw nb::value_error("time_of_day: expected \"HH:MM\"");
+                auto [owner, p] = self.add_widget_slot(*t);
+                return make_bound_time(std::move(owner), p);
+            }, nb::arg("text"))
         .def("_add_picture_internal", [](PyModel& self, std::optional<std::string> path,
                                          std::optional<std::pair<float, float>> size, std::string description){
                 Picture pic{.description = std::move(description)};
