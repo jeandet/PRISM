@@ -641,6 +641,17 @@ public:
             if (it->second.contains(p) && takes(it->first, value)) return it->first;
         return 0;
     }
+    // The container that claims `p` by a rule of its own -- a dock's edge buttons, which lie over
+    // its groups -- before whatever lies under it takes the drop.
+    [[nodiscard]] WidgetId claiming_drop_area(Point p, const std::any& value) const {
+        for (auto& [id, r] : drop_areas_) {
+            auto it = index_.find(id);
+            if (it == index_.end() || !it->second->drag.claims || !r.contains(p) || !takes(id, value)) continue;
+            Point at{X{p.x.raw() - r.origin.x.raw()}, Y{p.y.raw() - r.origin.y.raw()}};
+            if (it->second->drag.claims(DropPlace{at, r.extent})) return id;
+        }
+        return 0;
+    }
     [[nodiscard]] std::optional<Rect> drop_area_rect(WidgetId id) const {
         for (auto& [i, r] : drop_areas_)
             if (i == id) return r;
@@ -1016,8 +1027,9 @@ private:
         }
     }
 
-    // While dragging: a marker on the target under the pointer, and the dragged widget (or the
-    // part dragged) following the pointer where it was grabbed (app/drag_draw.hpp).
+    // While dragging: a marker on the target under the pointer, the dock's edge buttons when the
+    // pointer is over a dock, and the dragged widget (or the part dragged) following the pointer
+    // where it was grabbed (app/drag_draw.hpp).
     void draw_drag(SceneSnapshot& snap) const {
         std::optional<Rect> target_rect;
         for (auto& [id, rect] : snap.geometry)
@@ -1025,12 +1037,29 @@ private:
         if (!target_rect) target_rect = drop_area_rect(drag_->target);
         if (auto t = index_.find(drag_->target); target_rect && t != index_.end())
             drag_draw::drop_marker(snap.overlay, *target_rect, drag_->pointer, t->second->drag, theme_.accent);
+        if (auto* outer = edge_drop_container()) {
+            if (auto rect = drop_area_rect(outer->id))
+                drag_draw::edge_guide(snap.overlay, *rect, drag_->pointer, theme_.accent);
+        }
         auto it = index_.find(drag_->source);
         if (it == index_.end()) return;
         Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
         auto area = it->second->drag.ghost_area ? it->second->drag.ghost_area(*it->second, press) : std::nullopt;
         auto ghost = drag_draw::ghost(it->second->draws, area, drag_->pointer - drag_->grab);
         snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
+    }
+
+    // The container around the drop target whose edges take drops (a dock): it shows its edge
+    // buttons while anything is dragged over it.
+    [[nodiscard]] const WidgetNode* edge_drop_container() const {
+        for (WidgetId id = drag_->target; id != 0;) {
+            auto it = index_.find(id);
+            if (it == index_.end()) return nullptr;
+            if (it->second->drag.edge_zones) return it->second;
+            auto up = parent_map_.find(id);
+            id = up == parent_map_.end() ? 0 : up->second;
+        }
+        return nullptr;
     }
 
     // A widget whose condition changed redraws (faded or not); one just disabled lets go of the

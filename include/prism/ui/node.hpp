@@ -42,6 +42,10 @@ struct DragRole {
     bool between = false;   // drops go before or after it (a list row): shown as a line, not an outline
     bool inside_middle = false;   // with between: its middle half takes drops inside it (a tree folder)
     bool zones = false;           // a dock group: the middle or an edge, shown as the area it would take
+    bool edge_zones = false;      // a dock's container: the four buttons on its edges, drawn while dragging
+    // The parts of it that take a drop over whatever lies under them (a dock's edge buttons, over
+    // its groups); none: all of it, and the innermost target holding the pointer wins.
+    std::function<bool(DropPlace)> claims{};
 };
 
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;

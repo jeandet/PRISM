@@ -17,8 +17,9 @@ namespace gallery {
 struct DockingTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Docking", .heading = true}};
     prism::core::Field<prism::ui::Label<>> hint{
-        {.value = "Drag a panel's tab onto another panel's middle or edge to rearrange the dock; "
-                  "let it go outside the window to float it.",
+        {.value = "Drag a panel's tab onto another panel: the guide's buttons put it in that "
+                  "panel's tabs, beside it, or along a whole side of the dock; let it go outside "
+                  "the window to float it.",
          .wrap = true}};
     prism::core::Field<prism::ui::TextArea<>> notes{{.value = "Type here: the text moves with its panel.", .rows = 4}};
     prism::core::List<std::string> items;

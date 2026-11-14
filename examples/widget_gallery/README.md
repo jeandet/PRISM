@@ -11,7 +11,7 @@ framework does, on the desktop or [in the browser](https://jeandet.github.io/PRI
 | Data | Sort the 10,000-row table by clicking a header; drag a header to move its column, right-click for a menu that hides columns; double-click (or F2) a Note to edit it, tick a Watch box. Drag the handle between the panes, add items to the list and drag them into another order. |
 | Plot | Drag the chart to pan, scroll to zoom, right-click to fit; the sliders change the curves, the spin box changes the canvas. |
 | Popups | Open the dialogs (Enter, Escape, Tab), rename in a dialog holding a form, open the popover, right-click for a context menu, try the file dialogs and message box, drop a file on the window. |
-| Docking | Drag a panel's tab: onto another panel's middle to add it to its tabs, onto an edge to split there, or out of the window to float it in a window of its own (desktop). Type in the notes, pick a list row, change the controls: their state survives a move, and the arrangement is saved in `settings.toml`. |
+| Docking | Drag a panel's tab: the guide's buttons put it in another panel's tabs, beside it, or along a whole side of the dock, or out of the window to float it in a window of its own (desktop). Type in the notes, pick a list row, change the controls: their state survives a move, and the arrangement is saved in `settings.toml`. |
 
 Alt+F, Alt+V and Alt+H open the menus; View switches tabs.
 

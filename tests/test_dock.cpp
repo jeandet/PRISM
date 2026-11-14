@@ -66,6 +66,88 @@ TEST_CASE("the zone of a drop: the middle, or the edge it is nearest within a qu
     CHECK(at(200, 190) == DockZone::Bottom);
 }
 
+TEST_CASE("the guide: five buttons in a cross at the group's centre, not overlapping") {
+    Size s{Width{400}, Height{200}};
+    auto guide = dock_guide(s);
+    CHECK(guide[0].first == DockZone::Middle);
+    CHECK(guide[0].second.center() == Point{X{200}, Y{100}});   // the group's centre
+    CHECK(guide[0].second.extent.w.raw() == doctest::Approx(32.f));
+    for (std::size_t i = 0; i < guide.size(); ++i) {
+        [[maybe_unused]] auto& [zone, r] = guide[i];
+        // every button inside the group
+        CHECK(r.origin.x.raw() >= 0.f);
+        CHECK(r.extent.w.raw() > 0.f);
+        CHECK(r.origin.x.raw() + r.extent.w.raw() <= s.w.raw());
+        CHECK(r.origin.y.raw() + r.extent.h.raw() <= s.h.raw());
+        for (std::size_t j = i + 1; j < guide.size(); ++j) {
+            auto cut = r.intersect(guide[j].second);
+            CHECK(cut.extent.w.raw() * cut.extent.h.raw() == 0.f);
+        }
+    }
+    // Left/Right in the middle row, Top/Bottom in the middle column.
+    CHECK(guide[1].first == DockZone::Left);
+    CHECK(guide[2].first == DockZone::Right);
+    CHECK(guide[3].first == DockZone::Top);
+    CHECK(guide[4].first == DockZone::Bottom);
+    CHECK(guide[1].second.center().y.raw() == doctest::Approx(100.f));
+    CHECK(guide[2].second.center().y.raw() == doctest::Approx(100.f));
+    CHECK(guide[3].second.center().x.raw() == doctest::Approx(200.f));
+    CHECK(guide[4].second.center().x.raw() == doctest::Approx(200.f));
+    // A small group still gets a cross that fits.
+    auto small = dock_guide(Size{Width{90}, Height{90}});
+    CHECK(small[4].second.origin.y.raw() + small[4].second.extent.h.raw() <= 90.f);
+}
+
+TEST_CASE("a drop on a guide button is that button's zone, even inside the middle region") {
+    Size s{Width{400}, Height{200}};
+    auto guide = dock_guide(s);
+    auto at = [&](Point p) { return dock_zone(DropPlace{p, s}); };
+    for (auto& [zone, r] : guide) CHECK(at(r.center()) == zone);
+    // The Left button is nowhere near the group's edge: the old rule would say Middle there.
+    Point left = guide[1].second.center();
+    CHECK(left.x.raw() > s.w.raw() * 0.25f);
+    CHECK(left.y.raw() > s.h.raw() * 0.25f);
+    CHECK(left.y.raw() < s.h.raw() * 0.75f);
+    // Between the buttons, the edge rule still decides.
+    CHECK(at(Point{X{200}, Y{40}}) == DockZone::Top);
+    CHECK(at(Point{X{200}, Y{100}}) == DockZone::Middle);
+    CHECK(at(Point{X{30}, Y{100}}) == DockZone::Left);
+}
+
+TEST_CASE("dock_panel_at_edge: a new group along that whole side of the dock") {
+    DockLayout l{dock_split(false, {dock_group({"files"}), dock_group({"editor", "search"})})};
+    CHECK(dock_panel_at_edge(l, "search", DockZone::Left).root ==
+          dock_split(false, {dock_group({"search"}),
+                             dock_split(false, {dock_group({"files"}), dock_group({"editor"})})}));
+    CHECK(dock_panel_at_edge(l, "files", DockZone::Top).root ==
+          dock_split(true, {dock_group({"files"}), dock_group({"editor", "search"})}));
+    // The dock's only panel: nothing to split it with.
+    DockLayout lone{dock_group({"a"})};
+    CHECK(dock_panel_at_edge(lone, "a", DockZone::Right) == lone);
+    // An unknown, or floating, panel is left where it is.
+    CHECK(dock_panel_at_edge(l, "gone", DockZone::Left) == l);
+    DockLayout floating{dock_split(false, {dock_group({"files"}), dock_group({"editor"})}), {"search"}};
+    CHECK(dock_panel_at_edge(floating, "search", DockZone::Left) == floating);
+}
+
+TEST_CASE("the edge buttons: one at the middle of each of the dock's sides") {
+    Size s{Width{600}, Height{400}};
+    auto guide = dock_edge_guide(s);
+    REQUIRE(guide.size() == 4);
+    CHECK(guide[0].first == DockZone::Left);
+    CHECK(guide[0].second.center() == Point{X{24}, Y{200}});
+    CHECK(guide[1].first == DockZone::Right);
+    CHECK(guide[1].second.center() == Point{X{576}, Y{200}});
+    CHECK(guide[2].first == DockZone::Top);
+    CHECK(guide[2].second.center() == Point{X{300}, Y{24}});
+    CHECK(guide[3].first == DockZone::Bottom);
+    CHECK(guide[3].second.center() == Point{X{300}, Y{376}});
+    // Anywhere else on the dock: no edge button.
+    CHECK_FALSE(dock_edge_zone(DropPlace{Point{X{300}, Y{200}}, s}));
+    CHECK(dock_edge_zone(DropPlace{Point{X{24}, Y{200}}, s}) == DockZone::Left);
+    CHECK(dock_edge_zone(DropPlace{Point{X{300}, Y{376}}, s}) == DockZone::Bottom);
+}
+
 namespace dock_test {
 struct Ide {
     Field<Label<>> files{{"FILES"}};
@@ -98,6 +180,29 @@ std::optional<Rect> text_rect(const SceneSnapshot& snap, std::string_view text) 
         for (auto& c : snap.draw_lists[i]->commands)
             if (auto* t = std::get_if<TextCmd>(&c); t && t->text == text) return snap.geometry[i].second;
     return std::nullopt;
+}
+
+// The drop targets as the tree has them: a group (the one showing `title`'s tab) or the dock.
+template <typename Pred>
+std::optional<Rect> drop_rect(WidgetTree& tree, WidgetNode& n, Pred&& pred) {
+    if (pred(n))
+        if (auto r = tree.drop_area_rect(n.id)) return r;
+    for (auto& c : n.children)
+        if (auto r = drop_rect(tree, c, pred)) return r;
+    return std::nullopt;
+}
+
+std::optional<Rect> group_rect(WidgetTree& tree, const SceneSnapshot& snap, std::string_view title) {
+    auto tab = text_at(snap, title);
+    if (!tab) return std::nullopt;
+    return drop_rect(tree, tree.root(), [&](WidgetNode& n) {
+        auto r = n.drag.zones ? tree.drop_area_rect(n.id) : std::nullopt;
+        return r && r->contains(*tab);
+    });
+}
+
+std::optional<Rect> dock_rect(WidgetTree& tree) {
+    return drop_rect(tree, tree.root(), [](WidgetNode& n) { return n.drag.edge_zones; });
 }
 }
 
@@ -181,6 +286,55 @@ TEST_CASE("dragging a tab onto a group's edge moves the panel there") {
     CHECK(text_rect(*snap, "SEARCH"));   // shown in its new place
 }
 
+TEST_CASE("dropping a tab on a group's guide button splits the group that way") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto tab = text_at(*snap, "Search");
+    auto group = group_rect(tree, *snap, "Files");
+    REQUIRE(tab);
+    REQUIRE(group);
+    auto left = dock_guide(group->extent)[1].second;   // the Left button
+    Point to{group->origin.x + DX{left.center().x.raw()}, group->origin.y + DY{left.center().y.raw()}};
+    Point from{tab->x + DX{5}, tab->y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{to});
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(model.layout.get().root ==
+          dock_split(false, {dock_split(false, {dock_group({"search"}), dock_group({"files"})}),
+                             dock_group({"editor"})}));
+}
+
+TEST_CASE("dropping a tab on the dock's edge button docks it along that whole side") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto tab = text_at(*snap, "Search");
+    auto dock = dock_rect(tree);
+    REQUIRE(tab);
+    REQUIRE(dock);
+    auto left = dock_edge_guide(dock->extent)[0].second;
+    Point to{dock->origin.x + DX{left.center().x.raw()}, dock->origin.y + DY{left.center().y.raw()}};
+    // The button lies over the files group: it still gets the drop, not the group under it.
+    auto files_group = group_rect(tree, *snap, "Files");
+    REQUIRE(files_group);
+    CHECK(files_group->contains(to));
+    Point from{tab->x + DX{5}, tab->y + DY{5}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{to});
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(model.layout.get().root ==
+          dock_split(false, {dock_group({"search"}),
+                             dock_split(false, {dock_group({"files"}), dock_group({"editor"})})}));
+    snap = tree.build_snapshot(600, 400, 2);
+    auto search = text_rect(*snap, "SEARCH"), files = text_rect(*snap, "FILES");
+    REQUIRE(search);
+    REQUIRE(files);
+    CHECK(search->origin.x.raw() < files->origin.x.raw());   // a column of its own, on the left
+}
+
 TEST_CASE("a moved panel keeps its widgets: same widget, focus and wiring") {
     Ide model;
     WidgetTree tree{model};
@@ -219,6 +373,10 @@ TEST_CASE("while dragging a tab: the zone is shaded, and the ghost is that tab a
     for (auto& c : snap->overlay.commands)
         if (auto* r = std::get_if<FilledRect>(&c); r && r->color.a < 255 && r->rect.origin.x.raw() > 100.f) shaded = true;
     CHECK(shaded);
+    // The drop guide is there too: a button per zone over the group, four on the dock's edges.
+    int rounded = 0;
+    for (auto& c : snap->overlay.commands) rounded += std::holds_alternative<RoundedRect>(c);
+    CHECK(rounded >= 9);
     // The ghost shows "Search" but not the other tab's title.
     int editor_titles = 0, search_titles = 0;
     for (auto& c : snap->overlay.commands)

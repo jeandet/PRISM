@@ -106,6 +106,7 @@ inline bool route_popup_mouse(WidgetTree& tree, const SceneSnapshot& snap, const
 // The widget under `p` that takes the dragged value: the one hit, or the nearest container
 // above it that does.
 inline WidgetId drop_target_at(const WidgetTree& tree, const SceneSnapshot& snap, Point p, const std::any& value) {
+    if (WidgetId claimed = tree.claiming_drop_area(p, value)) return claimed;   // a dock's edge buttons
     for (auto id = hit_test(snap, p); id; id = tree.parent_of(*id))
         if (tree.takes(*id, value)) return *id;
     return tree.drop_area_at(p, value);   // empty space in a container that takes drops

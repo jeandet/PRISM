@@ -45,28 +45,83 @@ inline DrawList ghost(const DrawList& source, std::optional<Rect> area, Point at
     return out;
 }
 
-// A dock group under a dragged panel: the area the panel would take, shaded (ui/dock.hpp).
-inline void dock_zone(DrawList& dl, Rect r, Point pointer, Color accent) {
+// The part of `r` a panel dropped on `zone` would take (half of it for an edge).
+inline Rect zone_area(Rect r, DockZone zone) {
     float w = r.extent.w.raw(), h = r.extent.h.raw();
-    Point at{X{pointer.x.raw() - r.origin.x.raw()}, Y{pointer.y.raw() - r.origin.y.raw()}};
-    Rect area = r;
-    switch (ui::dock_zone(DropPlace{at, r.extent})) {
-    case DockZone::Middle: break;
-    case DockZone::Left: area.extent.w = Width{w / 2}; break;
-    case DockZone::Right: area.origin.x = r.origin.x + DX{w / 2}; area.extent.w = Width{w / 2}; break;
-    case DockZone::Top: area.extent.h = Height{h / 2}; break;
-    case DockZone::Bottom: area.origin.y = r.origin.y + DY{h / 2}; area.extent.h = Height{h / 2}; break;
+    switch (zone) {
+    case DockZone::Middle: return r;
+    case DockZone::Left: return {r.origin, Size{Width{w / 2}, r.extent.h}};
+    case DockZone::Right: return {Point{r.origin.x + DX{w / 2}, r.origin.y}, Size{Width{w / 2}, r.extent.h}};
+    case DockZone::Top: return {r.origin, Size{r.extent.w, Height{h / 2}}};
+    case DockZone::Bottom: return {Point{r.origin.x, r.origin.y + DY{h / 2}}, Size{r.extent.w, Height{h / 2}}};
     }
+    return r;
+}
+
+// One button of a guide: a rounded square, a small window inside, the side it docks to filled;
+// lit (in the accent) when the pointer is on it. A light surface either way, so it reads on a
+// light theme and a dark one.
+inline void guide_button(DrawList& dl, Rect r, DockZone zone, bool lit, Color accent) {
+    auto surface = Color::rgba(250, 250, 252, 235);
+    auto ink = lit ? Color::rgba(255, 255, 255) : accent;
+    dl.rounded_rect(r, lit ? accent : surface, 4.f);
+    dl.rounded_rect(r, accent, 4.f, 1.f);
+    float inset = r.extent.w.raw() / 5.f;
+    Rect window{Point{r.origin.x + DX{inset}, r.origin.y + DY{inset}},
+                Size{Width{r.extent.w.raw() - 2 * inset}, Height{r.extent.h.raw() - 2 * inset}}};
+    dl.rect_outline(window, ink, 1.25f);
+    if (zone != DockZone::Middle) dl.filled_rect(zone_area(window, zone), ink);
+}
+
+// A group's guide: the five buttons (ui::dock_guide), the one the pointer is on lit.
+inline void guide(DrawList& dl, Rect r, DropPlace at, Color accent) {
+    DockZone over = ui::dock_zone(at);
+    for (auto& [zone, local] : ui::dock_guide(at.size)) {
+        Rect button{Point{r.origin.x + DX{local.origin.x.raw()}, r.origin.y + DY{local.origin.y.raw()}}, local.extent};
+        guide_button(dl, button, zone, zone == over, accent);
+    }
+}
+
+// A dock's edge guide: the four buttons (ui::dock_edge_guide), the one under the pointer lit.
+inline void edge_guide(DrawList& dl, Rect r, Point pointer, Color accent) {
+    Point at{X{pointer.x.raw() - r.origin.x.raw()}, Y{pointer.y.raw() - r.origin.y.raw()}};
+    auto over = ui::dock_edge_zone(DropPlace{at, r.extent});
+    for (auto& [zone, local] : ui::dock_edge_guide(r.extent)) {
+        Rect button{Point{r.origin.x + DX{local.origin.x.raw()}, r.origin.y + DY{local.origin.y.raw()}}, local.extent};
+        guide_button(dl, button, zone, over == zone, accent);
+    }
+}
+
+// The area a drop would take: shaded in the accent, outlined.
+inline void preview(DrawList& dl, Rect area, Color accent) {
     auto shade = accent;
     shade.a = 60;
     dl.filled_rect(area, shade);
     dl.rect_outline(area, accent, 2.f);
 }
 
+// A dock group under a dragged panel: its guide, and the area the panel would take (ui/dock.hpp).
+inline void dock_zone(DrawList& dl, Rect r, Point pointer, Color accent) {
+    Point at{X{pointer.x.raw() - r.origin.x.raw()}, Y{pointer.y.raw() - r.origin.y.raw()}};
+    DropPlace place{at, r.extent};
+    preview(dl, zone_area(r, ui::dock_zone(place)), accent);
+    guide(dl, r, place, accent);
+}
+
+// A dock under a dragged panel: the whole side an edge button would give it, or an outline while
+// the pointer is between the buttons (nothing there is a drop of its own).
+inline void dock_edge_marker(DrawList& dl, Rect r, Point pointer, Color accent) {
+    Point at{X{pointer.x.raw() - r.origin.x.raw()}, Y{pointer.y.raw() - r.origin.y.raw()}};
+    auto side = ui::dock_edge_zone(DropPlace{at, r.extent});
+    if (!side) return dl.rect_outline(r, accent, 2.f);
+    preview(dl, zone_area(r, *side), accent);
+}
+
 // Where a drop on target `r` would land: a dock group's zone, a line on the nearer edge of a
 // list or tree row (an outline on a tree folder's middle), or an outline around anything else.
 inline void drop_marker(DrawList& dl, Rect r, Point pointer, const DragRole& role, Color accent) {
     if (role.zones) return dock_zone(dl, r, pointer, accent);
+    if (role.edge_zones) return dock_edge_marker(dl, r, pointer, accent);
     float y_in = pointer.y.raw() - r.origin.y.raw(), h = r.extent.h.raw();
     bool inside = role.inside_middle && y_in > h * 0.25f && y_in < h * 0.75f;
     if (!role.between || inside) return dl.rect_outline(r, accent, 2.f);

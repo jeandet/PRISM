@@ -3,8 +3,11 @@
 #include <prism/ui/node.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Docking (doc/design/drag-and-docking.md, part 2): the layout is a value the app owns, saved
@@ -94,14 +97,67 @@ inline DockLayout fitted(DockLayout layout, const std::vector<std::string>& name
 // Where a panel dropped on a group goes: into it (the middle), or beside it (an edge).
 enum class DockZone { Middle, Left, Right, Top, Bottom };
 
+namespace dock_detail {
+inline Rect square(Point center, float side) {
+    return {Point{X{center.x.raw() - side / 2.f}, Y{center.y.raw() - side / 2.f}},
+            Size{Width{side}, Height{side}}};
+}
+
+// The side of a guide button: about 32 px, and smaller in an area too small for the cross.
+inline float button_side(Size area) { return std::min({32.f, area.w.raw() / 3.5f, area.h.raw() / 3.5f}); }
+
 // The middle, or the edge the drop is nearest to within a quarter of the group's size.
-inline DockZone dock_zone(DropPlace at) {
+inline DockZone nearest_edge(DropPlace at) {
     float x = at.at.x.raw() / std::max(1.f, at.size.w.raw()), y = at.at.y.raw() / std::max(1.f, at.size.h.raw());
     float edge = std::min({x, 1.f - x, y, 1.f - y});
     if (edge > 0.25f) return DockZone::Middle;
     if (edge == x) return DockZone::Left;
     if (edge == 1.f - x) return DockZone::Right;
     return edge == y ? DockZone::Top : DockZone::Bottom;
+}
+} // namespace dock_detail
+
+// The guide a group shows while a panel is dragged over it: five buttons in a cross at its centre
+// (the middle, then Left, Right, Top and Bottom), in the group's own coordinates. Dropping on one
+// does what dropping on that zone of the group does.
+inline std::array<std::pair<DockZone, Rect>, 5> dock_guide(Size group) {
+    float b = dock_detail::button_side(group);
+    float step = b + b / 8.f;
+    Point c{X{group.w.raw() / 2.f}, Y{group.h.raw() / 2.f}};
+    auto at = [&](float dx, float dy) { return dock_detail::square(Point{X{c.x.raw() + dx}, Y{c.y.raw() + dy}}, b); };
+    return {{{DockZone::Middle, at(0.f, 0.f)},
+             {DockZone::Left, at(-step, 0.f)},
+             {DockZone::Right, at(step, 0.f)},
+             {DockZone::Top, at(0.f, -step)},
+             {DockZone::Bottom, at(0.f, step)}}};
+}
+
+// The guide a dock shows on its outer edges: four buttons at the middle of each side, inset from
+// it, in the dock's own coordinates. A drop there docks the panel along that whole side.
+inline std::array<std::pair<DockZone, Rect>, 4> dock_edge_guide(Size dock) {
+    float b = dock_detail::button_side(dock);
+    float inset = std::min(8.f, b / 4.f);
+    float x0 = inset + b / 2.f, x1 = dock.w.raw() - inset - b / 2.f;
+    float y0 = inset + b / 2.f, y1 = dock.h.raw() - inset - b / 2.f;
+    float cx = dock.w.raw() / 2.f, cy = dock.h.raw() / 2.f;
+    return {{{DockZone::Left, dock_detail::square(Point{X{x0}, Y{cy}}, b)},
+             {DockZone::Right, dock_detail::square(Point{X{x1}, Y{cy}}, b)},
+             {DockZone::Top, dock_detail::square(Point{X{cx}, Y{y0}}, b)},
+             {DockZone::Bottom, dock_detail::square(Point{X{cx}, Y{y1}}, b)}}};
+}
+
+// The edge button of a dock at `at` (a drop anywhere else on the dock is not one).
+inline std::optional<DockZone> dock_edge_zone(DropPlace at) {
+    for (auto& [zone, r] : dock_edge_guide(at.size))
+        if (r.contains(at.at)) return zone;
+    return std::nullopt;
+}
+
+// Where the drop takes the panel: a guide button under it, otherwise the group's nearest edge.
+inline DockZone dock_zone(DropPlace at) {
+    for (auto& [zone, r] : dock_guide(at.size))
+        if (r.contains(at.at)) return zone;
+    return dock_detail::nearest_edge(at);
 }
 
 namespace dock_detail {
@@ -145,6 +201,25 @@ inline DockLayout move_panel(DockLayout layout, const std::string& name, std::st
     DockNode kept = std::move(target);
     target = first ? dock_split(vertical, {std::move(moved), std::move(kept)})
                    : dock_split(vertical, {std::move(kept), std::move(moved)});
+    return layout;
+}
+
+// The layout with panel `name` docked along the whole side `side` of the dock: out of its group
+// (pruned, as a move does), into a group of its own that the root is split with.
+inline DockLayout dock_panel_at_edge(DockLayout layout, const std::string& name, DockZone side) {
+    auto* from = dock_detail::group_of(layout.root, name);
+    if (!from || side == DockZone::Middle) return layout;
+    if (is_group(layout.root) && layout.root.panels.size() == 1) return layout;   // nothing to split it with
+    std::erase(from->panels, name);
+    std::vector<std::string> left, seen;
+    dock_detail::names_in(layout.root, left);
+    dock_detail::prune(layout.root, left, seen);   // drops the emptied group, collapses its split
+    bool vertical = side == DockZone::Top || side == DockZone::Bottom;
+    bool first = side == DockZone::Left || side == DockZone::Top;
+    DockNode moved = dock_group({name});
+    DockNode rest = std::move(layout.root);
+    layout.root = first ? dock_split(vertical, {std::move(moved), std::move(rest)})
+                        : dock_split(vertical, {std::move(rest), std::move(moved)});
     return layout;
 }
 

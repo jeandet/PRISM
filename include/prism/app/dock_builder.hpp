@@ -81,6 +81,24 @@ inline DragRole group_drop_role(const Place& where, std::string anchor) {
             .zones = true};
 }
 
+// The dock's own container: four buttons at the middle of its edges dock a panel along that
+// whole side of the dock (a new top-level split). Elsewhere on it, the group under it takes the
+// drop: `claims` is only true over one of those buttons.
+inline DragRole dock_outer_role(DockState& state, Field<DockLayout>& layout) {
+    const void* dock_id = &state;
+    return {.accepts = [dock_id](const std::any& v) {
+                auto* p = std::any_cast<PanelDrag>(&v);
+                return p && p->dock == dock_id;
+            },
+            .drop = [&state, &layout](const std::any& v, DropPlace at) {
+                auto& name = std::any_cast<const PanelDrag&>(v).name;
+                if (auto side = dock_edge_zone(at))
+                    layout.set(dock_panel_at_edge(fitted(layout.get(), state.names), name, *side));
+            },
+            .edge_zones = true,
+            .claims = [](DropPlace at) { return dock_edge_zone(at).has_value(); }};
+}
+
 // A group: its panels as tabs, every group a lone panel too, since a tab is what the user drags
 // to move a panel. A panel is kept under the dock and its name, so a moved one keeps its widgets;
 // a tab let go outside the window floats its panel.
@@ -204,6 +222,7 @@ inline void ViewBuilder::dock(Field<DockLayout>& layout, std::vector<DockPanel> 
         dock_builder::place_part(vb, {*state, *shared_panels, layout, tree, {}}, state->built);
         dock_builder::float_windows(tree, state, *shared_panels, layout);
     };
+    c.drag = dock_builder::dock_outer_role(*state, layout);
     current_parent().children.push_back(std::move(c));
 }
 

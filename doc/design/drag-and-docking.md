@@ -137,6 +137,15 @@ changes the `DockLayout` value; the dock then rebuilds the parts of the view tha
 way a tab page is built when selected. Splitters between groups are the existing split handles,
 bound to `DockSplit::ratio`.
 
+The zones are buttons, as in Visual Studio's or Qt Advanced Docking's guide: a cross of five at
+the group's centre (`ui::dock_guide`), and four more at the middle of the dock's own edges
+(`ui::dock_edge_guide`), which give the panel a column or row of its own along that whole side
+(`dock_panel_at_edge`). A drop on a button is that button's zone, and anywhere else keeps the
+edge rule (`dock_zone`), so the button under the pointer and the shaded preview always agree.
+The edge buttons lie over the groups, so a target may claim a point before whatever lies under
+it does (`DragRole::claims`): a dock's edges take their four buttons, and every other drop goes to
+the innermost group.
+
 What survives a move: everything. The dock keeps each panel's built widgets, keyed by its
 name, and a layout change only changes where they are placed: scroll positions, carets and
 selections stay. Qt and its docking replacements (KDDockWidgets, Qt Advanced Docking) move the
