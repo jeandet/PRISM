@@ -338,6 +338,7 @@ public:
     }
 
     void adopt_popup_in(WidgetNode& node) {
+        if (node.layout_reusable) return;   // no popup in a kept subtree (link_layout_cache)
         if (node.popup_area && node.id != 0 && !in_popup_stack(node.id) && adopts(node)) {
             if (!nested_in_top(node.id)) close_popup();   // a modal popup over a plain one
             popup_stack_.push_back(node.id);
@@ -747,6 +748,7 @@ public:
         materialize_all_virtual_lists(root_);
 
         std::optional<PopupLayout> popup;   // the open popup's content, laid out by do_layout
+        bool viewport_moved = false;   // a list's viewport, which its rows were materialized for
         std::size_t layout_kept = 0;
         // The first layout of a publish keeps what it can of the last publish's; a second one
         // (a viewport or a wrapped label changed) builds everything again.
@@ -781,17 +783,15 @@ public:
 
             layout_measure(layout, LayoutAxis::Vertical);
             layout_arrange(layout, {Point{X{0}, Y{0}}, Size{Width{w}, Height{h}}});
-            update_scroll_state(layout);
+            viewport_moved = update_scroll_state(layout);
             update_split_state(layout);
             drop_areas_.clear();
             collect_drop_areas(layout, DY{0}, drop_areas_);
             popup = layout_popup(root_, layout, Size{Width{w}, Height{h}}, theme_);
             popup_card_ = popup ? std::optional{popup->card} : std::nullopt;
+            if (popup) viewport_moved |= popup->viewport_moved;
             return layout;
         };
-
-        std::vector<std::pair<WidgetId, Height>> viewports_before;
-        collect_viewport_heights(root_, viewports_before);
 
         LayoutNode layout = do_layout();
         std::size_t layout_passes = 1;
@@ -804,9 +804,7 @@ public:
         // that touches a VirtualList/Table freshly rebinds its visible rows (marking them
         // dirty regardless of whether their viewport moved), so gating on check_dirty()
         // reran this whole second pass on every single publish for any app using one.
-        std::vector<std::pair<WidgetId, Height>> viewports_after;
-        collect_viewport_heights(root_, viewports_after);
-        if (viewports_before != viewports_after) {
+        if (viewport_moved) {
             materialize_all_virtual_lists(root_);
             layout = do_layout();
             ++layout_passes;

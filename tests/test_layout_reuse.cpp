@@ -7,6 +7,8 @@
 #include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 
+#include <algorithm>
+#include <any>
 #include <array>
 #include <string>
 #include <vector>
@@ -123,4 +125,120 @@ TEST_CASE("a publish that lays out twice reports nothing kept: the second pass b
     snap = tree.build_snapshot(400, 200, 3);   // the scroll view's viewport shrinks: a second pass
     REQUIRE(snap->layout_pass_count > 1);
     CHECK(snap->layout_nodes_reused == 0);
+}
+
+// The passes after layout skip what was kept. Whatever they look for must still be found, and
+// whatever moved must still be written back.
+namespace {
+WidgetNode* find_node(WidgetNode& n, auto&& pred) {
+    if (pred(n)) return &n;
+    for (auto& c : n.children)
+        if (auto* p = find_node(c, pred)) return p;
+    return nullptr;
+}
+
+WidgetNode* showing(WidgetNode& root, std::string_view text) {
+    return find_node(root, [&](WidgetNode& n) {
+        return std::ranges::any_of(n.draws.commands, [&](auto& c) {
+            auto* t = std::get_if<TextCmd>(&c);
+            return t && t->text == text;
+        });
+    });
+}
+
+struct Settled {
+    WidgetTree& tree;
+    uint64_t v = 0;
+    std::unique_ptr<SceneSnapshot> snap;
+    explicit Settled(WidgetTree& t) : tree(t) {
+        for (int i = 0; i < 3; ++i) frame();
+    }
+    void frame() {
+        snap = tree.build_snapshot(400, 300, ++v);
+        tree.clear_dirty();
+    }
+};
+}
+
+TEST_CASE("scrolling moves the kept rows on screen") {
+    Rows m;
+    WidgetTree tree{m};
+    Settled s{tree};
+    auto* row = showing(tree.root(), "row 10");
+    REQUIRE(row);
+    Y before = row->absolute_y;
+    Rect drawn_before = rect_showing(*s.snap, "row 6");
+    REQUIRE(drawn_before.extent.w.raw() > 0);   // on screen before and after
+    prism::app::widget_detail::route_event(tree, s.snap.get(),
+        input::MouseScroll{Point{X{100}, Y{100}}, DX{0}, DY{-1}});   // down, towards the user
+    s.frame();
+    CHECK(s.snap->layout_nodes_reused >= 100);
+    CHECK(row->absolute_y < before);
+    CHECK(rect_showing(*s.snap, "row 6").origin.y < drawn_before.origin.y);
+    s.frame();
+    CHECK(row->absolute_y < before);
+    CHECK(rect_showing(*s.snap, "row 6").origin.y < drawn_before.origin.y);
+}
+
+TEST_CASE("rows that move down are placed again") {
+    struct Grows {
+        List<int> head;
+        std::array<Field<Label<>>, 20> names{};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.vstack([&] {
+                vb.list(head);
+                for (auto& n : names) vb.widget(n);
+            });
+        }
+    } m;
+    for (std::size_t i = 0; i < m.names.size(); ++i) m.names[i].set(Label<>{"name " + std::to_string(i)});
+    WidgetTree tree{m};
+    Settled s{tree};
+    m.head.push_back(1);
+    m.head.push_back(2);
+    s.frame();
+    s.frame();
+    WidgetTree fresh{m};
+    Settled f{fresh};
+    CHECK(geometry(*s.snap) == geometry(*f.snap));
+    CHECK(showing(tree.root(), "name 5")->absolute_y == showing(fresh.root(), "name 5")->absolute_y);
+}
+
+TEST_CASE("a drop target among kept rows is still found") {
+    struct Docked {
+        std::array<Field<Label<>>, 10> names{};
+        Field<Label<>> target{{"drop here"}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            for (auto& n : names) vb.widget(n);
+            DragRole takes_ints{.accepts = [](const std::any& v) { return v.type() == typeid(int); },
+                                .drop = [](const std::any&, DropPlace) {}};
+            vb.with_drag(takes_ints, [&] { vb.hstack(target); });
+        }
+    } m;
+    WidgetTree tree{m};
+    Settled s{tree};
+    s.frame();
+    auto* box = find_node(tree.root(), [](WidgetNode& n) { return n.is_container && bool(n.drag.accepts); });
+    REQUIRE(box);
+    CHECK(tree.drop_area_rect(box->id).has_value());
+}
+
+TEST_CASE("a text area's scrollbar fades out among kept rows") {
+    struct Notes {
+        std::array<Field<Label<>>, 10> names{};
+        Field<TextArea<>> notes{{.value = "a\nb\nc"}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            for (auto& n : names) vb.widget(n);
+            vb.hstack(notes);
+        }
+    } m;
+    WidgetTree tree{m};
+    Settled s{tree};
+    auto* area = find_node(tree.root(), [](WidgetNode& n) { return std::any_cast<TextAreaEditState>(&n.edit_state); });
+    REQUIRE(area);
+    auto& st = *std::any_cast<TextAreaEditState>(&area->edit_state);
+    st.show_ticks = 5;
+    s.frame();
+    s.frame();
+    CHECK(st.show_ticks == 3);
 }

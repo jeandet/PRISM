@@ -17,8 +17,11 @@ namespace prism::app::widget_detail {
 using namespace prism::core;
 using namespace prism::ui;
 
-inline void update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
+// Returns whether a virtual list's or table's viewport changed height: its rows were
+// materialized for the old one.
+inline bool update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
     WidgetNode* wn = &node;
+    bool viewport_moved = false;
     if (layout_node.kind == LayoutNode::Kind::Scroll) {
         auto& ss = ensure_scroll_state(*wn);
         ss.viewport_h = layout_node.allocated.extent.h;
@@ -26,11 +29,16 @@ inline void update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
         ss.content_h = layout_node.scroll_content_h;
     }
     if (layout_node.kind == LayoutNode::Kind::VirtualList)
-        if (auto* vls = get_vlist_state(*wn)) vls->viewport_h = layout_node.allocated.extent.h;
+        if (auto* vls = get_vlist_state(*wn)) {
+            viewport_moved = vls->viewport_h != layout_node.allocated.extent.h;
+            vls->viewport_h = layout_node.allocated.extent.h;
+        }
     if (layout_node.kind == LayoutNode::Kind::Table) {
         if (auto* ts = get_table_state(*wn)) {
             bool was_zero = ts->viewport_w.raw() == 0.f;
-            ts->viewport_h = Height{layout_node.allocated.extent.h.raw() - ts->row_height.raw()};
+            Height h{layout_node.allocated.extent.h.raw() - ts->row_height.raw()};
+            viewport_moved = ts->viewport_h != h;
+            ts->viewport_h = h;
             ts->viewport_w = layout_node.allocated.extent.w;
             if (was_zero && ts->viewport_w.raw() > 0.f) wn->dirty = true;
         }
@@ -41,23 +49,29 @@ inline void update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
         layout_node.scroll_offset = sv->offset;
         if (sv->show_ticks > 0) sv->show_ticks--;
     }
+    return viewport_moved;
 }
 
-inline void update_scroll_state(LayoutNode& layout_node) {
-    if (layout_node.source) update_scroll_state_of(layout_node, *layout_node.source);
+// A kept subtree holds no scroll view (link_layout_cache), here and in the passes below.
+inline bool update_scroll_state(LayoutNode& layout_node) {
+    if (layout_node.kept) return false;
+    bool moved = layout_node.source && update_scroll_state_of(layout_node, *layout_node.source);
     for (auto& child : layout_node.children)
-        update_scroll_state(child);
+        moved |= update_scroll_state(child);
+    return moved;
 }
 
 // The screen area of every container that takes drops (a dock group): a drop on its empty
 // space, where no widget is hit, still finds it. Moved up by the scroll areas above it.
 inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::vector<std::pair<WidgetId, Rect>>& out) {
+    if (n.kept) return;
     if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts)
         out.push_back({n.id, Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent}});
     for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset, out);
 }
 
 inline void update_split_state(LayoutNode& layout_node) {
+    if (layout_node.kept) return;
     bool is_split_container = (layout_node.kind == LayoutNode::Kind::Row
                              || layout_node.kind == LayoutNode::Kind::Column)
                              && !layout_node.split_sizes.empty();
@@ -99,6 +113,8 @@ inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport, DY scro
             window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
                           || n.absolute_x != layout_node.allocated.origin.x
                           || n.absolute_y != on_screen_y;
+            bool in_place = !window_changed && n.arranged_extent == layout_node.allocated.extent;
+            if (layout_node.kept && in_place) return false;   // and so is all of it, as written last time
             n.absolute_x = layout_node.allocated.origin.x;
             n.absolute_y = on_screen_y;
             n.viewport_height = viewport.h;

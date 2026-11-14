@@ -117,6 +117,9 @@ struct LayoutNode {
     // Set once measured along this axis; a node kept from the last publish keeps it, so its
     // subtree is not measured again.
     std::optional<LayoutAxis> measured_axis;
+    // Moved over whole from the last publish: nothing in it changed. Arranged at the same rect,
+    // it comes out as it was, so it is not arranged again.
+    bool kept = false;
 };
 
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis);
@@ -309,6 +312,7 @@ inline void layout_detail::measure_node(LayoutNode& node, LayoutAxis parent_axis
 }
 
 inline void layout_arrange(LayoutNode& node, Rect available) {
+    if (node.kept && node.allocated == available) return;
     node.allocated = available;
 
     if (node.kind == LayoutNode::Kind::Table) {

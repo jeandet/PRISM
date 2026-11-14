@@ -85,6 +85,12 @@ inline bool splits(const WidgetNode& n) {
         || std::ranges::any_of(n.children, [](const WidgetNode& c) { return c.layout_kind == LayoutKind::Handle; }));
 }
 
+// The passes after layout skip kept subtrees, so none may hold what they look for: a drop
+// target, a popup, a scroll view to clamp (a text area's) or a scrollbar fading out.
+inline bool holds_what_passes_look_for(WidgetNode& n) {
+    return n.drag.accepts || n.popup_area || n.popup_builder || get_scroll_view(n);
+}
+
 // The last publish's layout children of one node, walked in order to find each widget's own.
 struct LayoutCacheCursor {
     LayoutNode* owner = nullptr;
@@ -128,7 +134,7 @@ inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
     }
     node.layout_reusable = cached && children_kept && !split && cached->id == node.id && !node.dirty
         && !node.relayout && node.overlay_draws.empty() && cached->overlay_draws.empty()
-        && cached->measured_axis.has_value() && !keeps_state(node);
+        && cached->measured_axis.has_value() && !keeps_state(node) && !holds_what_passes_look_for(node);
     if (node.layout_reusable && siblings.kept) ++*siblings.kept;
     return node.layout_reusable;
 }
@@ -146,6 +152,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep) {
 
     if (keep && node.layout_reusable && node.cached_layout) {
         parent.children.push_back(std::move(*node.cached_layout));
+        parent.children.back().kept = true;
         node.cached_layout = nullptr;
         return;
     }

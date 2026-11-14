@@ -23,13 +23,16 @@ struct PopupLayout {
     WidgetNode* anchor;
     LayoutNode content;
     Rect card;   // window coordinates
+    bool viewport_moved = false;   // see update_scroll_state_of
 };
 
 inline constexpr float popup_pad = 16.f;      // between the card's edge and its content
 inline constexpr float popup_margin = 24.f;   // kept free between the card and the window edge
 inline constexpr float popup_min_w = 320.f;
 
+// Never in a subtree whose layout was kept (link_layout_cache).
 inline WidgetNode* find_open_popup(WidgetNode& node) {
+    if (node.layout_reusable) return nullptr;
     if (node.popup_builder && !node.children.empty()) return &node;
     for (auto& c : node.children)
         if (auto* p = find_open_popup(c)) return p;
@@ -69,7 +72,7 @@ inline std::optional<PopupLayout> layout_popup(WidgetNode& root, const LayoutNod
         : place_popup(size, Rect{at, Size{Width{0}, Height{0}}}, window);
     layout_arrange(p.content, Rect{Point{p.card.origin.x + DX{popup_pad}, p.card.origin.y + DY{popup_pad}},
                                    Size{size.w - Width{2 * popup_pad}, size.h - Height{2 * popup_pad}}});
-    update_scroll_state(p.content);
+    p.viewport_moved = update_scroll_state(p.content);
     anchor->popup_area = Rect{Point{X{p.card.origin.x.raw() - at.x.raw()}, Y{p.card.origin.y.raw() - at.y.raw()}}, size};
     return p;
 }

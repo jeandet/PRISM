@@ -50,18 +50,6 @@ inline std::size_t count_dirty(const WidgetNode& node) {
     return n;
 }
 
-// VirtualList/Table viewport heights, keyed by widget id in a stable tree-order walk --
-// used by build_snapshot() to detect whether a materialization pass actually needs
-// redoing (see its comment), rather than re-running on any unrelated dirty flag.
-inline void collect_viewport_heights(WidgetNode& node, std::vector<std::pair<WidgetId, Height>>& out) {
-    if (node.layout_kind == LayoutKind::VirtualList) {
-        if (auto* vls = get_vlist_state(node)) out.push_back({node.id, vls->viewport_h});
-    } else if (node.layout_kind == LayoutKind::Table) {
-        if (auto* ts = get_table_state(node)) out.push_back({node.id, ts->viewport_h});
-    }
-    for (auto& c : node.children) collect_viewport_heights(c, out);
-}
-
 inline void clear_dirty_impl(WidgetNode& node) {
     node.dirty = false;
     for (auto& c : node.children) clear_dirty_impl(c);
