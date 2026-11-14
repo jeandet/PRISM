@@ -125,3 +125,22 @@ TEST_CASE("a row moved to by key scrolls into view") {
             if (auto* t = std::get_if<TextCmd>(&c); t && t->text == "99") shows_last = true;
     CHECK(shows_last);
 }
+
+TEST_CASE("a moved item keeps the selection on it; moves around it shift it") {
+    Fixture f;
+    f.m.selected.set(1);           // 20
+    f.m.items.move(3, 0);          // 40 10 20 30
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{2});
+    f.m.items.move(2, 0);          // the selected item itself: 20 40 10 30
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{0});
+    f.m.items.move(1, 3);          // after it: no change
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{0});
+}
+
+TEST_CASE("Up from a selection past the end lands on the last row") {
+    Fixture f;
+    f.m.selected.set(10);
+    f.key(keys::tab);
+    f.key(keys::up);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{3});
+}

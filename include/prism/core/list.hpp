@@ -25,7 +25,8 @@ public:
     }
 
     // Takes the item at `from` out and puts it back at `to` (an index in the list as it is after
-    // the move). Reported as updates of the slots that changed, so views redraw them in place.
+    // the move). Reported as updates of the slots that changed, so views redraw them in place,
+    // then as a move, for whoever tracks items by index (a selection).
     void move(size_t from, size_t to) {
         if (from == to || from >= items_.size() || to >= items_.size()) return;
         auto first = items_.begin() + static_cast<ptrdiff_t>(std::min(from, to));
@@ -33,6 +34,7 @@ public:
         if (from < to) std::rotate(first, first + 1, last);
         else std::rotate(first, last - 1, last);
         for (size_t i = std::min(from, to); i <= std::max(from, to); ++i) updated_.emit(i, items_[i]);
+        moved_.emit(from, to);
     }
 
     void set(size_t index, T value) {
@@ -63,6 +65,7 @@ public:
     SenderHub<size_t, const T&>& on_insert() { return inserted_; }
     SenderHub<size_t>& on_remove() { return removed_; }
     SenderHub<size_t, const T&>& on_update() { return updated_; }
+    SenderHub<size_t, size_t>& on_move() { return moved_; }   // (from, to), as move() takes them
 
 private:
     static bool same(const T& a, const auto& b) {
@@ -74,6 +77,15 @@ private:
     SenderHub<size_t, const T&> inserted_;
     SenderHub<size_t> removed_;
     SenderHub<size_t, const T&> updated_;
+    SenderHub<size_t, size_t> moved_;
 };
+
+// Where the item at `index` is after move(from, to).
+inline size_t index_after_move(size_t index, size_t from, size_t to) {
+    if (index == from) return to;
+    if (from < index && index <= to) return index - 1;
+    if (to <= index && index < from) return index + 1;
+    return index;
+}
 
 } // namespace prism::core

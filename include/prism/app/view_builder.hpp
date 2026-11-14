@@ -25,6 +25,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <set>
 #include <type_traits>
@@ -98,7 +99,7 @@ inline std::optional<std::size_t> list_key_target(std::optional<std::size_t> sel
     std::size_t last = count - 1;
     switch (key) {
     case keys::down: return selected ? std::min(*selected + 1, last) : 0;
-    case keys::up: return selected ? (*selected == 0 ? 0 : *selected - 1) : 0;
+    case keys::up: return selected ? std::min(*selected, count) - (*selected == 0 ? 0 : 1) : 0;
     case keys::home: return 0;
     case keys::end: return last;
     default: return std::nullopt;
@@ -793,11 +794,17 @@ public:
         // takes the focus, an editor, keeps the keys).
         ListHandle&& selection(Field<std::optional<std::size_t>>& selected) && {
             placed.insert(&selected);
-            auto follow = std::make_shared<Connection>(items.on_remove().connect([&selected](std::size_t gone) {
-                auto s = selected.get();
-                if (!s || *s < gone) return;
-                selected.set(*s == gone ? std::nullopt : std::optional{*s - 1});
-            }));
+            // simplify: each placement follows the list on its own, so two lists sharing one
+            // selection field shift it twice; share one follower per field if that comes up.
+            auto follow = std::make_shared<std::array<Connection, 2>>(std::array{
+                items.on_remove().connect([&selected](std::size_t gone) {
+                    auto s = selected.get();
+                    if (!s || *s < gone) return;
+                    selected.set(*s == gone ? std::nullopt : std::optional{*s - 1});
+                }),
+                items.on_move().connect([&selected](std::size_t from, std::size_t to) {
+                    if (auto s = selected.get()) selected.set(index_after_move(*s, from, to));
+                })});
             node_ref.vlist_bind_row = [bind = std::move(node_ref.vlist_bind_row), &selected, follow, &tree = tree,
                                        list_id = node_ref.id](WidgetNode& wn, size_t index) {
                 bind(wn, index);
