@@ -30,7 +30,7 @@ using InputEvent = std::variant<
 **Implementation notes:**
 - `MouseButton` uses raw `uint8_t button` + `bool pressed`. Core headers define their own key/modifier constants (matching SDL values) to stay SDL-free.
 - `TextInput` carries UTF-8 character input from the OS (SDL_EVENT_TEXT_INPUT). Used by TextField/Password widgets for text editing.
-- `KeyPress`/`KeyRelease` use `int32_t key` + `uint16_t mods`. Key constants defined in `prism/core/keys.hpp` (not SDL headers).
+- `KeyPress`/`KeyRelease` use `int32_t key` + `uint16_t mods`. Key and modifier constants are defined in `prism/input/input_event.hpp` (`keys::`, `mods::`), not SDL headers.
 
 Synthetic events can be pushed for testing.
 

@@ -157,8 +157,9 @@ inspector), `backends` (SDL3, headless software/null backends used by tests).
 
 - `README.md` — architecture tour, quick-start examples, roadmap.
 - `doc/design/` — per-subsystem design rationale (one file per major subsystem).
-- `doc/review-2026-11-13.md` — most recent review and the current plan (the scene pipeline:
-  one publish per batch of events, cached draws inside scroll views, a debug thread check
-  on `Field::set`; then the main window's toolbar and status bar, and richer data widgets).
+- `doc/review-2026-11-13.md` — most recent review and the current plan. P0 (the scene
+  pipeline), P1 (the main window: toolbar, status bar, toggles, sections) and P2 (data widgets:
+  table editing and columns, tree selection/checkboxes/rename, list selection, color, date and
+  time pickers) are done; P3 items are picked up when a task touches their area.
   `doc/review-2026-11-12.md` (the application shell) and earlier plans are done; older reviews
   (`doc/review-2026-0*.md`, `doc/handover-*.md`) are history.

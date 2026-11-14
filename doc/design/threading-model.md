@@ -47,7 +47,7 @@ so a waker or `post()` that outlives the app is a no-op.
 
 ## Startup Handshake
 
-The render thread signals `sdl_ready_` (atomic bool + notify) after `SDL_Init` and window creation. The app thread waits on it before producing the first frame. This ensures `SDL_PushEvent` is safe to call from the app thread.
+The render thread sets the backend's `ready_` (atomic bool + notify) after `SDL_Init` and window creation (`SoftwareBackend::run`). `model_app` waits on it through `backend.wait_ready()` before producing the first frame. This ensures `SDL_PushEvent` is safe to call from the app thread.
 
 ## Snapshot Handoff
 
@@ -85,8 +85,14 @@ After the app loop exits, it pushes an `SDL_EVENT_USER` to ensure the render thr
 - The render thread never calls into application code.
 - Both threads sleep at OS level when idle — zero CPU usage.
 
+## Animations
+
+A running animation keeps frames coming without input: while the animation clock is active,
+`model_app` schedules a tick on the logic thread (`schedule_tick`), which advances the clock and
+publishes. Once the clock is idle, ticks stop and the app sleeps again.
+
 ## Open Questions
 
 - Snapshot pooling/recycling strategy (avoid allocation per frame).
 - Thread pool integration — stdexec `static_thread_pool` or custom scheduler for parallel tile rasterisation.
-- `request_redraw()` for animation-driven updates without input events.
+

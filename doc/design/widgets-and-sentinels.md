@@ -28,7 +28,7 @@ Widgets receive `WidgetNode&` (not `WidgetVisualState&`), giving access to `visu
 - `record(DrawList&, const Field<T>&, const WidgetNode&)` — for rendering with hover/press/focus feedback
 - `handle_input(Field<T>&, const InputEvent&, WidgetNode&)` — widgets can mutate node state
 
-Since `WidgetNode` is forward-declared in `widget.hpp` (to avoid circular includes with `widget_tree.hpp`), visual state is accessed via `node_vs(node)` helper. Widgets that need the complete `WidgetNode` type (e.g. for `edit_state` access) declare methods in `widget.hpp` and define them in `widget_tree.hpp`.
+Widgets are declared in `ui/delegate.hpp`, where `WidgetNode` is only forward-declared (to avoid circular includes), so visual state is read through the `node_vs(node)` helper. Widgets that need the complete `WidgetNode` (e.g. for `edit_state`) declare their methods there and define them in a `delegates/*_delegates.hpp` header (text, dropdown, menu, form, tabs, dialog, color, date, time).
 
 ## Field vs State
 
@@ -147,75 +147,48 @@ Sentinel-level concepts define what a widget needs from the sentinel wrapper:
 
 ```cpp
 template <typename T>
-concept TextEditable = requires(const T& s) {
-    { s.value } -> StringLike;
+concept TextEditable = requires(const T& t) {
+    { t.value } -> StringLike;
 };
 
 template <typename T>
-concept TextDisplayable = requires(const T& s) {
-    { s.value } -> StringLike;
-};
-
-template <typename T>
-concept SliderRenderable = requires(const T& s) {
-    { s.value } -> Numeric;
-    { s.min }   -> Numeric;
-    { s.max }   -> Numeric;
-};
-
-template <typename T>
-concept Toggleable = requires(const T& s) {
-    { s } -> std::convertible_to<bool>;
-};
+concept ScopedEnum = std::is_scoped_enum_v<T>;
 ```
+
+Everything else matches on the sentinel type itself (`Slider<T, O>`, `Checkbox`, `Label<T>`, ...).
 
 ## Widget Resolution
 
-Widgets are resolved at compile time via concept matching. The widget is a struct with a static `render` method:
+Widgets are resolved at compile time: `Widget<T>` is specialized per type or constrained by a
+concept. Each has `record()` for rendering and `handle_input()` for interaction; both receive
+the `WidgetNode` for visual state, edit state and dirty tracking.
 
 ```cpp
-// Concept-based widgets — match on traits, not types
-// Each widget has record() for rendering and handle_input() for interaction.
-// Both receive WidgetNode& for visual state, edit state, and dirty tracking.
-
-template <TextEditable T>
-struct Widget<T> {
-    static void record(DrawList& dl, const Field<T>& field, const WidgetNode& node);
-    static void handle_input(Field<T>& field, const InputEvent& ev, WidgetNode& node);
-};
-
-template <TextDisplayable T>
+template <StringLike T>
 struct Widget<Label<T>> {
-    static void record(DrawList& dl, const Field<Label<T>>& field, const WidgetNode& node);
+    static void record(DrawList& dl, const Field<Label<T>>& field, WidgetNode& node);
     static void handle_input(Field<Label<T>>& field, const InputEvent& ev, WidgetNode& node);
 };
 
-template <SliderRenderable T>
-struct Widget<T> {
-    static void record(DrawList& dl, const Field<T>& field, const WidgetNode& node);
-    static void handle_input(Field<T>& field, const InputEvent& ev, WidgetNode& node);
-};
+template <ScopedEnum T>
+    requires (!TextEditable<T>)
+struct Widget<T> { /* a dropdown over the enum's values */ };
 ```
 
-A user-defined sentinel that satisfies `SliderRenderable` automatically gets the slider widget:
+A type of your own gets a widget by an explicit specialization:
 
 ```cpp
 struct TemperatureKnob {
     float value;
     float min = -40.0f;
     float max = 85.0f;
-    float step = 0.5f;
+    bool operator==(const TemperatureKnob&) const = default;
 };
-// Satisfies SliderRenderable → picks up slider widget automatically
-// Unless explicitly specialized for custom rendering
-```
 
-Explicit specialization overrides concept-based resolution:
-
-```cpp
 template <>
 struct Widget<TemperatureKnob> {
-    static void record(DrawList& dl, const Field<TemperatureKnob>& field, const WidgetNode& node) {
+    static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
+    static void record(DrawList& dl, const Field<TemperatureKnob>& field, WidgetNode& node) {
         // custom circular knob rendering with hover/press feedback
     }
     static void handle_input(Field<TemperatureKnob>& field, const InputEvent& ev, WidgetNode& node) {
@@ -230,10 +203,13 @@ When no sentinel is used, `Field<T>` uses the default widget for `T`:
 
 | `Field<T>` type | Concept matched | Default widget | Status |
 |---|---|---|---|
-| `Field<bool>` | `Toggleable` | Checkbox | **Implemented** |
+| `Field<bool>` | `Widget<bool>` | Checkbox | **Implemented** |
 | `Field<std::string>` | `StringLike` | Read-only text display | **Implemented** |
-| `Field<int>`, `Field<double>` | `Numeric` | Filled rect (catch-all fallback) | **Implemented** |
-| `Field<ScopedEnum>` | `ScopedEnum` concept | Auto-dropdown via P2996 `enumerators_of` | **Implemented** |
+| `Field<int>`, `Field<double>` | `Numeric` | Read-only number display | **Implemented** |
+| `Field<ScopedEnum>` | `ScopedEnum` concept | Auto-dropdown via P2996 `enumerators_of` (or magic_enum) | **Implemented** |
+| `Field<Color>` | `Widget<Color>` | Swatch + hex code; popup with a hue bar and a saturation/value square | **Implemented** |
+| `Field<std::chrono::year_month_day>` | `Widget<year_month_day>` | ISO date; popup with a month calendar | **Implemented** |
+| any other type | primary template | Filled rect (catch-all fallback) | **Implemented** |
 
 Sentinels override these defaults:
 
@@ -241,12 +217,13 @@ Sentinels override these defaults:
 |---|---|---|
 | `Field<Label<T>>` | Read-only text label | **Implemented** |
 | `Field<TextField<T>>` | Single-line editable text field (cursor, scroll, placeholder, max_length) | **Implemented** |
-| `Field<Password<T>>` | Masked text input (shares `detail::` helpers with TextField) | **Implemented** |
+| `Field<Password<T>>` | Masked text input (shares `text_detail::` helpers with TextField) | **Implemented** |
 | `Field<Slider<T>>` | Slider (continuous or discrete based on `step`) | **Implemented** |
 | `Field<Button>` | Clickable button (text label, observable click_count) | **Implemented** |
 | `Field<Checkbox>` | Checkbox box + label text, whole-widget toggle | **Implemented** |
 | `Field<Dropdown<T>>` | Dropdown with custom labels | **Implemented** |
 | `Field<TextArea<T>>` | Multiline text editor (character wrap, vertical scroll, Up/Down navigation, configurable rows) | **Implemented** |
+| `Field<TimeOfDay>` | `HH:MM`, each part stepped by arrows or the wheel, or typed | **Implemented** |
 
 ## Reflection Walk
 
@@ -266,16 +243,19 @@ for each member M of Model:
 
 ## Shared Implementation Helpers
 
-TextField and Password widgets share their implementation via parameterized `detail::` helpers in `widget_tree.hpp`:
+TextField and Password share their implementation through parameterized helpers in
+`text_detail::` (`delegates/text_delegates.hpp`):
 
-- `detail::text_field_record<Sentinel, DisplayFn>()` — rendering parameterized by a display transform (identity for TextField, masking for Password)
-- `detail::text_field_handle_input<Sentinel>()` — input handling shared identically
-- `detail::mask_string(size_t)` — returns UTF-8 bullet "●" characters
-- `detail::get_text_edit_state()` / `detail::ensure_text_edit_state()` — `TextEditState` access from `WidgetNode::edit_state`
+- `text_field_record<Sentinel, DisplayFn>()`: rendering, parameterized by a display transform
+  (`plain_display` for TextField, `masked_display` for Password);
+- `text_field_handle_input<Sentinel>()`: input handling, shared identically;
+- `mask_string(size_t)`: UTF-8 bullet "●" characters.
 
-Enum dropdown and `Dropdown<T>` similarly share `detail::dropdown_record()` and `detail::dropdown_handle_input()`.
+The enum dropdown, `Dropdown<T>` and `Choice` share `dropdown_detail::dropdown_record()` and
+`dropdown_detail::dropdown_handle_input()`.
 
-TextArea uses its own `detail::` helpers: `text_area_record()`, `text_area_handle_input()`, `wrap_lines()`, `cursor_to_line_col()`, `line_col_to_cursor()`.
+TextArea has its own helpers in the same namespace: `text_area_record()`,
+`text_area_handle_input()`, `wrap_lines()`, `cursor_to_line_col()`, `line_col_to_cursor()`.
 
 ## Strong Coordinate Types
 
