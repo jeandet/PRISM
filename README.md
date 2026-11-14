@@ -323,7 +323,10 @@ by returning false.
 A table cell can hold a checkbox (`cell_check(row, col)`; a click hands `set_cell` "true" or
 "false", and a `bool` member of a `List<struct>` row gets one for free) or an icon before its
 text (`cell_image(row, col)`).
-Click a table header to sort (numbers sort by value), drag a header edge to resize a column,
+`vb.table(...).columns(field)` hands the table a `Field<std::vector<size_t>>` of the columns to
+show, in order (empty: all): set it to hide columns, save it to restore the user's order.
+Click a table header to sort (numbers sort by value), drag a header to move its column, drag a
+header edge to resize a column,
 and select rows with click, Ctrl-click, Shift-click, Shift+arrows or Ctrl+A.
 A sorted table re-sorts when it hears about a change: a `List<T>` notifies it, and column
 storage does through `.depends_on(...)`.

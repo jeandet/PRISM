@@ -173,15 +173,60 @@ inline size_t view_position(const TableState& ts, size_t row) {
 
 // ---- Columns ---------------------------------------------------------------
 
+inline Field<std::vector<size_t>>& columns_field(TableState& ts) { return ts.app_columns ? *ts.app_columns : ts.own_columns; }
+inline const Field<std::vector<size_t>>& columns_field(const TableState& ts) {
+    return ts.app_columns ? *ts.app_columns : ts.own_columns;
+}
+
+// The source columns on screen, left to right.
+inline std::vector<size_t> shown_columns(const TableState& ts) {
+    const auto& chosen = columns_field(ts).get();
+    std::vector<size_t> out;
+    if (chosen.empty()) {
+        out.resize(ts.column_count);
+        std::iota(out.begin(), out.end(), size_t{0});
+    } else {
+        for (size_t c : chosen)
+            if (c < ts.column_count) out.push_back(c);
+    }
+    return out;
+}
+
+// Where source column `c` is on screen; nullopt when hidden.
+inline std::optional<size_t> screen_position(const TableState& ts, size_t c) {
+    auto shown = shown_columns(ts);
+    auto it = std::ranges::find(shown, c);
+    return it == shown.end() ? std::nullopt : std::optional<size_t>(static_cast<size_t>(it - shown.begin()));
+}
+
+// Where the column at screen position `from` lands when dropped at content x `x`: before the
+// first other column whose middle is right of x.
+inline size_t drop_position(const std::vector<float>& edges, size_t from, float x) {
+    size_t to = 0;
+    for (size_t p = 0; p + 1 < edges.size(); ++p)
+        if (p != from && (edges[p] + edges[p + 1]) / 2 < x) ++to;
+    return to;
+}
+
+// Moves the column at screen position `from` to `to` (in the order without it).
+inline void move_column(TableState& ts, size_t from, size_t to) {
+    auto shown = shown_columns(ts);
+    if (from >= shown.size()) return;
+    size_t c = shown[from];
+    shown.erase(shown.begin() + static_cast<std::ptrdiff_t>(from));
+    shown.insert(shown.begin() + static_cast<std::ptrdiff_t>(std::min(to, shown.size())), c);
+    columns_field(ts).set(std::move(shown));
+}
+
 inline float column_width(const TableState& ts, size_t c) {
     if (c < ts.column_widths.size() && ts.column_widths[c] > 0) return ts.column_widths[c];
     return ts.auto_column_w;
 }
 
-// Left edge of every column plus the right edge of the last one (n + 1 entries).
+// Left edge of every column on screen plus the right edge of the last one (n + 1 entries).
 inline std::vector<float> column_edges(const TableState& ts) {
     std::vector<float> edges{0.f};
-    for (size_t c = 0; c < ts.column_count; ++c) edges.push_back(edges.back() + column_width(ts, c));
+    for (size_t c : shown_columns(ts)) edges.push_back(edges.back() + column_width(ts, c));
     return edges;
 }
 
@@ -280,16 +325,22 @@ inline bool text_editable(const TableState& ts, std::optional<size_t> row, size_
     return column_editable(ts, column) && !(row && is_check_cell(ts, *row, column));
 }
 
-// The column after (or, `step` -1, before) `from` whose cell in `row` takes text, if any.
+// The column right (or, `step` -1, left) of `from` on screen whose cell in `row` takes text.
 inline std::optional<size_t> next_editable_column(const TableState& ts, size_t from, int step,
                                                   std::optional<size_t> row = std::nullopt) {
-    for (auto c = static_cast<std::ptrdiff_t>(from) + step; c >= 0 && c < static_cast<std::ptrdiff_t>(ts.column_count); c += step)
-        if (text_editable(ts, row, static_cast<size_t>(c))) return static_cast<size_t>(c);
+    auto shown = shown_columns(ts);
+    auto at = screen_position(ts, from);
+    auto n = static_cast<std::ptrdiff_t>(shown.size());
+    auto p = at ? static_cast<std::ptrdiff_t>(*at) + step : (step > 0 ? 0 : n - 1);
+    for (; p >= 0 && p < n; p += step)
+        if (text_editable(ts, row, shown[static_cast<size_t>(p)])) return shown[static_cast<size_t>(p)];
     return std::nullopt;
 }
 
 inline std::optional<size_t> first_editable_column(const TableState& ts, std::optional<size_t> row = std::nullopt) {
-    return text_editable(ts, row, 0) ? std::optional<size_t>{0} : next_editable_column(ts, 0, +1, row);
+    for (size_t c : shown_columns(ts))
+        if (text_editable(ts, row, c)) return c;
+    return std::nullopt;
 }
 
 // Flips a checkbox cell through set_cell; false when the cell has no box, the column takes no
@@ -300,7 +351,10 @@ inline bool toggle_check(TableState& ts, size_t row, size_t column) {
 }
 
 // Scrolls sideways just enough to show column `c` (its left edge, if it is wider than the view).
-inline void reveal_column(TableState& ts, size_t c) {
+inline void reveal_column(TableState& ts, size_t column) {
+    auto pos = screen_position(ts, column);
+    if (!pos) return;
+    size_t c = *pos;
     auto edges = column_edges(ts);
     float view = ts.viewport_w.raw(), x = ts.scroll_x.raw();
     if (edges[c + 1] > x + view) x = edges[c + 1] - view;

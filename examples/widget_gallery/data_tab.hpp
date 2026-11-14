@@ -8,7 +8,9 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
@@ -76,6 +78,10 @@ private:
 struct DataTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Data", .heading = true}};
     Readings readings;
+    // The columns shown (a header drag reorders them) and a right-click menu that hides them.
+    prism::core::Field<std::vector<std::size_t>> columns{};
+    prism::core::Field<prism::ui::ContextMenu> column_menu{{.items = column_items(readings)}};
+    std::uint64_t menu_seen = 0;
     prism::core::List<std::string> todo;
     prism::core::Field<prism::ui::TextField<>> new_item{{.placeholder = "New item, then Add"}};
     prism::core::Field<prism::ui::Button> add{{"Add"}};
@@ -94,12 +100,20 @@ struct DataTab {
         wiring.push_back(remove.on_change().connect([this](const auto&) {
             if (todo.size() > 0) todo.erase(todo.size() - 1);
         }));
+        wiring.push_back(column_menu.on_change().connect([this](const prism::ui::ContextMenu& m) {
+            if (m.activations == menu_seen) return;
+            menu_seen = m.activations;
+            show_ticked(m);
+        }));
     }
 
     void view(prism::app::WidgetTree::ViewBuilder& vb) {
         vb.widget(title);
         vb.hstack([&] {
-            vb.table(readings).sort(3, /*descending=*/true);
+            vb.vstack([&] {
+                vb.table(readings).sort(3, /*descending=*/true).columns(columns);
+                vb.context_menu(column_menu);
+            });
             vb.handle();
             vb.vstack([&] {
                 vb.hstack([&] {
@@ -112,6 +126,34 @@ struct DataTab {
                 vb.list(todo).reorderable();
             });
         });
+    }
+
+private:
+    static std::vector<prism::ui::MenuItem> column_items(const Readings& r) {
+        std::vector<prism::ui::MenuItem> items;
+        for (std::size_t c = 0; c < r.column_count(); ++c)
+            items.push_back({.text = std::string(r.header(c)), .checked = true});
+        return items;
+    }
+
+    // The ticked columns, in the order they show now; a newly ticked one goes last. The last
+    // column cannot be hidden (an empty list means "all of them").
+    void show_ticked(prism::ui::ContextMenu m) {
+        auto ticked = [&](std::size_t c) { return m.items[c].checked.value_or(false); };
+        std::vector<std::size_t> order = columns.get();
+        if (order.empty())
+            for (std::size_t c = 0; c < m.items.size(); ++c) order.push_back(c);
+        std::vector<std::size_t> shown;
+        for (std::size_t c : order)
+            if (ticked(c)) shown.push_back(c);
+        for (std::size_t c = 0; c < m.items.size(); ++c)
+            if (ticked(c) && std::ranges::find(shown, c) == shown.end()) shown.push_back(c);
+        if (shown.empty()) {
+            m.items[m.chosen.value_or(0)].checked = true;
+            column_menu.set(m);
+            return;
+        }
+        columns.set(std::move(shown));
     }
 };
 

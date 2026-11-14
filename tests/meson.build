@@ -97,6 +97,7 @@ headless_tests = {
   'tree_selection' : files('test_tree_selection.cpp'),
   'tree_edit' : files('test_tree_edit.cpp'),
   'table_cells' : files('test_table_cells.cpp'),
+  'table_columns' : files('test_table_columns.cpp'),
   'submenus' : files('test_submenus.cpp'),
   'context_menu' : files('test_context_menu.cpp'),
   'dialog' : files('test_dialog.cpp'),

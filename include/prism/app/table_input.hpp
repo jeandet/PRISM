@@ -46,22 +46,34 @@ inline TableInputResult header_press(TableState& ts, Point local) {
         ts.resizing = ColumnResize{*c, x - edges[*c + 1]};
         return {false, CursorShape::ResizeEW};
     }
-    if (auto c = column_at(edges, x)) {
-        ts.sort.set(next_sort(ts.sort.get(), *c));
-        return {true, CursorShape::Default};
-    }
+    if (auto c = column_at(edges, x)) ts.header_drag = HeaderDrag{*c, x, x};   // sorts or moves on release
     return {false, CursorShape::Default};
 }
+
+// A header released: a click sorts by its column, a drag drops the column where it is.
+inline TableInputResult header_release(TableState& ts) {
+    auto d = *ts.header_drag;
+    ts.header_drag.reset();
+    auto shown = shown_columns(ts);
+    if (d.position >= shown.size()) return {true, std::nullopt};
+    if (d.moving) move_column(ts, d.position, drop_position(column_edges(ts), d.position, d.x));
+    else ts.sort.set(next_sort(ts.sort.get(), shown[d.position]));
+    return {true, std::nullopt};
+}
+
+// Beyond this many pixels, a pressed header is dragged, not clicked.
+inline constexpr float header_drag_slop = 4.f;
 
 // The column whose checkbox (4 to 20 px into the cell) is under `local`, in source row `row`.
 // simplify: Space does not toggle a box yet (the keys move rows); add it with a current cell.
 inline std::optional<size_t> check_box_at(const TableState& ts, size_t row, Point local) {
     auto edges = column_edges(ts);
     float x = content_x(ts, local);
-    auto c = column_at(edges, x);
-    if (!c || !is_check_cell(ts, row, *c)) return std::nullopt;
-    float in = x - edges[*c];
-    return in >= 4.f && in < 20.f ? c : std::nullopt;
+    auto pos = column_at(edges, x);
+    if (!pos) return std::nullopt;
+    size_t c = shown_columns(ts)[*pos];
+    float in = x - edges[*pos];
+    return is_check_cell(ts, row, c) && in >= 4.f && in < 20.f ? std::optional<size_t>{c} : std::nullopt;
 }
 
 inline TableInputResult body_press(TableState& ts, Point local, uint16_t m, uint8_t clicks) {
@@ -76,7 +88,7 @@ inline TableInputResult body_press(TableState& ts, Point local, uint16_t m, uint
     }
     if (clicks >= 2) {   // a double-click edits the cell
         select_single(ts, row);
-        if (auto c = column_at(column_edges(ts), content_x(ts, local))) begin_edit(ts, row, *c);
+        if (auto pos = column_at(column_edges(ts), content_x(ts, local))) begin_edit(ts, row, shown_columns(ts)[*pos]);
         return {true, CursorShape::Default};
     }
     if (m & mods::shift)
@@ -92,6 +104,7 @@ inline TableInputResult body_press(TableState& ts, Point local, uint16_t m, uint
 
 inline TableInputResult on_button(TableState& ts, const MouseButton& mb) {
     if (mb.button != buttons::left) return {};
+    if (!mb.pressed && ts.header_drag) return header_release(ts);
     if (!mb.pressed) {
         bool was_resizing = ts.resizing.has_value();
         ts.resizing.reset();
@@ -101,11 +114,18 @@ inline TableInputResult on_button(TableState& ts, const MouseButton& mb) {
 }
 
 inline TableInputResult on_move(TableState& ts, const MouseMove& mm) {
+    if (!(mm.buttons & buttons::left)) ts.header_drag.reset();             // release was lost
+    if (ts.header_drag) {
+        auto& d = *ts.header_drag;
+        d.x = content_x(ts, mm.position);
+        d.moving = d.moving || std::abs(d.x - d.press_x) > header_drag_slop;
+        return {d.moving, CursorShape::Default};
+    }
     if (ts.resizing && !(mm.buttons & buttons::left)) ts.resizing.reset();  // release was lost
     if (!ts.resizing) return {false, hover_cursor(ts, mm.position)};
     size_t c = ts.resizing->column;
     float left = column_edges(ts)[c];
-    set_column_width(ts, c, content_x(ts, mm.position) - ts.resizing->grab_dx - left);
+    set_column_width(ts, shown_columns(ts)[c], content_x(ts, mm.position) - ts.resizing->grab_dx - left);
     return {true, CursorShape::ResizeEW};
 }
 

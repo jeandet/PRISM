@@ -289,6 +289,14 @@ public:
                 node_ref.table_state->header_overrides = std::move(hdrs);
             return *this;
         }
+        // The columns shown, by source index, in screen order (empty: all). The app keeps `shown`
+        // (to save it, or to hide columns from a menu); a header drag rewrites it.
+        // simplify: no built-in menu to hide columns; the app offers one (see the gallery).
+        TableBuilder& columns(Field<std::vector<size_t>>& shown) {
+            placed_ref.insert(&shown);
+            if (node_ref.table_state) node_ref.table_state->app_columns = &shown;
+            return *this;
+        }
         // Initial sort; the user changes it by clicking a header.
         TableBuilder& sort(size_t column, bool descending = false) {
             if (node_ref.table_state)

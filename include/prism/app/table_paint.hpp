@@ -57,16 +57,18 @@ inline WidgetNode paint_table_row(TableState& ts, size_t view_pos, const std::ve
     Width total_w{std::max(edges.back() + dx, ts.viewport_w.raw())};
     wn.draws.filled_rect(Rect{Point{X{0}, Y{0}}, Size{total_w, ts.row_height}}, bg);
 
-    for (size_t c = 0; c < ts.column_count; ++c) {
-        X cx{edges[c] + dx};
-        Width cw{edges[c + 1] - edges[c]};
+    auto shown = shown_columns(ts);
+    for (size_t pos = 0; pos < shown.size(); ++pos) {
+        size_t c = shown[pos];
+        X cx{edges[pos] + dx};
+        Width cw{edges[pos + 1] - edges[pos]};
         wn.draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});
         if (ts.editing && ts.editing->row == row && ts.editing->column == c)
             paint_cell_editor(wn.draws, *ts.editing, Size{cw, ts.row_height}, theme);
         else
             paint_cell(wn.draws, ts, row, c, theme);
         wn.draws.clip_pop();
-        if (c > 0)
+        if (pos > 0)
             wn.draws.filled_rect(Rect{Point{cx, Y{0}}, Size{Width{1.f}, ts.row_height}},
                                  theme.table_divider);
     }
@@ -83,15 +85,26 @@ inline void draw_sort_arrow(DrawList& dl, X right, bool descending, Color c) {
                            Point{X{x}, Y{y + h / 2}}}, c);
 }
 
+// Where a dragged header would land: a bar on the gap between two columns.
+inline void draw_drop_marker(DrawList& dl, const TableState& ts, const std::vector<float>& edges, float dx, const Theme& theme) {
+    const auto& d = *ts.header_drag;
+    size_t to = drop_position(edges, d.position, d.x);
+    size_t gap = to < d.position ? to : to + 1;   // `to` counts the columns without the dragged one
+    float x = edges[std::min(gap, edges.size() - 1)] + dx;
+    dl.filled_rect(Rect{Point{X{x - 1.5f}, Y{0}}, Size{Width{3.f}, ts.row_height}}, theme.accent);
+}
+
 // Renders header cells into overlay_draws (picked up by table flatten).
 inline void render_table_header(WidgetNode& node, const TableState& ts, const std::vector<float>& edges, const Theme& theme) {
     node.overlay_draws.clear();
     auto sort = ts.sort.get();
     float dx = -ts.scroll_x.raw();
-    for (size_t c = 0; c < ts.column_count; ++c) {
-        X cx{edges[c] + dx};
-        X right{edges[c + 1] + dx};
-        Width cw{edges[c + 1] - edges[c]};
+    auto shown = shown_columns(ts);
+    for (size_t pos = 0; pos < shown.size(); ++pos) {
+        size_t c = shown[pos];
+        X cx{edges[pos] + dx};
+        X right{edges[pos + 1] + dx};
+        Width cw{edges[pos + 1] - edges[pos]};
         node.overlay_draws.clip_push(Point{cx, Y{0}}, Size{cw, ts.row_height});  // origin moves to cx
         node.overlay_draws.text(std::string(ts.column_header(c)), Point{X{4.f}, Y{4.f}},
                                 14.f, theme.table_header_text);
@@ -102,6 +115,7 @@ inline void render_table_header(WidgetNode& node, const TableState& ts, const st
                                             Size{Width{1.f}, ts.row_height - Height{8.f}}},
                                        theme.table_header_divider);
     }
+    if (ts.header_drag && ts.header_drag->moving) draw_drop_marker(node.overlay_draws, ts, edges, dx, theme);
 }
 
 } // namespace prism::app::widget_detail

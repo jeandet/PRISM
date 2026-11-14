@@ -1104,9 +1104,10 @@ struct SlotTable : SlotBase {
     std::shared_ptr<nb::object> py_src_holder;
     PyTableData data;
     Field<std::int64_t> revision{0};   // refresh() bumps it: the table re-reads the source
+    Field<std::vector<std::size_t>> columns{};   // the columns shown, in order; empty: all
     explicit SlotTable(nb::object py_obj)
         : py_src_holder(std::make_shared<nb::object>(std::move(py_obj))), data{py_src_holder, {}, {}} {}
-    void build(ViewBuilder& vb) override { vb.table(data).depends_on(revision); }
+    void build(ViewBuilder& vb) override { vb.table(data).depends_on(revision).columns(columns); }
     void traverse(visitproc visit, void* arg) override {
         if (py_src_holder) if (PyObject* o = py_src_holder->ptr()) visit(o, arg);
     }
@@ -1121,6 +1122,16 @@ struct BoundTable {
         if (!slot) return;
         auto* s = slot;
         list_op_dispatch(owner, [s] { s->revision.set(s->revision.get() + 1); });
+    }
+    std::vector<std::size_t> get_columns() const {
+        if (!slot) return {};
+        auto* s = slot;
+        return dispatch_sync_read<std::vector<std::size_t>>([s] { return s->columns.get(); });
+    }
+    void set_columns(std::vector<std::size_t> shown) {
+        if (!slot) return;
+        auto* s = slot;
+        list_op_dispatch(owner, [s, shown = std::move(shown)] { s->columns.set(shown); });
     }
 };
 
@@ -3197,7 +3208,10 @@ NB_MODULE(_prism_ext, m) {
                            "Bound handle for a Model's table over a Python object "
                            "(prism.table_field): place it with vb.table(handle).")
         .def("refresh", &BoundTable::refresh,
-             "The source changed: the table reads it again. Any thread; posted to the logic thread.");
+             "The source changed: the table reads it again. Any thread; posted to the logic thread.")
+        .def_prop_rw("columns", &BoundTable::get_columns, &BoundTable::set_columns,
+                     "The columns shown, by source index, left to right ([]: all). Dragging a "
+                     "header rewrites it; setting it hides or reorders columns. Any thread.");
 
     nb::class_<BoundTree>(m, "BoundTree", nb::dynamic_attr(), nb::is_weak_referenceable(),
                           "Bound handle for a Model's tree field. refresh() may be called "
@@ -3261,6 +3275,7 @@ NB_MODULE(_prism_ext, m) {
                 if (!s) throw nb::value_error("ViewBuilder.table: handle is not bound to a Model");
                 auto t = vb.table(s->data);
                 std::move(t).depends_on(s->revision);
+                std::move(t).columns(s->columns);
                 if (!sort_column.is_none()) std::move(t).sort(nb::cast<std::size_t>(sort_column), descending);
             }, nb::arg("handle"), nb::arg("sort_column") = nb::none(), nb::arg("descending") = false,
              "A table over the handle's Python source; sorted by sort_column if given (the user can "

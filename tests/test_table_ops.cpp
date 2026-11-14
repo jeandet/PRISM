@@ -55,6 +55,11 @@ InputEvent release(float x, float y) {
 InputEvent move(float x, float y) {
     return MouseMove{.position = Point{X{x}, Y{y}}, .buttons = 1};
 }
+// A header sorts on release (a press may start dragging the column instead).
+void click_header(TableState& ts, float x) {
+    handle_table_input(ts, press(x, 10.f));
+    handle_table_input(ts, release(x, 10.f));
+}
 InputEvent key(int32_t k, uint16_t m = 0) { return KeyPress{.key = k, .mods = m}; }
 
 float row_y(size_t view_pos) { return 24.f + 24.f * static_cast<float>(view_pos) + 12.f; }
@@ -105,7 +110,7 @@ TEST_CASE("column edges honour resized widths and the auto width") {
 TEST_CASE("clicking a header sorts; the view maps through the order") {
     Procs p;
     auto ts = make_state(p);
-    handle_table_input(ts, press(150.f, 10.f));  // "Mem" header
+    click_header(ts, 150.f);  // "Mem" header
     refresh_order(ts);
     REQUIRE(ts.sort.get() == SortSpec{1, false});
     // mem = 12, 300, 9.5, 100 -> audio(2), bash(0), zsh(3), Xorg(1)
@@ -113,7 +118,7 @@ TEST_CASE("clicking a header sorts; the view maps through the order") {
     CHECK(source_row(ts, 3) == 1u);
     CHECK(view_position(ts, 1) == 3u);
 
-    handle_table_input(ts, press(150.f, 10.f));
+    click_header(ts, 150.f);
     refresh_order(ts);
     CHECK(ts.sort.get() == SortSpec{1, true});
     CHECK(source_row(ts, 0) == 1u);
@@ -193,7 +198,7 @@ TEST_CASE("horizontal scroll is clamped to the column overflow") {
     handle_table_input(ts, MouseScroll{.position = Point{X{10.f}, Y{50.f}}, .dx = DX{10.f}, .dy = DY{0.f}});
     CHECK(ts.scroll_x.raw() == doctest::Approx(200.f));
     // header hit-testing accounts for the scroll: x=150 is now inside column 1
-    handle_table_input(ts, press(150.f, 10.f));
+    click_header(ts, 150.f);
     CHECK(ts.sort.get() == SortSpec{1, false});
 }
 

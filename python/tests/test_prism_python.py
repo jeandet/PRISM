@@ -4508,6 +4508,21 @@ def test_a_table_shows_a_python_source():
     assert "disk" in texts and texts.index("disk") < texts.index("cpu")
 
 
+def test_a_table_hides_and_reorders_columns():
+    class Board(prism.Model):
+        readings = prism.table_field(_Readings())
+
+        def view(self, vb):
+            vb.table(self.readings)
+
+    b = Board()
+    assert b.readings.columns == []        # all of them
+    b.readings.columns = [1]               # Value only
+    assert b.readings.columns == [1]
+    texts = prism._texts(b)
+    assert "3.2" in texts and "cpu" not in texts and "Name" not in texts
+
+
 def test_a_table_source_without_header_gets_empty_titles():
     class NoHeader:
         def column_count(self):

@@ -382,8 +382,16 @@ struct CellEdit {
 };
 
 struct ColumnResize {
-    size_t column;
+    size_t column;  // its position on screen
     float grab_dx;  // pointer offset from the column's right edge when grabbed
+};
+
+// A header pressed: a click sorts by it, a drag moves the column.
+struct HeaderDrag {
+    size_t position;   // the column's position on screen
+    float press_x;     // content x of the press
+    float x = 0;       // content x now
+    bool moving = false;
 };
 
 struct TableState {
@@ -427,7 +435,13 @@ struct TableState {
 
     std::optional<CellEdit> editing;   // a cell being edited in place (ui::begin_edit)
 
-    std::vector<float> column_widths;  // user-resized widths; 0 or missing = auto
+    // The columns shown, by source index, in screen order; empty: all of them, in the source's
+    // order. vb.table(...).columns(field) makes the app's field the one used.
+    Field<std::vector<size_t>> own_columns{};
+    Field<std::vector<size_t>>* app_columns = nullptr;
+    std::optional<HeaderDrag> header_drag;
+
+    std::vector<float> column_widths;  // by source column: user-resized widths; 0 or missing = auto
     float auto_column_w = 120.f;
     std::optional<ColumnResize> resizing;
 

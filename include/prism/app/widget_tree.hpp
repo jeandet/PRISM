@@ -1469,6 +1469,8 @@ private:
         node.connections.push_back(
             ts->sort.on_change().connect([ts, this](const auto&) { ts->shifted_at = next_frame_version(); }));
         node.keeps_keys = [ts](const KeyPress&) { return ts->editing.has_value(); };
+        // Columns shown or moved, by a header drag or by the app.
+        node.connections.push_back(columns_field(*ts).on_change().connect([this, node_id](const auto&) { set_dirty(node_id); }));
         node.connections.push_back(
             node.on_input.connect([ts, node_id, this](const InputEvent& ev) {
                 auto it = index_.find(node_id);
@@ -1489,9 +1491,8 @@ private:
             ts->row_height = Height{24.f};
 
         refresh_order(*ts);
-        ts->auto_column_w = ts->column_count > 0
-            ? std::max(120.f, ts->viewport_w.raw() / static_cast<float>(ts->column_count))
-            : 120.f;
+        auto shown = static_cast<float>(shown_columns(*ts).size());
+        ts->auto_column_w = shown > 0 ? std::max(120.f, ts->viewport_w.raw() / shown) : 120.f;
         ts->scroll_x = DX{std::min(ts->scroll_x.raw(), max_scroll_x(*ts))};
         auto edges = column_edges(*ts);
 
