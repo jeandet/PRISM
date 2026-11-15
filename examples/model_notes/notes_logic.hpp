@@ -18,6 +18,10 @@
 
 namespace notes {
 
+// `model_notes out.svg [dir] [file]` saves a screenshot; `model_notes [dir]` opens a folder. The
+// first argument says which: a path ending in .svg is where a screenshot goes.
+inline bool is_capture_path(std::string_view arg) { return arg.ends_with(".svg"); }
+
 inline std::expected<std::string, std::string> load_text(const std::filesystem::path& path,
                                                          std::size_t max_bytes = 1 << 20) {
     std::error_code ec;

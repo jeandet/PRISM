@@ -63,3 +63,10 @@ TEST_CASE("the status line says what is open, whether it changed, and the search
     CHECK(notes::status_line("a.txt", {2, 7}, true, 3) == "a.txt (modified)  |  2 lines, 7 characters  |  3 matches");
     CHECK(notes::status_line("", {0, 0}, false, std::nullopt) == "No file open");
 }
+
+TEST_CASE("only an .svg argument is a capture run; any other is the folder to open") {
+    CHECK(notes::is_capture_path("out.svg"));
+    CHECK(notes::is_capture_path("/tmp/doc/model_notes.svg"));
+    CHECK_FALSE(notes::is_capture_path("/home/me/notes"));
+    CHECK_FALSE(notes::is_capture_path("."));
+}

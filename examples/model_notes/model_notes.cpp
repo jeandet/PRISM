@@ -258,7 +258,7 @@ struct NotesApp {
 };
 
 int main(int argc, char* argv[]) {
-    if (argc >= 2) {   // README capture: open a known file
+    if (argc >= 2 && notes::is_capture_path(argv[1])) {   // README capture: open a known file
         NotesApp app{argc >= 3 ? fs::path(argv[2]) : fs::current_path()};
         if (argc >= 4) app.open(argv[3]);
         app.search.set({.value = "include", .placeholder = "Find in file..."});   // show highlights
