@@ -22,9 +22,24 @@ sheenbidi_dep = dependency('sheenbidi', fallback : ['sheenbidi', 'sheenbidi_dep'
 # Settings files (app/settings.hpp): a struct of fields to and from TOML. Header-only.
 glaze_dep = dependency('glaze', fallback : ['glaze', 'glaze_dep'])
 
-prism_core_dep = declare_dependency(
+prism_headers_dep = declare_dependency(
   include_directories : prism_inc,
   dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep, sheenbidi_dep, glaze_dep],
+)
+
+# The non-template code of the headers, compiled once instead of in every file that includes
+# them. simplify: built with this build's flags (reflection or not, NDEBUG or not); a header
+# whose inline code differs on those must keep that code in the header. A project linking an
+# installed libprism with other flags needs a library per flag set; add when one is packaged.
+prism_lib = library('prism',
+  'app/widget_tree.cpp',
+  dependencies : [prism_headers_dep],
+  install : true,
+)
+
+prism_core_dep = declare_dependency(
+  link_with : prism_lib,
+  dependencies : [prism_headers_dep],
 )
 
 # Software backend: links SDL3 + SDL3_ttf
