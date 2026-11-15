@@ -46,6 +46,11 @@ observes `x` and binds a waker that posts a drain of `x` alone, so no model list
 All cross-thread enqueues go through one gate that `model_app` closes before `run_loop::finish()`,
 so a waker or `post()` that outlives the app is a no-op.
 
+One turn of the logic thread runs the posts that were queued when it began, publishes, and queues
+the next turn behind whatever else waits (the animation clock's tick, input). It never loops on the
+spot: a producer faster than the logic thread would keep the queue full forever, and nothing else
+would run again (`tests/test_mutation_queue.cpp`, the starvation case).
+
 ## Startup Handshake
 
 The render thread sets the backend's `ready_` (atomic bool + notify) after `SDL_Init` and window creation (`SoftwareBackend::run`). `model_app` waits on it through `backend.wait_ready()` before producing the first frame. This ensures `SDL_PushEvent` is safe to call from the app thread.

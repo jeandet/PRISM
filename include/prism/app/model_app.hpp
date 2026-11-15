@@ -18,6 +18,7 @@
 #include <optional>
 #include <thread>
 #include <variant>
+#include <vector>
 #include <atomic>
 #include <functional>
 #include <map>
@@ -277,6 +278,10 @@ private:
     void enqueue(std::function<void()> fn) {
         if (closed_ && closed_->load(std::memory_order_acquire)) return;
         queue_->push(std::move(fn));
+        schedule_drain();
+    }
+
+    void schedule_drain() {
         bool expected = false;
         if (scheduled_->compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
             exec::start_detached(stdexec::schedule(sched_)
@@ -284,35 +289,44 @@ private:
         }
     }
 
-    // CAS-reschedule drain: pop every queued mutation, run the publish tail,
-    // then either exit or re-arm if a producer pushed between the last pop
-    // and the flag reset.
+    // One turn: run what was queued when the turn began, publish, then queue the next turn behind
+    // whatever else waits on the logic thread. Never loop here: a producer faster than the
+    // logic thread keeps the queue non-empty forever, and the clock's tick and input would never
+    // run again (a callback's own set() re-posts while it runs).
     void drain_queue() {
-        auto do_drain = [&]{
-            do {
-                detail_in_mutation_batch = true;
-                while (auto f = queue_->pop()) {
-                    try {
-                        (*f)();
-                    } catch (...) {
-                        report_unhandled_error(std::current_exception());
-                    }
-                }
-                detail_in_mutation_batch = false;
-                if (drain_publish_ && *drain_publish_) {
-                    try {
-                        (*drain_publish_)();
-                    } catch (...) {
-                        report_unhandled_error(std::current_exception());
-                    }
-                }
-                scheduled_->store(false, std::memory_order_release);
-                if (queue_->empty()) break;
-                bool expected = false;
-                if (!scheduled_->compare_exchange_strong(expected, true, std::memory_order_acq_rel)) break;
-            } while (true);
-        };
-        apply_wrapper(logic_wrapper_, do_drain);
+        apply_wrapper(logic_wrapper_, [&] {
+            run_mutations(take_queued());
+            run_publish_tail();
+            scheduled_->store(false, std::memory_order_release);
+            if (!queue_->empty()) schedule_drain();
+        });
+    }
+
+    std::vector<std::function<void()>> take_queued() {
+        std::vector<std::function<void()>> batch;
+        while (auto f = queue_->pop()) batch.push_back(std::move(*f));
+        return batch;
+    }
+
+    void run_mutations(std::vector<std::function<void()>> batch) {
+        detail_in_mutation_batch = true;
+        for (auto& f : batch) {
+            try {
+                f();
+            } catch (...) {
+                report_unhandled_error(std::current_exception());
+            }
+        }
+        detail_in_mutation_batch = false;
+    }
+
+    void run_publish_tail() {
+        if (!drain_publish_ || !*drain_publish_) return;
+        try {
+            (*drain_publish_)();
+        } catch (...) {
+            report_unhandled_error(std::current_exception());
+        }
     }
     scheduler_type sched_;
     std::function<void(const FileDrop&)> file_drop_;

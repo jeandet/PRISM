@@ -589,3 +589,39 @@ TEST_CASE("a block's attach() runs once and can wire its own channel") {
     CHECK(model.ticker.attached == 1);
     CHECK(model.ticker.count.get() == 5);
 }
+
+// A producer faster than the logic thread keeps the mutation queue non-empty forever. The
+// drain must still yield to the rest of the logic thread's work (the animation clock's tick,
+// input), or that work never runs again: the perf lab's stats line stayed at "warming up".
+TEST_CASE("a producer that never lets the queue empty does not starve the animation clock") {
+    ReceiveModel model;
+    std::atomic<bool> ready{false};
+    std::atomic<bool> flooding{false};
+    std::atomic<int> ticks_while_flooding{0};
+    constexpr int kEnough = 20;   // an idle clock ticks thousands of times in this window
+    auto flood = [&] {
+        model.reading.set(-1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));   // the drain is going now
+        flooding.store(true);
+        const auto give_up = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+        for (int n = 0; ticks_while_flooding.load() < kEnough && std::chrono::steady_clock::now() < give_up; ++n) {
+            model.reading.set(n);
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        flooding.store(false);
+    };
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        flood, [] { return true; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
+        ctx.receive(model.reading, [](const int&) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));   // slower than the producer
+        });
+        ctx.clock().add([&](auto) {
+            if (flooding.load()) ticks_while_flooding.fetch_add(1);
+            return true;
+        });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(ticks_while_flooding.load() >= kEnough);
+}
