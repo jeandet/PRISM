@@ -795,7 +795,7 @@ public:
             layout_measure(layout, LayoutAxis::Vertical);
             layout_arrange(layout, {Point{X{0}, Y{0}}, Size{Width{w}, Height{h}}});
             viewport_moved = update_scroll_state(layout);
-            update_split_state(layout);
+            viewport_moved |= update_split_state(layout);   // panes resized: the layout is stale
             drop_areas_.clear();
             collect_drop_areas(layout, DY{0}, drop_areas_);
             popup = layout_popup(root_, layout, Size{Width{w}, Height{h}}, theme_);
@@ -815,7 +815,10 @@ public:
         // that touches a VirtualList/Table freshly rebinds its visible rows (marking them
         // dirty regardless of whether their viewport moved), so gating on check_dirty()
         // reran this whole second pass on every single publish for any app using one.
-        if (viewport_moved) {
+        // A split's first layout uses its stored sizes, then fits them to its space; one nested in
+        // another can only fit once its parent has. Each level takes a pass, hence the loop.
+        constexpr int kMaxSettlePasses = 4;
+        for (int pass = 0; viewport_moved && pass < kMaxSettlePasses; ++pass) {
             materialize_all_virtual_lists(root_);
             layout = do_layout();
             ++layout_passes;

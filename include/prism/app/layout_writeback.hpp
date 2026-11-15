@@ -82,8 +82,10 @@ inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::vector<std
     for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset, out);
 }
 
-inline void update_split_state(LayoutNode& layout_node) {
-    if (layout_node.kept) return;
+// Returns whether a split's panes were rescaled to their space: the layout that used them is stale.
+inline bool update_split_state(LayoutNode& layout_node) {
+    if (layout_node.kept) return false;
+    bool rescaled = false;
     bool is_split_container = (layout_node.kind == LayoutNode::Kind::Row
                              || layout_node.kind == LayoutNode::Kind::Column)
                              && !layout_node.split_sizes.empty();
@@ -106,12 +108,14 @@ inline void update_split_state(LayoutNode& layout_node) {
                 if (pane_total > 0.f && target > 0.f && std::abs(target - pane_total) > 0.5f) {
                     float scale = target / pane_total;
                     for (auto& sz : ss->pane_sizes) sz *= scale;
+                    rescaled = true;
                 }
             }
         }
     }
     for (auto& child : layout_node.children)
-        update_split_state(child);
+        rescaled |= update_split_state(child);
+    return rescaled;
 }
 
 // Returns whether a widget re-recorded at its new size changed height (a label that wraps):

@@ -239,8 +239,7 @@ TEST_CASE("a nested column of three groups, each a scroll view, shows all three,
         }
     } model;
     WidgetTree tree{model};
-    auto snap = tree.build_snapshot(1000, 700, 1);
-    for (uint64_t v = 2; v < 6; ++v) snap = tree.build_snapshot(1000, 700, v);
+    auto snap = tree.build_snapshot(1000, 700, 1);   // right from the first frame (an app's launch, a capture)
     auto a = text_rect(*snap, "AAA"), b = text_rect(*snap, "BBB"), c = text_rect(*snap, "CCC");
     REQUIRE(a);
     REQUIRE(b);
