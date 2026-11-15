@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="PRISM block">
+  <title>PRISM block: its view (top), its model (left) and its behaviour (right), fitted together</title>
+  <defs>
+<linearGradient id="v" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22b4ff"/><stop offset="1" stop-color="#7c3cf5"/></linearGradient>
+<linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#36d6cf"/><stop offset="1" stop-color="#138a95"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcf3f"/><stop offset="1" stop-color="#f2542d"/></linearGradient>
+</defs>
+  <polygon points="32.00,6.40 52.78,18.40 32.00,30.40 11.22,18.40" fill="url(#v)" stroke="url(#v)" stroke-width="3.5" stroke-linejoin="round"/>
+  <polygon points="8.97,22.30 29.75,34.30 29.75,58.30 8.97,46.30" fill="url(#m)" stroke="url(#m)" stroke-width="3.5" stroke-linejoin="round"/>
+  <polygon points="34.25,34.30 55.03,22.30 55.03,46.30 34.25,58.30" fill="url(#b)" stroke="url(#b)" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>

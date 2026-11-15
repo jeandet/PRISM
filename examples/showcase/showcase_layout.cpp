@@ -18,7 +18,7 @@ struct Dashboard {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
-            vb.component(settings);
+            vb.block(settings);
             vb.hstack(brightness, apply);
         });
     }

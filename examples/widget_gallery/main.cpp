@@ -82,14 +82,14 @@ struct Gallery {
             vb.spacer();
         });
         vb.tabs(tabs, [&] {
-            vb.tab(tab_names[0], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(controls); }); });
-            vb.tab(tab_names[1], [&](app::WidgetTree::ViewBuilder& t) { t.component(catalog); });
-            vb.tab(tab_names[2], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(text); }); });
-            vb.tab(tab_names[3], [&](app::WidgetTree::ViewBuilder& t) { t.component(data); });
-            vb.tab(tab_names[4], [&](app::WidgetTree::ViewBuilder& t) { t.component(plot); });
-            vb.tab(tab_names[5], [&](app::WidgetTree::ViewBuilder& t) { t.component(popups); });
-            vb.tab(tab_names[6], [&](app::WidgetTree::ViewBuilder& t) { t.component(docking); });
-            vb.tab(tab_names[7], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(build_your_own); }); });
+            vb.tab(tab_names[0], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.block(controls); }); });
+            vb.tab(tab_names[1], [&](app::WidgetTree::ViewBuilder& t) { t.block(catalog); });
+            vb.tab(tab_names[2], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.block(text); }); });
+            vb.tab(tab_names[3], [&](app::WidgetTree::ViewBuilder& t) { t.block(data); });
+            vb.tab(tab_names[4], [&](app::WidgetTree::ViewBuilder& t) { t.block(plot); });
+            vb.tab(tab_names[5], [&](app::WidgetTree::ViewBuilder& t) { t.block(popups); });
+            vb.tab(tab_names[6], [&](app::WidgetTree::ViewBuilder& t) { t.block(docking); });
+            vb.tab(tab_names[7], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.block(build_your_own); }); });
         });
         vb.status_bar([&] { vb.widget(status); vb.spacer(); });
         vb.dialog(about);

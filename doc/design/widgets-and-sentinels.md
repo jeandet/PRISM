@@ -49,7 +49,7 @@ struct Dashboard {
 
 `Field<T>` holds only the value — no display label. The member name via P2996 reflection provides identity. Display labels (e.g. "Username") are a form-layout concern, not a model concern.
 
-`State<T>` is for values that participate in the signal graph (triggering reactions, cross-component sync) but have no visual representation.
+`State<T>` is for values that participate in the signal graph (triggering reactions, cross-block sync) but have no visual representation.
 
 ## Sentinel Types
 
@@ -237,7 +237,7 @@ for each member M of Model:
         connect Field<T>::on_change() → mark widget dirty
     if M is State<T>:
         skip (no widget)
-    if M is a nested struct (component):
+    if M is a nested struct (a block):
         recurse
 ```
 

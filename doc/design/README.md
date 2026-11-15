@@ -8,7 +8,7 @@ PRISM follows a **Model-View-Behavior** pattern — three clearly separated laye
 
 - **Model** — plain structs with `Field<T>` members. Data + change notification. Knows nothing about rendering or input.
 - **View** — `Widget<T>` specializations. How each field type renders (`record()`) and responds to raw input (`handle_input()`). Per-type, automatic via reflection. This is PRISM-internal.
-- **Behavior** — user-written `on_change()` / `connect()` / `observe()` chains. Application logic (business rules, validation, cross-component coordination) that reacts to field mutations and drives other field mutations.
+- **Behavior** — user-written `on_change()` / `connect()` / `observe()` chains. Application logic (business rules, validation, cross-block coordination) that reacts to field mutations and drives other field mutations.
 
 The key distinction from MVC/MVVM: View and Behavior are not mediated by a controller or view-model. The Model is the single source of truth. Widgets handle widget-level input mechanics (e.g. translating a click into a toggle). Behavior handles domain logic (e.g. "when volume exceeds 0.9, show a warning").
 
@@ -76,7 +76,7 @@ graph TB
 
 | Document | Subsystem | Status |
 |---|---|---|
-| [components.md](components.md) | `prism::Component` base class — self-wiring reusable UI + logic bundles | **Design only** |
+| [blocks.md](blocks.md) | Blocks: reusable model + view + behaviour; a self-wiring base class explored | **Design only** |
 | [menus-and-dialogs.md](menus-and-dialogs.md) | In-window popup layer and modality for menus, context menus, dialogs | **Implemented** — menu bar, context menus (shortcuts, separators, check items), modal dialog, tooltips |
 | [drag-and-docking.md](drag-and-docking.md) | Dragging inside the app (lists, trees, tabs), then docking panels with a saved layout | **Proposal** — for review before code |
 | [accessibility.md](accessibility.md) | Widget accessibility metadata (AccessKit roles) and what a screen-reader bridge needs | **Partial** — metadata only; bridge deferred |

@@ -58,27 +58,27 @@ TEST_CASE("for_each_field gives access to field value") {
     CHECK(values[0] == 1);
 }
 
-TEST_CASE("is_component_v detects structs containing Field<T>") {
-    CHECK(prism::is_component_v<Simple>);
-    CHECK(prism::is_component_v<Nested>);
-    CHECK_FALSE(prism::is_component_v<int>);
-    CHECK_FALSE(prism::is_component_v<Empty>);
-    CHECK_FALSE(prism::is_component_v<NotAModel>);
+TEST_CASE("is_block_v detects structs containing Field<T>") {
+    CHECK(prism::is_block_v<Simple>);
+    CHECK(prism::is_block_v<Nested>);
+    CHECK_FALSE(prism::is_block_v<int>);
+    CHECK_FALSE(prism::is_block_v<Empty>);
+    CHECK_FALSE(prism::is_block_v<NotAModel>);
 }
 
-TEST_CASE("for_each_member visits fields and sub-components") {
+TEST_CASE("for_each_member visits fields and sub-blocks") {
     Nested n;
     int fields = 0;
-    int components = 0;
+    int blocks = 0;
     prism::for_each_member(n, [&](auto& member) {
         using M = std::remove_cvref_t<decltype(member)>;
         if constexpr (prism::is_field_v<M>)
             ++fields;
-        else if constexpr (prism::is_component_v<M>)
-            ++components;
+        else if constexpr (prism::is_block_v<M>)
+            ++blocks;
     });
     CHECK(fields == 1);      // flag
-    CHECK(components == 1);  // inner
+    CHECK(blocks == 1);  // inner
 }
 #endif // __cpp_impl_reflection
 
@@ -98,8 +98,8 @@ TEST_CASE("is_state_v detects State<T>") {
 }
 
 #if __cpp_impl_reflection
-TEST_CASE("is_component_v is true for struct with State + Field members") {
-    CHECK(prism::is_component_v<ModelWithState>);
+TEST_CASE("is_block_v is true for struct with State + Field members") {
+    CHECK(prism::is_block_v<ModelWithState>);
 }
 
 TEST_CASE("for_each_field skips State members") {
@@ -122,7 +122,7 @@ TEST_CASE("for_each_member visits Derived and Shared members") {
     CHECK(count == 3);
 }
 
-TEST_CASE("is_component_v includes structs with Derived or Shared") {
+TEST_CASE("is_block_v includes structs with Derived or Shared") {
     struct DerivedOnly {
         prism::Field<int> x{0};
         prism::core::Derived<int> y{[this] { return x.get(); }, x};
@@ -131,7 +131,7 @@ TEST_CASE("is_component_v includes structs with Derived or Shared") {
         prism::core::Shared<int> s{0};
     };
 
-    CHECK(prism::core::is_component_v<DerivedOnly>);
-    CHECK(prism::core::is_component_v<SharedOnly>);
+    CHECK(prism::core::is_block_v<DerivedOnly>);
+    CHECK(prism::core::is_block_v<SharedOnly>);
 }
 #endif // __cpp_impl_reflection

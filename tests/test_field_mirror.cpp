@@ -92,7 +92,7 @@ TEST_CASE("FieldMirror::for_each_leaf visits nested leaves too") {
     CHECK(count == 3); // voltage, inner.scale, inner.count
 }
 
-TEST_CASE("FieldMirror is a WidgetTree component with one leaf per member") {
+TEST_CASE("FieldMirror is a WidgetTree block with one leaf per member") {
     prism::inspector::FieldMirror<DeviceState> mirror;
     mirror.sync_from(DeviceState{1.f, 1, false, "x"});
     prism::WidgetTree tree(mirror);

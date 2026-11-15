@@ -178,7 +178,7 @@ struct FieldMirror {
                 if constexpr (!title.empty()) {
                     vb.widget(section_headers[i]);
                 }
-                vb.component(std::get<i>(slots));
+                vb.block(std::get<i>(slots));
             }
         }
     }

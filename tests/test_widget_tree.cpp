@@ -50,7 +50,7 @@ TEST_CASE("WidgetTree creates one leaf per Field") {
     CHECK(tree.leaf_count() == 2);
 }
 
-TEST_CASE("WidgetTree recurses into nested components") {
+TEST_CASE("WidgetTree recurses into nested blocks") {
     NestedModel model;
     prism::WidgetTree tree(model);
     CHECK(tree.leaf_count() == 3);

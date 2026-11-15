@@ -154,7 +154,7 @@ struct OuterScroll {
 
     void view(WidgetTree::ViewBuilder& vb) {
         vb.scroll([&] {
-            vb.component(inner);
+            vb.block(inner);
             vb.widget(c);
             vb.widget(d);
             vb.widget(e);

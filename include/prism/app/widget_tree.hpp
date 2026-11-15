@@ -876,7 +876,7 @@ private:
     Theme theme_;
 #if __cpp_impl_reflection
     // Address -> reflected member identifier, accumulated across every build_node_tree() call
-    // (the top-level model and every nested component()) -- lives as long as the tree itself, so
+    // (the top-level model and every nested block()) -- lives as long as the tree itself, so
     // tab()'s lazily-materialized content builders (which run well after the initial tree build)
     // can still resolve names. See ViewBuilder::apply_field_name.
     std::unordered_map<const void*, std::string_view> field_names_;   // also accessible names
@@ -1212,7 +1212,7 @@ private:
         root.is_leaf = false;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
 #if __cpp_impl_reflection
-        // Every component() nesting call (PRISM's primary composition mechanism) wraps its
+        // Every block() nesting call (PRISM's primary composition mechanism) wraps its
         // sub-tree in a root Node via this function. Without this, that wrapper's debug_name
         // stays empty and its layout_kind default (LayoutKind::Default) leaks through as the
         // row's displayed name -- see the analogous fallback comment on check_unplaced_fields'
@@ -1283,7 +1283,7 @@ private:
                     constexpr auto tip = core::extract_string_annotation<m, core::tooltip_t>();
                     node.tooltip = std::string(tip);
                     root.children.push_back(std::move(node));
-                } else if constexpr (is_component_v<M>) {
+                } else if constexpr (is_block_v<M>) {
                     root.children.push_back(build_node_tree(member));
                 }
             }

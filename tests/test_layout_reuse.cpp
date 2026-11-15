@@ -253,7 +253,7 @@ TEST_CASE("a column of small widgets is as wide as they say, not the 200 px they
         std::array<Strip, 8> strips{};
         void view(WidgetTree::ViewBuilder& vb) {
             vb.hstack([&] {
-                for (auto& s : strips) vb.component(s);
+                for (auto& s : strips) vb.block(s);
                 vb.spacer();
             });
         }

@@ -200,7 +200,7 @@ TEST_CASE("a spacer in a row stretches the row sideways, not downwards") {
     CHECK(body.origin.y.raw() - (menu.origin.y.raw() + menu.extent.h.raw()) < 4.f);   // right under the bar
 }
 
-// ── Task 7: view() with component() ──────────────────────────────────────────
+// ── Task 7: view() with block() ──────────────────────────────────────────
 
 struct SubComponent {
     prism::Field<int> x{0};
@@ -217,13 +217,13 @@ struct ParentWithComponent {
 
     void view(prism::WidgetTree::ViewBuilder& vb) {
         vb.hstack([&] {
-            vb.component(sub);
+            vb.block(sub);
             vb.widget(flag);
         });
     }
 };
 
-TEST_CASE("view() with component() embeds sub-component tree") {
+TEST_CASE("view() with block() embeds sub-block tree") {
     ParentWithComponent model;
     prism::WidgetTree tree(model);
     CHECK(tree.leaf_count() == 3);
@@ -233,7 +233,7 @@ TEST_CASE("view() with component() embeds sub-component tree") {
     CHECK(snap->geometry.size() == 3);
 }
 
-TEST_CASE("view() with component(): sub-component fields are reactive") {
+TEST_CASE("view() with block(): sub-block fields are reactive") {
     ParentWithComponent model;
     prism::WidgetTree tree(model);
     tree.clear_dirty();
@@ -242,7 +242,7 @@ TEST_CASE("view() with component(): sub-component fields are reactive") {
     CHECK(tree.any_dirty());
 }
 
-// ── Task 8: recursive view() — sub-component with its own view() ─────────────
+// ── Task 8: recursive view() — sub-block with its own view() ─────────────
 
 struct SubWithView {
     prism::Field<int> x{0};
@@ -265,7 +265,7 @@ struct ParentWithViewedSub {
     }
 };
 
-TEST_CASE("component() delegates to sub-component's view()") {
+TEST_CASE("block() delegates to sub-block's view()") {
     ParentWithViewedSub model;
     prism::WidgetTree tree(model);
     CHECK(tree.leaf_count() == 3);
@@ -274,7 +274,7 @@ TEST_CASE("component() delegates to sub-component's view()") {
     REQUIRE(snap != nullptr);
     CHECK(snap->geometry.size() == 3);
 
-    // Sub-component used row layout: its two widgets should share same y
+    // Sub-block used row layout: its two widgets should share same y
     auto& [id0, r0] = snap->geometry[0];
     auto& [id1, r1] = snap->geometry[1];
     CHECK(r0.origin.y.raw() == r1.origin.y.raw());

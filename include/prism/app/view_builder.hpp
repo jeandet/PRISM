@@ -282,7 +282,7 @@ class ViewBuilder {
     // Names a leaf after its enclosing field member (tree_.field_names_, populated by
     // build_node_tree()'s reflection walk) instead of node_leaf<T>'s generic value-type
     // fallback -- e.g. "count" instead of "int". No-op when the address isn't a reflected
-    // member of any model this tree was built from (component() sub-trees populate their own
+    // member of any model this tree was built from (block() sub-trees populate their own
     // entries recursively) or when this build lacks reflection support.
     template <typename T>
     void apply_field_name([[maybe_unused]] Node& leaf, [[maybe_unused]] T& observable) {
@@ -556,7 +556,7 @@ public:
     [[nodiscard]] const std::set<const void*>& placed() const { return placed_; }
 
     template <typename C>
-    void component(C& comp) {
+    void block(C& comp) {
         current_parent().children.push_back(tree_.build_node_tree(comp));
     }
 
@@ -630,7 +630,7 @@ private:
     void item(Derived<T>& d) { widget(d); }
     template <typename T>
     void item(Shared<T>& s) { widget(s); }
-    void item(component_type auto& comp) { component(comp); }
+    void item(block_type auto& comp) { block(comp); }
     // Runs `build` once into a scratch node, only to learn which fields it places: content built
     // later (a dock's panels, a section's) counts as placed by the view.
     void probe_placed(const std::function<void(ViewBuilder&)>& build) {

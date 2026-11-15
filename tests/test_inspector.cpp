@@ -41,7 +41,7 @@ TEST_CASE("Inspector syncs mirror when Shared<T> changes and drains") {
     CHECK(std::get<2>(inspector.mirror().slots).value.get() == true);
 }
 
-TEST_CASE("Inspector is a WidgetTree component") {
+TEST_CASE("Inspector is a WidgetTree block") {
     prism::Shared<DeviceState> source{DeviceState{1.f, 1, false}};
     prism::inspector::Inspector<DeviceState> inspector(source);
     prism::WidgetTree tree(inspector);

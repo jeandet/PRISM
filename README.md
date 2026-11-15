@@ -196,7 +196,7 @@ struct Dashboard {
 
     void view(app::WidgetTree::ViewBuilder& vb) {   // optional: only for a custom layout
         vb.vstack([&] {
-            vb.component(settings);
+            vb.block(settings);
             vb.hstack(brightness, apply);
         });
     }
@@ -207,6 +207,32 @@ struct Dashboard {
 
 Put `vb.handle()` between two children of an `hstack`/`vstack` to make a draggable split pane,
 `vb.spacer()` to push the rest to the end, and `vb.gap(8)` for a fixed space.
+
+### Blocks
+
+<img src="doc/logo/block.svg" alt="" width="56" align="right"/>
+
+`Settings` above is a **block**: a plain struct holding its fields (the model), its `view()` and
+its reactions (the behaviour). Place one with `vb.block(b)`. Reuse is just declaring more of them:
+
+```cpp
+struct ChannelStrip {                       // a mixer channel
+    core::Field<ui::Label<>> name;
+    core::Field<Knob> gain{{.min = -60, .max = 6, .label = "Gain", .unit = "dB"}};
+    core::Field<ui::Checkbox> mute{{.label = "Mute"}};
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(name, gain, mute); }
+};
+
+struct Mixer {
+    std::array<ChannelStrip, 8> strips;     // eight working channels, each with its own state
+    void view(app::WidgetTree::ViewBuilder& vb) {
+        vb.hstack([&] { for (auto& s : strips) vb.block(s); });
+    }
+};
+```
+
+No base class and nothing to register; a block saves and restores like any other field. The
+widget gallery's "Build your own" tab runs this mixer, next to the one-header `Knob` widget it uses.
 
 ### Canvas escape hatch
 
@@ -602,7 +628,7 @@ struct DeviceState {
 
 core::Shared<DeviceState> device_state{DeviceState{}};   // updated by some other thread
 inspector::Inspector<DeviceState> inspector(device_state);
-app::model_app("Device Control", inspector);            // or embed it with vb.component()
+app::model_app("Device Control", inspector);            // or embed it with vb.block()
 ```
 
 <p align="center"><img src="doc/screenshots/inspector.svg" alt="Inspector" width="300"/></p>
@@ -892,7 +918,7 @@ Each subsystem has a design note explaining its choices.
 |---|---|
 | **Threads & frames** | [Threading model](doc/design/threading-model.md) · [Scene snapshot](doc/design/scene-snapshot.md) · [stdexec integration](doc/design/stdexec-integration.md) · [Python SDK](doc/design/python-sdk.md) |
 | **Reactive state** | [Field / sender / widget](docs/superpowers/specs/2026-03-27-field-sender-widget-design.md) · [State taxonomy](docs/superpowers/specs/2026-04-11-state-taxonomy-design.md) · [Transactions](docs/superpowers/specs/2026-04-04-transaction-api-design.md) · [Reactivity (history)](doc/design/reactivity.md) |
-| **Building the UI** | [Node tree](doc/design/dynamic-node-tree.md) · [Widgets & sentinels](doc/design/widgets-and-sentinels.md) · [Custom widget from type](docs/superpowers/specs/2026-04-11-custom-widget-from-type-design.md) · [Components](doc/design/components.md) · [Styling](doc/design/styling.md) · [Theme palette](docs/superpowers/specs/2026-04-01-theme-palette-design.md) |
+| **Building the UI** | [Node tree](doc/design/dynamic-node-tree.md) · [Widgets & sentinels](doc/design/widgets-and-sentinels.md) · [Custom widget from type](docs/superpowers/specs/2026-04-11-custom-widget-from-type-design.md) · [Blocks](doc/design/blocks.md) · [Styling](doc/design/styling.md) · [Theme palette](docs/superpowers/specs/2026-04-01-theme-palette-design.md) |
 | **Rendering** | [Draw list](doc/design/draw-list.md) · [Render backend](doc/design/render-backend.md) · [SDL_Renderer migration](docs/superpowers/specs/2026-03-28-sdl-renderer-migration-design.md) · [SVG export](docs/superpowers/specs/2026-04-01-svg-export-draw-commands-design.md) · [Frame pacing](docs/superpowers/specs/2026-09-04-frame-pacing-design.md) |
 | **Input & layout** | [Input events](doc/design/input-events.md) · [Input routing](docs/superpowers/specs/2026-03-27-input-routing-design.md) · [Layout & hit regions](docs/superpowers/specs/2026-03-27-layout-hit-regions-design.md) · [Window abstraction](docs/superpowers/specs/2026-04-01-window-abstraction-design.md) |
 | **Widgets** | [Table](docs/superpowers/specs/2026-03-31-table-widget-design.md) · [Tabs](docs/superpowers/specs/2026-03-31-tab-widget-design.md) · [Plot](docs/superpowers/specs/2026-04-01-plot-widget-design.md) · [Plot decimation](docs/superpowers/specs/2026-09-04-plot-decimation-design.md) · [Tree](docs/superpowers/specs/2026-07-20-tree-widget-design.md) |

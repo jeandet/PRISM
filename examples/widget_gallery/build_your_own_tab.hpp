@@ -1,5 +1,5 @@
 // Build your own: the two things the other tabs cannot show — a widget written from scratch, and
-// a component built out of fields. Each section is one sentence, the live result, then its code.
+// a block built out of fields. Each section is one sentence, the live result, then its code.
 #pragma once
 
 #include "knob.hpp"
@@ -105,7 +105,7 @@ struct BuildYourOwnTab {
                                              .rows = code_rows,
                                              .read_only = true}};
 
-    core::Field<ui::Label<>> strip_title{{.value = "A component is a struct", .heading = true}};
+    core::Field<ui::Label<>> strip_title{{.value = "A block is a struct", .heading = true}};
     core::Field<ui::Label<>> strip_note{
         {.value = "Four fields, a view() and a canvas: eight strips side by side are a mixer, and "
                   "the ninth knob is the master.",
@@ -144,7 +144,7 @@ struct BuildYourOwnTab {
         vb.gap(14.f);
         vb.hstack([&] {
             for (auto& strip : strips) {
-                vb.component(strip);
+                vb.block(strip);
                 vb.gap(6.f);
             }
             vb.spacer();

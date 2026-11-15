@@ -181,7 +181,7 @@ TEST_CASE("hovering an off-screen row in the main tree scrolls the debug tree to
 
 // Guard-path test — the hovered node's row can legitimately be absent from the current
 // flatten (its ancestor isn't in TreeInspectorController's expanded_ set), and refresh() must
-// skip the scroll call rather than crash. A nested component starts collapsed by default (the
+// skip the scroll call rather than crash. A nested block starts collapsed by default (the
 // constructor only auto-expands the root), so this needs no explicit collapse action to set up:
 namespace {
 struct NestedLeaf { prism::Field<int> inner{0}; void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(inner); } };
@@ -189,7 +189,7 @@ struct NestedMainModel {
     NestedLeaf nested;
     prism::Field<int> value{0};
     void view(prism::WidgetTree::ViewBuilder& vb) {
-        vb.component(nested);
+        vb.block(nested);
         vb.widget(value);
     }
 };
@@ -202,7 +202,7 @@ TEST_CASE("hovering a node hidden by a collapsed ancestor does not crash and doe
     main_tree.clear_dirty();
 
     // NestedLeaf::inner is the FIRST geometry leaf here, not the last: view() visits
-    // vb.component(nested) (whose only leaf is `inner`) before vb.widget(value), so `inner`
+    // vb.block(nested) (whose only leaf is `inner`) before vb.widget(value), so `inner`
     // is added to geometry first and `value` — a shallower but later sibling — comes after it.
     // Verified empirically with a probe dump of main_snap->geometry before writing this
     // assertion; geometry.back() is `value`'s id, which (unlike `inner`) DOES appear in the

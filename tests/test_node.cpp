@@ -90,7 +90,7 @@ struct NodeTestOuter {
     }
 };
 
-TEST_CASE("Node tree with nested component through WidgetTree") {
+TEST_CASE("Node tree with nested block through WidgetTree") {
     NodeTestOuter model;
     prism::WidgetTree tree(model);
     CHECK(tree.leaf_count() == 2);

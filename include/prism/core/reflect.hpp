@@ -24,9 +24,9 @@ void for_each_field(Model& model, Fn&& fn) {
     }
 }
 
-// Detect a component: struct with Field<T> members (direct or one level nested)
+// Detect a block: struct with Field<T> members (direct or one level nested)
 template <typename T>
-consteval bool check_is_component() {
+consteval bool check_is_block() {
     if constexpr (!std::is_class_v<T>) return false;
     else {
         static constexpr auto members = std::define_static_array(
@@ -41,8 +41,8 @@ consteval bool check_is_component() {
 }
 
 template <typename T>
-consteval bool check_is_component_recursive() {
-    if (check_is_component<T>()) return true;
+consteval bool check_is_block_recursive() {
+    if (check_is_block<T>()) return true;
     if constexpr (!std::is_class_v<T>) return false;
     else {
         static constexpr auto members = std::define_static_array(
@@ -50,16 +50,16 @@ consteval bool check_is_component_recursive() {
         bool found = false;
         template for (constexpr auto m : members) {
             using M = std::remove_cvref_t<typename[:std::meta::type_of(m):]>;
-            if constexpr (std::is_class_v<M> && check_is_component<M>()) found = true;
+            if constexpr (std::is_class_v<M> && check_is_block<M>()) found = true;
         }
         return found;
     }
 }
 
 template <typename T>
-inline constexpr bool is_component_v = check_is_component_recursive<T>();
+inline constexpr bool is_block_v = check_is_block_recursive<T>();
 
-// Visit all members (Field<T> and sub-components) of a struct
+// Visit all members (Field<T> and sub-blocks) of a struct
 template <typename Model, typename Fn>
 void for_each_member(Model& model, Fn&& fn) {
     static constexpr auto members = std::define_static_array(
@@ -67,7 +67,7 @@ void for_each_member(Model& model, Fn&& fn) {
     template for (constexpr auto m : members) {
         auto& member = model.[:m:];
         using M = std::remove_cvref_t<decltype(member)>;
-        if constexpr (is_field_v<M> || is_derived_v<M> || is_shared_v<M> || is_channel_v<M> || is_component_v<M>) {
+        if constexpr (is_field_v<M> || is_derived_v<M> || is_shared_v<M> || is_channel_v<M> || is_block_v<M>) {
             fn(member);
         }
     }

@@ -76,7 +76,7 @@ template <typename T>
 inline constexpr bool is_channel_v = is_channel<T>::value;
 
 template <typename T>
-concept component_type = std::is_class_v<T> && !is_field_v<T> && !is_state_v<T>
+concept block_type = std::is_class_v<T> && !is_field_v<T> && !is_state_v<T>
     && !is_derived_v<T> && !is_shared_v<T> && !is_channel_v<T>;
 
 } // namespace prism::core
