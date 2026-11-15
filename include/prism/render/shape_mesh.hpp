@@ -91,6 +91,41 @@ inline void join_rings(std::vector<int>& idx, int a, int b, int n) {
     }
 }
 
+// Quads between two open rings of n vertices each: n - 1 of them, no wrap-around.
+inline void join_open(std::vector<int>& idx, int a, int b, int n) {
+    for (int i = 0; i + 1 < n; ++i)
+        idx.insert(idx.end(), {a + i, a + i + 1, b + i, b + i, a + i + 1, b + i + 1});
+}
+
+inline std::vector<Vec2> without_repeats(std::span<const Vec2> pts) {
+    std::vector<Vec2> out;
+    for (auto p : pts)
+        if (out.empty() || std::hypot(p.x - out.back().x, p.y - out.back().y) > 1e-4f) out.push_back(p);
+    return out;
+}
+
+// Per vertex, the offset that moves it half a unit of width off the line: the segment's normal
+// at the ends, the mitre between two segments inside, so the band keeps its width round a
+// corner. A hairpin's mitre would shoot off to infinity: capped at four widths.
+inline std::vector<Vec2> mitre_offsets(std::span<const Vec2> pts) {
+    auto normal = [&](std::size_t i) {   // of the segment from i to i + 1
+        float dx = pts[i + 1].x - pts[i].x, dy = pts[i + 1].y - pts[i].y, len = std::hypot(dx, dy);
+        return Vec2{-dy / len, dx / len};
+    };
+    const std::size_t n = pts.size();
+    std::vector<Vec2> out(n);
+    out.front() = normal(0);
+    out.back() = normal(n - 2);
+    for (std::size_t i = 1; i + 1 < n; ++i) {
+        Vec2 a = normal(i - 1), b = normal(i);
+        float x = a.x + b.x, y = a.y + b.y, len = std::hypot(x, y);
+        if (len < 1e-4f) { out[i] = a; continue; }
+        float scale = std::min(4.f, len / (x * a.x + y * a.y));   // 1 / cos(half the turn)
+        out[i] = {x / len * scale, y / len * scale};
+    }
+    return out;
+}
+
 } // namespace shape_detail
 
 // Solid convex shape plus an outward anti-aliasing fringe of width `feather`.
@@ -127,6 +162,29 @@ inline ShapeMesh stroke_closed(std::span<const Vec2> outline, float thickness, f
     shape_detail::join_rings(m.indices, 0, n, n);
     shape_detail::join_rings(m.indices, n, 2 * n, n);
     shape_detail::join_rings(m.indices, 2 * n, 3 * n, n);
+    return m;
+}
+
+// A band `thickness` wide centred on an open line, with fringes on both sides: a thick line
+// with soft edges and no gaps at its joints. Ends are cut square.
+inline ShapeMesh stroke_open(std::span<const Vec2> line, float thickness, float feather = 1.f) {
+    ShapeMesh m;
+    auto pts = shape_detail::without_repeats(line);
+    int n = static_cast<int>(pts.size());
+    if (n < 2) return m;
+    auto offsets = shape_detail::mitre_offsets(pts);
+    const float half = thickness / 2.f;
+    auto ring = [&](float offset, float alpha) {
+        for (int i = 0; i < n; ++i)
+            m.vertices.push_back({pts[i].x + offsets[i].x * offset, pts[i].y + offsets[i].y * offset, alpha});
+    };
+    ring(half + feather, 0.f);
+    ring(half, 1.f);
+    ring(-half, 1.f);
+    ring(-half - feather, 0.f);
+    shape_detail::join_open(m.indices, 0, n, n);
+    shape_detail::join_open(m.indices, n, 2 * n, n);
+    shape_detail::join_open(m.indices, 2 * n, 3 * n, n);
     return m;
 }
 

@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,9 +29,9 @@ struct Knob {
 // Where a value sits, and where the hand is: plain numbers, plain functions, no widget.
 namespace knob_detail {
 
-inline constexpr double travel{200.0};    // a drag this long vertically covers the whole range
 inline constexpr float from_deg{135.f};   // where min sits, in screen angles
 inline constexpr float sweep_deg{270.f};  // ... and the turn from min to max
+inline constexpr float dead_centre{4.f};  // nearer the centre than this, a pointer has no angle
 
 inline double fraction(const Knob& k) {
     return k.max == k.min ? 0.0 : std::clamp((k.value - k.min) / (k.max - k.min), 0.0, 1.0);
@@ -45,9 +44,14 @@ inline double snapped(const Knob& k, double raw) {
     return std::clamp(lo + std::round((raw - lo) / step) * step, lo, hi);
 }
 
-// Up is more: that is how hardware knobs behave, and it needs no pointer angle to work out.
-inline double dragged(const Knob& k, double start, core::DY moved) {
-    return snapped(k, start - moved.raw() / travel * (k.max - k.min));
+// The hand points at the pointer, wherever it is: the knob turns the way the hand moves. In the
+// gap at the bottom it holds the nearer end, so a drag past max never wraps round to min.
+inline double turned(const Knob& k, core::DX dx, core::DY dy) {
+    if (std::hypot(dx.raw(), dy.raw()) < dead_centre) return k.value;
+    const double deg = std::atan2(dy.raw(), dx.raw()) * 180.0 / std::numbers::pi;
+    const double past_min = std::fmod(deg - from_deg + 720.0, 360.0);
+    const double f = past_min <= sweep_deg ? past_min / sweep_deg : fraction(k) >= 0.5 ? 1.0 : 0.0;
+    return snapped(k, k.min + f * (k.max - k.min));
 }
 inline double nudged(const Knob& k, int notches) { return snapped(k, k.value + notches * step_size(k)); }
 
@@ -70,13 +74,6 @@ inline std::vector<core::Point> arc(core::Point centre, float radius, float from
 } // namespace gallery
 
 namespace prism::ui {
-
-// A drag in progress: where the press landed, and the value it started from. One per node, so
-// two knobs never share a drag.
-struct KnobDrag {
-    std::optional<Point> from{};
-    double start{};
-};
 
 template <>
 struct Widget<gallery::Knob> {
@@ -132,20 +129,18 @@ struct Widget<gallery::Knob> {
         if (vs.focused) delegate_detail::draw_focus_ring(dl, w, extent, t);
     }
 
+    // A press only grabs the knob, so a click to focus it never moves it; moves while pressed turn it.
     static void handle_input(Field<gallery::Knob>& f, const InputEvent& ev, WidgetNode& node) {
-        auto& drag = node.get_or_create<KnobDrag>();
-        if (const auto* mb = std::get_if<MouseButton>(&ev); mb && mb->button == buttons::left) {
-            drag = {mb->pressed ? std::optional{mb->position} : std::nullopt, f.get().value};
-            return;   // the press starts the drag, the release only ends it
-        }
-        if (turn(f, drag, ev)) node.dirty = true;
+        if (turn(f, ev, node)) node.dirty = true;
     }
 
 private:
-    static bool turn(Field<gallery::Knob>& f, const KnobDrag& drag, const InputEvent& ev) {
-        namespace kd = gallery::knob_detail;
-        if (const auto* mm = std::get_if<MouseMove>(&ev); mm && drag.from)
-            return assign(f, kd::dragged(f.get(), drag.start, mm->position.y - drag.from->y));
+    static bool turn(Field<gallery::Knob>& f, const InputEvent& ev, const WidgetNode& node) {
+        if (const auto* mm = std::get_if<MouseMove>(&ev); mm && node_vs(node).pressed) {
+            const X middle{std::max(size.raw(), node_allocated(node).w.raw()) / 2.f};
+            return assign(f, gallery::knob_detail::turned(f.get(), mm->position.x - middle,
+                                                          mm->position.y - dial_y));
+        }
         if (const auto* kp = std::get_if<KeyPress>(&ev)) return nudge(f, *kp);
         return false;
     }

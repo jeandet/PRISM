@@ -14,6 +14,10 @@
 namespace gallery {
 
 // The knob's own source, embedded at compile time, so the page cannot drift from what runs.
+// GCC 14 has no #embed; nested #if, because it cannot even parse __has_embed(...).
+#if defined(__has_embed)
+#if __has_embed("knob.hpp")
+#define PRISM_GALLERY_EMBEDS_KNOB 1
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wc23-extensions"   // clang calls #embed an extension in C++
@@ -21,9 +25,16 @@ inline constexpr unsigned char knob_bytes[] = {   // bytes: the source is UTF-8
 #embed "knob.hpp"
 };
 #pragma GCC diagnostic pop
+#endif
+#endif
 
 inline std::string_view knob_source() {
+#ifdef PRISM_GALLERY_EMBEDS_KNOB
     return {reinterpret_cast<const char*>(knob_bytes), sizeof knob_bytes};
+#else
+    return "// This compiler has no #embed (GCC 15 or clang 19 do): the knob's source is\n"
+           "// examples/widget_gallery/knob.hpp.\n";
+#endif
 }
 
 // A mixer channel: four fields, one view(), and a canvas for the meter. Composition is the whole
@@ -93,7 +104,7 @@ struct BuildYourOwnTab {
     core::Field<ui::Label<>> widget_title{
         {.value = "A widget is one specialization", .heading = true}};
     core::Field<ui::Label<>> widget_note{
-        {.value = "Three live knobs from the file below: drag one up or down, or focus one and "
+        {.value = "Three live knobs from the file below: drag one round, or focus one and "
                   "hold an arrow key.",
          .wrap = true}};
     core::Field<Knob> cutoff{{.value = 2400.0, .min = 100.0, .max = 12000.0, .step = 10.0,

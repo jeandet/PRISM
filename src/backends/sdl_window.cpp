@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cmath>
+#include <span>
 
 namespace prism::backends {
 using namespace prism::core;
@@ -487,7 +488,18 @@ void SdlWindow::render_cmd(const RoundedRect& cmd) {
     draw_mesh(cmd.thickness > 0.f ? stroke_closed(outline, cmd.thickness) : fill_convex(outline), cmd.color);
 }
 
+namespace {
+// Thick lines go through the same mesh as the GPU path; a hairline stays SDL's own crisp line.
+render::ShapeMesh thick_line(std::span<const Point> pts, float thickness) {
+    std::vector<render::Vec2> line;
+    line.reserve(pts.size());
+    for (auto p : pts) line.push_back({p.x.raw(), p.y.raw()});
+    return render::stroke_open(line, thickness);
+}
+} // namespace
+
 void SdlWindow::render_cmd(const Line& cmd) {
+    if (cmd.thickness > 1.f) return draw_mesh(thick_line(std::array{cmd.from, cmd.to}, cmd.thickness), cmd.color);
     SDL_SetRenderDrawColor(renderer_, cmd.color.r, cmd.color.g, cmd.color.b, cmd.color.a);
     SDL_RenderLine(renderer_, cmd.from.x.raw(), cmd.from.y.raw(),
                    cmd.to.x.raw(), cmd.to.y.raw());
@@ -495,6 +507,7 @@ void SdlWindow::render_cmd(const Line& cmd) {
 
 void SdlWindow::render_cmd(const Polyline& cmd) {
     if (cmd.points.size() < 2) return;
+    if (cmd.thickness > 1.f) return draw_mesh(thick_line(cmd.points, cmd.thickness), cmd.color);
     SDL_SetRenderDrawColor(renderer_, cmd.color.r, cmd.color.g, cmd.color.b, cmd.color.a);
     std::vector<SDL_FPoint> sdl_pts(cmd.points.size());
     for (size_t i = 0; i < cmd.points.size(); ++i)

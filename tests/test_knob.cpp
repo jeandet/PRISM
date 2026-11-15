@@ -87,12 +87,20 @@ TEST_CASE("knob geometry: snapping follows the step, and a step of 0 means a hun
     CHECK(kd::snapped(continuous, 0.1234) == doctest::Approx(0.12));
 }
 
-TEST_CASE("knob geometry: the drag distance is vertical, and up raises the value") {
-    CHECK(kd::dragged(tenths, 5.0, DY{0.f}) == 5.0);
-    CHECK(kd::dragged(tenths, 5.0, DY{-100.f}) == 10.0);   // half the travel: half the range
-    CHECK(kd::dragged(tenths, 5.0, DY{100.f}) == 0.0);
-    CHECK(kd::dragged(tenths, 5.0, DY{-30.f}) == doctest::Approx(6.5));   // 30/200 of 0..10
-    CHECK(kd::dragged(tenths, 5.0, DY{-1000.f}) == 10.0);   // a long drag stops at the end
+TEST_CASE("knob geometry: the hand points at the pointer") {
+    const Knob k{.value = 0.0, .min = 0.0, .max = 12.0, .step = 0.5};
+    CHECK(kd::turned(k, DX{0.f}, DY{-30.f}) == 6.0);    // straight up: half way
+    CHECK(kd::turned(k, DX{-30.f}, DY{0.f}) == 2.0);    // left: 45 of 270 degrees
+    CHECK(kd::turned(k, DX{30.f}, DY{0.f}) == 10.0);    // right: 225 of 270 degrees
+    CHECK(kd::turned(k, DX{-20.f}, DY{20.f}) == 0.0);   // the lower left is the start
+}
+
+TEST_CASE("knob geometry: the gap at the bottom holds the nearer end, and the centre holds still") {
+    const Knob high{.value = 9.0, .min = 0.0, .max = 12.0};
+    const Knob low{.value = 3.0, .min = 0.0, .max = 12.0};
+    CHECK(kd::turned(high, DX{-5.f}, DY{30.f}) == 12.0);   // past the bottom from the right: max
+    CHECK(kd::turned(low, DX{5.f}, DY{30.f}) == 0.0);      // ... and from the left: min
+    CHECK(kd::turned(low, DX{1.f}, DY{-1.f}) == 3.0);      // too near the centre to have an angle
 }
 
 TEST_CASE("knob geometry: an arrow is one step, and the ends hold") {
@@ -165,16 +173,19 @@ TEST_CASE("knob input: an arrow key is one step, and other keys are not its busi
     CHECK(w.value().value == 5.0);
 }
 
-TEST_CASE("knob input: a vertical drag turns it, sideways motion does not") {
-    Window<Knob> w{tenths};
-    w.press(36, 40);
-    w.move_to(36, 10);   // 30 px up: 30/200 of 0..10 = +1.5, snapped to the half
-    CHECK(w.value().value == doctest::Approx(6.5));
-    w.move_to(10, 10);   // the pointer moved, its height did not
-    CHECK(w.value().value == doctest::Approx(6.5));
-    w.release(10, 10);
-    w.move_to(10, 60);   // the drag ended with the release
-    CHECK(w.value().value == doctest::Approx(6.5));
+TEST_CASE("knob input: dragging turns the hand towards the pointer, and the release ends it") {
+    Window<Knob> w{Knob{.value = 0.0, .min = 0.0, .max = 12.0, .step = 0.5}};
+    const float cx = w.rect().extent.w.raw() / 2.f, cy = 26.f;   // the dial's centre, in the knob
+    w.press(cx, cy + 10.f);
+    w.move_to(cx, cy - 30.f);   // above the centre
+    CHECK(w.value().value == 6.0);
+    w.move_to(cx + 30.f, cy);   // to its right: the hand goes on clockwise
+    CHECK(w.value().value == 10.0);
+    w.move_to(cx + 30.f, cy - 30.f);   // up and right: 180 of 270 degrees, back up with the pointer
+    CHECK(w.value().value == 8.0);
+    w.release(cx + 30.f, cy - 30.f);
+    w.move_to(cx - 30.f, cy);
+    CHECK(w.value().value == 8.0);
 }
 
 TEST_CASE("knob input: a click without motion leaves the value alone") {

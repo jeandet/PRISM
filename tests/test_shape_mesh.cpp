@@ -77,3 +77,31 @@ TEST_CASE("segment count grows with the radius, within bounds") {
     CHECK(arc_segments(100.f) > arc_segments(4.f));
     CHECK(arc_segments(10000.f) <= 64);
 }
+
+TEST_CASE("an open stroke is a band centred on the line, with a fringe on both sides") {
+    const Vec2 line[] = {{0.f, 0.f}, {10.f, 0.f}};
+    auto mesh = stroke_open(line, 4.f);
+    REQUIRE_FALSE(mesh.vertices.empty());
+    for (auto& v : mesh.vertices) {
+        if (v.alpha == 1.f) CHECK(std::abs(v.y) == doctest::Approx(2.f));
+        else CHECK(std::abs(v.y) == doctest::Approx(3.f));
+    }
+    CHECK(mesh.indices.size() == 3 * 6);   // one segment: the band and its two fringes
+    CHECK(std::ranges::max(mesh.indices) < static_cast<int>(mesh.vertices.size()));
+}
+
+TEST_CASE("an open stroke keeps its width round a corner") {
+    const Vec2 corner[] = {{0.f, 0.f}, {10.f, 0.f}, {10.f, 10.f}};
+    auto mesh = stroke_open(corner, 2.f);
+    bool outer = false;   // the band's outer edge meets at the mitred corner
+    for (auto& v : mesh.vertices)
+        if (v.alpha == 1.f && dist(v.x, v.y, 11.f, -1.f) < 0.01f) outer = true;
+    CHECK(outer);
+}
+
+TEST_CASE("an open stroke skips repeated points, and one point draws nothing") {
+    const Vec2 repeated[] = {{0.f, 0.f}, {0.f, 0.f}, {5.f, 0.f}};
+    CHECK(stroke_open(repeated, 2.f).indices.size() == 3 * 6);
+    const Vec2 dot[] = {{3.f, 3.f}, {3.f, 3.f}};
+    CHECK(stroke_open(dot, 2.f).indices.empty());
+}

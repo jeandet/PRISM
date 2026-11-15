@@ -12,7 +12,7 @@ framework does, on the desktop or [in the browser](https://jeandet.github.io/PRI
 | Plot | Drag the chart to pan, scroll to zoom, right-click to fit; the sliders change the curves, the spin box changes the canvas. |
 | Popups | Open the dialogs (Enter, Escape, Tab), rename in a dialog holding a form, open the popover, right-click for a context menu, try the file dialogs and message box, drop a file on the window. |
 | Docking | Drag a panel's tab: the guide's buttons put it in another panel's tabs, beside it, or along a whole side of the dock, or out of the window to float it in a window of its own (desktop). Type in the notes, pick a list row, change the controls: their state survives a move, and the arrangement is saved in `settings.toml`. |
-| Build your own | Three live knobs from `knob.hpp` — drag one up or down, or focus one and hold an arrow key — then scroll the file they come from. Under it, the `ChannelStrip` struct and eight of them as a mixer: mute a channel and its meter dies, and the ninth knob is the master. |
+| Build your own | Three live knobs from `knob.hpp` — drag one round, or focus one and hold an arrow key — then scroll the file they come from. Under it, the `ChannelStrip` struct and eight of them as a mixer: mute a channel and its meter dies, and the ninth knob is the master. |
 
 Alt+F, Alt+V and Alt+H open the menus; View switches tabs.
 
@@ -26,10 +26,10 @@ so the same code builds with any C++23 compiler and with Emscripten. The Catalog
 `Entry` per widget (name, category, doc, code, a function placing the sample); `vb.pages()` shows
 the page of the entry selected in a `vb.tree(ctrl, /*detail=*/false)`.
 
-The last tab is the framework's own recipe, result first and code under it. `knob.hpp` is 168 lines,
+The last tab is the framework's own recipe, result first and code under it. `knob.hpp` is 163 lines,
 comments and all: a `Knob` value type, its geometry as free functions, and one `Widget<Knob>`
 specialization — `record()` draws the dial, its arc and its pointer with `DrawList`,
-`handle_input()` turns it by the vertical drag distance and by the arrow keys. There is no base
+`handle_input()` points the hand at the pointer while you drag, and turns it by the arrow keys. There is no base
 class and nothing to register; `#embed` puts that exact file in the page, so the code and the
 knobs above it cannot disagree. `ChannelStrip` is the reuse tier: a struct of four `Field`s and a
 `view()`, so `std::array<ChannelStrip, 8>` is a mixer and its level meter is the strip's own

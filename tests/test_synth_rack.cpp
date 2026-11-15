@@ -12,6 +12,7 @@
 #include <numbers>
 #include <span>
 #include <type_traits>
+#include <memory>
 #include <vector>
 
 using namespace prism::synth;
@@ -212,25 +213,26 @@ TEST_CASE("the sample ring hands back the newest samples") {
 }
 
 TEST_CASE("the engine is silent while it is off and audible while it is on") {
-    SynthEngine engine;
+    // On the heap: its delay line alone is 128 KB, twice a web thread's whole stack.
+    auto engine = std::make_unique<SynthEngine>();
     std::vector<float> block(1024, 0.f);
 
     SynthSettings settings{};
-    engine.render(settings, block);
+    engine->render(settings, block);
     CHECK(loudest(block) == 0.f);
 
     settings.powered = true;
-    engine.render(settings, block);
+    engine->render(settings, block);
     CHECK(loudest(block) > 0.01f);
 
     settings.powered = false;
-    engine.render(settings, block);
+    engine->render(settings, block);
     CHECK(loudest(block) == 0.f);
 }
 
 TEST_CASE("a tone lands in the display band its frequency maps to") {
-    SpectrumAnalyzer analyzer{kSampleRate};
-    const AnalyzerFrame shot = analyzer.analyze(sine(1000.0, kFftSize));
+    auto analyzer = std::make_unique<SpectrumAnalyzer>(kSampleRate);   // FFT buffers: heap, as above
+    const AnalyzerFrame shot = analyzer->analyze(sine(1000.0, kFftSize));
 
     std::size_t loudest_band = 0;
     for (std::size_t band = 1; band < kBandCount; ++band)

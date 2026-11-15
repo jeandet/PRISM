@@ -3,6 +3,7 @@
 
 #include <prism/render/tessellate.hpp>
 
+#include <cmath>
 #include <variant>
 
 using namespace prism::render;
@@ -88,7 +89,7 @@ TEST_CASE("lines, polylines and strips become triangles") {
     dl.filled_polygon({P(0, 0), P(10, 0), P(0, 10), P(10, 10)}, red);
     auto snap4 = one_list(std::move(dl));
     auto t = tessellate(snap4);
-    CHECK(t.vertices.size() == 6 + 2 * 6 + 2 * 3);
+    CHECK(t.vertices.size() == 3 * 6 + 2 * 6 + 2 * 3);   // the thick line is a band with two fringes
 }
 
 TEST_CASE("a line is as thick as asked, centred on its path") {
@@ -97,7 +98,8 @@ TEST_CASE("a line is as thick as asked, centred on its path") {
     auto snap5 = one_list(std::move(dl));
     auto t = tessellate(snap5);
     float lo = 1e9, hi = -1e9;
-    for (auto& v : t.vertices) { lo = std::min(lo, v.y); hi = std::max(hi, v.y); }
+    for (auto& v : t.vertices)
+        if (v.a == 1.f) { lo = std::min(lo, v.y); hi = std::max(hi, v.y); }   // the solid part
     CHECK(lo == doctest::Approx(8.f));
     CHECK(hi == doctest::Approx(12.f));
 }
@@ -161,4 +163,27 @@ TEST_CASE("a single draw list tessellates like a snapshot of it") {
     auto t = tessellate(dl);
     REQUIRE(t.batches.size() == 2);
     CHECK(t.vertices.size() == 6);
+}
+
+TEST_CASE("a thick polyline is one smooth band: no gap at the joint, soft edges") {
+    DrawList dl;
+    dl.polyline({P(0, 0), P(10, 0), P(10, 10)}, red, 4.f);
+    auto snap = one_list(std::move(dl));
+    auto t = tessellate(snap);
+    bool soft = false, mitred = false;
+    for (auto& v : t.vertices) {
+        if (v.a == 0.f) soft = true;
+        if (std::hypot(v.x - 12.f, v.y + 2.f) < 0.01f) mitred = true;   // outer corner of the band
+    }
+    CHECK(soft);
+    CHECK(mitred);
+}
+
+TEST_CASE("a hairline stays a plain quad, so 1 px rules stay crisp") {
+    DrawList dl;
+    dl.line(P(0, 5), P(10, 5), red);
+    auto snap = one_list(std::move(dl));
+    auto t = tessellate(snap);
+    CHECK(t.vertices.size() == 6);
+    for (auto& v : t.vertices) CHECK(v.a == 1.f);
 }

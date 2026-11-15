@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <numbers>
 #include <optional>
+#include <span>
 #include <type_traits>
 #include <variant>
 #include <vector>
@@ -62,6 +63,13 @@ inline std::array<Vec2, 4> text_quad(const TextCmd& t, float w, float h) {
 }
 
 namespace tess_detail {
+
+inline std::vector<Vec2> as_vec2(std::span<const core::Point> pts) {
+    std::vector<Vec2> out;
+    out.reserve(pts.size());
+    for (auto p : pts) out.push_back({p.x.raw(), p.y.raw()});
+    return out;
+}
 
 struct Builder {
     Tessellation out;
@@ -149,8 +157,13 @@ struct Builder {
         auto outline = circle_outline(c.center, c.radius, 4 * arc_segments(c.radius));
         mesh(c.thickness > 0.f ? stroke_closed(outline, c.thickness) : fill_convex(outline), c.color);
     }
-    void add(const Line& c) { segment(c.from, c.to, c.thickness, c.color); }
+    // A hairline stays a plain quad: a soft fringe would blur 1 px rules and grid lines.
+    void add(const Line& c) {
+        if (c.thickness > 1.f) mesh(stroke_open(as_vec2(std::array{c.from, c.to}), c.thickness), c.color);
+        else segment(c.from, c.to, c.thickness, c.color);
+    }
     void add(const Polyline& c) {
+        if (c.thickness > 1.f) return mesh(stroke_open(as_vec2(c.points), c.thickness), c.color);
         for (size_t i = 0; i + 1 < c.points.size(); ++i) segment(c.points[i], c.points[i + 1], c.thickness, c.color);
     }
     void add(const FilledPolygon& c) {   // triangle-strip order, as the SDL backend draws it
