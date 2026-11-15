@@ -31,6 +31,7 @@ PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py
 PYTHONPATH=builddir/python python3 python/examples/13_pickers.py
 PYTHONPATH=builddir/python python3 python/examples/14_table_and_tree_editing.py
 PYTHONPATH=builddir/python python3 python/examples/15_docking_and_drag.py
+PYTHONPATH=builddir/python python3 python/examples/16_lab_instrument.py
 ```
 
 Each opens a window (`prism.run` blocks, releases the GIL). Close the window to exit.

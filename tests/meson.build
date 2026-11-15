@@ -126,6 +126,7 @@ headless_tests = {
   'file_tree_source' : files('test_file_tree_source.cpp'),
   'proc_metrics' : files('test_proc_metrics.cpp'),
   'notes_logic' : files('test_notes_logic.cpp'),
+  'lab_bench' : files('test_lab_bench.cpp'),
   'process_tree_source' : files('test_process_tree_source.cpp'),
   'snapshot_stats' : files('test_snapshot_stats.cpp'),
   'record_reuse' : files('test_record_reuse.cpp'),

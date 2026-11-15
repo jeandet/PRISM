@@ -620,7 +620,7 @@ struct Settings {
 
 ### Full examples
 
-[`examples/`](examples/README.md) holds four complete apps, all of which also run in the
+[`examples/`](examples/README.md) holds five complete apps, all of which also run in the
 [browser](https://jeandet.github.io/PRISM/):
 
 - [`widget_gallery`](examples/widget_gallery/): every widget, in seven tabs, docking and drag and drop included. Start here.
@@ -628,6 +628,9 @@ struct Settings {
 - [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a
   sortable process table and tree (Linux `/proc`, or a simulated machine elsewhere).
 - [`perf_lab`](examples/perf_lab/): a 100k-row table and a 1M-point plot under 1 kHz telemetry.
+- [`model_lab_bench`](examples/model_lab_bench/): a bench instrument — scope, supply, generator —
+  whose hardware thread can be stalled without the window missing a frame, and whose logic thread,
+  stalled on purpose, freezes it. Run the two buttons side by side.
 
 <p align="center"><img src="doc/screenshots/widget_gallery.svg" alt="Widget Gallery" width="700"/></p>
 

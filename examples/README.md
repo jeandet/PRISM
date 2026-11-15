@@ -1,6 +1,6 @@
 # Examples
 
-Four complete apps, each with its own README. All of them also run in the browser, compiled to
+Five complete apps, each with its own README. All of them also run in the browser, compiled to
 WebAssembly: see the [live demos](https://jeandet.github.io/PRISM/).
 
 <table>
@@ -34,6 +34,14 @@ machine elsewhere</td>
 <td><img src="../doc/screenshots/perf_lab.svg" width="180"/></td>
 <td>100k-row table, 1M-point plot and 1 kHz telemetry, a live FPS/build-stats bar, and a
 <code>--headless N</code> report</td>
+</tr>
+<tr>
+<td><a href="model_lab_bench/">model_lab_bench</a></td>
+<td><img src="../doc/screenshots/lab_bench.svg" width="180"/></td>
+<td>A bench instrument: an oscilloscope drawn on a canvas, a power supply and a function generator
+driven by <code>Derived</code>, and a hardware thread feeding frames through
+<code>Shared&lt;T&gt;</code>. Two buttons stall the hardware thread or the logic thread, so the
+difference between the two is something you watch rather than read about</td>
 </tr>
 </table>
 

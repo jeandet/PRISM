@@ -18,139 +18,192 @@
 <text xml:space="preserve" x="107.2" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Help</text>
 <line x1="107.2" y1="23" x2="115.6" y2="23" stroke="rgba(220,220,220,1)" stroke-width="1"/>
 </g>
-<clipPath id="clip-3"><rect x="0" y="30" width="900" height="32"/></clipPath>
+<clipPath id="clip-3"><rect x="0" y="30" width="900" height="40"/></clipPath>
 <g clip-path="url(#clip-3)">
-<rect x="0" y="30" width="469.2" height="32" fill="rgba(42,42,58,1)"/>
-<rect x="0" y="30" width="99.2" height="32" fill="rgba(30,30,46,1)"/>
-<text xml:space="preserve" x="16" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Controls</text>
-<rect x="0" y="60" width="99.2" height="2" fill="rgba(124,111,255,1)"/>
-<rect x="99.2" y="30" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="115.2" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Catalog</text>
-<rect x="190" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="206" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Text</text>
-<rect x="255.6" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="271.6" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
-<rect x="321.2" y="30" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="337.2" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Plot</text>
-<rect x="386.8" y="30" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="402.8" y="38" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Popups</text>
+<rect x="0" y="30" width="900" height="40" fill="rgba(45,45,48,1)"/>
+<line x1="0" y1="69.5" x2="900" y2="69.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
 </g>
-<clipPath id="clip-4"><rect x="0" y="62" width="900" height="546"/></clipPath>
+<clipPath id="clip-4"><rect x="4" y="34" width="32" height="32"/></clipPath>
 <g clip-path="url(#clip-4)">
-<clipPath id="clip-5"><rect x="0" y="62" width="900" height="30"/></clipPath>
+<rect x="4" y="34" width="32" height="32" fill="rgba(45,45,55,1)"/>
+<image x="12" y="42" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7ANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcAADc3NwA3NzcANzc3BLc3Nxd3NzcZtzc3Gbc3Nwd3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwAANzc3ADc3Nwy3Nzc99zc3P/c3Nz/3Nzc/9zc3Ovc3Nwu3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3AAA3NzcANzc3Jnc3NzN3NzcC9zc3ADc3NwI3Nzcu9zc3P/c3Nz/3Nzc/9zc3P/c3Nz/3Nzc/9zc3LHc3NwT3NzcAADc3NwA3Nzcqtzc3Krc3NwA3NzcANzc3ADc3NwI3NzcWdzc3Gbc3Nxm3NzcZtzc3Gbc3Nxp3Nzc6tzc3H/c3NwAANzc3ADc3Nyq3Nzcqtzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3Nyq3Nzcqtzc3AAA3NzcANzc3Krc3Nyq3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3Krc3Nyq3NzcAADc3NwA3Nzcqtzc3Krc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3Nzcqtzc3Krc3NwAANzc3ADc3Nyq3Nzcqtzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3Nyq3Nzcqtzc3AAA3NzcANzc3Krc3Nyq3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3Krc3Nyq3NzcAADc3NwA3Nzcqtzc3Krc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3Nzcqtzc3Krc3NwAANzc3ADc3Nx/3Nzc6tzc3Gnc3Nxm3NzcZtzc3Gbc3Nxm3NzcZtzc3Gbc3Nxm3NzcZtzc3Gnc3Nzq3Nzcf9zc3AAA3NzcANzc3BPc3Nyx3Nzc/9zc3P/c3Nz/3Nzc/9zc3P/c3Nz/3Nzc/9zc3P/c3Nz/3Nzc/9zc3LHc3NwT3NzcAADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADVussJEGptvQAAAABJRU5ErkJggg=="/>
+</g>
+<clipPath id="clip-5"><rect x="36" y="34" width="32" height="32"/></clipPath>
 <g clip-path="url(#clip-5)">
-<rect x="0" y="62" width="900" height="30" fill="rgba(0,0,0,0)"/>
-<text xml:space="preserve" x="4" y="66" font-family="Noto Sans, sans-serif" font-size="17" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Controls</text>
+<rect x="36" y="34" width="32" height="32" fill="rgba(45,45,55,1)"/>
+<image x="44" y="42" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7ANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwM3NzckNzc3J3c3Ny/3Nzcmdzc3Jnc3NyZ3Nzcrtzc3K7c3Nwr3NzcANzc3ADc3NwA3NzcAADc3NwA3NzcANzc3FDc3Nz/3Nzcudzc3P/c3NyZ3Nzcmdzc3Jnc3Nzd3Nzc7dzc3Ovc3Nwu3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcUNzc3P/c3NxQ3Nzc/9zc3ADc3NwA3NzcANzc3Krc3Nys3Nzcu9zc3Ovc3Nwd3NzcANzc3AAA3NzcANzc3ADc3NxQ3Nzc/9zc3FDc3Nz/3NzcZtzc3Gbc3Nxm3NzczNzc3Krc3NwI3Nzc/9zc3FDc3NwA3NzcAADc3NwA3NzcANzc3FDc3Nz/3NzcKNzc3PHc3Nz/3Nzc/9zc3P/c3Nz/3Nzccdzc3ADc3Nz/3NzcUNzc3ADc3NwAANzc3ADc3NwA3NzcUNzc3P/c3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3P/c3NxQ3NzcANzc3AAA3NzcANzc3ADc3NxQ3Nzc/9zc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3Nzc/9zc3FDc3NwA3NzcAADc3NwA3NzcANzc3FDc3Nz/3NzcKNzc3PHc3Nz/3Nzc/9zc3P/c3Nz/3Nzc8dzc3Cjc3Nz/3NzcUNzc3ADc3NwAANzc3ADc3NwA3NzcUNzc3P/c3NxQ3Nzc/9zc3Gbc3Nxm3NzcZtzc3Gbc3Nz/3NzcUNzc3P/c3NxQ3NzcANzc3AAA3NzcANzc3ADc3NxQ3Nzc/9zc3FDc3Nz/3NzcANzc3ADc3NwA3NzcANzc3P/c3NxQ3Nzc/9zc3FDc3NwA3NzcAADc3NwA3NzcANzc3FDc3Nz/3NzcUNzc3P/c3NwA3NzcANzc3ADc3NwA3Nzc/9zc3FDc3Nz/3NzcUNzc3ADc3NwAANzc3ADc3NwA3NzcUNzc3P/c3NxE3Nzc/9zc3P/c3Nz/3Nzc/9zc3P/c3Nz/3NzcRNzc3P/c3NxQ3NzcANzc3AAA3NzcANzc3ADc3NxQ3Nzc/9zc3Jnc3Ny53Nzcwdzc3MHc3NzB3Nzcwdzc3Lnc3NyZ3Nzc/9zc3FDc3NwA3NzcAADc3NwA3NzcANzc3Azc3NyQ3Nzcmdzc3Jnc3NyZ3Nzcmdzc3Jnc3NyZ3Nzcmdzc3Jnc3NyQ3NzcDNzc3ADc3NwAANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADnEOxQiU1MTgAAAABJRU5ErkJggg=="/>
 </g>
-<clipPath id="clip-6"><rect x="0" y="92" width="446" height="30"/></clipPath>
+<clipPath id="clip-6"><rect x="68" y="34" width="49.6" height="32"/></clipPath>
 <g clip-path="url(#clip-6)">
-<rect x="0" y="92" width="446" height="30" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-7"><rect x="4" y="92" width="438" height="30"/></clipPath>
+<rect x="68" y="34" width="49.6" height="32" fill="rgba(65,65,78,1)"/>
+<text xml:space="preserve" x="76" y="41" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Wrap</text>
+</g>
+<clipPath id="clip-7"><rect x="0" y="70" width="900" height="32"/></clipPath>
 <g clip-path="url(#clip-7)">
-<text xml:space="preserve" x="4" y="98" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Your name</text>
+<rect x="0" y="70" width="560" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="70" width="99.2" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="16" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Controls</text>
+<rect x="0" y="100" width="99.2" height="2" fill="rgba(124,111,255,1)"/>
+<rect x="99.2" y="70" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="115.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Catalog</text>
+<rect x="190" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="206" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Text</text>
+<rect x="255.6" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="271.6" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
+<rect x="321.2" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="337.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Plot</text>
+<rect x="386.8" y="70" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="402.8" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Popups</text>
+<rect x="469.2" y="70" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="485.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Docking</text>
 </g>
-</g>
-<clipPath id="clip-8"><rect x="454" y="92" width="446" height="30"/></clipPath>
+<clipPath id="clip-8"><rect x="0" y="102" width="900" height="478"/></clipPath>
 <g clip-path="url(#clip-8)">
-<rect x="454" y="92" width="446" height="30" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-9"><rect x="458" y="92" width="438" height="30"/></clipPath>
+<clipPath id="clip-9"><rect x="0" y="102" width="900" height="30"/></clipPath>
 <g clip-path="url(#clip-9)">
-<text xml:space="preserve" x="458" y="98" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Password</text>
+<rect x="0" y="102" width="900" height="30" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="4" y="106" font-family="Noto Sans, sans-serif" font-size="17" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Controls</text>
 </g>
-</g>
-<clipPath id="clip-10"><rect x="0" y="128" width="900" height="30"/></clipPath>
+<clipPath id="clip-10"><rect x="0" y="132" width="446" height="30"/></clipPath>
 <g clip-path="url(#clip-10)">
-<rect x="0" y="128" width="900" height="30" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-11"><rect x="4" y="128" width="892" height="30"/></clipPath>
+<rect x="0" y="132" width="446" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-11"><rect x="4" y="132" width="438" height="30"/></clipPath>
 <g clip-path="url(#clip-11)">
-<text xml:space="preserve" x="4" y="134" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Pick or type a fruit</text>
+<text xml:space="preserve" x="4" y="138" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Your name</text>
 </g>
 </g>
-<clipPath id="clip-12"><rect x="0" y="164" width="66" height="30"/></clipPath>
+<clipPath id="clip-12"><rect x="454" y="132" width="446" height="30"/></clipPath>
 <g clip-path="url(#clip-12)">
-<rect x="0" y="164" width="66" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="8" y="171" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2</text>
-<rect x="48" y="164" width="1" height="30" fill="rgba(90,90,105,1)"/>
-<polygon points="53,175 61,175 57,170" fill="rgba(220,220,220,1)"/>
-<polygon points="53,183 61,183 57,188" fill="rgba(220,220,220,1)"/>
-</g>
-<clipPath id="clip-13"><rect x="74" y="164" width="67.6" height="30"/></clipPath>
+<rect x="454" y="132" width="446" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-13"><rect x="458" y="132" width="438" height="30"/></clipPath>
 <g clip-path="url(#clip-13)">
-<rect x="74" y="164" width="67.6" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="82" y="171" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">1.00</text>
-<rect x="123.6" y="164" width="1" height="30" fill="rgba(90,90,105,1)"/>
-<polygon points="128.6,175 136.6,175 132.6,170" fill="rgba(220,220,220,1)"/>
-<polygon points="128.6,183 136.6,183 132.6,188" fill="rgba(220,220,220,1)"/>
+<text xml:space="preserve" x="458" y="138" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Password</text>
 </g>
-<clipPath id="clip-14"><rect x="149.6" y="164" width="200" height="30"/></clipPath>
+</g>
+<clipPath id="clip-14"><rect x="0" y="168" width="900" height="30"/></clipPath>
 <g clip-path="url(#clip-14)">
-<rect x="149.6" y="164" width="200" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="157.6" y="171" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">System</text>
-<text xml:space="preserve" x="329.6" y="171" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
-</g>
-<clipPath id="clip-15"><rect x="0" y="200" width="900" height="30"/></clipPath>
+<rect x="0" y="168" width="900" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-15"><rect x="4" y="168" width="892" height="30"/></clipPath>
 <g clip-path="url(#clip-15)">
-<rect x="0" y="212" width="900" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="532.8" y="200" width="12" height="30" fill="rgba(0,140,200,1)"/>
+<text xml:space="preserve" x="4" y="174" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Pick or type a fruit</text>
 </g>
-<clipPath id="clip-16"><rect x="0" y="236" width="191.2" height="86"/></clipPath>
+</g>
+<clipPath id="clip-16"><rect x="0" y="198" width="900" height="30"/></clipPath>
 <g clip-path="url(#clip-16)">
-<rect x="0" y="236" width="191.2" height="30" fill="rgba(45,45,55,1)"/>
-<rect x="8" y="243" width="16" height="16" fill="rgba(0,140,200,1)"/>
-<text xml:space="preserve" x="10" y="244" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
-<rect x="8" y="243" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
-<text xml:space="preserve" x="32" y="243" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Send notifications</text>
+<rect x="0" y="198" width="900" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="8" y="205" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Pick a port</text>
+<text xml:space="preserve" x="880" y="205" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
 </g>
-<clipPath id="clip-17"><rect x="207.2" y="236" width="90.4" height="86"/></clipPath>
+<clipPath id="clip-17"><rect x="0" y="234" width="900" height="30"/></clipPath>
 <g clip-path="url(#clip-17)">
-<rect x="207.2" y="236" width="90.4" height="86" fill="rgba(45,45,55,1)"/>
-<circle cx="223.2" cy="253" r="8" stroke="rgba(90,90,105,1)" fill="none" stroke-width="2"/>
-<text xml:space="preserve" x="239.2" y="245" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Draft</text>
-<circle cx="223.2" cy="279" r="8" stroke="rgba(0,140,200,1)" fill="none" stroke-width="2"/>
-<circle cx="223.2" cy="279" r="4" fill="rgba(0,140,200,1)"/>
-<text xml:space="preserve" x="239.2" y="271" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Normal</text>
-<circle cx="223.2" cy="305" r="8" stroke="rgba(90,90,105,1)" fill="none" stroke-width="2"/>
-<text xml:space="preserve" x="239.2" y="297" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Best</text>
+<rect x="0" y="234" width="900" height="30" fill="rgba(45,45,55,1)"/>
+<rect x="8" y="241" width="16" height="16" fill="rgba(45,45,55,1)"/>
+<rect x="8" y="241" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
+<text xml:space="preserve" x="32" y="241" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Lock the settings</text>
 </g>
-<clipPath id="clip-18"><rect x="0" y="328" width="71.6" height="32"/></clipPath>
+<clipPath id="clip-18"><rect x="0" y="270" width="66" height="30"/></clipPath>
 <g clip-path="url(#clip-18)">
-<rect x="0" y="328" width="71.6" height="32" fill="rgba(40,105,180,1)"/>
-<rect x="0" y="328" width="71.6" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
-<image x="8" y="336" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7AAAAAAAAAAAA1NTpAOTk7wDl5fAA5eXuAObm8ADm5vAA5ubwAOTk7gDk5O4A4eHtAAAAAAAAAAAAAAAAAAAAAAAAAAAAANTU6QDU1OkM5OTvkOXl8J3l5e6/5ubwmebm8Jnm5vCZ5OTuruTk7q7h4e0r4uLtAAAAAAAAAAAAAAAAAAAAAAAA5eXvAOXl71Dm5vD/5OTuuebm8P/m5vCZ5ubwmebm8Jnl5fDd5eXv7eTk7+vj4+4u4+PtAAAAAAAAAAAAAAAAAADl5e8A5eXvUObm8P/l5e9Q5ubw/+bm8ADm5vAA5eXwAOXl8Krl5fCs5eXwu+Tk7+vk5O0d5OTtAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+Xl71Dm5vD/5ubwZubm8Gbm5vBm5ubwzOXl8Krf398I5ubw/+Xl71Dl5e8AAAAAAAAAAAAA5eXvAOXl71Dm5vD/5eXrKOXl7/Hm5vD/5ubw/+bm8P/m5vD/4+PvceLi6gDm5vD/5eXvUOXl7wAAAAAAAAAAAADl5e8A5eXvUObm8P/l5e0A5eXvAObm8ADm5vAA5ubwAObm8ADj4+8A5ubwAObm8P/l5e9Q5eXvAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+Xl7QDl5e8A5ubwAObm8ADm5vAA5ubwAOXl7wDl5e0A5ubw/+Xl71Dl5e8AAAAAAAAAAAAA5eXvAOXl71Dm5vD/5eXrKOXl7/Hm5vD/5ubw/+bm8P/m5vD/5eXv8eXl6yjm5vD/5eXvUOXl7wAAAAAAAAAAAADl5e8A5eXvUObm8P/l5e9Q5ubw/+bm8Gbm5vBm5ubwZubm8Gbm5vD/5eXvUObm8P/l5e9Q5eXvAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+Xl71Dm5vD/5ubwAObm8ADm5vAA5ubwAObm8P/l5e9Q5ubw/+Xl71Dl5e8AAAAAAAAAAAAA5eXvAOXl71Dm5vD/5eXvUObm8P/m5vAA5ubwAObm8ADm5vAA5ubw/+Xl71Dm5vD/5eXvUOXl7wAAAAAAAAAAAADl5e8A5eXvUObm8P/k5PBE5ubw/+bm8P/m5vD/5ubw/+bm8P/m5vD/5OTwRObm8P/l5e9Q5eXvAAAAAAAAAAAAAOXl7wDl5e9Q5ubw/+bm8Jnk5O655eXwweXl8MHl5fDB5eXwweTk7rnm5vCZ5ubw/+Xl71Dl5e8AAAAAAAAAAAAA1NTpANTU6Qzk5O+Q5ubwmebm8Jnm5vCZ5ubwmebm8Jnm5vCZ5ubwmebm8Jnk5O+Q1NTpDNTU6QAAAAAAAAAAAAAAAAAA1NTpAOTk7wDm5vAA5ubwAObm8ADm5vAA5ubwAObm8ADm5vAA5ubwAOTk7wDU1OkAAAAAAAAAAACQUKDjw2TY4wAAAABJRU5ErkJggg=="/>
-<text xml:space="preserve" x="30" y="335" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Save</text>
+<rect x="0" y="270" width="66" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="8" y="277" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2</text>
+<rect x="48" y="270" width="1" height="30" fill="rgba(90,90,105,1)"/>
+<polygon points="53,281 61,281 57,276" fill="rgba(220,220,220,1)"/>
+<polygon points="53,289 61,289 57,294" fill="rgba(220,220,220,1)"/>
 </g>
-<clipPath id="clip-19"><rect x="79.6" y="328" width="80" height="32"/></clipPath>
+<clipPath id="clip-19"><rect x="74" y="270" width="67.6" height="30"/></clipPath>
 <g clip-path="url(#clip-19)">
-<rect x="79.6" y="328" width="80" height="32" fill="rgba(45,45,55,1)"/>
-<image x="87.6" y="336" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANDQ5wDk5O4A5eXvAObm8ADm5vAA5eXvAOXl7gDU1NQA5eXrAOTk7wAAAAAAAAAAAAAAAAAAAAAAAAAAAADW1ucA0NDnC+Tk7mvl5e/Z5ubw/+bm8P/l5e/H5eXueNTU1Abl5eso5OTvuOTk7wAAAAAAAAAAAAAAAAAA1NTaAN3d6Bfl5e/Q5eXv9OXl75fm5vBm5ubwZuXl75bl5e/z5OTuzebm7l3m5vD/5ubwAAAAAAAAAAAAAMzMzADMzMwF5eXv1eXl79jj4+wc5OTtAObm8ADm5vAA4uLuAOHh8CLk5O+l5eXubebm8P/m5vAAAAAAAAAAAAAA5eXvAOXl72Xl5e/45OTtHePj7AAAAAAAAAAAAOLi7ADi4uw25ubwmebm8Jnk5O+55ubw/+bm8AAAAAAAAAAAAADk5O8A5OTvxOTk7pvk5O0AAAAAAAAAAAAAAAAA4uLsAOLi7Dbm5vCZ5ubwmebm8Jnk5O5p5OTuAAAAAAAAAAAAAOXl7wDl5e/o5OTuauTk7gAAAAAAAAAAAAAAAAAAAAAA4uLsAObm8ADl5eoA5OTkE+Pj7l3j4+4AAAAAAAAAAAAA5OTvAOTk7+vk5O5r5OTuAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOXl7gDl5e5u5eXv5uXl7wAAAAAAAAAAAADl5e8A5eXvtOTk76bk5O8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5OTvAOTk76Xk5O+55OTvAAAAAAAAAAAAAOPj7gDj4+5c5eXv/OXl7zLj4+0AAAAAAAAAAAAAAAAAAAAAAOTk7wDk5O8w5eXv/OXl7lrl5e4AAAAAAAAAAAAAAAAAAOTk7gDl5e6+5eXv4uHh6zTj4+0A5eXuAOTk7gDk5O8A5OTvMOXl7+Pl5e/B5eXuAAAAAAAAAAAAAAAAAAAAAAAA39/vAN/f7xDl5e+35eXv/eXl77Xl5e5s5OTuauXl77bm5vD/5OTvutra7A7a2uwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAb293AAAAAAHk5PBV5eXvsebm8Mzm5vDM5eXvsuPj71K/v78EzMzVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOTk8ADl5e8A5ubwAObm8ADl5e8A4+PvAL+/vwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABI9L14H+hsDwAAAABJRU5ErkJggg=="/>
-<text xml:space="preserve" x="109.6" y="335" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reset</text>
+<rect x="74" y="270" width="67.6" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="82" y="277" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">1.00</text>
+<rect x="123.6" y="270" width="1" height="30" fill="rgba(90,90,105,1)"/>
+<polygon points="128.6,281 136.6,281 132.6,276" fill="rgba(220,220,220,1)"/>
+<polygon points="128.6,289 136.6,289 132.6,294" fill="rgba(220,220,220,1)"/>
 </g>
-<clipPath id="clip-20"><rect x="167.6" y="328" width="32" height="32"/></clipPath>
+<clipPath id="clip-20"><rect x="149.6" y="270" width="200" height="30"/></clipPath>
 <g clip-path="url(#clip-20)">
-<rect x="167.6" y="328" width="32" height="32" fill="rgba(45,45,55,1)"/>
-<image x="175.6" y="336" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADj4+8A5ubwAObm8ADm5vAA5ubwAOPj7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4+PvAOPj73Hm5vD/5ubw/+bm8P/m5vD/4+PvcePj7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5OTvAOXl7wDl5e8A5eXwqubm8Mzm5vBm5ubwZubm8Mzl5fCq5eXvAOXl7wDk5O8AAAAAAAAAAAAAAAAAAOTk7wDk5O+45eXv/+Xl7//l5e//5eXv/+bm8P/m5vD/5eXv/+Xl7//l5e//5eXv/+Tk77jk5O8AAAAAAAAAAAAA4+PuAOPj7i7l5fDA5OTv1OLi7m3i4u5t5ubwZubm8Gbi4u5t4uLubeTk79Tl5fDA4+PuLuPj7gAAAAAAAAAAAAAAAAAA5OTuAOXl74Pm5vDM5OTvAOLi7gDm5vAA5ubwAOLi7gDk5O8A5ubwzOXl74Pk5O4AAAAAAAAAAAAAAAAAAAAAAADl5e8A5eXvcOXl7+Dl5e8AAAAAAAAAAAAAAAAAAAAAAOXl7wDl5e/g5eXvcOXl7wAAAAAAAAAAAAAAAAAAAAAAAOPj7gDj4+5c5eXv9OPj6AAAAAAAAAAAAAAAAAAAAAAA4+PoAOXl7/Tj4+5c4+PuAAAAAAAAAAAAAAAAAAAAAAAA4uLtAOLi7Ujm5vD/4uLiCeLi4gAAAAAAAAAAAOLi4gDi4uIJ5ubw/+Li7Uji4u0AAAAAAAAAAAAAAAAAAAAAAADh4esA4eHrNObm8P/k5O0d5OTtAAAAAAAAAAAA5OTtAOTk7R3m5vD/4eHrNOHh6wAAAAAAAAAAAAAAAAAAAAAAAN/f7wDf3+8g5ubw/+Tk7zHl5e8A5ubwAObm8ADl5e8A5OTvMebm8P/f3+8g39/vAAAAAAAAAAAAAAAAAAAAAAAA1NTpANTU6Qzm5vD/5eXujebm8Gbm5vBm5ubwZubm8Gbl5e6N5ubw/9TU6QzU1OkAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3NzsAOXl78jm5vD/5ubw/+bm8P/m5vD/5ubw/+bm8P/l5e/I3NzsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5eXvAObm8ADm5vAA5ubwAObm8ADm5vAA5ubwAOXl7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACb6Lx4iRjAdQAAAABJRU5ErkJggg=="/>
+<rect x="149.6" y="270" width="200" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="157.6" y="277" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">System</text>
+<text xml:space="preserve" x="329.6" y="277" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
 </g>
-<clipPath id="clip-21"><rect x="0" y="366" width="900" height="34"/></clipPath>
+<clipPath id="clip-21"><rect x="0" y="306" width="900" height="48"/></clipPath>
 <g clip-path="url(#clip-21)">
-<rect x="0" y="366" width="900" height="34" fill="rgba(0,0,0,0)"/>
-<text xml:space="preserve" x="0" y="367" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">60%</text>
-<rect x="0" y="388" width="900" height="8" rx="4" fill="rgba(60,60,70,1)"/>
-<rect x="0" y="388" width="540" height="8" rx="4" fill="rgba(40,105,180,1)"/>
+<text xml:space="preserve" x="4" y="308" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Volume</text>
+<text xml:space="preserve" x="864.8" y="308" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">0.60</text>
+<rect x="0" y="338" width="900" height="6" fill="rgba(60,60,70,1)"/>
+<rect x="532.8" y="326" width="12" height="30" fill="rgba(0,140,200,1)"/>
 </g>
-<clipPath id="clip-22"><rect x="0" y="400" width="900" height="30"/></clipPath>
+<clipPath id="clip-22"><rect x="0" y="360" width="191.2" height="123"/></clipPath>
 <g clip-path="url(#clip-22)">
-<rect x="0" y="400" width="900" height="30" fill="rgba(45,45,55,1)"/>
-<rect x="8" y="407" width="16" height="16" fill="rgba(45,45,55,1)"/>
-<rect x="8" y="407" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
-<text xml:space="preserve" x="32" y="407" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Length unknown (busy)</text>
+<rect x="0" y="360" width="191.2" height="30" fill="rgba(45,45,55,1)"/>
+<rect x="8" y="367" width="16" height="16" fill="rgba(0,140,200,1)"/>
+<text xml:space="preserve" x="10" y="368" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
+<rect x="8" y="367" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
+<text xml:space="preserve" x="32" y="367" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Send notifications</text>
 </g>
-<clipPath id="clip-23"><rect x="0" y="436" width="900" height="24"/></clipPath>
+<clipPath id="clip-23"><rect x="207.2" y="360" width="218" height="123"/></clipPath>
 <g clip-path="url(#clip-23)">
-<rect x="0" y="436" width="900" height="24" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="4" y="440" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">nobody · no fruit · 2 × 1.00 · normal · notifications on</text>
+<text xml:space="preserve" x="209.2" y="363" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Quality</text>
+<rect x="207.7" y="382.5" width="217" height="100" stroke="rgba(80,80,95,1)" fill="none" stroke-width="1"/>
 </g>
-</g>
-<clipPath id="clip-24"><rect x="0" y="608" width="900" height="0"/></clipPath>
+<clipPath id="clip-24"><rect x="216.2" y="388" width="200" height="86"/></clipPath>
 <g clip-path="url(#clip-24)">
+<rect x="216.2" y="388" width="200" height="86" fill="rgba(45,45,55,1)"/>
+<circle cx="232.2" cy="405" r="8" stroke="rgba(90,90,105,1)" fill="none" stroke-width="2"/>
+<text xml:space="preserve" x="248.2" y="397" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Draft</text>
+<circle cx="232.2" cy="431" r="8" stroke="rgba(0,140,200,1)" fill="none" stroke-width="2"/>
+<circle cx="232.2" cy="431" r="4" fill="rgba(0,140,200,1)"/>
+<text xml:space="preserve" x="248.2" y="423" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Normal</text>
+<circle cx="232.2" cy="457" r="8" stroke="rgba(90,90,105,1)" fill="none" stroke-width="2"/>
+<text xml:space="preserve" x="248.2" y="449" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Best</text>
 </g>
+<clipPath id="clip-25"><rect x="0" y="489" width="71.6" height="32"/></clipPath>
+<g clip-path="url(#clip-25)">
+<rect x="0" y="489" width="71.6" height="32" fill="rgba(40,105,180,0.4)"/>
+<rect x="0" y="489" width="71.6" height="32" stroke="rgba(60,140,220,0.4)" fill="none" stroke-width="1"/>
+<image x="8" y="497" width="16" height="16" preserveAspectRatio="none" opacity="0.4" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7APDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8AAA8PDwAPDw8ADw8PAM8PDwkPDw8J3w8PC/8PDwmfDw8Jnw8PCZ8PDwrvDw8K7w8PAr8PDwAPDw8ADw8PAA8PDwAADw8PAA8PDwAPDw8FDw8PD/8PDwufDw8P/w8PCZ8PDwmfDw8Jnw8PDd8PDw7fDw8Ovw8PAu8PDwAPDw8ADw8PAAAPDw8ADw8PAA8PDwUPDw8P/w8PBQ8PDw//Dw8ADw8PAA8PDwAPDw8Krw8PCs8PDwu/Dw8Ovw8PAd8PDwAPDw8AAA8PDwAPDw8ADw8PBQ8PDw//Dw8FDw8PD/8PDwZvDw8Gbw8PBm8PDwzPDw8Krw8PAI8PDw//Dw8FDw8PAA8PDwAADw8PAA8PDwAPDw8FDw8PD/8PDwKPDw8PHw8PD/8PDw//Dw8P/w8PD/8PDwcfDw8ADw8PD/8PDwUPDw8ADw8PAAAPDw8ADw8PAA8PDwUPDw8P/w8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8P/w8PBQ8PDwAPDw8AAA8PDwAPDw8ADw8PBQ8PDw//Dw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDw//Dw8FDw8PAA8PDwAADw8PAA8PDwAPDw8FDw8PD/8PDwKPDw8PHw8PD/8PDw//Dw8P/w8PD/8PDw8fDw8Cjw8PD/8PDwUPDw8ADw8PAAAPDw8ADw8PAA8PDwUPDw8P/w8PBQ8PDw//Dw8Gbw8PBm8PDwZvDw8Gbw8PD/8PDwUPDw8P/w8PBQ8PDwAPDw8AAA8PDwAPDw8ADw8PBQ8PDw//Dw8FDw8PD/8PDwAPDw8ADw8PAA8PDwAPDw8P/w8PBQ8PDw//Dw8FDw8PAA8PDwAADw8PAA8PDwAPDw8FDw8PD/8PDwUPDw8P/w8PAA8PDwAPDw8ADw8PAA8PDw//Dw8FDw8PD/8PDwUPDw8ADw8PAAAPDw8ADw8PAA8PDwUPDw8P/w8PBE8PDw//Dw8P/w8PD/8PDw//Dw8P/w8PD/8PDwRPDw8P/w8PBQ8PDwAPDw8AAA8PDwAPDw8ADw8PBQ8PDw//Dw8Jnw8PC58PDwwfDw8MHw8PDB8PDwwfDw8Lnw8PCZ8PDw//Dw8FDw8PAA8PDwAADw8PAA8PDwAPDw8Azw8PCQ8PDwmfDw8Jnw8PCZ8PDwmfDw8Jnw8PCZ8PDwmfDw8Jnw8PCQ8PDwDPDw8ADw8PAAAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADw8PAA8PDwAPDw8ADsNihfbl9gwwAAAABJRU5ErkJggg=="/>
+<text xml:space="preserve" x="30" y="496" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,0.4)" dominant-baseline="hanging">Save</text>
+</g>
+<clipPath id="clip-26"><rect x="79.6" y="489" width="80" height="32"/></clipPath>
+<g clip-path="url(#clip-26)">
+<rect x="79.6" y="489" width="80" height="32" fill="rgba(45,45,55,1)"/>
+<image x="87.6" y="497" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7ANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcAADc3NwA3NzcANzc3ADc3NwA3NzcC9zc3Gvc3NzZ3Nzc/9zc3P/c3NzH3NzceNzc3Abc3Nwo3NzcuNzc3ADc3NwAANzc3ADc3NwA3NzcANzc3Bfc3NzQ3Nzc9Nzc3Jfc3Nxm3NzcZtzc3Jbc3Nzz3Nzczdzc3F3c3Nz/3NzcANzc3AAA3NzcANzc3ADc3NwF3Nzc1dzc3Njc3Nwc3NzcANzc3ADc3NwA3NzcANzc3CLc3Nyl3Nzcbdzc3P/c3NwA3NzcAADc3NwA3NzcANzc3GXc3Nz43NzcHdzc3ADc3NwA3NzcANzc3ADc3Nw23Nzcmdzc3Jnc3Ny53Nzc/9zc3ADc3NwAANzc3ADc3NwA3NzcxNzc3Jvc3NwA3NzcANzc3ADc3NwA3NzcANzc3Dbc3NyZ3Nzcmdzc3Jnc3Nxp3NzcANzc3AAA3NzcANzc3ADc3Nzo3Nzcatzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcE9zc3F3c3NwA3NzcAADc3NwA3NzcANzc3Ovc3Nxr3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3Nxu3Nzc5tzc3ADc3NwAANzc3ADc3NwA3NzctNzc3Kbc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3KXc3Ny53NzcANzc3AAA3NzcANzc3ADc3Nxc3Nzc/Nzc3DLc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3Nww3Nzc/Nzc3Frc3NwA3NzcAADc3NwA3NzcANzc3ADc3Ny+3Nzc4tzc3DTc3NwA3NzcANzc3ADc3NwA3NzcMNzc3OPc3NzB3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3BDc3Ny33Nzc/dzc3LXc3Nxs3Nzcatzc3Lbc3Nz/3Nzcutzc3A7c3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzcANzc3AHc3NxV3Nzcsdzc3Mzc3NzM3Nzcstzc3FLc3NwE3NzcANzc3ADc3NwA3NzcAADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADCT8Q0GI11zQAAAABJRU5ErkJggg=="/>
+<text xml:space="preserve" x="109.6" y="496" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Reset</text>
+</g>
+<clipPath id="clip-27"><rect x="167.6" y="489" width="32" height="32"/></clipPath>
+<g clip-path="url(#clip-27)">
+<rect x="167.6" y="489" width="32" height="32" fill="rgba(45,45,55,1)"/>
+<image x="175.6" y="497" width="16" height="16" preserveAspectRatio="none" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAEG0lEQVR4AQEQBO/7ANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcAADc3NwA3NzcANzc3ADc3NwA3NzcANzc3HHc3Nz/3Nzc/9zc3P/c3Nz/3Nzccdzc3ADc3NwA3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3ADc3NwA3Nzcqtzc3Mzc3Nxm3NzcZtzc3Mzc3Nyq3NzcANzc3ADc3NwA3NzcANzc3AAA3NzcANzc3ADc3Ny43Nzc/9zc3P/c3Nz/3Nzc/9zc3P/c3Nz/3Nzc/9zc3P/c3Nz/3Nzc/9zc3Ljc3NwA3NzcAADc3NwA3NzcANzc3C7c3NzA3Nzc1Nzc3G3c3Nxt3NzcZtzc3Gbc3Nxt3Nzcbdzc3NTc3NzA3NzcLtzc3ADc3NwAANzc3ADc3NwA3NzcANzc3IPc3NzM3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzczNzc3IPc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzccNzc3ODc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3Nzg3NzccNzc3ADc3NwA3NzcAADc3NwA3NzcANzc3ADc3Nxc3Nzc9Nzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3PTc3Nxc3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3Ejc3Nz/3NzcCdzc3ADc3NwA3NzcANzc3ADc3NwJ3Nzc/9zc3Ejc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzcNNzc3P/c3Nwd3NzcANzc3ADc3NwA3NzcANzc3B3c3Nz/3NzcNNzc3ADc3NwA3NzcAADc3NwA3NzcANzc3ADc3Nwg3Nzc/9zc3DHc3NwA3NzcANzc3ADc3NwA3NzcMdzc3P/c3Nwg3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3Azc3Nz/3Nzcjdzc3Gbc3Nxm3NzcZtzc3Gbc3NyN3Nzc/9zc3Azc3NwA3NzcANzc3AAA3NzcANzc3ADc3NwA3NzcANzc3Mjc3Nz/3Nzc/9zc3P/c3Nz/3Nzc/9zc3P/c3NzI3NzcANzc3ADc3NwA3NzcAADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwAANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADc3NwA3NzcANzc3ADC+sovatFEdQAAAABJRU5ErkJggg=="/>
+</g>
+<clipPath id="clip-28"><rect x="0" y="527" width="900" height="34"/></clipPath>
+<g clip-path="url(#clip-28)">
+<rect x="0" y="527" width="900" height="34" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="0" y="528" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">60%</text>
+<rect x="0" y="549" width="900" height="8" rx="4" fill="rgba(60,60,70,1)"/>
+<rect x="0" y="549" width="540" height="8" rx="4" fill="rgba(40,105,180,1)"/>
+</g>
+<clipPath id="clip-29"><rect x="0" y="561" width="900" height="19"/></clipPath>
+<g clip-path="url(#clip-29)">
+<rect x="0" y="561" width="900" height="30" fill="rgba(45,45,55,1)"/>
+<rect x="8" y="568" width="16" height="16" fill="rgba(45,45,55,1)"/>
+<rect x="8" y="568" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
+<text xml:space="preserve" x="32" y="568" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Length unknown (busy)</text>
+</g>
+<clipPath id="clip-30"><rect x="0" y="597" width="900" height="0"/></clipPath>
+<g clip-path="url(#clip-30)">
+<rect x="0" y="597" width="900" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="601" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">nobody · no fruit · 2 × 1.00 · normal · notifications on</text>
+</g>
+</g>
+<clipPath id="clip-31"><rect x="0" y="580" width="900" height="28"/></clipPath>
+<g clip-path="url(#clip-31)">
+<rect x="0" y="580" width="900" height="28" fill="rgba(45,45,48,1)"/>
+<line x1="0" y1="580.5" x2="900" y2="580.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
+</g>
+<clipPath id="clip-32"><rect x="8" y="582" width="75.2" height="24"/></clipPath>
+<g clip-path="url(#clip-32)">
+<rect x="8" y="582" width="75.2" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="12" y="586" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Controls</text>
+</g>
+<clipPath id="clip-33"><rect x="0" y="608" width="900" height="0"/></clipPath>
+<g clip-path="url(#clip-33)">
+</g>
+<rect x="892" y="102" width="6" height="440.239" fill="rgba(120,120,130,0.627451)"/>
 </svg>

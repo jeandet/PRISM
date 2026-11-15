@@ -3597,6 +3597,38 @@ def test_asyncio_bridge_example_completes_a_round_trip(monkeypatch):
     mod.main()  # run(until=...) raises TimeoutError unless a round trip completes
 
 
+def test_lab_instrument_example_runs_headless(monkeypatch):
+    """The C++ bench's Python counterpart: a worker thread fills the readouts while
+    the plot shows a trigger-aligned sweep. Loading it as a module and calling
+    main() also pins that it stays importable (no top-level prism.run)."""
+    monkeypatch.setattr(sys, "argv", [sys.argv[0], "--headless"])
+    mod = _load_example("16_lab_instrument")
+    mod.main()
+
+
+def test_lab_instrument_hardware_frame_honours_compliance_and_fault():
+    mod = _load_example("16_lab_instrument")
+
+    # 20 V into a ~8 ohm load needs ~2.5 A: a 0.5 A limit clamps it (constant current).
+    volts, amps, _watts, _temp, cc = mod.hardware_frame(20.0, 0.5, True, False, 0.2)
+    assert cc is True
+    assert amps == pytest.approx(0.5, rel=0.01)
+    assert volts < 20.0
+
+    # A tripped protection reads no output voltage, and runs the case hot.
+    volts, _amps, watts, temp, cc = mod.hardware_frame(12.0, 2.0, True, True, 0.5)
+    assert volts == 0.0
+    assert watts == 0.0
+    assert temp >= 60.0
+    assert cc is True
+
+    # Output off: the supply reads quiet, not a clean zero.
+    _volts, amps, watts, _temp, cc = mod.hardware_frame(12.0, 2.0, False, False, 0.5)
+    assert amps == 0.0
+    assert watts == 0.0
+    assert cc is False
+
+
 def test_run_headless_kwarg_rejects_bool():
     class M(Model):
         x = field(0)

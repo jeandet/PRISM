@@ -9,6 +9,7 @@ subdir('model_notes')
 subdir('widget_gallery')
 subdir('perf_lab')
 subdir('model_system_monitor')   # /proc on Linux, a simulated machine elsewhere
+subdir('model_lab_bench')
 if not is_wasm
   subdir('showcase')             # headless SVG capture tools, not apps
 endif
