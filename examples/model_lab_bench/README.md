@@ -60,8 +60,8 @@ The window keeps drawing and stays interactive, and shows the last frame it got.
   never touches a `Field`.
 - **Frames come back coalesced, events in order.** Frames travel in a `Shared<DaqTelemetry>`: only
   the newest one matters. State changes the instrument sees (protection tripped, constant-current
-  mode) travel in a `Channel<DaqEvent>`: none is dropped. The model's `drain()` is where both cross
-  over, on the logic thread.
+  mode) travel in a `Channel<DaqEvent>`: none is dropped. One `ctx.receive()` each hands them to
+  the model on the logic thread.
 - **A stall is a request, not a value.** The button sets an `atomic<bool>`; the worker takes it with
   one `exchange(false)`, so a second press during a stall cannot queue a third.
 - **The scope is a canvas.** `blocks/scope_canvas.hpp` draws the frame with a 1-2-5 autoscale and

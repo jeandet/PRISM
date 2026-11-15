@@ -1,6 +1,5 @@
 #include <prism/prism.hpp>
-#include <prism/app/settings.hpp>
-#include <prism/backends/settings_dir.hpp>
+#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 
 #include <exception>
@@ -80,10 +79,12 @@ struct SynthApp {
     core::Field<ui::Label<>> status_audio{{.value = "engine off — press Power to start"}};
 
     std::vector<core::Connection> wiring{};
+    std::jthread analysis{};   // declared after `audio`, so it stops before what it reads goes
 
     // Set once a window exists. A capture run has neither a window nor an audio thread, so the
     // power button there only changes what is drawn.
     bool attached = false;
+    bool offline = false;   // a capture run: rendered once, no threads
 
     SynthApp() {
         wiring.push_back(
@@ -92,7 +93,29 @@ struct SynthApp {
             }));
     }
 
-    void attach() { attached = true; }
+    // The running app's wiring, on the logic thread before the first frame: settings out to the
+    // audio thread, display frames back in, and the analysis worker.
+    void attach(app::AppContext& ctx) {
+        if (offline) return;
+        attached = true;
+        link.settings.observe([this](const synth::SynthSettings& live) { audio.publish(live); });
+        audio.publish(link.settings.get());
+        ctx.receive(feed.frames, [this](const synth::AnalyzerFrame& shot) { feed.frame.set(shot); });
+        start_analysis(ctx);
+    }
+
+    void start_analysis(app::AppContext& ctx) {
+        try {
+            analysis = std::jthread([this](std::stop_token stop) { audio.run_analysis(stop); });
+        } catch (const std::exception&) {
+            // No worker to spare (an exhausted wasm pthread pool) is no reason to leave the
+            // window without an analyzer: analyse on the logic thread, once per tick, instead.
+            ctx.clock().add([this](auto) {
+                audio.analyse_once();
+                return true;
+            });
+        }
+    }
 
     synth::SynthSettings gather_settings() const {
         return synth::make_settings(arp.settings(gates.mask()), voice.settings(), effects.settings(),
@@ -114,6 +137,7 @@ struct SynthApp {
     // Headless capture: run the same audio path offline, then show the analyzer holding a
     // realistic frame. No device, no threads.
     void seed_demo_data() {
+        offline = true;
         arp.power.set({.text = "Power", .primary = true, .checked = true});
         status_audio.set(ui::Label<>{"capture run — rendered offline, no audio device"});
         audio.publish(gather_settings());
@@ -153,42 +177,11 @@ struct SynthApp {
 
 int main(int argc, char* argv[]) {
     // On the heap: the delay line and the FFT buffers are ~200 KB, and a wasm stack is 64 KB.
-    auto owner = std::make_unique<SynthApp>();
-    SynthApp& app = *owner;
+    auto app = std::make_unique<SynthApp>();
     if (argc >= 2) {
-        app.seed_demo_data();
-        return showcase(argc, argv, app, 1200, 780);
+        app->seed_demo_data();
+        return showcase(argc, argv, *app, 1200, 780);
     }
-
-    std::jthread analysis;
-    app::SettingsFile settings{app.prefs,
-                               backends::settings_dir("prism", "synth-rack") / "settings.toml"};
-
-    app::model_app(
-        app.prefs.window.applied_to({.title = "PRISM Synth Rack",
-                                     .width = 1200,
-                                     .height = 780,
-                                     .decoration = app::DecorationMode::Custom}),
-        app, [&](app::AppContext& ctx) {
-            ctx.remember_window_size(app.prefs.window);
-            app.attach();
-            app.link.settings.observe(
-                [&app](const synth::SynthSettings& live) { app.audio.publish(live); });
-            app.audio.publish(app.link.settings.get());
-            ctx.receive(app.feed.frames,
-                        [&app](const synth::AnalyzerFrame& shot) { app.feed.frame.set(shot); });
-            try {
-                analysis = std::jthread(
-                    [&app](std::stop_token stop) { app.audio.run_analysis(stop); });
-            } catch (const std::exception&) {
-                // No worker to spare — an exhausted wasm pthread pool, for instance — is not a
-                // reason to leave the window without an analyzer: analyse on the logic thread,
-                // once per animation tick, instead.
-                ctx.clock().add([&app](auto) {
-                    app.audio.analyse_once();
-                    return true;
-                });
-            }
-        });
-    return 0;
+    return app::run(*app, {.title = "PRISM Synth Rack", .width = 1200, .height = 780,
+                           .settings = &app->prefs, .organization = "prism", .name = "synth-rack"});
 }

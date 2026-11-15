@@ -220,6 +220,11 @@ test_settings_dir = executable('test_settings_dir',
 )
 test('settings_dir', test_settings_dir)
 
+test_run = executable('test_run', files('test_run.cpp'),
+  dependencies : [prism_software_backend_dep, doctest_dep],
+)
+test('run', test_run)
+
 test_sdl_font_set = executable('test_sdl_font_set',
   files('test_sdl_font_set.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],

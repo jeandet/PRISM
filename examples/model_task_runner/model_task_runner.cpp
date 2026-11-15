@@ -1,6 +1,5 @@
 #include <prism/prism.hpp>
-#include <prism/app/settings.hpp>
-#include <prism/backends/settings_dir.hpp>
+#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 #include "blocks/console_panel.hpp"
 #include "blocks/status_bar.hpp"
@@ -88,10 +87,6 @@ struct TaskRunnerApp {
 
     // --- what the model does with a delivery ----------------------------------------------
 
-    // Called from drain(), on the logic thread, with the waker having already told the loop there
-    // is something to do.
-    void drain() { link.output.drain_notifications(); }
-
     void ingest(const runner::OutputBatch& batch) {
         if (consoles.pane(batch.task).ingest(batch)) refresh_rows();
     }
@@ -143,15 +138,10 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 1000, 700);
     }
 
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "task-runner") / "settings.toml"};
-
-    app::model_app(app.prefs.window.applied_to({.title = "PRISM Task Runner", .width = 1000, .height = 700,
-                                                .decoration = app::DecorationMode::Custom}),
-                   app, [&app](app::AppContext& ctx) {
-        ctx.remember_window_size(app.prefs.window);
-
-        app.link.output.set_waker(ctx.waker());
-        app.link.output.observe([&app](const runner::OutputBatch& batch) { app.ingest(batch); });
+    app::run(app, {.title = "PRISM Task Runner", .width = 1000, .height = 700,
+                   .settings = &app.prefs, .organization = "prism", .name = "task-runner"},
+             [&app](app::AppContext& ctx) {
+        ctx.receive(app.link.output, [&app](const runner::OutputBatch& batch) { app.ingest(batch); });
 
         ctx.clock().add([&app](auto) {
             app.on_frame();

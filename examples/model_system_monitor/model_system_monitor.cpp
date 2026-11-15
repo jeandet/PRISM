@@ -1,6 +1,5 @@
 #include <prism/prism.hpp>
-#include <prism/app/settings.hpp>
-#include <prism/backends/settings_dir.hpp>
+#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 #include <prism/widgets/plot.hpp>
 #include "proc_metrics.hpp"
@@ -187,12 +186,9 @@ int main(int argc, char* argv[]) {
     std::jthread sys_thread;
     std::jthread proc_thread;
 
-    // Loads the last session's layout and size, and saves them as they change.
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "system-monitor") / "settings.toml"};
-    app::model_app(app.prefs.window.applied_to({.title = "PRISM System Monitor", .width = 900, .height = 700,
-                                                .decoration = app::DecorationMode::Custom}),
-                      app, [&](app::AppContext& ctx) {
-        ctx.remember_window_size(app.prefs.window);
+    app::run(app, {.title = "PRISM System Monitor", .width = 900, .height = 700,
+                   .settings = &app.prefs, .organization = "prism", .name = "system-monitor"},
+             [&](app::AppContext& ctx) {
         ctx.clock().add([&app](ui::AnimationClock::time_point now) {
             double t = std::chrono::duration<double>(now.time_since_epoch()).count();
             // now.time_since_epoch() is steady_clock's time since boot, which on a machine

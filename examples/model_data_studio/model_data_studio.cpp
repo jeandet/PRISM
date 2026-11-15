@@ -1,6 +1,5 @@
 #include <prism/prism.hpp>
-#include <prism/app/settings.hpp>
-#include <prism/backends/settings_dir.hpp>
+#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 
 #include "../showcase/showcase_common.hpp"
@@ -158,13 +157,9 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 1180, 760);
     }
 
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "data-studio") / "settings.toml"};
-    app::model_app(app.prefs.window.applied_to({.title = "PRISM Data Studio",
-                                                .width = 1180,
-                                                .height = 760,
-                                                .decoration = app::DecorationMode::Custom}),
-                   app, [&app](app::AppContext& ctx) {
-                       ctx.remember_window_size(app.prefs.window);
+    app::run(app, {.title = "PRISM Data Studio", .width = 1180, .height = 760,
+                   .settings = &app.prefs, .organization = "prism", .name = "data-studio"},
+             [&app](app::AppContext& ctx) {
                        // The busy progress bar asks for a frame every 33 ms through node.redraw_at;
                        // a running clock is what turns those requests into frames.
                        ctx.clock().add([](auto) { return true; });
