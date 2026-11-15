@@ -32,6 +32,8 @@ PYTHONPATH=builddir/python python3 python/examples/13_pickers.py
 PYTHONPATH=builddir/python python3 python/examples/14_table_and_tree_editing.py
 PYTHONPATH=builddir/python python3 python/examples/15_docking_and_drag.py
 PYTHONPATH=builddir/python python3 python/examples/16_lab_instrument.py
+PYTHONPATH=builddir/python python3 python/examples/17_task_runner.py
+PYTHONPATH=builddir/python python3 python/examples/18_data_studio.py
 ```
 
 Each opens a window (`prism.run` blocks, releases the GIL). Close the window to exit.
@@ -69,6 +71,9 @@ PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py --headle
 | `13_pickers.py` | `color()`, `date()`, `time_of_day()` pickers and a `selectable=True` list, summarized in a status bar |
 | `14_table_and_tree_editing.py` | a `TableSource` with `set_cell`, a checkbox column, icons and `handle.columns`; a `TreeSource` with boxes, rename and multi-select (`handle.selection`) |
 | `15_docking_and_drag.py` | `dock_layout()` + `vb.dock(...)` with tabs the user drags between panels (and out to float), and `vb.widget(h, drag=..., drop=..., accepts=str)` dragging a chip onto a drop zone |
+| `16_lab_instrument.py` | the lab bench's counterpart: captioned sliders (`label=`, `unit=`, `step=`), `derived()` readouts, a worker feeding `shared()` frames and `channel()` events, a plot as the scope |
+| `17_task_runner.py` | `subprocess` runs (or generated ones) streamed through `channel()` into a `list_field` shown with `vb.list(..., follow_tail=True)`, progress parsed from the output, Stop |
+| `18_data_studio.py` | the stdlib `sqlite3` on a worker thread, results in a `table_field`, a chart of the result, status and errors |
 
 ## Notes
 

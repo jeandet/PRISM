@@ -4759,3 +4759,243 @@ def test_settings_dir_is_the_apps_own_folder():
     assert os.path.isdir(d)
     assert os.path.normpath(d).endswith(os.path.join("prism-test", "py-app"))
     assert prism.settings_dir("prism-test", "other") != d
+
+
+def test_task_runner_example_runs_headless(monkeypatch):
+    """The C++ task runner's Python counterpart: a run streams into the console, the
+    progress bar reads the output's own tags, and the app shuts down cleanly."""
+    monkeypatch.setattr(sys, "argv", [sys.argv[0], "--headless"])
+    mod = _load_example("17_task_runner")
+    mod.main()
+
+
+def test_task_runner_line_assembler_keeps_a_split_tail():
+    mod = _load_example("17_task_runner")
+    assembler = mod.LineAssembler()
+
+    assert assembler.feed("alpha\nbe") == ["alpha"]
+    assert assembler.feed("ta\ngamma\n") == ["beta", "gamma"]
+    assert assembler.feed("delta") == []
+    assert assembler.finish() == ["delta"]
+    assert assembler.finish() == []
+
+
+def test_task_runner_line_assembler_handles_carriage_returns_and_blank_lines():
+    mod = _load_example("17_task_runner")
+    assembler = mod.LineAssembler()
+
+    assert assembler.feed("a\r\n\r\nb\n") == ["a", "", "b"]
+    assert assembler.feed("one\ntwo\r") == ["one"]
+    assert assembler.finish() == ["two"]
+
+
+def test_task_runner_strips_ansi_sequences_and_control_bytes():
+    mod = _load_example("17_task_runner")
+
+    assert mod.strip_ansi("\x1b[1;31mred\x1b[0m") == "red"
+    assert mod.strip_ansi("\x1b]0;a title\x07ok") == "ok"
+    assert mod.strip_ansi("\x1b]0;a title\x1b\\ok") == "ok"
+    assert mod.strip_ansi("a\rb") == "ab"
+    assert mod.strip_ansi("a\tb") == "a\tb"  # a tab is not a control byte here
+    assert mod.strip_ansi("\x1b[38;5;") == ""  # a sequence a truncated read left open
+
+
+@pytest.mark.parametrize(
+    "line, expected",
+    [
+        ("[ 42%] Building", 0.42),
+        ("[ 42 %] Building", 0.42),
+        ("[  3/120] Compiling src/ui/layout.cpp", 0.025),
+        ("[3/120]", 0.025),
+        ("[100%] 511 passed in 8.1 s", 1.0),
+        # The first bracket that reads as progress wins; a later one does not rescue it.
+        ("[ 12/120] Compiling [core]", 0.1),
+    ],
+)
+def test_task_runner_parses_progress(line, expected):
+    mod = _load_example("17_task_runner")
+    assert mod.parse_progress(line) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "no brackets here",
+        "[ 42 ]",
+        "[]",
+        "[0/0]",
+        "[ 42%",
+        "[ok Storage / keeps order]",
+    ],
+)
+def test_task_runner_rejects_what_is_not_progress(line):
+    mod = _load_example("17_task_runner")
+    assert mod.parse_progress(line) is None
+
+
+def test_task_runner_classifies_and_filters_lines():
+    mod = _load_example("17_task_runner")
+
+    assert (
+        mod.classify("src/net/socket.cpp:88:9: error: no matching function") == "error"
+    )
+    assert (
+        mod.classify("error: two problems and a warning") == "error"
+    )  # first match wins
+    assert mod.classify("x.cpp:42:13: warning: unused parameter 'count'") == "warning"
+    assert mod.classify("  ok Storage / keeps ties stable") == "success"
+    assert mod.classify("$ ninja -C builddir") == "command"
+    assert mod.classify("[  1/120] Compiling src/core/field.cpp") == "info"
+
+    lines = [
+        "error: loud",
+        "warning: careful",
+        "info: quiet",
+        "Linking build/libprism.so",
+    ]
+    kinds = [mod.classify(line) for line in lines]
+    assert [
+        line for line, kind in zip(lines, kinds) if mod.keeps(line, kind, "", False)
+    ] == lines
+    assert [
+        line for line, kind in zip(lines, kinds) if mod.keeps(line, kind, "LINK", False)
+    ] == ["Linking build/libprism.so"]
+    assert [
+        line for line, kind in zip(lines, kinds) if mod.keeps(line, kind, "", True)
+    ] == [
+        "error: loud",
+        "warning: careful",
+    ]
+
+
+def test_task_runner_generated_build_is_deterministic_and_paced():
+    mod = _load_example("17_task_runner")
+
+    units = mod.BUILD_UNITS
+    assert mod.simulated_line("Build", 0) == "[  1/120] Compiling src/core/field.cpp"
+    assert mod.simulated_line("Build", 11).endswith(
+        "warning: unused parameter 'count' [-Wunused-parameter]"
+    )
+    assert mod.simulated_line("Build", units) == "Build finished: 120/120 in 10.0 s"
+    assert (
+        mod.simulated_line("Build", units, failing=True)
+        == "ninja: build stopped: subcommand failed."
+    )
+    assert mod.simulated_line("Build", units - 1, failing=True).endswith(
+        "error: no matching function for call to 'connect'"
+    )
+    assert mod.simulated_line("Build", 0) == mod.simulated_line("Build", 0)
+
+    progress = [
+        value
+        for value in (
+            mod.parse_progress(mod.simulated_line("Build", index))
+            for index in range(units)
+        )
+        if value
+        is not None  # a warning line replaces a unit line, so it has no progress
+    ]
+    assert len(progress) == units - units // 23
+    assert progress[0] == pytest.approx(1 / units)
+    assert all(later > earlier for earlier, later in zip(progress, progress[1:]))
+
+
+def test_task_runner_generated_flood_stays_inside_the_console():
+    mod = _load_example("17_task_runner")
+
+    first = mod.simulated_line("Flood", 0)
+    assert first.startswith("[      1/200000]")
+    assert mod.simulated_line("Flood", 1) != first
+    assert mod.parse_progress(
+        mod.simulated_line("Flood", mod.FLOOD_LINES - 1)
+    ) == pytest.approx(1.0)
+    # The console keeps a tail of a run, so a 200 000 line flood is what makes the
+    # difference between pushing and rebuilding visible.
+    assert mod.MAX_LINES < mod.FLOOD_LINES
+
+
+def test_data_studio_example_runs_headless(monkeypatch):
+    module = _load_example("18_data_studio")
+    monkeypatch.setattr(sys, "argv", [sys.argv[0], "--headless"])
+    module.main()
+
+
+def test_data_studio_dataset_is_deterministic_and_plausible():
+    module = _load_example("18_data_studio")
+    trips = module.make_trips(300)
+    assert trips == module.make_trips(300)
+    assert trips != module.make_trips(300, 7)  # one seed, one table
+    for pickup, minute, zone, km, minutes, fare, tip, passengers, payment in trips:
+        assert len(pickup) == len("2025-01-01 00:00:00")
+        assert 0 <= minute < module.MINUTES_IN_YEAR
+        assert 1 <= zone <= len(module.ZONES)
+        assert 0.4 <= km <= 38.0
+        assert minutes > 0.0
+        assert fare > 3.0
+        assert 0.0 <= tip < fare
+        assert 1 <= passengers <= 4
+        assert payment in module.PAYMENTS
+
+
+def test_data_studio_rush_hours_carry_the_traffic():
+    module = _load_example("18_data_studio")
+    trips = module.make_trips(2000)
+    rush = sum(1 for _, minute, *_ in trips if module.rush_hour((minute // 60) % 24))
+    assert 0.3 < rush / len(trips) < 0.6
+
+
+def test_data_studio_cells_read_like_a_database_client():
+    module = _load_example("18_data_studio")
+    assert module.cell_text(1234567) == "1,234,567"
+    assert module.cell_text(-2048) == "-2,048"
+    assert module.cell_text(24) == "24"
+    assert module.cell_text(4.5) == "4.50"
+    assert module.cell_text(12.34) == "12.3"
+    assert module.cell_text(1234.0) == "1,234"
+    assert module.cell_text(None) == "NULL"
+    assert module.cell_text("card") == "card"
+    assert module.done_status(1234, 0.087) == "1,234 rows in 87 ms"
+    assert module.done_status(1, 2.5) == "1 row in 2.5 s"
+    assert module.running_status(2.34) == "running 2.3 s..."
+
+
+def test_data_studio_chart_picks_the_columns_to_plot():
+    module = _load_example("18_data_studio")
+    boroughs = (
+        ["borough", "trips"],
+        [("Manhattan", 12), ("Brooklyn", 9), ("Queens", 7)],
+    )
+    assert module.chart_columns(*boroughs) == (0, 1, True)
+    assert module.chart_columns(["km", "minutes"], [(1.0, 4.0), (2.0, 6.5)]) == (
+        1,
+        0,
+        False,
+    )
+    assert module.chart_columns(["borough"], [("Manhattan",)]) is None
+    assert module.chart_columns(["borough", "trips"], [("Manhattan", 12)]) is None
+
+
+def test_data_studio_query_round_trip_and_errors():
+    module = _load_example("18_data_studio")
+    db = module.build_database(module.make_trips(2000))
+    try:
+        columns, rows, truncated, error = module.run_query(
+            db, "SELECT COUNT(*) AS trips FROM trips"
+        )
+        assert (columns, error, truncated) == (["trips"], "", False)
+        assert len(rows) == 1
+        assert module.cell_text(rows[0][0]) == "2,000"
+
+        columns, rows, _, error = module.run_query(db, "SELECT * FROM nope")
+        assert rows == []
+        assert "no such table" in error
+
+        columns, rows, _, error = module.run_query(db, module.SAVED_QUERIES[0][1])
+        assert error == ""
+        assert len(rows) == 24  # one row per hour of the day
+
+        _, rows, truncated, _ = module.run_query(db, "SELECT id FROM trips", limit=10)
+        assert len(rows) == 10
+        assert truncated
+    finally:
+        db.close()

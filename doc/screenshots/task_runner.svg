@@ -1,0 +1,304 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+<rect width="1000" height="700" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="298.2" height="32"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="74" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="0" width="74" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="16" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Tasks</text>
+<rect x="0" y="30" width="74" height="2" fill="rgba(124,111,255,1)"/>
+</g>
+<clipPath id="clip-1"><rect x="0" y="32" width="298.2" height="345.6"/></clipPath>
+<g clip-path="url(#clip-1)">
+<clipPath id="clip-2"><rect x="0" y="32" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-2)">
+<rect x="0" y="32" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="32" width="3" height="26" fill="rgba(120,205,140,1)"/>
+<text xml:space="preserve" x="8" y="38.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(120,205,140,1)" dominant-baseline="hanging">Build (ok)</text>
+<rect x="0" y="32" width="298.2" height="26" fill="rgba(60,100,180,0.54902)"/>
+</g>
+<clipPath id="clip-3"><rect x="0" y="58" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-3)">
+<rect x="0" y="58" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="58" width="3" height="26" fill="rgba(180,180,190,1)"/>
+<text xml:space="preserve" x="8" y="64.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Unit tests (not run)</text>
+</g>
+<clipPath id="clip-4"><rect x="0" y="84" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="0" y="84" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="84" width="3" height="26" fill="rgba(0,160,220,1)"/>
+<text xml:space="preserve" x="8" y="90.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(0,160,220,1)" dominant-baseline="hanging">Flood (running)</text>
+</g>
+<clipPath id="clip-5"><rect x="0" y="110" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-5)">
+<rect x="0" y="110" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="110" width="3" height="26" fill="rgba(180,180,190,1)"/>
+<text xml:space="preserve" x="8" y="116.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">ping (not run)</text>
+</g>
+<clipPath id="clip-6"><rect x="0" y="136" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-6)">
+<rect x="0" y="136" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="136" width="3" height="26" fill="rgba(180,180,190,1)"/>
+<text xml:space="preserve" x="8" y="142.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">ls (not run)</text>
+</g>
+<clipPath id="clip-7"><rect x="0" y="162" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-7)">
+<rect x="0" y="162" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="162" width="3" height="26" fill="rgba(180,180,190,1)"/>
+<text xml:space="preserve" x="8" y="168.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">uname (not run)</text>
+</g>
+<clipPath id="clip-8"><rect x="0" y="188" width="298.2" height="26"/></clipPath>
+<g clip-path="url(#clip-8)">
+<rect x="0" y="188" width="298.2" height="26" fill="rgba(45,45,55,1)"/>
+<rect x="0" y="188" width="3" height="26" fill="rgba(180,180,190,1)"/>
+<text xml:space="preserve" x="8" y="194.25" font-family="Noto Sans, sans-serif" font-size="13.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Custom (not run)</text>
+</g>
+</g>
+<clipPath id="clip-9"><rect x="0" y="377.6" width="298.2" height="30"/></clipPath>
+<g clip-path="url(#clip-9)">
+<rect x="0" y="377.6" width="298.2" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-10"><rect x="4" y="377.6" width="290.2" height="30"/></clipPath>
+<g clip-path="url(#clip-10)">
+<text xml:space="preserve" x="4" y="383.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">a shell command, e.g. git status</text>
+</g>
+</g>
+<clipPath id="clip-11"><rect x="0" y="407.6" width="298.2" height="32"/></clipPath>
+<g clip-path="url(#clip-11)">
+<rect x="0" y="407.6" width="298.2" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="0" y="407.6" width="298.2" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="8" y="414.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Run</text>
+<text xml:space="preserve" x="206.2" y="414.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Ctrl+Enter</text>
+</g>
+<clipPath id="clip-12"><rect x="0" y="439.6" width="298.2" height="200.4"/></clipPath>
+<g clip-path="url(#clip-12)">
+<rect x="0" y="439.6" width="298.2" height="200.4" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="443.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Build, Unit tests and Flood are </text>
+<text xml:space="preserve" x="4" y="463.2" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">generated: the run's own thread </text>
+<text xml:space="preserve" x="4" y="482.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">writes the same lines every time, </text>
+<text xml:space="preserve" x="4" y="502.4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">which is how a warning, a failing </text>
+<text xml:space="preserve" x="4" y="522" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">build and a 200 000 line flood can </text>
+<text xml:space="preserve" x="4" y="541.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">be summoned on demand. ping, ls </text>
+<text xml:space="preserve" x="4" y="561.2" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">and uname start a real process </text>
+<text xml:space="preserve" x="4" y="580.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">through /bin/sh -- on the web </text>
+<text xml:space="preserve" x="4" y="600.4" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">there is no shell, so only the </text>
+<text xml:space="preserve" x="4" y="620" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">generated three are offered there.</text>
+</g>
+<clipPath id="clip-13"><rect x="298.2" y="0" width="6" height="640"/></clipPath>
+<g clip-path="url(#clip-13)">
+<rect x="298.2" y="0" width="6" height="640" fill="rgba(90,90,100,0.627451)"/>
+</g>
+<clipPath id="clip-14"><rect x="304.2" y="0" width="695.8" height="32"/></clipPath>
+<g clip-path="url(#clip-14)">
+<rect x="304.2" y="0" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="304.2" y="0" width="90.8" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="320.2" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Console</text>
+<rect x="304.2" y="30" width="90.8" height="2" fill="rgba(124,111,255,1)"/>
+</g>
+<clipPath id="clip-15"><rect x="304.2" y="32" width="695.8" height="32"/></clipPath>
+<g clip-path="url(#clip-15)">
+<rect x="304.2" y="32" width="534.8" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="304.2" y="32" width="74" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="320.2" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Build</text>
+<rect x="304.2" y="62" width="74" height="2" fill="rgba(124,111,255,1)"/>
+<rect x="378.2" y="32" width="116" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="394.2" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Unit tests</text>
+<rect x="494.2" y="32" width="74" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="510.2" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Flood</text>
+<rect x="568.2" y="32" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="584.2" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">ping</text>
+<rect x="633.8" y="32" width="48.8" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="649.8" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">ls</text>
+<rect x="682.6" y="32" width="74" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="698.6" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">uname</text>
+<rect x="756.6" y="32" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="772.6" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Custom</text>
+</g>
+<clipPath id="clip-16"><rect x="304.2" y="64" width="223.3" height="32"/></clipPath>
+<g clip-path="url(#clip-16)">
+<rect x="304.2" y="64" width="223.3" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-17"><rect x="308.2" y="64" width="215.3" height="30"/></clipPath>
+<g clip-path="url(#clip-17)">
+<text xml:space="preserve" x="308.2" y="70" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(120,120,130,1)" dominant-baseline="hanging">Filter lines</text>
+</g>
+</g>
+<clipPath id="clip-18"><rect x="527.5" y="64" width="199.6" height="32"/></clipPath>
+<g clip-path="url(#clip-18)">
+<rect x="527.5" y="64" width="199.6" height="30" fill="rgba(45,45,55,1)"/>
+<rect x="535.5" y="71" width="16" height="16" fill="rgba(45,45,55,1)"/>
+<rect x="535.5" y="71" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
+<text xml:space="preserve" x="559.5" y="71" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Errors and warnings</text>
+</g>
+<clipPath id="clip-19"><rect x="950.4" y="64" width="49.6" height="32"/></clipPath>
+<g clip-path="url(#clip-19)">
+<rect x="950.4" y="64" width="49.6" height="32" fill="rgba(45,45,55,0.4)"/>
+<text xml:space="preserve" x="958.4" y="71" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,0.4)" dominant-baseline="hanging">Stop</text>
+</g>
+<clipPath id="clip-20"><rect x="304.2" y="96" width="695.8" height="34"/></clipPath>
+<g clip-path="url(#clip-20)">
+<rect x="304.2" y="96" width="695.8" height="34" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="304.2" y="97" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">done in 10.1 s</text>
+<rect x="304.2" y="118" width="695.8" height="8" rx="4" fill="rgba(60,60,70,1)"/>
+<rect x="304.2" y="118" width="695.8" height="8" rx="4" fill="rgba(40,105,180,1)"/>
+</g>
+<clipPath id="clip-21"><rect x="304.2" y="130" width="695.8" height="24"/></clipPath>
+<g clip-path="url(#clip-21)">
+<rect x="304.2" y="130" width="695.8" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="308.2" y="134" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">123 lines    5 warnings, 0 errors    12 lines/s    10.1 s</text>
+</g>
+<clipPath id="clip-22"><rect x="304.2" y="154" width="695.8" height="486"/></clipPath>
+<g clip-path="url(#clip-22)">
+<clipPath id="clip-23"><rect x="304.2" y="154" width="695.8" height="11"/></clipPath>
+<g clip-path="url(#clip-23)">
+<rect x="304.2" y="146" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="149.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[ 97/120] Compiling src/widgets/field.cpp</text>
+</g>
+<clipPath id="clip-24"><rect x="304.2" y="165" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-24)">
+<rect x="304.2" y="165" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="168.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[ 98/120] Compiling src/backends/draw_list.cpp</text>
+</g>
+<clipPath id="clip-25"><rect x="304.2" y="184" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-25)">
+<rect x="304.2" y="184" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="187.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[ 99/120] Compiling src/core/layout.cpp</text>
+</g>
+<clipPath id="clip-26"><rect x="304.2" y="203" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-26)">
+<rect x="304.2" y="203" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="206.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[100/120] Compiling src/render/button.cpp</text>
+</g>
+<clipPath id="clip-27"><rect x="304.2" y="222" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-27)">
+<rect x="304.2" y="222" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="225.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[101/120] Compiling src/ui/widget_tree.cpp</text>
+</g>
+<clipPath id="clip-28"><rect x="304.2" y="241" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-28)">
+<rect x="304.2" y="241" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="244.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[102/120] Compiling src/delegates/table.cpp</text>
+</g>
+<clipPath id="clip-29"><rect x="304.2" y="260" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-29)">
+<rect x="304.2" y="260" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="263.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[103/120] Compiling src/app/sdl_backend.cpp</text>
+</g>
+<clipPath id="clip-30"><rect x="304.2" y="279" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-30)">
+<rect x="304.2" y="279" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<rect x="304.2" y="279" width="2" height="19" fill="rgba(235,180,80,1)"/>
+<text xml:space="preserve" x="312.2" y="282.25" font-family="monospace" font-size="12.5" fill="rgba(235,180,80,1)" dominant-baseline="hanging">src/widgets/shared.cpp:42:13: warning: unused parameter 'count' [-Wunused-parameter]</text>
+</g>
+<clipPath id="clip-31"><rect x="304.2" y="298" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-31)">
+<rect x="304.2" y="298" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="301.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[105/120] Compiling src/backends/field.cpp</text>
+</g>
+<clipPath id="clip-32"><rect x="304.2" y="317" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-32)">
+<rect x="304.2" y="317" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="320.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[106/120] Compiling src/core/draw_list.cpp</text>
+</g>
+<clipPath id="clip-33"><rect x="304.2" y="336" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-33)">
+<rect x="304.2" y="336" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="339.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[107/120] Compiling src/render/layout.cpp</text>
+</g>
+<clipPath id="clip-34"><rect x="304.2" y="355" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-34)">
+<rect x="304.2" y="355" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="358.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[108/120] Compiling src/ui/button.cpp</text>
+</g>
+<clipPath id="clip-35"><rect x="304.2" y="374" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-35)">
+<rect x="304.2" y="374" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="377.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[109/120] Compiling src/delegates/widget_tree.cpp</text>
+</g>
+<clipPath id="clip-36"><rect x="304.2" y="393" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-36)">
+<rect x="304.2" y="393" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="396.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[110/120] Compiling src/app/table.cpp</text>
+</g>
+<clipPath id="clip-37"><rect x="304.2" y="412" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-37)">
+<rect x="304.2" y="412" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="415.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[111/120] Compiling src/widgets/sdl_backend.cpp</text>
+</g>
+<clipPath id="clip-38"><rect x="304.2" y="431" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-38)">
+<rect x="304.2" y="431" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="434.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[112/120] Compiling src/backends/shared.cpp</text>
+</g>
+<clipPath id="clip-39"><rect x="304.2" y="450" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-39)">
+<rect x="304.2" y="450" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="453.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[113/120] Compiling src/core/field.cpp</text>
+</g>
+<clipPath id="clip-40"><rect x="304.2" y="469" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-40)">
+<rect x="304.2" y="469" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="472.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[114/120] Compiling src/render/draw_list.cpp</text>
+</g>
+<clipPath id="clip-41"><rect x="304.2" y="488" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-41)">
+<rect x="304.2" y="488" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="491.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[115/120] Compiling src/ui/layout.cpp</text>
+</g>
+<clipPath id="clip-42"><rect x="304.2" y="507" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-42)">
+<rect x="304.2" y="507" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="510.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[116/120] Compiling src/delegates/button.cpp</text>
+</g>
+<clipPath id="clip-43"><rect x="304.2" y="526" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-43)">
+<rect x="304.2" y="526" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="529.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[117/120] Compiling src/app/widget_tree.cpp</text>
+</g>
+<clipPath id="clip-44"><rect x="304.2" y="545" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-44)">
+<rect x="304.2" y="545" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="548.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[118/120] Compiling src/widgets/table.cpp</text>
+</g>
+<clipPath id="clip-45"><rect x="304.2" y="564" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-45)">
+<rect x="304.2" y="564" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="567.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[119/120] Compiling src/backends/sdl_backend.cpp</text>
+</g>
+<clipPath id="clip-46"><rect x="304.2" y="583" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-46)">
+<rect x="304.2" y="583" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<text xml:space="preserve" x="312.2" y="586.25" font-family="monospace" font-size="12.5" fill="rgba(220,220,220,1)" dominant-baseline="hanging">[120/120] Compiling src/core/shared.cpp</text>
+</g>
+<clipPath id="clip-47"><rect x="304.2" y="602" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-47)">
+<rect x="304.2" y="602" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<rect x="304.2" y="602" width="2" height="19" fill="rgba(120,205,140,1)"/>
+<text xml:space="preserve" x="312.2" y="605.25" font-family="monospace" font-size="12.5" fill="rgba(120,205,140,1)" dominant-baseline="hanging">Build finished: 120/120 in 10.0 s</text>
+</g>
+<clipPath id="clip-48"><rect x="304.2" y="621" width="695.8" height="19"/></clipPath>
+<g clip-path="url(#clip-48)">
+<rect x="304.2" y="621" width="695.8" height="19" fill="rgba(16,18,22,1)"/>
+<rect x="304.2" y="621" width="2" height="19" fill="rgba(120,205,140,1)"/>
+<text xml:space="preserve" x="312.2" y="624.25" font-family="monospace" font-size="12.5" fill="rgba(120,205,140,1)" dominant-baseline="hanging">exit 0    122 lines in 10.1 s</text>
+</g>
+</g>
+<clipPath id="clip-49"><rect x="0" y="640" width="1000" height="28"/></clipPath>
+<g clip-path="url(#clip-49)">
+<rect x="0" y="640" width="1000" height="28" fill="rgba(45,45,48,1)"/>
+<line x1="0" y1="640.5" x2="1000" y2="640.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
+</g>
+<clipPath id="clip-50"><rect x="8" y="642" width="167.6" height="24"/></clipPath>
+<g clip-path="url(#clip-50)">
+<rect x="8" y="642" width="167.6" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="12" y="646" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">1 running    2 runs</text>
+</g>
+<clipPath id="clip-51"><rect x="699.6" y="642" width="125.6" height="24"/></clipPath>
+<g clip-path="url(#clip-51)">
+<rect x="699.6" y="642" width="125.6" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="703.6" y="646" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">48 200 lines/s</text>
+</g>
+<clipPath id="clip-52"><rect x="841.2" y="642" width="150.8" height="24"/></clipPath>
+<g clip-path="url(#clip-52)">
+<rect x="841.2" y="642" width="150.8" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="845.2" y="646" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">60 124 lines held</text>
+</g>
+<rect x="992" y="538.932" width="6" height="101.068" fill="rgba(120,120,130,0.627451)"/>
+</svg>

@@ -10,6 +10,9 @@ subdir('widget_gallery')
 subdir('perf_lab')
 subdir('model_system_monitor')   # /proc on Linux, a simulated machine elsewhere
 subdir('model_lab_bench')
+subdir('model_synth_rack')       # real audio through SDL3
+subdir('model_data_studio')      # SQLite, from WrapDB
+subdir('model_task_runner')
 if not is_wasm
   subdir('showcase')             # headless SVG capture tools, not apps
 endif

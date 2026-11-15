@@ -128,6 +128,8 @@ headless_tests = {
   'proc_metrics' : files('test_proc_metrics.cpp'),
   'notes_logic' : files('test_notes_logic.cpp'),
   'lab_bench' : files('test_lab_bench.cpp'),
+  'synth_rack' : files('test_synth_rack.cpp'),
+  'task_runner' : files('test_task_runner.cpp'),
   'process_tree_source' : files('test_process_tree_source.cpp'),
   'snapshot_stats' : files('test_snapshot_stats.cpp'),
   'record_reuse' : files('test_record_reuse.cpp'),
@@ -141,6 +143,11 @@ foreach name, src : headless_tests
   )
   test(name, exe)
 endforeach
+
+test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
+  dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],
+)
+test('data_studio', test_data_studio)
 
 # Tests that need BackendBase vtable but not SDL
 backend_base_tests = {

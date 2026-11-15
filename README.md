@@ -620,7 +620,7 @@ struct Settings {
 
 ### Full examples
 
-[`examples/`](examples/README.md) holds five complete apps, all of which also run in the
+[`examples/`](examples/README.md) holds eight complete apps, all of which also run in the
 [browser](https://jeandet.github.io/PRISM/):
 
 - [`widget_gallery`](examples/widget_gallery/): every widget, in seven tabs, docking and drag and drop included. Start here.
@@ -631,6 +631,12 @@ struct Settings {
 - [`model_lab_bench`](examples/model_lab_bench/): a bench instrument — scope, supply, generator —
   whose hardware thread can be stalled without the window missing a frame, and whose logic thread,
   stalled on purpose, freezes it. Run the two buttons side by side.
+- [`model_synth_rack`](examples/model_synth_rack/): a synthesizer that plays in the browser, its
+  audio thread fed through lock-free buffers, with a live spectrum.
+- [`model_data_studio`](examples/model_data_studio/): SQL over 500,000 rows on a background
+  thread; scroll, edit and cancel while a slow query runs.
+- [`model_task_runner`](examples/model_task_runner/): streaming process output, 200,000 lines
+  into consoles that keep up.
 
 <p align="center"><img src="doc/screenshots/widget_gallery.svg" alt="Widget Gallery" width="700"/></p>
 

@@ -1,6 +1,6 @@
 # Examples
 
-Five complete apps, each with its own README. All of them also run in the browser, compiled to
+Eight complete apps, each with its own README. All of them also run in the browser, compiled to
 WebAssembly: see the [live demos](https://jeandet.github.io/PRISM/).
 
 <table>
@@ -42,6 +42,28 @@ machine elsewhere</td>
 driven by <code>Derived</code>, and a hardware thread feeding frames through
 <code>Shared&lt;T&gt;</code>. Two buttons stall the hardware thread or the logic thread, so the
 difference between the two is something you watch rather than read about</td>
+</tr>
+<tr>
+<td><a href="model_synth_rack/">model_synth_rack</a></td>
+<td><img src="../doc/screenshots/synth_rack.svg" width="180"/></td>
+<td>Real-time audio through SDL3, in the browser too: an arpeggiator, a filter and a delay on an
+audio thread that takes no lock and allocates nothing. Settings reach it through a lock-free
+triple buffer, samples come back through a ring, and an analyzer thread publishes the spectrum
+with <code>Shared&lt;T&gt;</code></td>
+</tr>
+<tr>
+<td><a href="model_data_studio/">model_data_studio</a></td>
+<td><img src="../doc/screenshots/data_studio.svg" width="180"/></td>
+<td>A SQL client over an in-memory SQLite database of 500,000 rows. Queries run on a worker
+thread and can be cancelled; the result goes to a table whose columns follow the query, and to a
+chart</td>
+</tr>
+<tr>
+<td><a href="model_task_runner/">model_task_runner</a></td>
+<td><img src="../doc/screenshots/task_runner.svg" width="180"/></td>
+<td>A build panel: real processes on the desktop, generated runs everywhere, streamed through a
+<code>Channel&lt;T&gt;</code> in batches into consoles that follow their newest line. Rows are
+drawn by a custom widget, a specialization of <code>Widget&lt;T&gt;</code></td>
 </tr>
 </table>
 

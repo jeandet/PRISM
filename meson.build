@@ -24,6 +24,8 @@ project('prism', 'cpp',
     'sdl3_image:warning_level=0',
     'libunibreak:werror=false',
     'libunibreak:warning_level=0',
+    'sqlite3:werror=false',       # the data studio example's database
+    'sqlite3:warning_level=0',
   ],
   license : 'MIT',
   meson_version : '>= 1.5.0',
