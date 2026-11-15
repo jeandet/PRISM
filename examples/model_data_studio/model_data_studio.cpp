@@ -17,7 +17,7 @@
 #include "blocks/results.hpp"
 #include "blocks/schema.hpp"
 #include "blocks/status_bar.hpp"
-#include "prefs.hpp"
+#include "settings.hpp"
 #include "query_runner.hpp"
 #include "sql/catalog.hpp"
 #include "sql/dataset.hpp"
@@ -29,7 +29,7 @@ using namespace prism::data_studio;
 // The app is composition only: four panels, one status bar, and the worker that answers a query.
 // The SQLite side is sql/, how each panel looks is blocks/, and this file says what goes where.
 struct DataStudioApp {
-    DataStudioPrefs prefs{};
+    DataStudioSettings settings{};
 
     blocks::StatusBar status{};
     blocks::Editor editor{};
@@ -128,7 +128,7 @@ struct DataStudioApp {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
-            vb.dock(prefs.layout, {
+            vb.dock(settings.layout, {
                 {"schema", "Schema", [&](app::WidgetTree::ViewBuilder& p) { p.block(schema); }},
                 {"queries", "Saved queries", [&](app::WidgetTree::ViewBuilder& p) { p.block(queries); }},
                 {"editor", "Query", [&](app::WidgetTree::ViewBuilder& p) { p.block(editor); }},
@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
     }
 
     app::run(app, {.title = "PRISM Data Studio", .width = 1180, .height = 760,
-                   .settings = &app.prefs, .organization = "prism", .name = "data-studio"},
+                   .settings = &app.settings, .organization = "prism", .name = "data-studio"},
              [&app](app::AppContext& ctx) {
                        // The busy progress bar asks for a frame every 33 ms through node.redraw_at;
                        // a running clock is what turns those requests into frames.

@@ -16,14 +16,14 @@
 #include "daq/instrument.hpp"
 #include "daq/model.hpp"
 #include "hardware_thread.hpp"
-#include "prefs.hpp"
+#include "settings.hpp"
 
 using namespace prism;
 
 // The app is composition only: five panels, the one settings value that reaches the hardware
 // thread, and the worker loop. What the instrument computes is daq/, how it is drawn is blocks/.
 struct LabBenchApp {
-    LabBenchPrefs prefs;
+    LabBenchSettings settings;
 
     // The frame the screen and the readouts are a function of. The hardware thread cannot set it
     // (a Field belongs to the logic thread), so the drain observer copies it over -- and the canvas
@@ -78,7 +78,7 @@ struct LabBenchApp {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
-            vb.dock(prefs.layout, {
+            vb.dock(settings.layout, {
                 {"scope", "Oscilloscope - CH1", [&](app::WidgetTree::ViewBuilder& p) { p.block(scope); }},
                 {"power_supply", "DC Power Supply",
                  [&](app::WidgetTree::ViewBuilder& p) { p.block(supply); }},
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
     std::jthread worker;
 
     app::run(app, {.title = "PRISM Lab Bench & DAQ Console", .width = 960, .height = 680,
-                   .settings = &app.prefs, .organization = "prism", .name = "lab-bench"},
+                   .settings = &app.settings, .organization = "prism", .name = "lab-bench"},
              [&](app::AppContext& ctx) {
         app.bus.setpoints.observe([&app](const lab::DaqSettings& s) { app.bus.setpoints_for_worker.set(s); });
         app.bus.setpoints_for_worker.set(app.bus.setpoints.get());

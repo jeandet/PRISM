@@ -17,7 +17,7 @@
 #include "blocks/output.hpp"
 #include "blocks/step_gates.hpp"
 #include "blocks/voice.hpp"
-#include "prefs.hpp"
+#include "rack_settings.hpp"
 
 using namespace prism;
 
@@ -25,7 +25,7 @@ using namespace prism;
 // makes sound lives in AudioThread, everything that makes numbers lives in dsp/, and each panel
 // lives in its own file under blocks/.
 struct SynthApp {
-    SynthPrefs prefs;
+    RackSettings settings;
 
     // The display frame and the channel the analysis thread publishes it on. Declared before the
     // blocks: the analyzer and the output panel both read the frame.
@@ -146,7 +146,7 @@ struct SynthApp {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
-            vb.dock(prefs.layout,
+            vb.dock(settings.layout,
                     {
                         {"analyzer", "Analyzer",
                          [&](app::WidgetTree::ViewBuilder& p) { p.block(analyzer); }},
@@ -183,5 +183,5 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, *app, 1200, 780);
     }
     return app::run(*app, {.title = "PRISM Synth Rack", .width = 1200, .height = 780,
-                           .settings = &app->prefs, .organization = "prism", .name = "synth-rack"});
+                           .settings = &app->settings, .organization = "prism", .name = "synth-rack"});
 }

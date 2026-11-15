@@ -6,7 +6,7 @@
 
 // Docked panel layout and window size, persisted like any other setting. At namespace scope: the
 // settings file is reflected over a type with external linkage.
-struct SynthPrefs {
+struct RackSettings {
     prism::core::Field<prism::ui::DockLayout> layout{{prism::ui::dock_split(
         /*vertical=*/true,
         {prism::ui::dock_split(/*vertical=*/false,

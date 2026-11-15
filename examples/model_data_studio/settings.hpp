@@ -6,7 +6,7 @@
 
 // The studio's docked layout and window size, persisted like any other setting. At namespace scope:
 // the settings file is reflected over a type with external linkage.
-struct DataStudioPrefs {
+struct DataStudioSettings {
     prism::core::Field<prism::ui::DockLayout> layout{{prism::ui::dock_split(
         /*vertical=*/false,
         {prism::ui::dock_split(/*vertical=*/true,

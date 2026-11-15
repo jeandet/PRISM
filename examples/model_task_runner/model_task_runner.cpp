@@ -18,7 +18,7 @@ using namespace prism;
 
 // Glaze reflects this struct: every member is a key, a nested struct a table. Keep it out of an
 // anonymous namespace (Glaze needs a type with linkage).
-struct TaskRunnerPrefs {
+struct TaskRunnerSettings {
     core::Field<ui::DockLayout> layout{{ui::dock_split(/*vertical=*/false, {
         ui::dock_group({"tasks"}),
         ui::dock_group({"console"})
@@ -30,7 +30,7 @@ struct TaskRunnerPrefs {
 // between them. What each block is lives in `blocks/`; what a run does on its own thread, and
 // what a console can read out of the output, lives in `process/` and has no PRISM in it.
 struct TaskRunnerApp {
-    TaskRunnerPrefs prefs;
+    TaskRunnerSettings settings;
 
     // Declared before the blocks on purpose: a run's thread sends through it, and the blocks'
     // threads are joined (in ~ConsolePane) before this dies.
@@ -105,7 +105,7 @@ struct TaskRunnerApp {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.vstack([&] {
-            vb.dock(prefs.layout, {
+            vb.dock(settings.layout, {
                 {"tasks", "Tasks", [&](app::WidgetTree::ViewBuilder& p) { p.block(tasks); }},
                 {"console", "Console", [&](app::WidgetTree::ViewBuilder& p) { p.block(consoles); }},
             });
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     }
 
     app::run(app, {.title = "PRISM Task Runner", .width = 1000, .height = 700,
-                   .settings = &app.prefs, .organization = "prism", .name = "task-runner"},
+                   .settings = &app.settings, .organization = "prism", .name = "task-runner"},
              [&app](app::AppContext& ctx) {
         ctx.receive(app.link.output, [&app](const runner::OutputBatch& batch) { app.ingest(batch); });
 

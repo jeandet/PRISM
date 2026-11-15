@@ -35,7 +35,7 @@ std::string format_seconds_ago(double seconds_ago) {
 }
 
 // What the monitor remembers between runs (app/settings.hpp): its panels' layout and its size.
-struct MonitorPrefs {
+struct MonitorSettings {
     // Plots above; the process table, tree and event log as tabs below.
     core::Field<ui::DockLayout> layout{{ui::dock_split(true, {ui::dock_group({"plots"}),
                                                           ui::dock_group({"table", "tree", "events"})})}};
@@ -43,7 +43,7 @@ struct MonitorPrefs {
 };
 
 struct SystemMonitor {
-    MonitorPrefs prefs;
+    MonitorSettings settings;
     // Background-thread ingest points: the sampler threads set them, ctx.receive() in main()
     // hands each value to the logic thread.
     core::Shared<SystemSample> sys_sample{};
@@ -156,9 +156,10 @@ struct SystemMonitor {
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         // The panels are a dock (doc/design/drag-and-docking.md): their arrangement is
-        // prefs.layout, saved with the settings; the heartbeat stays below it.
+        // settings.layout, saved so they come back where the user left them. The heartbeat
+        // stays below the dock.
         vb.vstack([&] {
-            vb.dock(prefs.layout, {
+            vb.dock(settings.layout, {
                 {"plots", "Plots", [&](app::WidgetTree::ViewBuilder& p) { plot_group.view(p); }},
                 {"table", "Table", [&](app::WidgetTree::ViewBuilder& p) {
                      p.table(process_table).sort(2, /*descending=*/true).depends_on(process_revision);   // CPU %
@@ -187,7 +188,7 @@ int main(int argc, char* argv[]) {
     std::jthread proc_thread;
 
     app::run(app, {.title = "PRISM System Monitor", .width = 900, .height = 700,
-                   .settings = &app.prefs, .organization = "prism", .name = "system-monitor"},
+                   .settings = &app.settings, .organization = "prism", .name = "system-monitor"},
              [&](app::AppContext& ctx) {
         ctx.clock().add([&app](ui::AnimationClock::time_point now) {
             double t = std::chrono::duration<double>(now.time_since_epoch()).count();
