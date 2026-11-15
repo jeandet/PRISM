@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 372" width="1020" height="372" role="img" aria-label="Three threads: knobs feed one Derived settings value that crosses to the audio callback through a lock-free Latest; the callback's samples go through a sample ring to the analysis thread, whose frames come back to the logic thread through a Shared and ctx.receive, where the analyzer repaints.">
+  <style>
+    text { font: 13px system-ui, sans-serif; fill: #1f2328; }
+    .small { font-size: 11.5px; fill: #57606a; }
+    .lane-title { font-weight: 600; font-size: 12.5px; }
+    .box { fill: #ffffff; stroke: #57606a; stroke-width: 1.2; }
+    .key { stroke: #7c3cf5; stroke-width: 1.8; }
+    .arrow { stroke: #57606a; stroke-width: 1.5; fill: none; }
+    .hot { stroke: #f2542d; }
+    .tip { fill: #57606a; }
+    .tip.hot { fill: #f2542d; }
+    .logic { fill: #22b4ff; fill-opacity: 0.10; }
+    .audio { fill: #f2542d; fill-opacity: 0.09; }
+    .analysis { fill: #36d6cf; fill-opacity: 0.12; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .small { fill: #9da7b3; }
+      .box { fill: #161b22; stroke: #9da7b3; }
+      .arrow { stroke: #9da7b3; }
+      .tip { fill: #9da7b3; }
+      .key { stroke: #a371f7; }
+      .hot { stroke: #ff7b5c; }
+      .tip.hot { fill: #ff7b5c; }
+    }
+  </style>
+
+  <!-- lanes -->
+  <rect class="logic" x="8" y="20" width="1004" height="120" rx="8"/>
+  <rect class="audio" x="8" y="160" width="1004" height="88" rx="8"/>
+  <rect class="analysis" x="8" y="268" width="1004" height="88" rx="8"/>
+  <text class="lane-title" x="20" y="40">logic thread</text>
+  <text class="small" x="20" y="56">owns every Field</text>
+  <text class="lane-title" x="20" y="180">audio callback</text>
+  <text class="small" x="20" y="196">never waits, never allocates</text>
+  <text class="lane-title" x="20" y="288">analysis thread</text>
+  <text class="small" x="20" y="304">FFT at display rate</text>
+
+  <!-- logic lane -->
+  <rect class="box" x="200" y="66" width="150" height="48" rx="6"/>
+  <text x="275" y="86" text-anchor="middle">blocks/</text>
+  <text class="small" x="275" y="103" text-anchor="middle">knobs, gates, waveform</text>
+
+  <rect class="box key" x="420" y="66" width="180" height="48" rx="6"/>
+  <text x="510" y="86" text-anchor="middle">Derived&lt;SynthSettings&gt;</text>
+  <text class="small" x="510" y="103" text-anchor="middle">every control, one value</text>
+
+  <rect class="box" x="650" y="66" width="130" height="48" rx="6"/>
+  <text x="715" y="86" text-anchor="middle">feed.frame</text>
+  <text class="small" x="715" y="103" text-anchor="middle">Field&lt;AnalyzerFrame&gt;</text>
+
+  <rect class="box" x="870" y="66" width="130" height="48" rx="6"/>
+  <text x="935" y="86" text-anchor="middle">Analyzer, Output</text>
+  <text class="small" x="935" y="103" text-anchor="middle">repaint</text>
+
+  <!-- audio lane -->
+  <rect class="box" x="200" y="182" width="150" height="44" rx="6"/>
+  <text x="275" y="208" text-anchor="middle">audio device</text>
+
+  <rect class="box" x="420" y="182" width="180" height="44" rx="6"/>
+  <text x="510" y="201" text-anchor="middle">engine.render()</text>
+  <text class="small" x="510" y="217" text-anchor="middle">512 frames per call</text>
+
+  <!-- analysis lane -->
+  <rect class="box" x="650" y="290" width="130" height="44" rx="6"/>
+  <text x="715" y="309" text-anchor="middle">FFT, bands</text>
+  <text class="small" x="715" y="325" text-anchor="middle">scope window</text>
+
+  <!-- arrows -->
+  <line class="arrow" x1="350" y1="90" x2="414" y2="90"/>
+  <polygon class="tip" points="420,90 412,86 412,94"/>
+  <text class="small" x="385" y="80" text-anchor="middle">change</text>
+
+  <line class="arrow hot" x1="510" y1="114" x2="510" y2="175"/>
+  <polygon class="tip hot" points="510,182 506,174 514,174"/>
+  <text class="small" x="520" y="140">core::Latest: no lock,</text>
+  <text class="small" x="520" y="154">no allocation</text>
+
+  <line class="arrow" x1="420" y1="204" x2="356" y2="204"/>
+  <polygon class="tip" points="350,204 358,200 358,208"/>
+  <text class="small" x="385" y="196" text-anchor="middle">samples</text>
+
+  <polyline class="arrow" points="560,226 560,312 644,312"/>
+  <polygon class="tip" points="650,312 642,308 642,316"/>
+  <text class="small" x="568" y="302">SampleRing</text>
+
+  <line class="arrow" x1="715" y1="290" x2="715" y2="121"/>
+  <polygon class="tip" points="715,114 711,122 719,122"/>
+  <text class="small" x="725" y="140">Shared + ctx.receive:</text>
+  <text class="small" x="725" y="154">the latest frame wins</text>
+
+  <line class="arrow" x1="780" y1="90" x2="864" y2="90"/>
+  <polygon class="tip" points="870,90 862,86 862,94"/>
+  <text class="small" x="825" y="80" text-anchor="middle">depends_on</text>
+</svg>

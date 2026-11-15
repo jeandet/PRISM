@@ -1,22 +1,51 @@
-# model_synth_rack Example
+# Synth Rack
 
 A small synthesizer: an arpeggiator, a resonant filter, a feedback delay, and a spectrum
-analyzer that draws what comes out. Its audio callback runs on a thread of its own. Press
-**Power** and it plays; the numbers under **Output & Callback Budget** are what that callback
-actually costs, measured on the machine you are looking at.
+analyzer that draws what comes out. Its audio runs on a real-time thread that never waits for the
+window. Press **Power** and it plays.
 
-The PRISM part is `model_synth_rack.cpp` plus `blocks/` — 816 lines, the docked panels and the one
-settings value that reaches the audio thread. Everything below `dsp/` is plain C++ with no PRISM in
-it: an oscillator, a filter, an envelope, a delay, an FFT. `audio_thread.hpp` is the thread glue
-between the two.
+<p align="center"><img src="../../doc/screenshots/synth_rack.svg" alt="The synth rack: the analyzer on the left, the arpeggiator, voice and output panels on the right, the sixteen step gates below" width="700"/></p>
 
-<p align="center"><img src="../../doc/screenshots/synth_rack.svg" alt="model_synth_rack screenshot" width="700"/></p>
+It shows three things:
 
-## Blocks
+- **Blocks.** Each panel is a small struct with its own fields and view. The app only puts them
+  together.
+- **A real-time thread next to the UI.** One settings value goes to the audio thread without a
+  lock; display frames come back without blocking it.
+- **Custom drawing.** The analyzer is one canvas: spectrum bands, a scope, a playhead, a meter.
 
-Each panel is a struct with its fields, its `view()` and its reactions. The app composes them with
-`vb.block(...)` and never mentions a control of its own. This is the whole effects panel, the
-shortest of the six:
+## Running the example
+
+- **In the browser:** open the [live demo](https://jeandet.github.io/PRISM/model_synth_rack.html).
+  Browsers start audio only after a click, so press **Power**.
+- **On the desktop:** `ninja -C builddir examples/model_synth_rack/model_synth_rack`, then run
+  `builddir/examples/model_synth_rack/model_synth_rack`. With no sound card it still runs: the same
+  render function runs on a timer, so the analyzer stays live.
+
+## How it fits together
+
+<p align="center"><img src="diagrams/threads.svg" alt="Three threads: knobs feed one Derived settings value that crosses to the audio callback through a lock-free Latest; samples go through a sample ring to the analysis thread, whose frames come back to the logic thread through a Shared and ctx.receive" width="900"/></p>
+
+Three threads, and only one of them touches the model:
+
+1. The **logic thread** owns every field. Turning a knob changes a field in a block. One
+   `Derived<SynthSettings>` gathers every control into one value.
+2. That value goes to the **audio callback** through a `core::Latest`: no lock, no allocation. The
+   callback renders 512 frames from the newest settings and never waits for anything.
+3. The callback also copies its samples into a ring. The **analysis thread** reads the newest
+   2048, runs the FFT, and sends one display frame back through a `Shared`. `ctx.receive` hands it
+   to the logic thread, and the analyzer repaints.
+
+## Walkthrough
+
+Read the files in this order. The PRISM part is `model_synth_rack.cpp`, `rack_settings.hpp` and
+`blocks/`, about 790 lines. `audio_thread.hpp` (175 lines) is the thread glue. `dsp/` is plain C++
+with no PRISM in it.
+
+### A block: the effects panel
+
+`blocks/effects.hpp` is the shortest panel, and it is the whole pattern. Three fields, a `view()`
+that lays them out, and a `settings()` that says what this panel contributes to the sound:
 
 ```cpp
 struct Effects {
@@ -45,8 +74,34 @@ struct Effects {
 };
 ```
 
-`settings()` returns that panel's slice of what the audio thread reads. The app pastes the six
-slices together once, in one `Derived<SynthSettings>`:
+A knob is a `Field<gallery::Knob>`: the widget the gallery builds from scratch in
+[`knob.hpp`](../widget_gallery/knob.hpp). It prints its own label and value, and snaps to its
+step. Nothing here knows about threads.
+
+### The app composes the blocks
+
+`SynthApp` in `model_synth_rack.cpp` declares the blocks as members:
+
+```cpp
+struct SynthApp {
+    RackSettings settings;                       // saved: the dock layout and window size
+    struct Feed { /* the display frame, and the Shared it arrives on */ } feed{};
+
+    synth::blocks::StepGates gates{};
+    synth::blocks::Arpeggiator arp{};
+    synth::blocks::Voice voice{};
+    synth::blocks::Effects effects{};
+    synth::blocks::Output output{feed.frame};
+    ...
+```
+
+Its `view()` puts each block in a dock panel with `p.block(effects)` and so on. The panels can be
+dragged and tabbed; their arrangement is part of `settings`, so it comes back next time.
+
+### One value to the audio thread
+
+The six blocks' slices are pasted together in one `Derived`. It lists every control it depends
+on, so it recomputes when any of them moves:
 
 ```cpp
 Link link{{[this] { return gather_settings(); },
@@ -55,50 +110,85 @@ Link link{{[this] { return gather_settings(); },
            effects.time, effects.feedback, effects.mix, output.volume}};
 ```
 
+`SynthSettings` is trivially copyable. The audio callback reads it from a `core::Latest<T>`, a
+triple buffer: publishing is one copy and one atomic exchange, and the reader always gets a whole
+value. `Shared<T>` would allocate on every change, which an audio callback must never do.
+
+### Wiring it up when the app starts
+
+A block (and the app is one) may have an `attach()`. It runs once, on the logic thread, before
+the first frame. This is where the synth connects the threads:
+
+```cpp
+void attach(app::AppContext& ctx) {
+    if (offline) return;   // the screenshot run renders once, with no threads
+    attached = true;
+    link.settings.observe([this](const synth::SynthSettings& live) { audio.publish(live); });
+    audio.publish(link.settings.get());
+    ctx.receive(feed.frames, [this](const synth::AnalyzerFrame& shot) { feed.frame.set(shot); });
+    start_analysis(ctx);
+}
+```
+
+`ctx.receive` is the one call for anything another thread sets: it wakes the logic thread when a
+frame arrives and hands it over there. The analyzer and output panels read `feed.frame` and
+repaint when it changes.
+
+### The analyzer is a canvas
+
+`blocks/analyzer.hpp` is 27 lines. It borrows the frame and the settings from the app, and draws
+when either changes:
+
+```cpp
+void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame, settings); }
+```
+
+The drawing itself is `blocks/analyzer_canvas.hpp`: log-frequency bands, a dB ruler, a scope
+triggered on a rising zero crossing, the playhead and the peak meter, all `DrawList` calls.
+
+### main()
+
+```cpp
+int main(int argc, char* argv[]) {
+    // On the heap: the delay line and the FFT buffers are ~200 KB, and a wasm stack is 64 KB.
+    auto app = std::make_unique<SynthApp>();
+    if (argc >= 2) {   // `model_synth_rack out.svg` saves the screenshot above
+        app->seed_demo_data();
+        return showcase(argc, argv, *app, 1200, 780);
+    }
+    return app::run(*app, {.title = "PRISM Synth Rack", .width = 1200, .height = 780,
+                           .settings = &app->settings, .organization = "prism", .name = "synth-rack"});
+}
+```
+
+`app::run` opens the window, loads `settings` and saves it on every change.
+
 ## Try this
 
-1. Press **Power**, then **Stall the logic thread (2 s)**. The window stops answering for two
-   seconds. The sound does not stop for a sample, and the analyzer is drawing again the moment
-   the window comes back.
-2. Drag **Cutoff** and **Resonance** while it plays. Each block renders from one settings
-   snapshot, so a control moving mid-block can never tear the render into a crackle.
-3. Switch the pattern to **UpDown** or **Random**, change **Tempo**, and uncheck a few of the
-   sixteen step boxes. The analyzer's step strip follows the beat.
-4. Read **callback … ms mean · … ms max**: that is the whole voice chain on one core, with most
-   of the 10.67 ms block budget still free.
+1. Press **Power**, then **Stall the logic thread (2 s)**. The window freezes for two seconds.
+   The sound does not stop for a sample: the audio thread never waits for the window.
+2. Drag **Cutoff** and **Resonance** while it plays. Each block of audio is rendered from one
+   whole settings value, so a knob moving mid-block cannot cause a crackle.
+3. Switch the pattern to **UpDown** or **Random**, change **Tempo**, and untick a few step gates.
+   The analyzer's step strip follows the beat.
+4. Read **callback … ms mean · … ms max**: the whole voice chain on one core, against a 10.67 ms
+   budget per block.
 
-## How it is built
+## Files
 
-- **Controls are knobs.** Every knob is a `Field<gallery::Knob>` — the same widget the widget
-  gallery builds from scratch in `examples/widget_gallery/knob.hpp`: a value type, its geometry,
-  and one `Widget<Knob>` specialization, no base class. Each carries its own label and step (and a
-  unit where the value has one), so it prints its value and snaps to its step on its own. The
-  waveform, chord and pattern are enums, so their dropdowns come free, and the sixteen step gates
-  are `Field<ui::Checkbox>`.
-- **One value crosses to the audio thread.** A `Derived<SynthSettings>` gathers the six blocks'
-  settings on the logic thread and publishes a trivially copyable snapshot into a `core::Latest`, a
-  lock-free triple buffer. The callback reads the newest snapshot at the top of each block.
-  PRISM's usual handoff, `core::Shared<T>`, allocates on `set()`, which an audio callback must not
-  do.
-- **Samples come back in a ring, display frames in a `Shared`.** The callback writes its block
-  into a preallocated `SampleRing` of relaxed atomics, so the reader can never race the writer. A
-  second thread takes the newest 2048 samples thirty times a second, runs the FFT, and publishes
-  one `AnalyzerFrame` through a `core::Shared`; the model drains it on the logic thread, so the
-  canvas repaints when a frame arrives or a control changes, and at no other time. Where the
-  platform has no worker to spare, the same analysis runs on the logic thread instead.
-- **The analyzer is a canvas.** Log-frequency bands, a dB ruler, a scope triggered on a rising
-  zero crossing, the step playhead and the peak meter are all `DrawList` calls in
-  `blocks/analyzer_canvas.hpp`, drawn from a frame and the settings that made it. The block around
-  it is 39 lines: where its two inputs come from, one `depends_on`, one `canvas()`.
-- **No audio device is not a failure.** With no sound card, or when the browser refuses to open
-  an audio context, the same render function runs on a timer thread at the block rate, so the
-  analyzer and the budget readout stay live and the status bar says why it is silent. A browser
-  that only suspends its context is simpler still: SDL keeps calling the callback with a silent
-  buffer until the first user gesture resumes it.
-- **The synth is pure.** `dsp/` holds it: `oscillator.hpp` (polyBLEP), `filter.hpp`,
-  `envelope.hpp`, `delay.hpp`, `arpeggiator.hpp`, `engine.hpp` (the chain), `spectrum.hpp` (FFT,
-  log bands, scope trigger) and `sample_ring.hpp` (the display tap). No threads, no IO, no SDL.
-  `tests/test_synth_rack.cpp` tests them directly.
+| File | What it is |
+|---|---|
+| `model_synth_rack.cpp` | The app: composes the blocks, connects the threads in `attach()`, `main()`. |
+| `rack_settings.hpp` | What is saved between runs: the dock layout and window size. |
+| `blocks/arpeggiator.hpp` | Power, tempo, octaves, chord, pattern. |
+| `blocks/step_gates.hpp` | The sixteen step checkboxes, and the mask they make. |
+| `blocks/voice.hpp` | Waveform, cutoff, resonance, attack, release. |
+| `blocks/effects.hpp` | Delay time, feedback, mix. |
+| `blocks/output.hpp` | Volume, the callback budget readout, the stall button. |
+| `blocks/analyzer.hpp`, `analyzer_canvas.hpp` | The analyzer panel, and its drawing. |
+| `audio_thread.hpp` | The audio device, the engine, the ring and the analysis loop. |
+| `dsp/` | The synth itself, no PRISM: oscillator, filter, envelope, delay, arpeggiator, engine, FFT. |
+| `diagrams/threads.svg` | The picture above. |
 
-There is no Python counterpart: PRISM's Python bindings have no audio device, and the whole
-point of this example is the real-time path.
+`tests/test_synth_rack.cpp` tests `dsp/` directly: no window, no thread. There is no Python
+version: the Python bindings have no audio device.
