@@ -1,9 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include "../examples/model_synth_rack/rt_latest.hpp"
-#include "../examples/model_synth_rack/spectrum.hpp"
-#include "../examples/model_synth_rack/synth_model.hpp"
+#include "../examples/model_synth_rack/dsp/arpeggiator.hpp"
+#include "../examples/model_synth_rack/dsp/engine.hpp"
+#include "../examples/model_synth_rack/dsp/rt_latest.hpp"
+#include "../examples/model_synth_rack/dsp/spectrum.hpp"
 
 #include <algorithm>
 #include <array>

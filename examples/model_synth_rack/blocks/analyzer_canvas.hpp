@@ -11,13 +11,14 @@
 #include <string>
 #include <vector>
 
-#include "spectrum.hpp"
-#include "synth_model.hpp"
+#include "../dsp/spectrum.hpp"
+#include "../dsp/arpeggiator.hpp"
+#include "../dsp/settings.hpp"
 
 // The analyzer, drawn: log-frequency bars on a dB grid, a triggered scope strip, the step
 // playhead and the peak meter. Pure drawing -- takes a frame and the settings it was made
 // from, touches no model and no threads, so it is easy to reason about on its own.
-namespace prism::synth::rack_canvas {
+namespace prism::synth::analyzer_canvas {
 
 inline const core::Color kScreen = core::Color::rgba(8, 11, 16);
 inline const core::Color kStrip = core::Color::rgba(14, 19, 26);
@@ -235,4 +236,4 @@ inline void draw(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& 
     dl.rounded_rect(bounds, node.theme->border, 0.f, 1.f);
 }
 
-} // namespace prism::synth::rack_canvas
+} // namespace prism::synth::analyzer_canvas

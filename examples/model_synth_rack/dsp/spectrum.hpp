@@ -1,6 +1,6 @@
 #pragma once
 
-#include "synth_model.hpp"
+#include "settings.hpp"
 
 #include <algorithm>
 #include <array>
