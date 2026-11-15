@@ -154,283 +154,325 @@
 </g>
 <clipPath id="clip-4"><rect x="817.92" y="32" width="382.08" height="150.838"/></clipPath>
 <g clip-path="url(#clip-4)">
-<clipPath id="clip-5"><rect x="817.92" y="32" width="382.08" height="32"/></clipPath>
+<clipPath id="clip-5"><rect x="817.92" y="32" width="382.08" height="150.838"/></clipPath>
 <g clip-path="url(#clip-5)">
+<clipPath id="clip-6"><rect x="817.92" y="32" width="382.08" height="32"/></clipPath>
+<g clip-path="url(#clip-6)">
 <rect x="817.92" y="32" width="382.08" height="32" fill="rgba(30,90,160,1)"/>
 <rect x="817.92" y="32" width="382.08" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
 <text xml:space="preserve" x="825.92" y="39" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Power</text>
 </g>
-<clipPath id="clip-6"><rect x="817.92" y="64" width="382.08" height="48"/></clipPath>
-<g clip-path="url(#clip-6)">
-<text xml:space="preserve" x="821.92" y="66" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Tempo</text>
-<text xml:space="preserve" x="1149.2" y="66" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">96 BPM</text>
-<rect x="817.92" y="96" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="913.083" y="84" width="12" height="30" fill="rgba(0,140,200,1)"/>
-</g>
-<clipPath id="clip-7"><rect x="817.92" y="112" width="382.08" height="30"/></clipPath>
+<clipPath id="clip-7"><rect x="817.92" y="64" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-7)">
-<rect x="817.92" y="112" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="825.92" y="119" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cmaj7</text>
-<text xml:space="preserve" x="1180" y="119" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
+<rect x="817.92" y="64" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="853.92" cy="90" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="853.92" cy="90" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="838.364,105.556 836.914,103.957 835.628,102.223 834.518,100.371 833.595,98.419 832.867,96.3863 832.343,94.292 832.026,92.1564 831.92,90 832.026,87.8436 832.343,85.708 832.867,83.6137 833.595,81.581 834.518,79.6293 835.628,77.7775 836.914,76.0433 838.364,74.4436 839.963,72.9938 841.697,71.7077 843.549,70.5977 845.501,69.6746 847.534,68.9473 849.628,68.4227 851.764,68.1059 853.92,68 856.076,68.1059 858.212,68.4227 860.306,68.9473 862.339,69.6747 864.291,70.5977 866.143,71.7077 867.877,72.9938 869.476,74.4437 870.926,76.0434 872.212,77.7775 873.322,79.6293 874.245,81.581 874.973,83.6137 875.497,85.708 875.814,87.8436 875.92,90 875.814,92.1564 875.497,94.292 874.973,96.3863 874.245,98.419 873.322,100.371 872.212,102.223 870.926,103.957 869.476,105.556" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="838.364,105.556 837.976,105.159 837.598,104.751 837.231,104.335 836.875,103.909 836.529,103.474 836.194,103.031 835.871,102.579 835.559,102.12 835.259,101.652 834.971,101.178 834.695,100.696 834.431,100.207 834.18,99.7119 833.941,99.2105 833.715,98.7033 833.501,98.1905 833.301,97.6724 833.114,97.1495 832.94,96.6221 832.78,96.0904 832.633,95.5548 832.499,95.0157 832.38,94.4734 832.274,93.9283 832.181,93.3806 832.103,92.8308 832.038,92.2792 831.988,91.7261 831.951,91.1719 831.929,90.617 831.92,90.0617 831.926,89.5064 831.945,88.9513 831.978,88.397 832.026,87.8436 832.087,87.2917 832.163,86.7414 832.252,86.1932 832.355,85.6475 832.472,85.1045 832.602,84.5647 832.746,84.0283 832.903,83.4957 833.074,82.9673 833.258,82.4434 833.456,81.9242 833.666,81.4102 833.889,80.9017" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="848.093" y1="87.3532" x2="840.263" y2="83.7966" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="853.92" y="115" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Tempo</text>
+<text xml:space="preserve" x="853.92" y="128" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">96 BPM</text>
 </g>
-<clipPath id="clip-8"><rect x="817.92" y="142" width="382.08" height="30"/></clipPath>
+<clipPath id="clip-8"><rect x="897.92" y="64" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-8)">
-<rect x="817.92" y="142" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="825.92" y="149" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Up</text>
-<text xml:space="preserve" x="1180" y="149" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
+<rect x="897.92" y="64" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="933.92" cy="90" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="933.92" cy="90" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="918.364,105.556 916.914,103.957 915.628,102.223 914.518,100.371 913.595,98.419 912.867,96.3863 912.343,94.292 912.026,92.1564 911.92,90 912.026,87.8436 912.343,85.708 912.867,83.6137 913.595,81.581 914.518,79.6293 915.628,77.7775 916.914,76.0433 918.364,74.4436 919.963,72.9938 921.697,71.7077 923.549,70.5977 925.501,69.6746 927.534,68.9473 929.628,68.4227 931.764,68.1059 933.92,68 936.076,68.1059 938.212,68.4227 940.306,68.9473 942.339,69.6747 944.291,70.5977 946.143,71.7077 947.877,72.9938 949.476,74.4437 950.926,76.0434 952.212,77.7775 953.322,79.6293 954.245,81.581 954.973,83.6137 955.497,85.708 955.814,87.8436 955.92,90 955.814,92.1564 955.497,94.292 954.973,96.3863 954.245,98.419 953.322,100.371 952.212,102.223 950.926,103.957 949.476,105.556" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="918.364,105.556 917.619,104.774 916.914,103.957 916.249,103.105 915.628,102.223 915.05,101.31 914.518,100.371 914.032,99.4062 913.595,98.419 913.206,97.4116 912.867,96.3863 912.579,95.3456 912.343,94.292 912.158,93.2281 912.026,92.1564 911.946,91.0795 911.92,90 911.946,88.9205 912.026,87.8436 912.158,86.7719 912.343,85.708 912.579,84.6544 912.867,83.6137 913.206,82.5884 913.595,81.581 914.032,80.5938 914.518,79.6293 915.05,78.6897 915.628,77.7775 916.249,76.8946 916.914,76.0434 917.619,75.2257 918.364,74.4436 919.146,73.6991 919.963,72.9938 920.815,72.3294 921.697,71.7077 922.61,71.13 923.549,70.5977 924.514,70.1122 925.501,69.6747 926.508,69.286 927.534,68.9473 928.574,68.6593 929.628,68.4227 930.692,68.2381 931.764,68.1059 932.841,68.0265 933.92,68" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="933.92" y1="83.6" x2="933.92" y2="75" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="933.92" y="115" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Octaves</text>
+<text xml:space="preserve" x="933.92" y="128" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">2 oct</text>
 </g>
-<clipPath id="clip-9"><rect x="817.92" y="172" width="382.08" height="10.838"/></clipPath>
+<clipPath id="clip-9"><rect x="817.92" y="140" width="382.08" height="30"/></clipPath>
 <g clip-path="url(#clip-9)">
-<text xml:space="preserve" x="821.92" y="174" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Octave span</text>
-<text xml:space="preserve" x="1157" y="174" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2 oct</text>
-<rect x="817.92" y="204" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="1002.96" y="192" width="12" height="30" fill="rgba(0,140,200,1)"/>
+<rect x="817.92" y="140" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="825.92" y="147" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cmaj7</text>
+<text xml:space="preserve" x="1180" y="147" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
 </g>
-</g>
-<clipPath id="clip-10"><rect x="817.92" y="182.838" width="382.08" height="6"/></clipPath>
+<clipPath id="clip-10"><rect x="817.92" y="170" width="382.08" height="12.838"/></clipPath>
 <g clip-path="url(#clip-10)">
+<rect x="817.92" y="170" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="825.92" y="177" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Up</text>
+<text xml:space="preserve" x="1180" y="177" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
+</g>
+</g>
+</g>
+<clipPath id="clip-11"><rect x="817.92" y="182.838" width="382.08" height="6"/></clipPath>
+<g clip-path="url(#clip-11)">
 <rect x="817.92" y="182.838" width="382.08" height="6" fill="rgba(90,90,100,0.627451)"/>
 </g>
-<clipPath id="clip-11"><rect x="817.92" y="188.838" width="382.08" height="32"/></clipPath>
-<g clip-path="url(#clip-11)">
+<clipPath id="clip-12"><rect x="817.92" y="188.838" width="382.08" height="32"/></clipPath>
+<g clip-path="url(#clip-12)">
 <rect x="817.92" y="188.838" width="74" height="32" fill="rgba(42,42,58,1)"/>
 <rect x="817.92" y="188.838" width="74" height="32" fill="rgba(30,30,46,1)"/>
 <text xml:space="preserve" x="833.92" y="196.838" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Voice</text>
 <rect x="817.92" y="218.838" width="74" height="2" fill="rgba(124,111,255,1)"/>
 </g>
-<clipPath id="clip-12"><rect x="817.92" y="220.838" width="382.08" height="209.818"/></clipPath>
-<g clip-path="url(#clip-12)">
-<clipPath id="clip-13"><rect x="817.92" y="220.838" width="382.08" height="30"/></clipPath>
+<clipPath id="clip-13"><rect x="817.92" y="220.838" width="382.08" height="209.818"/></clipPath>
 <g clip-path="url(#clip-13)">
+<clipPath id="clip-14"><rect x="817.92" y="220.838" width="382.08" height="30"/></clipPath>
+<g clip-path="url(#clip-14)">
 <rect x="817.92" y="220.838" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="825.92" y="227.838" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Saw</text>
 <text xml:space="preserve" x="1180" y="227.838" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">▾</text>
 </g>
-<clipPath id="clip-14"><rect x="817.92" y="250.838" width="382.08" height="48"/></clipPath>
-<g clip-path="url(#clip-14)">
-<text xml:space="preserve" x="821.92" y="252.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Cutoff</text>
-<text xml:space="preserve" x="1141.4" y="252.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2400 Hz</text>
-<rect x="817.92" y="282.838" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="889.448" y="270.838" width="12" height="30" fill="rgba(0,140,200,1)"/>
-</g>
-<clipPath id="clip-15"><rect x="817.92" y="298.838" width="382.08" height="48"/></clipPath>
+<clipPath id="clip-15"><rect x="817.92" y="250.838" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-15)">
-<text xml:space="preserve" x="821.92" y="300.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Resonance</text>
-<text xml:space="preserve" x="1157" y="300.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">1.4 Q</text>
-<rect x="817.92" y="330.838" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="846.883" y="318.838" width="12" height="30" fill="rgba(0,140,200,1)"/>
+<rect x="817.92" y="250.838" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="853.92" cy="276.838" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="853.92" cy="276.838" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="838.364,292.394 836.914,290.795 835.628,289.061 834.518,287.209 833.595,285.257 832.867,283.224 832.343,281.13 832.026,278.994 831.92,276.838 832.026,274.682 832.343,272.546 832.867,270.452 833.595,268.419 834.518,266.467 835.628,264.615 836.914,262.881 838.364,261.282 839.963,259.832 841.697,258.546 843.549,257.436 845.501,256.513 847.534,255.785 849.628,255.261 851.764,254.944 853.92,254.838 856.076,254.944 858.212,255.261 860.306,255.785 862.339,256.513 864.291,257.436 866.143,258.546 867.877,259.832 869.476,261.282 870.926,262.881 872.212,264.615 873.322,266.467 874.245,268.419 874.973,270.452 875.497,272.546 875.814,274.682 875.92,276.838 875.814,278.994 875.497,281.13 874.973,283.224 874.245,285.257 873.322,287.209 872.212,289.061 870.926,290.795 869.476,292.394" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="838.364,292.394 838.071,292.096 837.785,291.793 837.504,291.484 837.229,291.17 836.96,290.851 836.697,290.526 836.44,290.197 836.19,289.863 835.946,289.524 835.709,289.181 835.478,288.833 835.254,288.481 835.036,288.125 834.825,287.765 834.621,287.4 834.424,287.032 834.234,286.66 834.052,286.285 833.876,285.907 833.708,285.525 833.546,285.14 833.393,284.751 833.246,284.361 833.107,283.967 832.976,283.571 832.852,283.172 832.735,282.771 832.626,282.368 832.525,281.963 832.432,281.556 832.346,281.148 832.268,280.738 832.198,280.326 832.136,279.913 832.082,279.5 832.035,279.085 831.996,278.669 831.966,278.253 831.943,277.836 831.928,277.419 831.921,277.001 831.921,276.584 831.93,276.167 831.947,275.749 831.972,275.333 832.004,274.917 832.044,274.501 832.093,274.086" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="847.57" y1="276.038" x2="839.038" y2="274.962" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="853.92" y="301.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Cutoff</text>
+<text xml:space="preserve" x="853.92" y="314.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">2400 Hz</text>
 </g>
-<clipPath id="clip-16"><rect x="817.92" y="346.838" width="382.08" height="48"/></clipPath>
+<clipPath id="clip-16"><rect x="895.92" y="250.838" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-16)">
-<text xml:space="preserve" x="821.92" y="348.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Attack</text>
-<text xml:space="preserve" x="1164.8" y="348.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">6 ms</text>
-<rect x="817.92" y="378.838" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="822.558" y="366.838" width="12" height="30" fill="rgba(0,140,200,1)"/>
+<rect x="895.92" y="250.838" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="931.92" cy="276.838" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="931.92" cy="276.838" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="916.364,292.394 914.914,290.795 913.628,289.061 912.518,287.209 911.595,285.257 910.867,283.224 910.343,281.13 910.026,278.994 909.92,276.838 910.026,274.682 910.343,272.546 910.867,270.452 911.595,268.419 912.518,266.467 913.628,264.615 914.914,262.881 916.364,261.282 917.963,259.832 919.697,258.546 921.549,257.436 923.501,256.513 925.534,255.785 927.628,255.261 929.764,254.944 931.92,254.838 934.076,254.944 936.212,255.261 938.306,255.785 940.339,256.513 942.291,257.436 944.143,258.546 945.877,259.832 947.476,261.282 948.926,262.881 950.212,264.615 951.322,266.467 952.245,268.419 952.973,270.452 953.497,272.546 953.814,274.682 953.92,276.838 953.814,278.994 953.497,281.13 952.973,283.224 952.245,285.257 951.322,287.209 950.212,289.061 948.926,290.795 947.476,292.394" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="916.364,292.394 916.245,292.274 916.126,292.153 916.009,292.032 915.893,291.909 915.778,291.785 915.663,291.661 915.55,291.536 915.437,291.409 915.326,291.282 915.215,291.154 915.106,291.026 914.997,290.896 914.89,290.766 914.783,290.634 914.678,290.502 914.573,290.369 914.47,290.236 914.368,290.101 914.266,289.966 914.166,289.83 914.067,289.693 913.968,289.556 913.871,289.417 913.775,289.278 913.68,289.139 913.586,288.998 913.493,288.857 913.401,288.715 913.311,288.572 913.221,288.429 913.133,288.285 913.045,288.14 912.959,287.995 912.874,287.849 912.79,287.702 912.707,287.555 912.625,287.407 912.544,287.258 912.465,287.109 912.387,286.959 912.309,286.809 912.233,286.658 912.158,286.507 912.085,286.354 912.012,286.202 911.941,286.049 911.871,285.895 911.802,285.74" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="926.067" y1="279.428" x2="918.203" y2="282.908" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="931.92" y="301.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Resonance</text>
+<text xml:space="preserve" x="931.92" y="314.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">1.4 Q</text>
 </g>
-<clipPath id="clip-17"><rect x="817.92" y="394.838" width="382.08" height="35.818"/></clipPath>
+<clipPath id="clip-17"><rect x="817.92" y="326.838" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-17)">
-<text xml:space="preserve" x="821.92" y="396.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Release</text>
-<text xml:space="preserve" x="1149.2" y="396.838" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">180 ms</text>
-<rect x="817.92" y="426.838" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="868.1" y="414.838" width="12" height="30" fill="rgba(0,140,200,1)"/>
+<rect x="817.92" y="326.838" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="853.92" cy="352.838" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="853.92" cy="352.838" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="838.364,368.394 836.914,366.795 835.628,365.061 834.518,363.209 833.595,361.257 832.867,359.224 832.343,357.13 832.026,354.994 831.92,352.838 832.026,350.682 832.343,348.546 832.867,346.452 833.595,344.419 834.518,342.467 835.628,340.615 836.914,338.881 838.364,337.282 839.963,335.832 841.697,334.546 843.549,333.436 845.501,332.513 847.534,331.785 849.628,331.261 851.764,330.944 853.92,330.838 856.076,330.944 858.212,331.261 860.306,331.785 862.339,332.513 864.291,333.436 866.143,334.546 867.877,335.832 869.476,337.282 870.926,338.881 872.212,340.615 873.322,342.467 874.245,344.419 874.973,346.452 875.497,348.546 875.814,350.682 875.92,352.838 875.814,354.994 875.497,357.13 874.973,359.224 874.245,361.257 873.322,363.209 872.212,365.061 870.926,366.795 869.476,368.394" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="838.364,368.394 838.344,368.375 838.325,368.356 838.306,368.337 838.287,368.318 838.268,368.298 838.249,368.279 838.23,368.26 838.211,368.241 838.192,368.221 838.173,368.202 838.155,368.182 838.136,368.163 838.117,368.144 838.098,368.124 838.079,368.105 838.06,368.085 838.042,368.066 838.023,368.046 838.004,368.027 837.986,368.007 837.967,367.987 837.948,367.968 837.93,367.948 837.911,367.928 837.893,367.909 837.874,367.889 837.856,367.869 837.837,367.849 837.819,367.83 837.8,367.81 837.782,367.79 837.763,367.77 837.745,367.75 837.727,367.73 837.708,367.71 837.69,367.69 837.672,367.67 837.654,367.65 837.635,367.63 837.617,367.61 837.599,367.59 837.581,367.57 837.563,367.55 837.545,367.53 837.527,367.51 837.509,367.49 837.491,367.469 837.473,367.449" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="849.135" y1="357.089" x2="842.706" y2="362.8" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="853.92" y="377.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Attack</text>
+<text xml:space="preserve" x="853.92" y="390.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">6 ms</text>
 </g>
-</g>
-<clipPath id="clip-18"><rect x="817.92" y="430.656" width="382.08" height="6"/></clipPath>
+<clipPath id="clip-18"><rect x="895.92" y="326.838" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-18)">
+<rect x="895.92" y="326.838" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="931.92" cy="352.838" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="931.92" cy="352.838" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="916.364,368.394 914.914,366.795 913.628,365.061 912.518,363.209 911.595,361.257 910.867,359.224 910.343,357.13 910.026,354.994 909.92,352.838 910.026,350.682 910.343,348.546 910.867,346.452 911.595,344.419 912.518,342.467 913.628,340.615 914.914,338.881 916.364,337.282 917.963,335.832 919.697,334.546 921.549,333.436 923.501,332.513 925.534,331.785 927.628,331.261 929.764,330.944 931.92,330.838 934.076,330.944 936.212,331.261 938.306,331.785 940.339,332.513 942.291,333.436 944.143,334.546 945.877,335.832 947.476,337.282 948.926,338.881 950.212,340.615 951.322,342.467 952.245,344.419 952.973,346.452 953.497,348.546 953.814,350.682 953.92,352.838 953.814,354.994 953.497,357.13 952.973,359.224 952.245,361.257 951.322,363.209 950.212,365.061 948.926,366.795 947.476,368.394" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="916.364,368.394 916.158,368.186 915.955,367.975 915.755,367.761 915.558,367.544 915.363,367.325 915.172,367.104 914.984,366.879 914.798,366.653 914.616,366.424 914.437,366.192 914.26,365.958 914.087,365.722 913.917,365.483 913.751,365.243 913.587,365 913.427,364.754 913.27,364.507 913.116,364.258 912.966,364.007 912.819,363.753 912.675,363.498 912.535,363.241 912.398,362.982 912.265,362.721 912.135,362.459 912.009,362.195 911.886,361.929 911.767,361.661 911.651,361.392 911.539,361.122 911.431,360.85 911.326,360.576 911.225,360.301 911.127,360.025 911.033,359.748 910.943,359.469 910.857,359.189 910.774,358.908 910.695,358.626 910.62,358.343 910.549,358.059 910.481,357.774 910.417,357.488 910.357,357.202 910.301,356.914 910.249,356.626 910.2,356.337 910.155,356.048" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="925.589" y1="353.772" x2="917.081" y2="355.027" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="931.92" y="377.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Release</text>
+<text xml:space="preserve" x="931.92" y="390.838" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">180 ms</text>
+</g>
+<clipPath id="clip-19"><rect x="817.92" y="402.838" width="382.08" height="27.818"/></clipPath>
+<g clip-path="url(#clip-19)">
+<rect x="817.92" y="402.838" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="821.92" y="406.838" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Saw · cutoff 2400 Hz · Q 1.4 · A 6 / R 180 ms</text>
+</g>
+</g>
+<clipPath id="clip-20"><rect x="817.92" y="430.656" width="382.08" height="6"/></clipPath>
+<g clip-path="url(#clip-20)">
 <rect x="817.92" y="430.656" width="382.08" height="6" fill="rgba(90,90,100,0.627451)"/>
 </g>
-<clipPath id="clip-19"><rect x="817.92" y="436.656" width="382.08" height="32"/></clipPath>
-<g clip-path="url(#clip-19)">
+<clipPath id="clip-21"><rect x="817.92" y="436.656" width="382.08" height="32"/></clipPath>
+<g clip-path="url(#clip-21)">
 <rect x="817.92" y="436.656" width="233.6" height="32" fill="rgba(42,42,58,1)"/>
 <rect x="817.92" y="436.656" width="233.6" height="32" fill="rgba(30,30,46,1)"/>
 <text xml:space="preserve" x="833.92" y="444.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Output &amp; Callback Budget</text>
 <rect x="817.92" y="466.656" width="233.6" height="2" fill="rgba(124,111,255,1)"/>
 </g>
-<clipPath id="clip-20"><rect x="817.92" y="468.656" width="382.08" height="133.144"/></clipPath>
-<g clip-path="url(#clip-20)">
-<clipPath id="clip-21"><rect x="817.92" y="468.656" width="382.08" height="48"/></clipPath>
-<g clip-path="url(#clip-21)">
-<text xml:space="preserve" x="821.92" y="470.656" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Master volume</text>
-<text xml:space="preserve" x="1141.4" y="470.656" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">-8.0 dB</text>
-<rect x="817.92" y="500.656" width="382.08" height="6" fill="rgba(60,60,70,1)"/>
-<rect x="1113.98" y="488.656" width="12" height="30" fill="rgba(0,140,200,1)"/>
-</g>
-<clipPath id="clip-22"><rect x="817.92" y="516.656" width="382.08" height="30"/></clipPath>
+<clipPath id="clip-22"><rect x="817.92" y="468.656" width="382.08" height="133.144"/></clipPath>
 <g clip-path="url(#clip-22)">
-<rect x="817.92" y="516.656" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="821.92" y="520.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.453 ms mean · 0.473 ms max</text>
-</g>
-<clipPath id="clip-23"><rect x="817.92" y="546.656" width="382.08" height="30"/></clipPath>
+<clipPath id="clip-23"><rect x="817.92" y="468.656" width="72" height="76"/></clipPath>
 <g clip-path="url(#clip-23)">
-<rect x="817.92" y="546.656" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="821.92" y="550.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">of 10.67 ms · 48000 Hz · 512 frames · 1 update</text>
+<rect x="817.92" y="468.656" width="72" height="76" fill="rgba(0,0,0,0)"/>
+<circle cx="853.92" cy="494.656" r="16" fill="rgba(65,65,78,1)"/>
+<circle cx="853.92" cy="494.656" r="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1"/>
+<polyline points="838.364,510.212 836.914,508.613 835.628,506.879 834.518,505.027 833.595,503.075 832.867,501.042 832.343,498.948 832.026,496.812 831.92,494.656 832.026,492.5 832.343,490.364 832.867,488.27 833.595,486.237 834.518,484.285 835.628,482.433 836.914,480.699 838.364,479.1 839.963,477.65 841.697,476.364 843.549,475.254 845.501,474.331 847.534,473.603 849.628,473.079 851.764,472.762 853.92,472.656 856.076,472.762 858.212,473.079 860.306,473.603 862.339,474.331 864.291,475.254 866.143,476.364 867.877,477.65 869.476,479.1 870.926,480.699 872.212,482.433 873.322,484.285 874.245,486.237 874.973,488.27 875.497,490.364 875.814,492.5 875.92,494.656 875.814,496.812 875.497,498.948 874.973,501.042 874.245,503.075 873.322,505.027 872.212,506.879 870.926,508.613 869.476,510.212" stroke="rgba(70,70,82,1)" fill="none" stroke-width="4"/>
+<polyline points="838.364,510.212 837.191,508.944 836.122,507.587 835.162,506.151 834.318,504.644 833.595,503.075 832.997,501.454 832.528,499.792 832.191,498.098 831.988,496.382 831.92,494.656 831.988,492.93 832.191,491.214 832.528,489.52 832.997,487.858 833.595,486.237 834.318,484.668 835.162,483.161 836.122,481.725 837.191,480.368 838.364,479.1 839.632,477.927 840.989,476.858 842.425,475.898 843.932,475.054 845.501,474.331 847.122,473.733 848.784,473.264 850.478,472.927 852.194,472.724 853.92,472.656 855.646,472.724 857.362,472.927 859.056,473.264 860.718,473.733 862.339,474.331 863.908,475.054 865.415,475.898 866.851,476.858 868.208,477.927 869.476,479.1 870.649,480.368 871.718,481.725 872.678,483.161 873.522,484.668 874.245,486.237 874.843,487.858 875.312,489.52 875.649,491.214" stroke="rgba(0,140,200,1)" fill="none" stroke-width="5"/>
+<line x1="860.241" y1="493.655" x2="868.735" y2="492.31" stroke="rgba(0,140,200,1)" stroke-width="2"/>
+<text xml:space="preserve" x="853.92" y="519.656" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(180,180,190,1)" text-anchor="middle" dominant-baseline="central">Volume</text>
+<text xml:space="preserve" x="853.92" y="532.656" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(220,220,220,1)" text-anchor="middle" dominant-baseline="central">-8.0 dB</text>
 </g>
-<clipPath id="clip-24"><rect x="817.92" y="576.656" width="382.08" height="25.144"/></clipPath>
+<clipPath id="clip-24"><rect x="817.92" y="544.656" width="382.08" height="30"/></clipPath>
 <g clip-path="url(#clip-24)">
-<rect x="817.92" y="576.656" width="382.08" height="32" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="825.92" y="583.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Stall the logic thread (2 s)</text>
+<rect x="817.92" y="544.656" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="821.92" y="548.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.477 ms mean · 0.594 ms max</text>
 </g>
-</g>
-<clipPath id="clip-25"><rect x="0" y="601.8" width="1200" height="6"/></clipPath>
+<clipPath id="clip-25"><rect x="817.92" y="574.656" width="382.08" height="27.144"/></clipPath>
 <g clip-path="url(#clip-25)">
+<rect x="817.92" y="574.656" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="821.92" y="578.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">of 10.67 ms · 48000 Hz · 512 frames · 1 update</text>
+</g>
+<clipPath id="clip-26"><rect x="817.92" y="604.656" width="382.08" height="0"/></clipPath>
+<g clip-path="url(#clip-26)">
+<rect x="817.92" y="604.656" width="382.08" height="32" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="825.92" y="611.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Stall the logic thread (2 s)</text>
+</g>
+<clipPath id="clip-27"><rect x="817.92" y="636.656" width="382.08" height="0"/></clipPath>
+<g clip-path="url(#clip-27)">
+<rect x="817.92" y="636.656" width="382.08" height="43.6" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="821.92" y="640.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">the audio thread never waits for the UI: </text>
+<text xml:space="preserve" x="821.92" y="660.256" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">start the engine and press the button</text>
+</g>
+</g>
+<clipPath id="clip-28"><rect x="0" y="601.8" width="1200" height="6"/></clipPath>
+<g clip-path="url(#clip-28)">
 <rect x="0" y="601.8" width="1200" height="6" fill="rgba(90,90,100,0.627451)"/>
 </g>
-<clipPath id="clip-26"><rect x="0" y="607.8" width="1200" height="32"/></clipPath>
-<g clip-path="url(#clip-26)">
+<clipPath id="clip-29"><rect x="0" y="607.8" width="1200" height="32"/></clipPath>
+<g clip-path="url(#clip-29)">
 <rect x="0" y="607.8" width="225.2" height="32" fill="rgba(42,42,58,1)"/>
 <rect x="0" y="607.8" width="225.2" height="32" fill="rgba(30,30,46,1)"/>
 <text xml:space="preserve" x="16" y="615.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Step Gates — 16th notes</text>
 <rect x="0" y="637.8" width="225.2" height="2" fill="rgba(124,111,255,1)"/>
 </g>
-<clipPath id="clip-27"><rect x="0" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-27)">
+<clipPath id="clip-30"><rect x="0" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-30)">
 <rect x="0" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="8" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="10" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="8" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="32" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">1</text>
 </g>
-<clipPath id="clip-28"><rect x="48.4" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-28)">
+<clipPath id="clip-31"><rect x="48.4" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-31)">
 <rect x="48.4" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="56.4" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="58.4" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="56.4" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="80.4" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2</text>
 </g>
-<clipPath id="clip-29"><rect x="96.8" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-29)">
+<clipPath id="clip-32"><rect x="96.8" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-32)">
 <rect x="96.8" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="104.8" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="106.8" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="104.8" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="128.8" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">3</text>
 </g>
-<clipPath id="clip-30"><rect x="145.2" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-30)">
+<clipPath id="clip-33"><rect x="145.2" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-33)">
 <rect x="145.2" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="153.2" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="155.2" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="153.2" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="177.2" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">4</text>
 </g>
-<clipPath id="clip-31"><rect x="193.6" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-31)">
+<clipPath id="clip-34"><rect x="193.6" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-34)">
 <rect x="193.6" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="201.6" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="203.6" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="201.6" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="225.6" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">5</text>
 </g>
-<clipPath id="clip-32"><rect x="242" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-32)">
+<clipPath id="clip-35"><rect x="242" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-35)">
 <rect x="242" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="250" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="252" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="250" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="274" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">6</text>
 </g>
-<clipPath id="clip-33"><rect x="290.4" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-33)">
+<clipPath id="clip-36"><rect x="290.4" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-36)">
 <rect x="290.4" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="298.4" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="300.4" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="298.4" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="322.4" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">7</text>
 </g>
-<clipPath id="clip-34"><rect x="338.8" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-34)">
+<clipPath id="clip-37"><rect x="338.8" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-37)">
 <rect x="338.8" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="346.8" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="348.8" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="346.8" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="370.8" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">8</text>
 </g>
-<clipPath id="clip-35"><rect x="387.2" y="639.8" width="48.4" height="30"/></clipPath>
-<g clip-path="url(#clip-35)">
+<clipPath id="clip-38"><rect x="387.2" y="639.8" width="48.4" height="30"/></clipPath>
+<g clip-path="url(#clip-38)">
 <rect x="387.2" y="639.8" width="48.4" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="395.2" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="397.2" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="395.2" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="419.2" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">9</text>
 </g>
-<clipPath id="clip-36"><rect x="435.6" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-36)">
+<clipPath id="clip-39"><rect x="435.6" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-39)">
 <rect x="435.6" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="443.6" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="445.6" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="443.6" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="467.6" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">10</text>
 </g>
-<clipPath id="clip-37"><rect x="492.4" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-37)">
+<clipPath id="clip-40"><rect x="492.4" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-40)">
 <rect x="492.4" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="500.4" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="502.4" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="500.4" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="524.4" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">11</text>
 </g>
-<clipPath id="clip-38"><rect x="549.2" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-38)">
+<clipPath id="clip-41"><rect x="549.2" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-41)">
 <rect x="549.2" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="557.2" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="559.2" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="557.2" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="581.2" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">12</text>
 </g>
-<clipPath id="clip-39"><rect x="606" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-39)">
+<clipPath id="clip-42"><rect x="606" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-42)">
 <rect x="606" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="614" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="616" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="614" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="638" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">13</text>
 </g>
-<clipPath id="clip-40"><rect x="662.8" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-40)">
+<clipPath id="clip-43"><rect x="662.8" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-43)">
 <rect x="662.8" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="670.8" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="672.8" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="670.8" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="694.8" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">14</text>
 </g>
-<clipPath id="clip-41"><rect x="719.6" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-41)">
+<clipPath id="clip-44"><rect x="719.6" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-44)">
 <rect x="719.6" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="727.6" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="729.6" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="727.6" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="751.6" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">15</text>
 </g>
-<clipPath id="clip-42"><rect x="776.4" y="639.8" width="56.8" height="30"/></clipPath>
-<g clip-path="url(#clip-42)">
+<clipPath id="clip-45"><rect x="776.4" y="639.8" width="56.8" height="30"/></clipPath>
+<g clip-path="url(#clip-45)">
 <rect x="776.4" y="639.8" width="56.8" height="30" fill="rgba(45,45,55,1)"/>
 <rect x="784.4" y="646.8" width="16" height="16" fill="rgba(0,140,200,1)"/>
 <text xml:space="preserve" x="786.4" y="647.8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
 <rect x="784.4" y="646.8" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
 <text xml:space="preserve" x="808.4" y="646.8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">16</text>
 </g>
-<clipPath id="clip-43"><rect x="0" y="714" width="1200" height="34"/></clipPath>
-<g clip-path="url(#clip-43)">
+<clipPath id="clip-46"><rect x="0" y="714" width="1200" height="34"/></clipPath>
+<g clip-path="url(#clip-46)">
 <rect x="0" y="714" width="1200" height="34" fill="rgba(45,45,48,1)"/>
 <line x1="0" y1="714.5" x2="1200" y2="714.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
 </g>
-<clipPath id="clip-44"><rect x="8" y="716" width="402.8" height="30"/></clipPath>
-<g clip-path="url(#clip-44)">
+<clipPath id="clip-47"><rect x="8" y="716" width="402.8" height="30"/></clipPath>
+<g clip-path="url(#clip-47)">
 <rect x="8" y="716" width="402.8" height="24" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="12" y="720" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">capture run — rendered offline, no audio device</text>
 </g>
-<clipPath id="clip-45"><rect x="774" y="716" width="200" height="30"/></clipPath>
-<g clip-path="url(#clip-45)">
+<clipPath id="clip-48"><rect x="774" y="716" width="200" height="30"/></clipPath>
+<g clip-path="url(#clip-48)">
 <rect x="774" y="716" width="200" height="30" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="778" y="720" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">step  3 ·  G4 ·  -6.6 dBFS</text>
 </g>
-<clipPath id="clip-46"><rect x="992" y="716" width="200" height="30"/></clipPath>
-<g clip-path="url(#clip-46)">
+<clipPath id="clip-49"><rect x="992" y="716" width="200" height="30"/></clipPath>
+<g clip-path="url(#clip-49)">
 <rect x="992" y="716" width="200" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="996" y="720" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.453 ms mean of 10.67 ms</text>
+<text xml:space="preserve" x="996" y="720" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.477 ms mean of 10.67 ms</text>
 </g>
-<rect x="1192" y="32" width="6" height="104.367" fill="rgba(120,120,130,0.627451)"/>
-<rect x="1192" y="220.838" width="6" height="111.171" fill="rgba(120,120,130,0.627451)"/>
-<rect x="1192" y="468.656" width="6" height="96.554" fill="rgba(120,120,130,0.627451)"/>
+<rect x="1192" y="32" width="6" height="114.91" fill="rgba(120,120,130,0.627451)"/>
+<rect x="1192" y="220.838" width="6" height="152.86" fill="rgba(120,120,130,0.627451)"/>
+<rect x="1192" y="468.656" width="6" height="83.7775" fill="rgba(120,120,130,0.627451)"/>
 </svg>
