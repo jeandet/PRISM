@@ -136,6 +136,11 @@ Eight namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`
 (`WidgetTree`, `ViewBuilder`, `model_app`, event routing), `widgets` (`Tree`/`Table`/`Plot`/debug
 inspector), `backends` (SDL3, headless software/null backends used by tests).
 
+Non-template code goes in `src/<module>/<header>.cpp` (libprism), not in the header: headers keep
+templates, reflection code and short getters, so each file that includes them parses less. Never
+add a mutable `inline` variable to a header: a Python extension hides its symbols and gets its own
+copy. Declare it `extern` and define it in `src/core/shared_state.cpp`.
+
 ## Conventions
 
 - Architecture is MVB, not MVU or immediate-mode — check `doc/design/` before introducing a

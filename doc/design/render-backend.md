@@ -137,7 +137,7 @@ Tile strategy differs: CPU wants spatial tiles for parallelism, GPU wants draw-c
 
 | Package | Contents |
 |---|---|
-| `libprism-dev` | Headers (header-only core) + `BackendBase` vtable anchor (.a) |
+| `libprism-dev` | Headers + libprism (the headers' non-template code) + `BackendBase` vtable anchor |
 | `libprism-software` | `SoftwareBackend` .so (links SDL3) |
 | `libprism-vulkan` | `VulkanBackend` .so (links Vulkan) [future] |
 

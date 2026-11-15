@@ -4,6 +4,7 @@
 #include <prism/ui/shortcut.hpp>
 #include <prism/ui/cursor.hpp>
 #include <prism/ui/context.hpp>
+// Kept for app/widget_tree.hpp, which names UrlOpener without including this header.
 #include <prism/ui/url_opener.hpp>
 #include <prism/ui/text_metrics.hpp>
 #include <prism/ui/text_edit.hpp>
@@ -32,6 +33,7 @@
 #include <magic_enum/magic_enum.hpp>
 #endif
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -590,37 +592,12 @@ struct Widget<Checkbox> {
         return 32.f + text_width(node_theme(n).measurer, f.get().label, 14.f) + 8.f;   // box, gap, label, margin
     }
     static constexpr Role access_role = Role::CheckBox;
-    static void describe(const Field<Checkbox>& f, AccessInfo& a) {
-        a.name = f.get().label;
-        a.checked = f.get().checked;
-    }
+    static void describe(const Field<Checkbox>& f, AccessInfo& a);
     static constexpr Height widget_h{30.f};
     static constexpr Height box_size{16.f};
 
-    static void record(DrawList& dl, const Field<Checkbox>& field, WidgetNode& node) {
-        auto& vs = node_vs(node);
-        auto& t = node_theme(node);
-        auto& cb = field.get();
-
-        delegate_detail::fill_widget_bg(dl, node, widget_h);
-
-        Y box_y{(widget_h.raw() - box_size.raw()) / 2.f};
-        draw_check_box(dl, X{8}, box_y, cb.checked, vs, t);
-
-        if (!cb.label.empty())
-            dl.text(cb.label, delegate_detail::make_point(X{32}, Y{7}), 14, t.text);
-
-        if (vs.focused)
-            delegate_detail::draw_focus_ring(dl, delegate_detail::widget_w(node), widget_h, t);
-    }
-
-    static void handle_input(Field<Checkbox>& field, const InputEvent& ev, WidgetNode& node) {
-        if (delegate_detail::is_activation_event(ev, node)) {
-            auto cb = field.get();
-            cb.checked = !cb.checked;
-            field.set(cb);
-        }
-    }
+    static void record(DrawList& dl, const Field<Checkbox>& field, WidgetNode& node);
+    static void handle_input(Field<Checkbox>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 // bool specialization: toggle widget
@@ -630,26 +607,16 @@ struct Widget<bool> {
     static constexpr Role access_role = Role::CheckBox;
     static void describe(const Field<bool>& f, AccessInfo& a) { a.checked = f.get(); }
 
-    static void record(DrawList& dl, const Field<bool>& field, WidgetNode& node) {
-        auto& vs = node_vs(node);
-        auto& t = node_theme(node);
-        constexpr Height widget_h{30.f};
-        constexpr Height box_size{16.f};
-
-        delegate_detail::fill_widget_bg(dl, node, widget_h);
-
-        Y box_y{(widget_h.raw() - box_size.raw()) / 2.f};
-        draw_check_box(dl, X{8}, box_y, field.get(), vs, t);
-
-        if (vs.focused)
-            delegate_detail::draw_focus_ring(dl, delegate_detail::widget_w(node), widget_h, t);
-    }
-
-    static void handle_input(Field<bool>& field, const InputEvent& ev, WidgetNode& node) {
-        if (delegate_detail::is_activation_event(ev, node))
-            field.set(!field.get());
-    }
+    static void record(DrawList& dl, const Field<bool>& field, WidgetNode& node);
+    static void handle_input(Field<bool>& field, const InputEvent& ev, WidgetNode& node);
 };
+
+namespace delegate_detail {
+// A label laid out in its widget's box: wrapped when asked; a heading is larger, brighter, and
+// has no box behind it. Defined in delegate.cpp.
+void draw_label(DrawList& dl, const WidgetNode& node, std::string_view text, float size,
+                bool heading, bool wrap);
+}
 
 template <StringLike T>
 struct Widget<Label<T>> {
@@ -666,21 +633,9 @@ struct Widget<Label<T>> {
     }
 
     static void record(DrawList& dl, const Field<Label<T>>& field, WidgetNode& node) {
-        auto& t = node_theme(node);
-        Width w = delegate_detail::widget_w(node);
         const auto& l = field.get();
-        std::string_view text(l.value.data(), l.value.size());
-        auto lines = l.wrap ? wrap_lines(text, Width{std::max(1.f, w.raw() - 8.f)}, t.measurer, size_of(l), FontRole::Ui)
-                            : std::vector<LineSpan>{{0, text.size()}};
-        float line_h = line_height(t.measurer, size_of(l));
-        float one_line = l.heading ? 30.f : 24.f;
-        Height h{one_line + line_h * static_cast<float>(std::max<std::size_t>(lines.size(), 1) - 1)};
-        // A heading's box is clear: it still gives the widget its height.
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, h), l.heading ? Color::rgba(0, 0, 0, 0) : t.surface);
-        for (std::size_t i = 0; i < lines.size(); ++i)
-            dl.text(std::string(text.substr(lines[i].start, lines[i].length)),
-                    delegate_detail::make_point(X{4}, Y{4 + line_h * static_cast<float>(i)}), size_of(l),
-                    l.heading ? t.text : t.text_muted);
+        delegate_detail::draw_label(dl, node, std::string_view(l.value.data(), l.value.size()), size_of(l),
+                                    l.heading, l.wrap);
     }
 
     static void handle_input(Field<Label<T>>&, const InputEvent&, WidgetNode&) {}
@@ -704,28 +659,13 @@ struct Widget<Picture> {
     static constexpr Role access_role = Role::Label;
     static void describe(const Field<Picture>& f, AccessInfo& a) { a.name = f.get().description; }
 
-    static Size box(const Picture& p) {
-        if (p.size) return *p.size;
-        if (p.image) return Size{Width{static_cast<float>(p.image->width())}, Height{static_cast<float>(p.image->height())}};
-        return Size{Width{0}, Height{0}};
-    }
+    static Size box(const Picture& p);
     static float intrinsic_width(const Field<Picture>& f, const WidgetNode&) { return box(f.get()).w.raw(); }
 
     // The image's rect inside `area`: as large as fits, proportions kept, centred.
-    static Rect fitted(const Image& img, Size area) {
-        float scale = std::min(area.w.raw() / static_cast<float>(img.width()), area.h.raw() / static_cast<float>(img.height()));
-        Size s{Width{static_cast<float>(img.width()) * scale}, Height{static_cast<float>(img.height()) * scale}};
-        return Rect{Point{X{(area.w.raw() - s.w.raw()) / 2}, Y{(area.h.raw() - s.h.raw()) / 2}}, s};
-    }
+    static Rect fitted(const Image& img, Size area);
 
-    static void record(DrawList& dl, const Field<Picture>& field, WidgetNode& node) {
-        const auto& p = field.get();
-        Size area = box(p);
-        dl.filled_rect(Rect{Point{X{0}, Y{0}}, area}, Color::rgba(0, 0, 0, 0));   // the box is the widget's, image or not
-        if (p.image && area.w.raw() > 0 && area.h.raw() > 0)
-            dl.image(p.image, fitted(*p.image, area), icon_tint(p.image, node_theme(node).text));
-    }
-
+    static void record(DrawList& dl, const Field<Picture>& field, WidgetNode& node);
     static void handle_input(Field<Picture>&, const InputEvent&, WidgetNode&) {}
 };
 
@@ -750,26 +690,8 @@ struct Widget<Link> {
         return 8.f + text_width(node_theme(n).measurer, f.get().text, font_size);
     }
 
-    static void record(DrawList& dl, const Field<Link>& field, WidgetNode& node) {
-        auto& vs = node_vs(node);
-        auto& t = node_theme(node);
-        const auto& l = field.get();
-        set_node_cursor(node, CursorShape::Pointer);
-        Color c = vs.pressed ? t.accent_active : vs.hovered ? t.accent_hover : t.accent;
-        float w = text_width(t.measurer, l.text, font_size);
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, Width{w + 8.f}, Height{24}), Color::rgba(0, 0, 0, 0));
-        dl.text(l.text, delegate_detail::make_point(X{4}, Y{4}), font_size, c);
-        dl.line(Point{X{4}, Y{20}}, Point{X{4 + w}, Y{20}}, c, 1.f);
-        if (vs.focused) delegate_detail::draw_focus_ring(dl, Width{w + 8.f}, Height{24}, t);
-    }
-
-    static void handle_input(Field<Link>& field, const InputEvent& ev, WidgetNode& node) {
-        if (!delegate_detail::is_activation_event(ev, node)) return;
-        auto l = field.get();
-        ++l.click_count;
-        if (!l.url.empty() && node_theme(node).url_opener) node_theme(node).url_opener->open(l.url);
-        field.set(l);
-    }
+    static void record(DrawList& dl, const Field<Link>& field, WidgetNode& node);
+    static void handle_input(Field<Link>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 // The header of a section the user folds and unfolds (vb.section): an arrow and the title;
@@ -786,29 +708,10 @@ struct Widget<Expander> {
     static constexpr float font_size = 14.f;
     static constexpr Height header_h{28};
     static constexpr Role access_role = Role::Button;
-    static void describe(const Field<Expander>& f, AccessInfo& a) {
-        a.name = f.get().title;
-        a.expanded = f.get().open;
-    }
+    static void describe(const Field<Expander>& f, AccessInfo& a);
 
-    static void record(DrawList& dl, const Field<Expander>& field, WidgetNode& node) {
-        auto& vs = node_vs(node);
-        auto& t = node_theme(node);
-        Width w = delegate_detail::widget_w(node);
-        const auto& e = field.get();
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, header_h),
-                       vs.pressed ? t.surface_active : vs.hovered ? t.surface_hover : Color::rgba(0, 0, 0, 0));
-        dl.text(e.open ? "\xe2\x96\xbe" : "\xe2\x96\xb8", delegate_detail::make_point(X{6}, Y{5}), font_size, t.text_muted);   // ▾ ▸
-        dl.text(e.title, delegate_detail::make_point(X{22}, Y{5}), font_size, t.text);
-        if (vs.focused) delegate_detail::draw_focus_ring(dl, w, header_h, t);
-    }
-
-    static void handle_input(Field<Expander>& field, const InputEvent& ev, WidgetNode& node) {
-        if (!delegate_detail::is_activation_event(ev, node)) return;
-        auto e = field.get();
-        e.open = !e.open;
-        field.set(e);
-    }
+    static void record(DrawList& dl, const Field<Expander>& field, WidgetNode& node);
+    static void handle_input(Field<Expander>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 enum class Orientation { Horizontal, Vertical };
@@ -843,6 +746,24 @@ std::string slider_value_text(T value, T step, std::string_view unit) {
     if (!unit.empty()) out.append(" ").append(unit);
     return out;
 }
+
+// A slider's measurements: the delegate's constants, and what record() draws from them (delegate.cpp).
+inline constexpr float slider_widget_extent = 30.f;
+inline constexpr float slider_track_thick = 6.f;
+inline constexpr float slider_thumb_len = 12.f;
+inline constexpr float slider_caption_h = 20.f;      // the label line above a horizontal track
+inline constexpr float slider_caption_size = 13.f;
+
+// Everything a slider's record() draws: the geometry it works out (which needs the widget's own
+// type) and the text it prints (which needs the value's type), so drawing it is not template work.
+struct SliderLook {
+    bool vertical = false;
+    float ratio = 0.f;         // where the thumb is, 0..1
+    float track_len = 0.f;
+    std::string label{};       // the caption above a horizontal track; empty when there is none
+    std::string value_text{};  // the value, printed at its right end
+};
+void draw_slider(DrawList& dl, const SliderLook& look, const WidgetNode& node);
 }
 
 template <Numeric T, Orientation O>
@@ -861,11 +782,11 @@ struct Widget<Slider<T, O>> {
     static constexpr bool expand = true;
     static constexpr ExpandAxis expand_axis = vertical ? ExpandAxis::Vertical : ExpandAxis::Horizontal;
     static constexpr float min_track_len = 200.f;
-    static constexpr float track_thick = 6.f;
-    static constexpr float thumb_len = 12.f;
-    static constexpr float widget_extent = 30.f;
-    static constexpr float caption_h = 20.f;   // the label line above a horizontal track
-    static constexpr float caption_size = 13.f;
+    static constexpr float track_thick = delegate_detail::slider_track_thick;
+    static constexpr float thumb_len = delegate_detail::slider_thumb_len;
+    static constexpr float widget_extent = delegate_detail::slider_widget_extent;
+    static constexpr float caption_h = delegate_detail::slider_caption_h;
+    static constexpr float caption_size = delegate_detail::slider_caption_size;
 
     static bool captioned(const Slider<T, O>& s) { return !vertical && !s.label.empty(); }
 
@@ -881,43 +802,9 @@ struct Widget<Slider<T, O>> {
     }
 
     static void record(DrawList& dl, const Field<Slider<T, O>>& field, WidgetNode& node) {
-        auto& vs = node_vs(node);
-        auto& t = node_theme(node);
-        auto& s = field.get();
-        float r = ratio(s);
-        float tl = track_len(node);
-
-        auto track_bg = vs.hovered ? t.track_hover : t.track;
-        auto thumb_color = vs.pressed ? t.accent_active
-                         : vs.hovered ? t.accent_hover
-                         : t.accent;
-
-        if constexpr (vertical) {
-            X track_x{(widget_extent - track_thick) / 2.f};
-            dl.filled_rect(delegate_detail::make_rect(track_x, Y{0}, Width{track_thick}, Height{tl}), track_bg);
-            Y thumb_y{(1.f - r) * (tl - thumb_len)};
-            dl.filled_rect(delegate_detail::make_rect(X{0}, thumb_y, Width{widget_extent}, Height{thumb_len}), thumb_color);
-            if (vs.focused)
-                delegate_detail::draw_focus_ring(dl, Width{widget_extent}, Height{tl}, t);
-        } else {
-            float top = captioned(s) ? caption_h : 0.f;
-            if (top > 0.f) draw_caption(dl, s, tl, t);
-            Y track_y{top + (widget_extent - track_thick) / 2.f};
-            dl.filled_rect(delegate_detail::make_rect(X{0}, track_y, Width{tl}, Height{track_thick}), track_bg);
-            X thumb_x{r * (tl - thumb_len)};
-            dl.filled_rect(delegate_detail::make_rect(thumb_x, Y{top}, Width{thumb_len}, Height{widget_extent}), thumb_color);
-            if (vs.focused)
-                delegate_detail::draw_focus_ring(dl, Width{tl}, Height{top + widget_extent}, t);
-        }
-    }
-
-    static void draw_caption(DrawList& dl, const Slider<T, O>& s, float width, const Theme& t) {
-        constexpr float inset = 4.f;   // as a label's text
-        dl.text(s.label, delegate_detail::make_point(X{inset}, Y{2}), caption_size, t.text_muted);
-        auto value = delegate_detail::slider_value_text(s.value, s.step, s.unit);
-        float vw = text_width(t.measurer, value, caption_size);
-        dl.text(std::move(value), delegate_detail::make_point(X{std::max(inset, width - inset - vw)}, Y{2}),
-                caption_size, t.text);
+        const auto& s = field.get();
+        delegate_detail::draw_slider(dl, {vertical, ratio(s), track_len(node), captioned(s) ? s.label : std::string{},
+                                          delegate_detail::slider_value_text(s.value, s.step, s.unit)}, node);
     }
 
     static void apply_position(Field<Slider<T, O>>& field, float pos, const WidgetNode& node) {
@@ -963,65 +850,19 @@ struct Widget<Button> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
     static constexpr float icon_size = 16.f;
     static constexpr float icon_gap = 6.f;   // between the icon and the text
-    static float intrinsic_width(const Field<Button>& f, const WidgetNode& n) {
-        const auto& b = f.get();
-        if (b.text.empty() && b.icon) return 32.f;   // an icon alone: square
-        float icon = b.icon ? icon_size + icon_gap : 0.f;
-        const auto* m = node_theme(n).measurer;
-        float keys = b.shortcut.key ? shortcut_gap + text_width(m, shortcut_text(b.shortcut), 14.f) : 0.f;
-        return std::max(48.f, 16.f + icon + text_width(m, b.text, 14.f) + keys);   // 8 pt each side
-    }
+    static float intrinsic_width(const Field<Button>& f, const WidgetNode& n);
     static constexpr float shortcut_gap = 12.f;   // between the text and the shortcut
     static constexpr Role access_role = Role::Button;
-    static void describe(const Field<Button>& f, AccessInfo& a) {
-        a.name = f.get().text;
-        a.checked = f.get().checked;
-    }
+    static void describe(const Field<Button>& f, AccessInfo& a);
 
-    static void record(DrawList& dl, const Field<Button>& field, WidgetNode& node) {
-        auto& vs = node_vs(node);
-        auto& t = node_theme(node);
-        Width w = delegate_detail::widget_w(node);
-        const auto& b = field.get();
-        bool down = vs.pressed || b.checked.value_or(false);
-        Color bg = b.primary ? (down ? t.primary_active : vs.hovered ? t.primary_hover : t.primary)
-                             : (down ? t.surface_active : vs.hovered ? t.surface_hover : t.surface);
-        dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), bg);
-        if (b.primary) dl.rect_outline(delegate_detail::make_rect(X{0}, Y{0}, w, Height{32}), t.primary_outline, 1.0f);
-        float x = 8.f;
-        Color fg = b.primary ? t.text_on_primary : t.text;
-        if (b.icon) {
-            dl.image(b.icon, Rect{Point{X{x}, Y{(32.f - icon_size) / 2}}, Size{Width{icon_size}, Height{icon_size}}},
-                     icon_tint(b.icon, fg));
-            x += icon_size + icon_gap;
-        }
-        if (!b.text.empty()) dl.text(b.text, delegate_detail::make_point(X{x}, Y{7}), 14, fg);
-        if (b.shortcut.key) {
-            auto keys = shortcut_text(b.shortcut);
-            float kx = w.raw() - 8.f - text_width(t.measurer, keys, 14.f);
-            dl.text(keys, delegate_detail::make_point(X{kx}, Y{7}), 14, b.primary ? fg : t.text_muted);
-        }
-        if (vs.focused)
-            delegate_detail::draw_focus_ring(dl, w, Height{32}, t);
-    }
+    static void record(DrawList& dl, const Field<Button>& field, WidgetNode& node);
 
-    static bool try_shortcut(Field<Button>& field, const KeyPress& kp, WidgetNode&) {
-        if (!matches(field.get().shortcut, kp)) return false;
-        press(field);
-        return true;
-    }
+    static bool try_shortcut(Field<Button>& field, const KeyPress& kp, WidgetNode&);
 
     // A click: counted, and a toggle flips.
-    static void press(Field<Button>& field) {
-        auto btn = field.get();
-        btn.click_count++;
-        if (btn.checked) btn.checked = !*btn.checked;
-        field.set(btn);
-    }
+    static void press(Field<Button>& field);
 
-    static void handle_input(Field<Button>& field, const InputEvent& ev, WidgetNode& node) {
-        if (delegate_detail::is_activation_event(ev, node)) press(field);
-    }
+    static void handle_input(Field<Button>& field, const InputEvent& ev, WidgetNode& node);
 };
 
 template <StringLike T>
@@ -1192,9 +1033,7 @@ template <>
 struct Widget<Choice> {
     static constexpr FocusPolicy focus_policy = FocusPolicy::tab_and_click;
     static constexpr Role access_role = Role::ComboBox;
-    static void describe(const Field<Choice>& f, AccessInfo& a) {
-        if (auto* s = f.get().chosen()) a.value = *s;
-    }
+    static void describe(const Field<Choice>& f, AccessInfo& a);
     static void record(DrawList& dl, const Field<Choice>& field, WidgetNode& node);
     static void handle_input(Field<Choice>& field, const InputEvent& ev, WidgetNode& node);
 };

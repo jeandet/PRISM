@@ -9,6 +9,8 @@
 #include "py_view.hpp"
 #include "py_model.hpp"
 
+#include <prism/app/event_routing.hpp>
+
 struct DelayHeadlessBackend final : BackendBase {
     HeadlessWindow window_{0, {}};
     std::deque<HeadlessWindow> more_;   // prism.open_window's (a deque: they never move)

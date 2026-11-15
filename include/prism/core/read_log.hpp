@@ -20,7 +20,9 @@ struct Log {
     std::size_t count = 0;
 };
 
-inline thread_local Log* watching = nullptr;
+// Defined once, in libprism (src/core/shared_state.cpp): an inline variable gets one copy per
+// shared object that hides its symbols (a Python extension does), and the copies disagree.
+extern thread_local Log* watching;
 
 inline void note_read(const void* address) {
     if (watching == nullptr || watching->count == kMaxReads) return;

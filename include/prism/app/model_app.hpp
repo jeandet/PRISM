@@ -6,7 +6,6 @@
 #include <prism/input/input_event.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/ui/window_chrome.hpp>
-#include <prism/app/event_routing.hpp>
 #include <prism/app/window_registry.hpp>
 #include <prism/app/window_geometry.hpp>
 #include <prism/app/deadline_timer.hpp>
@@ -17,14 +16,12 @@
 #include <cstdint>
 #include <optional>
 #include <thread>
-#include <variant>
 #include <vector>
 #include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <prism/core/error_hub.hpp>
 #include <prism/core/mpsc_queue.hpp>
 
 namespace prism::app {
@@ -32,8 +29,10 @@ using namespace prism::core;
 using namespace prism::input;
 using namespace prism::ui;
 
-inline thread_local bool detail_is_logic_thread = false;
-inline thread_local bool detail_in_mutation_batch = false;
+// Defined once, in libprism (src/core/shared_state.cpp): an inline variable gets one copy per
+// shared object that hides its symbols (a Python extension does), and the copies disagree.
+extern thread_local bool detail_is_logic_thread;
+extern thread_local bool detail_in_mutation_batch;
 
 class AppContext {
 public:
@@ -82,14 +81,7 @@ public:
     // Shows a file dialog (see PlatformServices); `done` runs on the logic thread with the
     // chosen paths -- empty when cancelled, or with `error` set when the platform has no file
     // dialogs or the dialog failed. Does not block. Not called if the app quits first.
-    void choose_files(FileDialog dialog, std::function<void(FileDialogResult)> done) {
-        auto on_logic_thread = [gate = wake_gate_, done = std::move(done)](FileDialogResult r) mutable {
-            gate->post([done = std::move(done), r = std::move(r)]() mutable { done(std::move(r)); });
-        };
-        auto* services = backend_->platform_services();
-        if (!services) return on_logic_thread({{}, "this backend has no file dialogs"});
-        services->show_file_dialog(window_->id(), std::move(dialog), std::move(on_logic_thread));
-    }
+    void choose_files(FileDialog dialog, std::function<void(FileDialogResult)> done);
 
     // Called on the logic thread with every file drop (the paths and where they were dropped),
     // after the widget under the drop has seen it.
@@ -108,42 +100,20 @@ public:
     }
     [[nodiscard]] bool window_open(WindowId id) const { return registry_->find(id) != nullptr; }
     // Closes a window open_window opened (not the main one: closing that ends the app).
-    void close_window(WindowId id) {
-        if (id == window_->id() || !window_open(id)) return;
-        registry_->remove(id);
-        backend_->close_window(id);
-        requested_.erase(id);   // a widget's window (below): its widget asked for this, no callback
-        on_window_closed_.erase(id);
-    }
+    void close_window(WindowId id);
 
     // Lets the widgets of `tree` ask for windows of their own (a dock's floating panels,
     // WidgetTree::request_window). Requests run after the current frame, never inside one.
-    void serve_window_requests(WidgetTree& tree) {
-        tree.set_window_opener(
-            [this](WidgetTree::WindowRequest r) { post([this, r = std::move(r)] { open_requested(r); }); },
-            [this](WindowId id) { post([this, id] { close_window(id); }); });
-    }
+    void serve_window_requests(WidgetTree& tree);
+
     // From the event loop: the user closed window `id` (already gone from the registry).
-    void window_closed(WindowId id) {
-        auto it = on_window_closed_.find(id);
-        if (it == on_window_closed_.end()) return;
-        auto done = std::move(it->second);
-        on_window_closed_.erase(it);
-        requested_.erase(id);
-        if (done) done();
-    }
+    void window_closed(WindowId id);
 
     // Every window's look: ui::light_theme(), ui::dark_theme() or the app's own. Stops following
     // the OS's preference.
-    void set_theme(const Theme& t) {
-        follow_system_theme_ = false;
-        apply_theme(t);
-    }
+    void set_theme(const Theme& t);
     // Light or dark as the OS is set (dark until the backend says), now and whenever it changes.
-    void follow_system_theme() {
-        follow_system_theme_ = true;
-        apply_theme(system_dark_ ? dark_theme() : light_theme());
-    }
+    void follow_system_theme();
     [[nodiscard]] bool system_prefers_dark() const { return system_dark_; }
     [[nodiscard]] const Theme& theme() const { return theme_; }   // the windows' current one
 
@@ -151,42 +121,20 @@ public:
     // title bar included, as WindowConfig takes it). `g` must outlive the run.
     void remember_window_size(WindowGeometry& g) { geometry_ = &g; }
     // From the event loop, on the main window's WindowResize (its content size).
-    void main_window_resized(const WindowResize& r) {
-        if (!geometry_) return;
-        geometry_->maximized.set(r.maximized);
-        if (r.maximized) return;   // the size to come back to stays
-        int w = r.width, content_h = r.height;
-        bool custom = window_->decoration_mode() == DecorationMode::Custom;
-        geometry_->width.set(w);
-        geometry_->height.set(content_h + (custom ? static_cast<int>(WindowChrome::title_bar_h.raw()) : 0));
-    }
+    void main_window_resized(const WindowResize& r);
     // From the event loop, on the main window's WindowMove.
-    void main_window_moved(const WindowMove& m) {
-        if (!geometry_ || m.maximized) return;
-        geometry_->x.set(m.x);
-        geometry_->y.set(m.y);
-        geometry_->positioned.set(true);
-    }
+    void main_window_moved(const WindowMove& m);
     // From the event loop, on a SystemTheme event.
-    void system_theme_changed(bool dark) {
-        system_dark_ = dark;
-        if (follow_system_theme_) apply_theme(dark ? dark_theme() : light_theme());
-    }
+    void system_theme_changed(bool dark);
     [[nodiscard]] const std::function<void(const FileDrop&)>& file_drop_handler() const { return file_drop_; }
 
     // A message box, for what the app cannot show in its own window. Ignored when the
     // platform has none.
-    void show_message(MessageKind kind, std::string title, std::string text) {
-        if (auto* services = backend_->platform_services())
-            services->show_message(window_->id(), kind, std::move(title), std::move(text));
-    }
+    void show_message(MessageKind kind, std::string title, std::string text);
 
     // Injectable wrapper for logic-thread work (e.g. GIL acquire for Python callbacks).
     // Keep SDL-free: caller provides the wrapping logic.
-    void set_logic_wrapper(std::function<void(std::function<void()>)> w) {
-        if (logic_wrapper_) *logic_wrapper_ = std::move(w);
-        else logic_wrapper_ = std::make_shared<std::function<void(std::function<void()>)>>(std::move(w));
-    }
+    void set_logic_wrapper(std::function<void(std::function<void()>)> w);
     static void apply_wrapper(const std::shared_ptr<std::function<void(std::function<void()>)>>& w,
                               std::function<void()> fn) {
         if (w && *w) (*w)(std::move(fn));
@@ -206,24 +154,7 @@ public:
     PostHandle post_handle() const { return {queue_, scheduled_, closed_, drain_publish_, sched_}; }
     std::shared_ptr<std::function<void(std::function<void()>)>> logic_wrapper_ptr() const { return logic_wrapper_; }
 
-    void post(std::function<void()> fn) {
-        if (!fn) return;
-        if (closed_ && closed_->load(std::memory_order_acquire)) return;
-        if (detail_is_logic_thread) {
-            if (detail_in_mutation_batch) {
-                // Re-entrant from within a batch drain — defer publish to the
-                // outer batch's tail (publish-after-whole-batch ordering).
-                run_wrapped(std::move(fn));
-                return;
-            }
-            run_wrapped([&]{
-                fn();
-                if (drain_publish_ && *drain_publish_) (*drain_publish_)();
-            });
-            return;
-        }
-        post_deferred(std::move(fn));
-    }
+    void post(std::function<void()> fn);
 
     // Queue fn for a later run_loop turn, then drain all Shared/Channel and publish -- never
     // runs inline, even on the logic thread, so it is safe to call from inside a drain.
@@ -275,59 +206,21 @@ private:
         }
     };
 
-    void enqueue(std::function<void()> fn) {
-        if (closed_ && closed_->load(std::memory_order_acquire)) return;
-        queue_->push(std::move(fn));
-        schedule_drain();
-    }
+    void enqueue(std::function<void()> fn);
 
-    void schedule_drain() {
-        bool expected = false;
-        if (scheduled_->compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
-            exec::start_detached(stdexec::schedule(sched_)
-                                 | stdexec::then([this] { drain_queue(); }));
-        }
-    }
+    void schedule_drain();
 
     // One turn: run what was queued when the turn began, publish, then queue the next turn behind
     // whatever else waits on the logic thread. Never loop here: a producer faster than the
     // logic thread keeps the queue non-empty forever, and the clock's tick and input would never
     // run again (a callback's own set() re-posts while it runs).
-    void drain_queue() {
-        apply_wrapper(logic_wrapper_, [&] {
-            run_mutations(take_queued());
-            run_publish_tail();
-            scheduled_->store(false, std::memory_order_release);
-            if (!queue_->empty()) schedule_drain();
-        });
-    }
+    void drain_queue();
 
-    std::vector<std::function<void()>> take_queued() {
-        std::vector<std::function<void()>> batch;
-        while (auto f = queue_->pop()) batch.push_back(std::move(*f));
-        return batch;
-    }
+    std::vector<std::function<void()>> take_queued();
 
-    void run_mutations(std::vector<std::function<void()>> batch) {
-        detail_in_mutation_batch = true;
-        for (auto& f : batch) {
-            try {
-                f();
-            } catch (...) {
-                report_unhandled_error(std::current_exception());
-            }
-        }
-        detail_in_mutation_batch = false;
-    }
+    void run_mutations(std::vector<std::function<void()>> batch);
 
-    void run_publish_tail() {
-        if (!drain_publish_ || !*drain_publish_) return;
-        try {
-            (*drain_publish_)();
-        } catch (...) {
-            report_unhandled_error(std::current_exception());
-        }
-    }
+    void run_publish_tail();
     scheduler_type sched_;
     std::function<void(const FileDrop&)> file_drop_;
     bool follow_system_theme_ = false;
@@ -338,23 +231,11 @@ private:
     };
     std::map<WindowId, std::unique_ptr<RequestedView>> requested_;
     std::map<WindowId, std::function<void()>> on_window_closed_;
-    void open_requested(const WidgetTree::WindowRequest& r) {
-        auto model = std::make_unique<RequestedView>(RequestedView{r.build});
-        WindowId id = open_window(*model, {.title = r.title.c_str(), .width = 480, .height = 360});
-        if (id != 0) {
-            if (auto* e = registry_->find(id)) serve_window_requests(*e->tree);
-            requested_[id] = std::move(model);
-            on_window_closed_[id] = r.on_closed;
-        }
-        if (r.on_opened) r.on_opened(id);
-    }
+    void open_requested(const WidgetTree::WindowRequest& r);
     WindowGeometry* geometry_ = nullptr;
     bool system_dark_ = true;
     Theme theme_ = dark_theme();   // the windows' current theme, for windows opened later
-    void apply_theme(const Theme& t) {
-        theme_ = t;
-        registry_->for_each([&](WindowId, WindowRegistry::Entry& e) { e.tree->set_theme(t); });
-    }
+    void apply_theme(const Theme& t);
     AnimationClock* clock_;
     Window* window_;
     Backend* backend_;
@@ -406,278 +287,63 @@ public:
         deadline_timer_.emplace([this] { on_deadline(); });
     }
 
-    void run(std::function<void(AppContext&)> setup) {
-        logic_thread_ = std::thread([this, setup = std::move(setup)] { logic_main(std::move(setup)); });
-
-        backend_.run([this](const WindowEvent& we) { pump_event(we); });
-
-        // Finish only after the pump returned: it keeps dispatching already-queued OS events
-        // after quit(), and each one schedules onto this loop (see app.hpp). Close the gate
-        // first: after this, no cross-thread post() or wake can reach the finishing run_loop.
-        // (Python's PostHandle path does not go through the gate -- see prism_ext.cpp.)
-        ctx_holder_->close_waker();   // a deadline firing from here on posts nothing
-        loop_.finish();
-        logic_thread_.join();
-        deadline_timer_.reset();   // after the join: the logic thread arms it until then
-    }
+    void run(std::function<void(AppContext&)> setup);
 
 private:
     // The deadline timer's callback, on the timer's own thread: hand the tick to the logic thread.
     void on_deadline() { ctx_holder_->post_deferred([this] { run_due_wakes(); }); }
 
     // On the logic thread: run every tree's due deadlines, then arm the next one.
-    void run_due_wakes() {
-        auto now = DeadlineTimer::clock::now();
-        registry_.for_each([now](WindowId, WindowRegistry::Entry& e) { e.tree->tick(now); });
-        arm_deadlines();
-    }
+    void run_due_wakes();
 
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     // Shared by the hotkey's own detach branch and the generic secondary-WindowClose
     // path below (debug window closed via its own chrome) — both must leave the
     // inspector fully dormant so the next Ctrl+Shift+I press reopens it.
-    void reset_debug_inspector() {
-        debug_window_id_.reset();
-        debug_controller_.reset();
-        post_dispatch_hook_ = nullptr;
-        // Closing the inspector (either path) must not leave a stale highlight rect on the
-        // main window with no inspector left to explain it.
-        if (auto* primary_entry = registry_.find(primary_id_))
-            primary_entry->tree->set_debug_highlight(std::nullopt);
-    }
+    void reset_debug_inspector();
 
     // Ctrl+Shift+I: opens the live tree inspector, or closes it again.
-    void on_inspector_hotkey(const KeyPress& kp) {
-        if (kp.key != keys::i || !(kp.mods & mods::ctrl) || !(kp.mods & mods::shift))
-            return;
-        if (!debug_window_id_) {
-            auto* win = backend_.request_window(WindowConfig{.title = "PRISM Tree Inspector",
-                                                              .decoration = DecorationMode::Custom});
-            if (!win) return; // request failed — stay dormant, try again on next hotkey press
-            auto* primary_entry = registry_.find(primary_id_);
-            if (!primary_entry) return;
-            debug_window_id_ = registry_.add(*win, debug_model_);
-            auto* debug_entry = registry_.find(*debug_window_id_);
-            if (!debug_entry) return;
-            debug_controller_.emplace(*primary_entry->tree, *debug_entry->tree, debug_model_);
-            ctx_holder_->set_post_dispatch_hook([this] {
-                if (debug_controller_) debug_controller_->refresh();
-            });
-        } else {
-            registry_.remove(*debug_window_id_);
-            backend_.close_window(*debug_window_id_);
-            reset_debug_inspector();
-        }
-    }
+    void on_inspector_hotkey(const KeyPress& kp);
 #endif
 
-    void publish_entry(WindowId id, WindowRegistry::Entry& entry) {
-        entry.current_snap = std::shared_ptr<const SceneSnapshot>(
-            entry.tree->build_snapshot(static_cast<float>(entry.width),
-                                        static_cast<float>(entry.height),
-                                        ++entry.version));
-        backend_.submit(id, entry.current_snap);
-        backend_.wake();
-        entry.tree->clear_dirty();
-#ifdef PRISM_DEBUG_TOOLS_ENABLED
-        if (id == primary_id_ && debug_controller_)
-            debug_controller_->update_stats(*entry.current_snap);
-#endif
-    }
+    void publish_entry(WindowId id, WindowRegistry::Entry& entry);
 
-    void publish_dirty() {
-        registry_.for_each_dirty([this](WindowId id, WindowRegistry::Entry& entry) {
-            publish_entry(id, entry);
-        });
-    }
+    void publish_dirty();
 
-    void schedule_tick() {
-        if (!anim_clock_.active() || tick_scheduled_) return;
-        tick_scheduled_ = true;
-        exec::start_detached(
-            stdexec::schedule(sched_)
-            | stdexec::then([this, logic_wrapper_holder = logic_wrapper_holder_] {
-                auto do_tick = [this] {
-                    tick_scheduled_ = false;
-                    anim_clock_.tick(AnimationClock::clock::now());
-                    // schedule_tick() inside the shared tail no-ops when the
-                    // clock went inactive, matching the old guarded reschedule.
-                    (*mutation_drain_publish_)();
-                };
-                AppContext::apply_wrapper(logic_wrapper_holder, do_tick);
-            })
-        );
-    }
+    void schedule_tick();
 
     // After input: one publish, queued behind the events already waiting, so a burst of
     // them (key repeat, a fast wheel, clicks queued while the logic thread was busy) is drawn
     // once with all of them applied, not once per event. A lone event still publishes at
     // once: its publish is next in the queue. Resized windows publish even if nothing is dirty.
-    void publish_after_input(std::optional<WindowId> resized_window) {
-        if (resized_window && !std::ranges::contains(resized_, *resized_window)) resized_.push_back(*resized_window);
-        if (std::exchange(publish_queued_, true)) return;
-        exec::start_detached(
-            stdexec::schedule(sched_)
-            | stdexec::then([this, logic_wrapper_holder = logic_wrapper_holder_, closed = mutation_closed_] {
-                AppContext::apply_wrapper(logic_wrapper_holder, [this, closed] {
-                    publish_queued_ = false;
-                    if (closed->load(std::memory_order_acquire)) return;
-                    for (auto id : std::exchange(resized_, {}))
-                        if (auto* e = registry_.find(id)) publish_entry(id, *e);
-                    publish_dirty();
-                });
-            })
-        );
-    }
+    void publish_after_input(std::optional<WindowId> resized_window);
 
     // The mutation queue's shared publish tail (see the assignment in the constructor).
-    void attach_blocks() {
-        registry_.for_each([this](WindowId, WindowRegistry::Entry& entry) {
-            entry.tree->attach_blocks(*ctx_holder_);
-        });
-    }
+    void attach_blocks();
 
-    void drain_publish() {
-        attach_blocks();   // blocks built since the last turn (a window opened, a page shown)
-        registry_.for_each([](WindowId, WindowRegistry::Entry& entry) {
-            entry.tree->drain_shared();
-        });
-        publish_dirty();
-        schedule_tick();
-    }
+    void drain_publish();
 
-    void arm_deadlines() {
-        registry_.for_each([this](WindowId, WindowRegistry::Entry& e) {
-            if (auto due = e.tree->next_wake()) deadline_timer_->arm(*due);
-        });
-    }
+    void arm_deadlines();
 
-    void logic_main(std::function<void(AppContext&)> setup) {
-        detail_is_logic_thread = true;
-        core::logic_thread.store(std::this_thread::get_id());
-        backend_.wait_ready();
-        registry_.for_each([this](WindowId id, WindowRegistry::Entry& entry) {
-            publish_entry(id, entry);
-        });
-
-        auto& ctx = *ctx_holder_;
-
-#ifdef PRISM_DEBUG_TOOLS_ENABLED
-        // Live tree inspector, toggled by Ctrl+Shift+I. This installs the sole
-        // global-key-handler/post-dispatch-hook slots AppContext exposes — an
-        // app's own setup() calling set_global_key_handler/set_post_dispatch_hook
-        // below would silently override this wiring. Known limitation, not solved
-        // here (see commit message).
-        ctx.set_global_key_handler([this](const KeyPress& kp) { on_inspector_hotkey(kp); });
-#endif
-
-        attach_blocks();
-        if (setup) {
-            setup(ctx);
-            publish_dirty();   // what setup changed or opened (a theme, a second window)
-            schedule_tick();
-        }
-
-        loop_.run();
-        core::logic_thread.store(std::thread::id{});   // the model is the caller's again
-    }
+    void logic_main(std::function<void(AppContext&)> setup);
 
     // One backend event: schedule it onto the logic thread, wrapped like the rest of the work there.
-    void pump_event(const WindowEvent& we) {
-        const auto& ev = we.event;
-        WindowId wid = we.window;
-        auto wrapper_for_dispatch = logic_wrapper_holder_;
-        exec::start_detached(
-            stdexec::schedule(sched_)
-            | stdexec::then([this, ev, wid, shown = we.shown, wrapper_for_dispatch] {
-                AppContext::apply_wrapper(wrapper_for_dispatch, [this, ev, wid, shown] {
-                    dispatch(ev, wid, shown);
-                });
-            })
-        );
-    }
+    void pump_event(const WindowEvent& we);
 
-    void dispatch(const InputEvent& ev, WindowId wid, const std::shared_ptr<const SceneSnapshot>& shown) {
-        if (mutation_closed_->load(std::memory_order_acquire)) return;
-        if (std::holds_alternative<WindowClose>(ev)) {
-            handle_close(wid);
-            return;
-        }
-        if (auto* st = std::get_if<SystemTheme>(&ev)) {   // every window's, not one's
-            ctx_holder_->system_theme_changed(st->dark);
-            publish_dirty();
-            return;
-        }
+    void dispatch(const InputEvent& ev, WindowId wid, const std::shared_ptr<const SceneSnapshot>& shown);
 
-        auto* entry = registry_.find(wid);
-        if (!entry) return;
-
-        bool needs_publish = update_window(ev, wid, *entry);
-        if (auto* kp = std::get_if<KeyPress>(&ev)) {
-            entry = handle_key(*kp, wid);
-            if (!entry) return;
-        }
-        deliver(*entry, ev, wid, shown, needs_publish);
-    }
-
-    void handle_close(WindowId wid) {
-        if (wid == primary_id_) {
-            if (publish_queued_) publish_dirty();   // the frame input still owes
-            anim_clock_.clear();
-            mutation_closed_->store(true, std::memory_order_release);
-            backend_.quit();
-        } else {
-            registry_.remove(wid);
-            backend_.close_window(wid);
-            ctx_holder_->window_closed(wid);   // a widget's window: tell the widget
-            publish_dirty();                  // what that changed (a panel docked again)
-#ifdef PRISM_DEBUG_TOOLS_ENABLED
-            if (debug_window_id_ && wid == *debug_window_id_)
-                reset_debug_inspector();
-#endif
-        }
-    }
+    void handle_close(WindowId wid);
 
     // Resize and move before the event reaches the widgets: they set the tree's size and the
     // size the app remembers. True when the frame must be published even if nothing is dirty.
-    bool update_window(const InputEvent& ev, WindowId wid, WindowRegistry::Entry& entry) {
-        bool needs_publish = false;
-        if (auto* resize = std::get_if<WindowResize>(&ev)) {
-            entry.width = resize->width;
-            entry.height = resize->height;
-            needs_publish = true;
-            if (wid == primary_id_) ctx_holder_->main_window_resized(*resize);
-        }
-        if (auto* move = std::get_if<WindowMove>(&ev); move && wid == primary_id_)
-            ctx_holder_->main_window_moved(*move);
-        return needs_publish;
-    }
+    bool update_window(const InputEvent& ev, WindowId wid, WindowRegistry::Entry& entry);
 
     // The sole global key handler. Returns the window's entry again: global_key_handler may have
     // destroyed entry (e.g. debug inspector hotkey toggles window).
-    WindowRegistry::Entry* handle_key(const KeyPress& kp, WindowId wid) {
-        // Sees every key, shortcuts included (e.g. Ctrl+V, which the focused text widget also
-        // gets as a Paste event) -- not a consuming handler.
-        if (global_key_handler_) global_key_handler_(kp);
-        return registry_.find(wid);
-    }
+    WindowRegistry::Entry* handle_key(const KeyPress& kp, WindowId wid);
 
     void deliver(WindowRegistry::Entry& entry, const InputEvent& ev, WindowId wid,
-                 const std::shared_ptr<const SceneSnapshot>& shown, bool needs_publish) {
-        // Against the frame the user saw, if the backend says which (see WindowEvent).
-        const SceneSnapshot* seen = shown ? shown.get() : entry.current_snap.get();
-        widget_detail::route_event(*entry.tree, seen, ev);
-        if (auto* drop = std::get_if<FileDrop>(&ev); drop && ctx_holder_->file_drop_handler())
-            ctx_holder_->file_drop_handler()(*drop);
-        if (entry.current_snap)
-            entry.window->set_cursor(entry.tree->desired_cursor());
-
-        entry.tree->drain_shared();
-        if (post_dispatch_hook_) post_dispatch_hook_();
-        publish_after_input(needs_publish ? std::optional{wid} : std::nullopt);
-        schedule_tick();
-        arm_deadlines();
-    }
+                 const std::shared_ptr<const SceneSnapshot>& shown, bool needs_publish);
 
     stdexec::run_loop loop_;
     AppContext::scheduler_type sched_;

@@ -1,4 +1,4 @@
-# Core: header-only + stdexec (header-only P2300 implementation)
+# Core: headers for templates, libprism (below) for the rest; stdexec is header-only
 stdexec_dep = dependency('stdexec', fallback : ['stdexec', 'stdexec_dep'])
 fmt_dep = dependency('fmt', fallback : ['fmt', 'fmt_dep'])
 
@@ -32,7 +32,20 @@ prism_headers_dep = declare_dependency(
 # whose inline code differs on those must keep that code in the header. A project linking an
 # installed libprism with other flags needs a library per flag set; add when one is packaged.
 prism_lib = library('prism',
+  'app/model_app.cpp',
+  'app/view_builder.cpp',
   'app/widget_tree.cpp',
+  'core/shared_state.cpp',
+  'delegates/color_delegates.cpp',
+  'delegates/date_delegates.cpp',
+  'delegates/dialog_delegates.cpp',
+  'delegates/dropdown_delegates.cpp',
+  'delegates/form_delegates.cpp',
+  'delegates/menu_delegates.cpp',
+  'delegates/tabs_delegates.cpp',
+  'delegates/text_delegates.cpp',
+  'delegates/time_delegates.cpp',
+  'ui/delegate.cpp',
   dependencies : [prism_headers_dep],
   install : true,
 )

@@ -10,8 +10,10 @@ namespace prism::core {
 using ErrorHandler = std::function<void(std::exception_ptr)>;
 
 namespace error_hub_detail {
-inline std::mutex error_handler_mutex;
-inline ErrorHandler error_handler;
+// Defined once, in libprism (src/core/shared_state.cpp): an inline variable gets one copy per
+// shared object that hides its symbols (a Python extension does), and the copies disagree.
+extern std::mutex error_handler_mutex;
+extern ErrorHandler error_handler;
 
 inline void default_error_handler(std::exception_ptr e) {
     try {
