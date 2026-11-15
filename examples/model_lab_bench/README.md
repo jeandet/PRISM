@@ -1,27 +1,65 @@
-# model_lab_bench Example
+# Lab Bench
 
 A bench instrument: an oscilloscope, a DC power supply and a function generator, driven by a
-simulated USB instrument on its own thread. Its two stall buttons are the point of the example: one
-blocks the hardware thread, the other the thread that owns the model.
+simulated USB instrument on its own thread. Its two stall buttons are the point: one blocks the
+hardware thread, the other blocks the thread that owns the model.
 
-The PRISM part is `model_lab_bench.cpp` plus `blocks/` — 617 lines: the five docked panels, the one
-settings value that reaches the hardware thread, and the status bar. Everything below `daq/` is
-plain C++ with no PRISM in it: waveforms, the supply's load line, the scope's autoscale and
-measurements. `hardware_thread.hpp` (51 lines) is the thread glue between the two.
+<p align="center"><img src="../../doc/screenshots/lab_bench.svg" alt="The lab bench: the oscilloscope top left with a sine trace and its rulers, the power supply and the waveform generator stacked on the right, the event log tab below the scope, and the status bar along the bottom" width="700"/></p>
 
-<p align="center"><img src="../../doc/screenshots/lab_bench.svg" alt="model_lab_bench screenshot" width="700"/></p>
+It shows three things:
 
-## Blocks
+- **Blocks.** Each panel is a small struct with its own fields, its view and its reactions. The app
+  only puts them together.
+- **A worker thread next to the UI.** One settings value goes to the hardware thread. Frames and
+  events come back, each through the primitive that matches what it carries.
+- **Custom drawing.** The scope is one canvas: graticule, rulers, trace, readouts, fault banner.
 
-Each panel is a struct with its fields, its `view()` and its reactions. The app composes them with
-`vb.block(...)` and never mentions a control of its own. This is the whole scope panel:
+## Running the example
+
+- **In the browser:** open the [live demo](https://jeandet.github.io/PRISM/model_lab_bench.html).
+  The instrument it talks to is simulated, so nothing has to be plugged in.
+- **On the desktop:** `ninja -C builddir examples/model_lab_bench/model_lab_bench`, then run
+  `builddir/examples/model_lab_bench/model_lab_bench`.
+- **To save one frame:** pass a path —
+  `builddir/examples/model_lab_bench/model_lab_bench bench.svg`. That run seeds a single frame and
+  stops: no window and no threads.
+
+## How it fits together
+
+<p align="center"><img src="diagrams/threads.svg" alt="Two threads: the panels' setpoints gather into one Derived value that crosses to the hardware thread through a Shared, while stall and fault requests go the other way as an atomic and a Shared; the thread's frame comes back through a Shared and its state changes through a Channel, both handed to the logic thread by ctx.receive, where the scope and status bar repaint." width="900"/></p>
+
+Two threads, and only one of them touches the model:
+
+1. The **logic thread** owns every field. Moving a slider changes a field in a panel. One
+   `Derived<DaqSettings>` gathers every setpoint into one value.
+2. That value goes to the **hardware thread** through a `Shared<DaqSettings>`: publishing is a
+   store, and the worker always reads a whole value. The stall request crosses as an
+   `atomic<bool>`, the fault line as a second `Shared`.
+3. The worker polls every 25 ms. It publishes each frame into a `Shared<DaqTelemetry>`, because
+   only the newest frame matters, and sends the state changes it saw into a `Channel<DaqEvent>`,
+   because none of those may be dropped.
+4. `ctx.receive` hands both to the logic thread: the frame into `feed.frame`, the events into the
+   log. The scope and the status bar depend on `feed.frame`, so they repaint when a frame arrives.
+
+## Walkthrough
+
+Read the files in this order. The PRISM part is `model_lab_bench.cpp`, `settings.hpp` and
+`blocks/`, 626 lines: the five docked panels, the one settings value that reaches the hardware
+thread, and the status bar. `hardware_thread.hpp` (51 lines) is the thread glue. `daq/` (186
+lines) is plain C++ with no PRISM in it: waveforms, the supply's load line, the scope's autoscale
+and measurements.
+
+### A panel is a block
+
+`blocks/scope.hpp` is 27 lines, and it is the whole pattern. It borrows the frame the app owns,
+keeps the scratch space one draw needs, and repaints when the frame changes:
 
 ```cpp
 struct Scope {
     explicit Scope(core::Field<DaqTelemetry>& shot) : frame{shot} {}
 
-    core::Field<DaqTelemetry>& frame;   // the app's: it owns the frame, this panel reads it
-    std::vector<core::Point> trace{};   // scratch space for one draw
+    core::Field<DaqTelemetry>& frame;
+    std::vector<core::Point> trace{};
 
     void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame); }
 
@@ -31,45 +69,176 @@ struct Scope {
 };
 ```
 
-The drawing is next to it in `blocks/scope_canvas.hpp`: free functions over a `DrawList` that take a
-frame and produce the graticule, the trace, the readouts and the protection banner. The block is
-placement; the canvas is pixels.
+`depends_on(frame)` is also the repaint rule: the canvas redraws when a frame arrives, and only
+then. Nothing in the panel starts a thread or waits for a device.
+
+### What a panel contributes
+
+A panel owns the controls for its own slice of the instrument, plus the captions that follow from
+them. `blocks/power_supply.hpp` exposes one method the app calls, and one value it cannot print
+itself:
+
+```cpp
+core::Derived<std::string> power_caption{
+    [this] {
+        return fmt::format("Max power {:>5.1f} W", target_voltage.get().value * current_limit.get().value);
+    },
+    target_voltage, current_limit};
+```
+
+The caption recomputes when either slider moves, on the logic thread, with no frame involved. This
+panel also connects a reaction: enabling or disabling the output writes one line to the event log.
+The connections live in a `std::vector<core::Connection> reactions_` declared last, so they go
+before the fields they observe.
+
+### One value for the hardware thread
+
+The app holds the link between the two threads in one struct. None of it is a widget:
+
+```cpp
+struct Link {
+    core::Derived<lab::DaqSettings> setpoints;
+    core::Shared<lab::DaqSettings> setpoints_for_worker{};
+    std::atomic<bool> stall_request{false};
+    core::Shared<bool> fault_request{false};
+    core::Shared<lab::DaqTelemetry> telemetry_ingest{};
+    core::Channel<lab::DaqEvent> event_ingest{};
+};
+Link bus{.setpoints = {[this] {
+    lab::DaqSettings settings;
+    supply.apply_to(settings);
+    wave_gen.apply_to(settings);
+    return settings;
+}, supply.target_voltage, supply.current_limit, supply.output_toggle, wave_gen.wave_type,
+   wave_gen.frequency, wave_gen.amplitude, wave_gen.offset}};
+```
+
+`setpoints` lists every control it depends on, so it recomputes when any of them moves, and only
+then. `DaqSettings` is trivially copyable, which is what makes the two `Shared` crossings a store
+each. `event_ingest` is a `Channel` because a state change the instrument saw must reach the log
+even if three arrive before the next drain.
+
+### Wiring it up when the app starts
+
+`main()` passes a setup lambda to `app::run`. It runs once, on the logic thread, before the first
+frame; this is where the threads are connected:
+
+```cpp
+app.bus.setpoints.observe([&app](const lab::DaqSettings& s) { app.bus.setpoints_for_worker.set(s); });
+app.bus.setpoints_for_worker.set(app.bus.setpoints.get());
+
+ctx.receive(app.bus.telemetry_ingest, [&app](const lab::DaqTelemetry& t) { app.ingest_telemetry(t); });
+ctx.receive(app.bus.event_ingest, [&app](const lab::DaqEvent& e) { app.ingest_event(e); });
+```
+
+`ctx.receive` is the one call for anything another thread sets or sends: it wakes the logic thread
+and hands each value over there. `ingest_telemetry` writes the frame into `feed.frame`, which is
+what repaints the scope.
+
+The worker is a `std::jthread` started in the same lambda. Its loop is the other half of the
+picture:
+
+```cpp
+lab::DaqSettings requested = app.bus.setpoints_for_worker.get();
+requested.simulate_fault = app.bus.fault_request.get();
+const double time_sec =
+    std::chrono::duration<double>(lab::steady::now() - started).count();
+lab::DaqTelemetry reading = lab::hardware_read(requested, time_sec, stop, app.bus.stall_request);
+app.bus.telemetry_ingest.set(reading);
+lab::report_transitions(app.bus.event_ingest, previous, reading);
+previous = reading;
+std::this_thread::sleep_for(lab::kPollPeriod);
+```
+
+The worker reads the newest setpoints, reads the instrument, publishes the frame, and compares it
+with the previous one to decide which events to send. It never touches a `Field`.
+
+### A stall is a request, not a value
+
+The stress panel sets the atomic; the worker takes it with one `exchange(false)`:
+
+```cpp
+if (stall_request.exchange(false)) stall_for(stop, kStall);
+```
+
+So a second press during a stall cannot queue a third one, and the wait happens on the thread that
+can afford it. `stall_for` waits in 20 ms slices and checks the `stop_token` in between, so closing
+the window does not wait out the two seconds. The other button does not request anything: it calls
+a plain sleep function on the logic thread, which is what a tool whose widgets and model share one
+thread looks like.
+
+### The scope is a canvas
+
+`blocks/scope_canvas.hpp` draws the frame with free functions over a `DrawList`: the graticule and
+its rulers, the trace with a glow under it, the readouts, then the protection banner on top:
+
+```cpp
+dl.filled_rect(bounds, kScreen);
+core::Rect plot = plot_area(bounds);
+draw_graticule(dl, bounds, plot, t);
+draw_trace(dl, plot, t, scratch);
+draw_readouts(dl, bounds, plot, t);
+draw_fault_banner(dl, bounds, t);
+dl.rounded_rect(bounds, node.theme->border, 0.f, 1.f);
+```
+
+The scale it prints is the scale it drew: `v_per_div` comes from the frame, chosen by a 1-2-5
+autoscale over its peak, so the header cannot drift from the trace. Lines are placed at half-pixel
+offsets, which keeps a 1 px graticule crisp when the backend scales the frame.
+
+### main()
+
+```cpp
+int main(int argc, char* argv[]) {
+    LabBenchApp app;
+
+    if (argc >= 2) {
+        app.seed_demo_data();
+        return showcase(argc, argv, app, 960, 680);
+    }
+
+    std::jthread worker;
+
+    app::run(app, {.title = "PRISM Lab Bench & DAQ Console", .width = 960, .height = 680,
+                   .settings = &app.settings, .organization = "prism", .name = "lab-bench"},
+             [&](app::AppContext& ctx) {
+        ...
+    });
+
+    return 0;
+}
+```
+
+`app::run` opens the window, loads `settings` and saves it on every change, so the panels come back
+where they were left. With a path argument the app instead seeds one frame and renders a single
+SVG: that is the screenshot above.
 
 ## Try this
 
-1. Open **Stress & Fault Injection** and press **Stall the hardware thread**.
-2. Drag the voltage slider during the two seconds. It moves, its value and the "Max power" line
-   follow, and the status bar's frame age climbs to 2 s.
-3. Press **Stall the logic thread**. Now the window stops answering: a click waits until the stall
-   ends. That is every GUI toolkit whose widgets and model share one thread.
+1. Open **Stress & Fault Injection** and press **Stall the hardware thread (2 s)**.
+2. Drag the **Voltage** slider during the two seconds. It moves, the **Max power** line follows it,
+   and the status bar's frame age climbs to 2 s. The window keeps answering.
+3. Press **Stall the logic thread (2 s)**. Now a click waits until the stall ends: this is the
+   thread the frame is drawn on.
+4. Switch the generator to **Square** and watch the trace change shape. Press **Trip over-current
+   protection**: the scope shows its banner, and the log gets the line the worker sent.
 
-In PRISM a slow device, a slow file or a slow network call blocks only the thread that waits for it.
-The window keeps drawing and stays interactive, and shows the last frame it got.
+## Files
 
-## How it is built
+| File | What it is |
+|---|---|
+| `model_lab_bench.cpp` | The app: composes the panels, holds the link to the hardware thread, `main()`. |
+| `settings.hpp` | What is saved between runs: the dock layout and window size. |
+| `blocks/scope.hpp`, `scope_canvas.hpp` | The scope panel, and its drawing. |
+| `blocks/power_supply.hpp` | Output, voltage, current limit, and the two captions under them. |
+| `blocks/wave_generator.hpp` | Waveform, frequency, amplitude, offset, and the period caption. |
+| `blocks/event_log.hpp` | The log: stamped lines, newest last, capped at 150. |
+| `blocks/diagnostics.hpp` | The two stalls, the fault buttons, and the hint. |
+| `blocks/status_bar.hpp` | Device name, the frame's scalars, and how old the frame is. |
+| `hardware_thread.hpp` | Poll period, the stall, and what the worker reports back. |
+| `daq/model.hpp` | The instrument's data: settings, one frame, one event. |
+| `daq/instrument.hpp` | The instrument's behaviour: waveforms, load line, autoscale, measurements. |
+| `diagrams/threads.svg` | The picture above. |
 
-- **Controls are fields.** Each slider is a `Field<ui::Slider<double>>` with a `label` and a `unit`,
-  so it prints its own value. The waveform is a `Field<WaveformType>`, an enum: its dropdown comes
-  free. `blocks/power_supply.hpp` and `blocks/wave_generator.hpp` own theirs and expose the one
-  method the app needs: `apply_to(DaqSettings&)`.
-- **Readouts are `Derived`.** "Max power", the period and the supply's CC/CV mode are computed from
-  the controls and the last frame, and recompute when those change. They live in the block that
-  owns the controls they read, not in the app.
-- **One value crosses to the hardware thread.** A `Derived<DaqSettings>` gathers every setpoint on
-  the logic thread; its observer hands it to a `Shared<DaqSettings>` the worker reads. The worker
-  never touches a `Field`.
-- **Frames come back coalesced, events in order.** Frames travel in a `Shared<DaqTelemetry>`: only
-  the newest one matters. State changes the instrument sees (protection tripped, constant-current
-  mode) travel in a `Channel<DaqEvent>`: none is dropped. One `ctx.receive()` each hands them to
-  the model on the logic thread.
-- **A stall is a request, not a value.** The button sets an `atomic<bool>`; the worker takes it with
-  one `exchange(false)`, so a second press during a stall cannot queue a third.
-- **The scope is a canvas.** `blocks/scope_canvas.hpp` draws the frame with a 1-2-5 autoscale and
-  prints the scale it drew. `depends_on(frame)` repaints it when a frame arrives, and only then.
-- **The instrument is pure.** `daq/model.hpp` is its data (settings, telemetry, events);
-  `daq/instrument.hpp` is its behaviour (waveforms, the supply's load line, autoscale,
-  measurements). No threads, no IO, no PRISM — `tests/test_lab_bench.cpp` tests both directly.
-- **`hardware_thread.hpp` is the glue.** How often to poll, how long a stall lasts, what the worker
-  reports back. It is the only file that knows both a thread and a `Channel`, and it is 51 lines.
-
-The Python counterpart is `python/examples/16_lab_instrument.py`.
+`tests/test_lab_bench.cpp` tests `daq/` directly: no window, no thread, no backend. The Python
+counterpart is [`python/examples/16_lab_instrument.py`](../../python/examples/16_lab_instrument.py).

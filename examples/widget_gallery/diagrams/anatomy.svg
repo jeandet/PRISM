@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 332" role="img" aria-label="A widget is a plain struct plus one Widget specialization that draws it and handles input, so a Field of that struct is a control; a tab is a struct whose view() a block turns into the page's widgets, and the tab's Field of a Knob renders through the knob specialization.">
+  <style>
+    text { font: 13px system-ui, sans-serif; fill: #1f2328; }
+    .small { font-size: 11.5px; fill: #57606a; }
+    .lane-title { font-weight: 600; font-size: 12.5px; }
+    .box { fill: #ffffff; stroke: #57606a; stroke-width: 1.2; }
+    .key { stroke: #7c3cf5; stroke-width: 1.8; }
+    .arrow { stroke: #57606a; stroke-width: 1.5; fill: none; }
+    .hot { stroke: #f2542d; }
+    .tip { fill: #57606a; }
+    .tip.hot { fill: #f2542d; }
+    .logic { fill: #22b4ff; fill-opacity: 0.10; }
+    .audio { fill: #f2542d; fill-opacity: 0.09; }
+    .analysis { fill: #36d6cf; fill-opacity: 0.12; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .small { fill: #9da7b3; }
+      .box { fill: #161b22; stroke: #9da7b3; }
+      .arrow { stroke: #9da7b3; }
+      .tip { fill: #9da7b3; }
+      .key { stroke: #a371f7; }
+      .hot { stroke: #ff7b5c; }
+      .tip.hot { fill: #ff7b5c; }
+    }
+  </style>
+
+  <!-- lanes -->
+  <rect class="logic" x="8" y="20" width="1064" height="155" rx="8"/>
+  <rect class="analysis" x="8" y="205" width="1064" height="115" rx="8"/>
+  <text class="lane-title" x="20" y="40">a widget</text>
+  <text class="small" x="20" y="56">knob.hpp: one struct, one Widget</text>
+  <text class="lane-title" x="20" y="225">a tab</text>
+  <text class="small" x="20" y="241">a struct with a view()</text>
+
+  <!-- widget lane -->
+  <rect class="box" x="200" y="70" width="130" height="56" rx="6"/>
+  <text x="265" y="92" text-anchor="middle">struct Knob</text>
+  <text class="small" x="265" y="108" text-anchor="middle">value, min, max</text>
+  <text class="small" x="265" y="122" text-anchor="middle">step, label, unit</text>
+
+  <rect class="box key" x="410" y="70" width="210" height="56" rx="6"/>
+  <text x="515" y="92" text-anchor="middle">Widget&lt;gallery::Knob&gt;</text>
+  <text class="small" x="515" y="108" text-anchor="middle">describe, record, handle_input</text>
+  <text class="small" x="515" y="122" text-anchor="middle">the whole dial, in one struct</text>
+
+  <rect class="box" x="690" y="70" width="160" height="56" rx="6"/>
+  <text x="770" y="92" text-anchor="middle">Field&lt;Knob&gt; cutoff</text>
+  <text class="small" x="770" y="108" text-anchor="middle">one field</text>
+  <text class="small" x="770" y="122" text-anchor="middle">one knob</text>
+
+  <rect class="box" x="920" y="70" width="140" height="56" rx="6"/>
+  <text x="990" y="92" text-anchor="middle">in the page</text>
+  <text class="small" x="990" y="108" text-anchor="middle">record() draws it,</text>
+  <text class="small" x="990" y="122" text-anchor="middle">a drag turns it</text>
+
+  <!-- tab lane -->
+  <rect class="box" x="200" y="235" width="150" height="52" rx="6"/>
+  <text x="275" y="256" text-anchor="middle">BuildYourOwnTab</text>
+  <text class="small" x="275" y="273" text-anchor="middle">fields, strips, master</text>
+
+  <rect class="box" x="430" y="235" width="160" height="52" rx="6"/>
+  <text x="510" y="256" text-anchor="middle">vb.tab(name, …)</text>
+  <text class="small" x="510" y="273" text-anchor="middle">a page, built when shown</text>
+
+  <rect class="box" x="660" y="235" width="190" height="52" rx="6"/>
+  <text x="755" y="256" text-anchor="middle">vb.block(tab)</text>
+  <text class="small" x="755" y="273" text-anchor="middle">build_node_tree: calls view()</text>
+
+  <rect class="box" x="920" y="235" width="140" height="52" rx="6"/>
+  <text x="990" y="256" text-anchor="middle">the page</text>
+  <text class="small" x="990" y="273" text-anchor="middle">knobs, labels, code</text>
+
+  <!-- arrows -->
+  <line class="arrow" x1="330" y1="98" x2="404" y2="98"/>
+  <polygon class="tip" points="410,98 402,94 402,102"/>
+  <text class="small" x="370" y="88" text-anchor="middle">written for</text>
+
+  <line class="arrow" x1="620" y1="98" x2="684" y2="98"/>
+  <polygon class="tip" points="690,98 682,94 682,102"/>
+  <text class="small" x="655" y="88" text-anchor="middle">a field</text>
+
+  <line class="arrow" x1="850" y1="98" x2="914" y2="98"/>
+  <polygon class="tip" points="920,98 912,94 912,102"/>
+  <text class="small" x="885" y="88" text-anchor="middle">on change</text>
+
+  <line class="arrow hot" x1="755" y1="235" x2="755" y2="132"/>
+  <polygon class="tip hot" points="755,126 751,134 759,134"/>
+  <text class="small" x="766" y="142">its Field&lt;Knob&gt;s</text>
+  <text class="small" x="766" y="156">render through</text>
+  <text class="small" x="766" y="170">Widget&lt;Knob&gt;</text>
+
+  <line class="arrow" x1="350" y1="261" x2="424" y2="261"/>
+  <polygon class="tip" points="430,261 422,257 422,265"/>
+  <text class="small" x="390" y="251" text-anchor="middle">the page</text>
+
+  <line class="arrow" x1="590" y1="261" x2="654" y2="261"/>
+  <polygon class="tip" points="660,261 652,257 652,265"/>
+  <text class="small" x="625" y="251" text-anchor="middle">calls view()</text>
+
+  <line class="arrow" x1="850" y1="261" x2="914" y2="261"/>
+  <polygon class="tip" points="920,261 912,257 912,265"/>
+  <text class="small" x="885" y="251" text-anchor="middle">its widgets</text>
+</svg>

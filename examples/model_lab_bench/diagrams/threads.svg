@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 306" width="1080" height="306" role="img" aria-label="Two threads: the panels' setpoints gather into one Derived value that crosses to the hardware thread through a Shared, while stall and fault requests go the other way as an atomic and a Shared; the thread's frame comes back through a Shared and its state changes through a Channel, both handed to the logic thread by ctx.receive, where the scope and status bar repaint.">
+  <style>
+    text { font: 13px system-ui, sans-serif; fill: #1f2328; }
+    .small { font-size: 11.5px; fill: #57606a; }
+    .lane-title { font-weight: 600; font-size: 12.5px; }
+    .box { fill: #ffffff; stroke: #57606a; stroke-width: 1.2; }
+    .key { stroke: #7c3cf5; stroke-width: 1.8; }
+    .arrow { stroke: #57606a; stroke-width: 1.5; fill: none; }
+    .hot { stroke: #f2542d; }
+    .tip { fill: #57606a; }
+    .tip.hot { fill: #f2542d; }
+    .logic { fill: #22b4ff; fill-opacity: 0.10; }
+    .audio { fill: #f2542d; fill-opacity: 0.09; }
+    .analysis { fill: #36d6cf; fill-opacity: 0.12; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .small { fill: #9da7b3; }
+      .box { fill: #161b22; stroke: #9da7b3; }
+      .arrow { stroke: #9da7b3; }
+      .tip { fill: #9da7b3; }
+      .key { stroke: #a371f7; }
+      .hot { stroke: #ff7b5c; }
+      .tip.hot { fill: #ff7b5c; }
+    }
+  </style>
+
+  <!-- lanes -->
+  <rect class="logic" x="8" y="20" width="1064" height="150" rx="8"/>
+  <rect class="audio" x="8" y="200" width="1064" height="96" rx="8"/>
+  <text class="lane-title" x="20" y="40">logic thread</text>
+  <text class="small" x="20" y="56">owns every Field</text>
+  <text class="lane-title" x="20" y="220">hardware thread</text>
+  <text class="small" x="20" y="236">the loop that can wait</text>
+
+  <!-- logic lane -->
+  <rect class="box" x="200" y="66" width="140" height="48" rx="6"/>
+  <text x="270" y="86" text-anchor="middle">blocks/</text>
+  <text class="small" x="270" y="103" text-anchor="middle">sliders, buttons, enums</text>
+
+  <rect class="box key" x="410" y="66" width="180" height="48" rx="6"/>
+  <text x="500" y="86" text-anchor="middle">Derived&lt;DaqSettings&gt;</text>
+  <text class="small" x="500" y="103" text-anchor="middle">every setpoint, one value</text>
+
+  <rect class="box" x="660" y="66" width="140" height="48" rx="6"/>
+  <text x="730" y="86" text-anchor="middle">feed.frame</text>
+  <text class="small" x="730" y="103" text-anchor="middle">Field&lt;DaqTelemetry&gt;</text>
+
+  <rect class="box" x="870" y="66" width="194" height="48" rx="6"/>
+  <text x="967" y="86" text-anchor="middle">Scope, StatusBar, EventLog</text>
+  <text class="small" x="967" y="103" text-anchor="middle">repaint when one arrives</text>
+
+  <!-- hardware lane -->
+  <rect class="box" x="200" y="232" width="140" height="48" rx="6"/>
+  <text x="270" y="252" text-anchor="middle">worker loop</text>
+  <text class="small" x="270" y="269" text-anchor="middle">every 25 ms</text>
+
+  <rect class="box" x="410" y="232" width="180" height="48" rx="6"/>
+  <text x="500" y="252" text-anchor="middle">hardware_read()</text>
+  <text class="small" x="500" y="269" text-anchor="middle">the read that can stall</text>
+
+  <rect class="box" x="660" y="232" width="140" height="48" rx="6"/>
+  <text x="730" y="252" text-anchor="middle">publishes</text>
+  <text class="small" x="730" y="269" text-anchor="middle">one frame, then events</text>
+
+  <!-- logic lane arrows -->
+  <line class="arrow" x1="340" y1="90" x2="404" y2="90"/>
+  <polygon class="tip" points="410,90 402,86 402,94"/>
+  <text class="small" x="375" y="80" text-anchor="middle">change</text>
+
+  <line class="arrow" x1="800" y1="90" x2="864" y2="90"/>
+  <polygon class="tip" points="870,90 862,86 862,94"/>
+  <text class="small" x="835" y="80" text-anchor="middle">depends_on</text>
+
+  <!-- down to the worker -->
+  <line class="arrow" x1="270" y1="114" x2="270" y2="225"/>
+  <polygon class="tip" points="270,232 266,224 274,224"/>
+  <text class="small" x="280" y="150">stall (atomic)</text>
+  <text class="small" x="280" y="164">fault line (Shared)</text>
+
+  <line class="arrow hot" x1="500" y1="114" x2="500" y2="225"/>
+  <polygon class="tip hot" points="500,232 496,224 504,224"/>
+  <text class="small" x="510" y="150">Shared&lt;DaqSettings&gt;:</text>
+  <text class="small" x="510" y="164">one whole value, no lock</text>
+
+  <!-- inside the worker -->
+  <line class="arrow" x1="340" y1="256" x2="404" y2="256"/>
+  <polygon class="tip" points="410,256 402,252 402,260"/>
+  <text class="small" x="375" y="246" text-anchor="middle">setpoints</text>
+
+  <line class="arrow" x1="590" y1="256" x2="654" y2="256"/>
+  <polygon class="tip" points="660,256 652,252 652,260"/>
+  <text class="small" x="625" y="246" text-anchor="middle">one frame</text>
+
+  <!-- back up -->
+  <line class="arrow" x1="730" y1="232" x2="730" y2="121"/>
+  <polygon class="tip" points="730,114 726,122 734,122"/>
+  <text class="small" x="740" y="150">Shared&lt;DaqTelemetry&gt;</text>
+  <text class="small" x="740" y="164">+ ctx.receive:</text>
+  <text class="small" x="740" y="178">newest frame wins</text>
+
+  <polyline class="arrow" points="800,256 1040,256 1040,121"/>
+  <polygon class="tip" points="1040,114 1036,122 1044,122"/>
+  <text class="small" x="810" y="232">Channel&lt;DaqEvent&gt; + ctx.receive</text>
+  <text class="small" x="810" y="246">every event, in order</text>
+</svg>
