@@ -237,6 +237,18 @@ public:
         return [gate = wake_gate_] { gate->wake(); };
     }
 
+    // What another thread sets or sends on `source` (a Shared<T> or a Channel<T>) reaches
+    // `on_value` on the logic thread: its waker posts a drain of `source`, so it needs neither a
+    // set_waker() nor a drain() listing it. One post per wake, so a Shared still coalesces.
+    template <typename Source, typename F>
+        requires requires(Source& s) { s.drain_notifications(); }
+    void receive(Source& source, F&& on_value) {
+        source.observe(std::forward<F>(on_value));
+        auto drain = [&source] { source.drain_notifications(); };
+        source.set_waker([gate = wake_gate_, drain] { gate->post(drain); });
+        post_deferred(drain);   // a value set before this call was pending with no one to wake
+    }
+
     // After this returns no wake or cross-thread post() is in flight and none will start:
     // the run_loop may finish.
     void close_waker() { wake_gate_->close(); }
@@ -505,7 +517,14 @@ private:
     }
 
     // The mutation queue's shared publish tail (see the assignment in the constructor).
+    void attach_blocks() {
+        registry_.for_each([this](WindowId, WindowRegistry::Entry& entry) {
+            entry.tree->attach_blocks(*ctx_holder_);
+        });
+    }
+
     void drain_publish() {
+        attach_blocks();   // blocks built since the last turn (a window opened, a page shown)
         registry_.for_each([](WindowId, WindowRegistry::Entry& entry) {
             entry.tree->drain_shared();
         });
@@ -538,6 +557,7 @@ private:
         ctx.set_global_key_handler([this](const KeyPress& kp) { on_inspector_hotkey(kp); });
 #endif
 
+        attach_blocks();
         if (setup) {
             setup(ctx);
             publish_dirty();   // what setup changed or opened (a theme, a second window)

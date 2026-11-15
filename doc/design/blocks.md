@@ -1,9 +1,12 @@
 # Blocks: Reusable UI + Logic Bundles
 
 > **Today:** a block is a plain struct with fields, an optional `view()`, and its reactions, placed
-> with `vb.block(b)` (see the README's Blocks section and the gallery's "Build your own" tab). What
-> follows is a design-only exploration of a base class that would let a block wire its own
-> reactions; it is not implemented.
+> with `vb.block(b)` (see the README's Blocks section and the gallery's "Build your own" tab). It
+> wires what needs the running app in an optional `void attach(app::AppContext&)`, found by a
+> concept (option 2 below, not the base class): the tree notes it the first time it builds the
+> block, once per object, children before parents, and the app runs it on the logic thread before
+> its setup (later for blocks built later, e.g. in a new window). What follows is the original
+> exploration of a base class; it was not implemented.
 
 ## Overview
 

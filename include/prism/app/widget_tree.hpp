@@ -41,9 +41,12 @@
 #include <set>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace prism::app {
+
+class AppContext;   // a block's attach() takes one; the tree only stores the call
 using namespace prism::core;
 using namespace prism::ui;
 using namespace prism::app::widget_detail;
@@ -90,6 +93,13 @@ public:
     void clear_dirty() {
         tooltip_dirty_ = false;
         clear_dirty_impl(root_);
+    }
+
+    // Runs each block's attach(ctx) once, the first time it is called after the block was
+    // built: a block built later (a window opened, a page shown) is attached on the next call.
+    void attach_blocks(AppContext& ctx) {
+        auto due = std::exchange(unattached_, {});   // an attach() may build more blocks
+        for (auto& [key, attach] : due) attach(ctx);
     }
 
     void drain_shared() {
@@ -913,6 +923,10 @@ private:
     }
     std::unordered_map<WidgetId, WidgetId> parent_map_;
     std::vector<std::function<void()>> drain_callbacks_;
+    std::unordered_set<const void*> attached_keys_;
+    // simplify: only grows; an address reused after a model dies could hide one debug warning.
+    std::set<const void*> placed_anywhere_;
+    std::vector<std::pair<const void*, std::function<void(AppContext&)>>> unattached_;
     std::vector<std::function<void(std::function<void()>)>> waker_binders_;
 
     void collect_drains(const Node& node) {
@@ -1237,7 +1251,10 @@ private:
             // time -- the same mechanism model.view(vb) above already relies on.
             [&](auto& built) {
 #if __cpp_impl_reflection
-                check_unplaced_fields(model, built.placed());
+                // Blocks were built inside this view(): what they placed counts for this model
+                // too (a value it owns and hands to a block to draw).
+                placed_anywhere_.insert(built.placed().begin(), built.placed().end());
+                check_unplaced_fields(model, placed_anywhere_);
 #endif
                 built.finalize();
             }(vb);
@@ -1290,7 +1307,14 @@ private:
         }
 #endif // __cpp_impl_reflection
 
+        if constexpr (requires(Model& m, AppContext& ctx) { m.attach(ctx); })
+            note_attach(&model, [&model](AppContext& ctx) { model.attach(ctx); });
         return root;
+    }
+
+    // Views are rebuilt, so a block is met many times: remember each one once, by address.
+    void note_attach(const void* key, std::function<void(AppContext&)> attach) {
+        if (attached_keys_.insert(key).second) unattached_.emplace_back(key, std::move(attach));
     }
 
     // --- WidgetNode tree utilities ---

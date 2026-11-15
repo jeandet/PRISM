@@ -307,8 +307,7 @@ public:
 
         template <typename Observable>
         Self& depends_on(Observable& obs) {
-            if constexpr (is_field_v<Observable>)
-                placed_ref.insert(&obs);
+            placed_ref.insert(&obs);   // read by the view, so not forgotten: Field, Derived or Shared
             node_ref.dependencies.push_back(view_builder_detail::adapt_on_change(obs));
             return static_cast<Self&>(*this);
         }
@@ -1094,6 +1093,7 @@ public:
         requires std::invocable<F, ViewBuilder&>
     void tab(std::string_view name, F&& content_builder) {
         if (!current_tabs_state_) return;
+        probe_placed(content_builder);   // pages are built when shown: learn what they place now
         if (!current_tabs_state_->tab_names)
             current_tabs_state_->tab_names = std::make_shared<std::vector<std::string>>();
         current_tabs_state_->tab_names->push_back(std::string(name));

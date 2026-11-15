@@ -39,9 +39,10 @@ Logic (app) thread                    Render thread
 
 **Worker-thread state.** `Shared<T>::set()` and `Channel<T>::send()` call a *waker* when a value
 becomes pending (once per drain cycle, not per call). `model_app` binds `AppContext::waker()` into
-every `Shared`/`Channel` the widget tree drains; anything else is wired with
-`member.set_waker(ctx.waker())`. The waker queues an empty task on the logic thread, whose drain
-runs `drain_shared()` and publishes — so an idle app wakes for worker data and otherwise sleeps.
+every `Shared`/`Channel` the widget tree drains (the ones a view shows). The waker queues an empty
+task on the logic thread, whose drain runs `drain_shared()` and publishes — so an idle app wakes
+for worker data and otherwise sleeps. Anything else goes through `ctx.receive(x, callback)`: it
+observes `x` and binds a waker that posts a drain of `x` alone, so no model lists it in a `drain()`.
 All cross-thread enqueues go through one gate that `model_app` closes before `run_loop::finish()`,
 so a waker or `post()` that outlives the app is a no-op.
 

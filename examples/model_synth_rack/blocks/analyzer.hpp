@@ -13,26 +13,14 @@ namespace prism::synth::blocks {
 // the app's display frame and the settings it was made from. It holds no state of its own except
 // the scratch space one draw needs, and it repaints when either input changes.
 struct Analyzer {
-    // Nested so the model's unplaced-field check, which only looks at this struct's own members,
-    // has nothing to say about values a canvas reads: `depends_on` records a Field as placed but
-    // not a Derived, and both of these are read here rather than placed as widgets.
-    struct Source {
-        core::Field<AnalyzerFrame>& frame;
-        core::Derived<SynthSettings>& settings;
-    };
-
-    explicit Analyzer(core::Field<AnalyzerFrame>& shot, core::Derived<SynthSettings>& live)
-        : source{shot, live} {}
-
-    Source source;
+    core::Field<AnalyzerFrame>& frame;        // the app's: it owns them, this panel draws them
+    core::Derived<SynthSettings>& settings;
     std::vector<core::Point> trace{};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
-        vb.canvas(*this).depends_on(source.frame, source.settings);
-    }
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame, settings); }
 
     void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
-        analyzer_canvas::draw(dl, bounds, node, source.frame.get(), source.settings.get(), trace);
+        analyzer_canvas::draw(dl, bounds, node, frame.get(), settings.get(), trace);
     }
 };
 

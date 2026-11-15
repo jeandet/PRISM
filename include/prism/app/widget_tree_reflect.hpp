@@ -11,6 +11,7 @@
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
+#include <vector>
 
 // What WidgetTree learns from a model's members by reflection when the model places its fields
 // itself (a view() method): their names, and a warning for any it left out.
@@ -40,13 +41,30 @@ void record_field_names(Model& model, std::unordered_map<const void*, std::strin
     }
 }
 
+// The members that could have been a widget and that view() never placed: a forgotten widget.
+// Not a reference (the model that owns it answers for it) and not a Shared (plumbing between
+// threads, read through a Field or a Derived, never shown as itself).
+template <typename Model>
+std::vector<std::string_view> unplaced_fields(Model& model, const std::set<const void*>& placed) {
+    static constexpr auto members = std::define_static_array(
+        std::meta::nonstatic_data_members_of(
+            ^^Model, std::meta::access_context::unchecked()));
+    std::vector<std::string_view> names;
+    template for (constexpr auto m : members) {
+        if constexpr (!std::meta::is_reference_type(std::meta::type_of(m))) {
+            auto& member = model.[:m:];
+            using M = std::remove_cvref_t<decltype(member)>;
+            if constexpr (is_field_v<M> || is_derived_v<M>)
+                if (!placed.contains(&member)) names.push_back(std::meta::identifier_of(m));
+        }
+    }
+    return names;
+}
+
 template <typename Model>
 void check_unplaced_fields([[maybe_unused]] Model& model,
                            [[maybe_unused]] const std::set<const void*>& placed) {
 #ifndef NDEBUG
-    static constexpr auto members = std::define_static_array(
-        std::meta::nonstatic_data_members_of(
-            ^^Model, std::meta::access_context::unchecked()));
     // Model can be a class-template specialization reached through a deduced function-
     // template parameter (e.g. LeafSlot<M, ReadOnly>) -- on this reflection implementation
     // such a ^^Model reports has_identifier() == false, and identifier_of() would throw as
@@ -55,19 +73,10 @@ void check_unplaced_fields([[maybe_unused]] Model& model,
     // Shared<T>& -> Shared<T>* workaround in inspector.hpp for the same underlying bug.
     static constexpr std::string_view model_name = std::meta::has_identifier(^^Model)
         ? std::meta::identifier_of(^^Model) : std::string_view{"<anonymous>"};
-    template for (constexpr auto m : members) {
-        auto& member = model.[:m:];
-        using M = std::remove_cvref_t<decltype(member)>;
-        if constexpr (is_field_v<M> || is_derived_v<M> || is_shared_v<M>) {
-            if (!placed.contains(&member)) {
-                std::fprintf(stderr, "[prism] warning: Field '%.*s' in %.*s not placed by view()\n",
-                    static_cast<int>(std::meta::identifier_of(m).size()),
-                    std::meta::identifier_of(m).data(),
-                    static_cast<int>(model_name.size()),
-                    model_name.data());
-            }
-        }
-    }
+    for (std::string_view name : unplaced_fields(model, placed))
+        std::fprintf(stderr, "[prism] warning: Field '%.*s' in %.*s not placed by view()\n",
+                     static_cast<int>(name.size()), name.data(),
+                     static_cast<int>(model_name.size()), model_name.data());
 #endif
 }
 

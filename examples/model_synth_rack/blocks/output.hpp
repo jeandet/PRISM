@@ -17,13 +17,7 @@ namespace prism::synth::blocks {
 // the audio thread never waits for the one that owns the model. The display frame is read through
 // the captions' Derived sources, never through a widget.
 struct Output {
-    // Nested so the model's unplaced-field check, which only looks at this struct's own members,
-    // has nothing to say about a frame that is not a widget here.
-    struct Source {
-        core::Field<AnalyzerFrame>& frame;
-    };
-
-    explicit Output(core::Field<AnalyzerFrame>& shot) : shots{shot} {
+    explicit Output(core::Field<AnalyzerFrame>& shot) : frame{shot} {
         reactions_.push_back(stall_button.on_change().connect([this](const ui::Button&) {
             block_this_thread(kStall);
             note.set(ui::Label<>{"the logic thread was blocked for 2 s; the audio callback kept "
@@ -31,7 +25,7 @@ struct Output {
         }));
     }
 
-    Source shots;
+    core::Field<AnalyzerFrame>& frame;   // the app's: read by the captions below
     core::Field<gallery::Knob> volume{
         {.value = -8.0, .min = -40.0, .max = 0.0, .step = 0.5, .label = "Volume", .unit = "dB"}};
     core::Field<ui::Button> stall_button{{.text = "Stall the logic thread (2 s)", .primary = false}};
@@ -41,22 +35,22 @@ struct Output {
 
     core::Derived<std::string> budget_caption{
         [this] {
-            const AnalyzerFrame& shot = shots.frame.get();
+            const AnalyzerFrame& shot = frame.get();
             if (shot.callback_max_ms <= 0.f) return std::string("callback: no audio yet");
             return fmt::format("callback {:.3f} ms mean · {:.3f} ms max", shot.callback_mean_ms,
                                shot.callback_max_ms);
         },
-        shots.frame};
+        frame};
     core::Derived<std::string> engine_caption{
         [this] {
-            const AnalyzerFrame& shot = shots.frame.get();
+            const AnalyzerFrame& shot = frame.get();
             const std::string updates = shot.parameter_updates == 1
                                             ? std::string("1 update")
                                             : fmt::format("{} updates", shot.parameter_updates);
             return fmt::format("of {:.2f} ms · {} Hz · {} frames · {}", block_ms(shot),
                                static_cast<int>(shot.sample_rate), shot.buffer_frames, updates);
         },
-        shots.frame};
+        frame};
 
     double volume_db() const { return volume.get().value; }
 

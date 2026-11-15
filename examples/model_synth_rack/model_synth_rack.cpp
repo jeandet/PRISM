@@ -94,8 +94,6 @@ struct SynthApp {
 
     void attach() { attached = true; }
 
-    void drain() { feed.frames.drain_notifications(); }
-
     synth::SynthSettings gather_settings() const {
         return synth::make_settings(arp.settings(gates.mask()), voice.settings(), effects.settings(),
                                     output.volume_db());
@@ -177,9 +175,8 @@ int main(int argc, char* argv[]) {
             app.link.settings.observe(
                 [&app](const synth::SynthSettings& live) { app.audio.publish(live); });
             app.audio.publish(app.link.settings.get());
-            app.feed.frames.set_waker(ctx.waker());
-            app.feed.frames.observe(
-                [&app](const synth::AnalyzerFrame& shot) { app.feed.frame.set(shot); });
+            ctx.receive(app.feed.frames,
+                        [&app](const synth::AnalyzerFrame& shot) { app.feed.frame.set(shot); });
             try {
                 analysis = std::jthread(
                     [&app](std::stop_token stop) { app.audio.run_analysis(stop); });

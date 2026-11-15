@@ -234,6 +234,20 @@ struct Mixer {
 No base class and nothing to register; a block saves and restores like any other field. The
 widget gallery's "Build your own" tab runs this mixer, next to the one-header `Knob` widget it uses.
 
+A block that needs the running app (a worker's results, the clock) says so with an `attach()`.
+It runs once, on the logic thread, before the app's setup:
+
+```cpp
+struct Meter {
+    core::Field<ui::Label<>> level;
+    core::Shared<double> reading;     // a worker thread sets it
+    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(level); }
+    void attach(app::AppContext& ctx) {
+        ctx.receive(reading, [this](double v) { level.set({fmt::format("{:.1f} dB", v)}); });
+    }
+};
+```
+
 ### Canvas escape hatch
 
 Drop to raw drawing when you need it:
@@ -696,8 +710,9 @@ A few rules worth knowing:
 - `Field<T>` holds only a value, never a label. The label comes from the member name.
 - One logic thread owns the widget tree and every `Field<T>`. They are not thread-safe.
 - Other threads talk to it through `Shared<T>::set()`, `Channel<T>::send()` or a posted closure.
-- A `Shared<T>::set()` or `Channel<T>::send()` wakes an idle app. Members the widget tree sees are
-  wired automatically; for others, call `member.set_waker(ctx.waker())` in the setup.
+- A `Shared<T>::set()` or `Channel<T>::send()` wakes an idle app. `ctx.receive(x, callback)` (in
+  the setup, or in a block's `attach()`) hands what arrives to the callback on the logic thread;
+  members the widget tree shows (`vb.widget(shared)`) are wired on their own.
 - An exception in a callback goes to `core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
 

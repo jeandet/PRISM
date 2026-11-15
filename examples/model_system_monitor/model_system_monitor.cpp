@@ -45,9 +45,8 @@ struct MonitorPrefs {
 
 struct SystemMonitor {
     MonitorPrefs prefs;
-    // Background-thread ingest points. Never placed via vb.widget() -- they are read only
-    // through .observe(), which fires during drain via the void drain() opt-in below. A
-    // harmless "not placed by view()" debug-build warning is expected for these fields.
+    // Background-thread ingest points: the sampler threads set them, ctx.receive() in main()
+    // hands each value to the logic thread.
     core::Shared<SystemSample> sys_sample{};
     core::Shared<std::vector<ProcessInfo>> proc_list{};
     // Ordered/lossless, unlike the two Shared<T> above: every process start/stop between two
@@ -148,12 +147,6 @@ struct SystemMonitor {
         ingest_process_event(ProcessEvent{.pid = 17, .name = "old_task", .started = false});
     }
 
-    void drain() {
-        sys_sample.drain_notifications();
-        proc_list.drain_notifications();
-        process_events.drain_notifications();
-    }
-
     void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         auto& t = *node.theme;
         float size = 8.f + 4.f * std::sin(heartbeat_phase.get());
@@ -213,16 +206,12 @@ int main(int argc, char* argv[]) {
             app.heartbeat_phase.set(static_cast<float>(phase));
             return true; // the heartbeat runs forever by design
         });
-        // Wake the logic thread when a sampler thread delivers, instead of relying on the
-        // next input event or animation tick to drain these.
-        app.sys_sample.set_waker(ctx.waker());
-        app.proc_list.set_waker(ctx.waker());
-        app.process_events.set_waker(ctx.waker());
-        app.sys_sample.observe([&app](const SystemSample& s) { app.ingest_system(s); });
-        app.proc_list.observe([&app](const std::vector<ProcessInfo>& p) {
-            app.ingest_processes(p);
-        });
-        app.process_events.observe([&app](const ProcessEvent& e) { app.ingest_process_event(e); });
+        // What the sampler threads deliver reaches the logic thread as soon as it is set.
+        ctx.receive(app.sys_sample, [&app](const SystemSample& s) { app.ingest_system(s); });
+        ctx.receive(app.proc_list,
+                    [&app](const std::vector<ProcessInfo>& p) { app.ingest_processes(p); });
+        ctx.receive(app.process_events,
+                    [&app](const ProcessEvent& e) { app.ingest_process_event(e); });
 
         // The real /proc on Linux; elsewhere (the web, macOS, Windows) a simulated machine.
         if (has_proc()) {

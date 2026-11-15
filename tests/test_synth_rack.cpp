@@ -3,7 +3,8 @@
 
 #include "../examples/model_synth_rack/dsp/arpeggiator.hpp"
 #include "../examples/model_synth_rack/dsp/engine.hpp"
-#include "../examples/model_synth_rack/dsp/rt_latest.hpp"
+#include "../examples/model_synth_rack/dsp/sample_ring.hpp"
+#include <prism/core/latest.hpp>
 #include "../examples/model_synth_rack/dsp/spectrum.hpp"
 
 #include <algorithm>
@@ -165,7 +166,7 @@ TEST_CASE("the step clock follows the tempo") {
 }
 
 TEST_CASE("the latest-value handoff returns the newest value, whole") {
-    RtLatest<SynthSettings> latest{};
+    prism::core::Latest<SynthSettings> latest{};
     CHECK(latest.read() == SynthSettings{});
 
     SynthSettings first{};

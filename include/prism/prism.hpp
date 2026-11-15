@@ -10,6 +10,7 @@
 #include <prism/core/derived.hpp>
 #include <prism/core/shared.hpp>
 #include <prism/core/channel.hpp>
+#include <prism/core/latest.hpp>
 #include <prism/core/list.hpp>
 #include <prism/core/atomic_cell.hpp>
 #include <prism/core/mpsc_queue.hpp>

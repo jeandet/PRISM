@@ -520,3 +520,72 @@ TEST_CASE("waker outliving the app is a harmless no-op") {
     model.reading.set(1);   // app is gone; the tree-bound waker must not touch it
     CHECK(model.reading.get() == 1);
 }
+
+// ctx.receive(): one call instead of set_waker + observe + a drain() listing the value.
+struct ReceiveModel {
+    prism::Field<int> label{0};
+    prism::Channel<int> events;   // no drain(), no set_waker: receive() does both
+    prism::Shared<int> reading{0};
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(label); }
+};
+
+TEST_CASE("ctx.receive delivers a Channel's sends with no drain() and no set_waker") {
+    ReceiveModel model;
+    std::atomic<bool> ready{false};
+    std::atomic<int> seen{0};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [&] { model.events.send(4); }, [&] { return seen.load() == 4; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
+        ctx.receive(model.events, [&](const int& v) { seen.store(v); });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(seen.load() == 4);
+}
+
+TEST_CASE("ctx.receive delivers a Shared's latest value, even one set before it was called") {
+    ReceiveModel model;
+    model.reading.set(9);   // pending before anyone listens: still delivered
+    std::atomic<bool> ready{false};
+    std::atomic<int> seen{0};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [] {}, [&] { return seen.load() == 9; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
+        ctx.receive(model.reading, [&](const int& v) { seen.store(v); });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(seen.load() == 9);
+}
+
+// A block that needs the app: attach() runs once, on the logic thread, before setup.
+struct Ticker {
+    prism::Field<int> count{0};
+    prism::Channel<int> ticks;
+    int attached = 0;
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(count); }
+    void attach(prism::AppContext& ctx) {
+        ++attached;
+        ctx.receive(ticks, [this](const int& n) { count.set(n); });
+    }
+};
+struct TickerApp {
+    Ticker ticker;
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.block(ticker); }
+};
+
+TEST_CASE("a block's attach() runs once and can wire its own channel") {
+    TickerApp model;
+    std::atomic<bool> ready{false};
+    std::atomic<int> attached_at_setup{-1};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [&] { model.ticker.ticks.send(5); }, [&] { return model.ticker.count.get() == 5; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext&) {
+        attached_at_setup.store(model.ticker.attached);
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(attached_at_setup.load() == 1);
+    CHECK(model.ticker.attached == 1);
+    CHECK(model.ticker.count.get() == 5);
+}

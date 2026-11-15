@@ -76,7 +76,7 @@ Link link{{[this] { return gather_settings(); },
   waveform, chord and pattern are enums, so their dropdowns come free, and the sixteen step gates
   are `Field<ui::Checkbox>`.
 - **One value crosses to the audio thread.** A `Derived<SynthSettings>` gathers the six blocks'
-  settings on the logic thread and publishes a trivially copyable snapshot into an `RtLatest`, a
+  settings on the logic thread and publishes a trivially copyable snapshot into a `core::Latest`, a
   lock-free triple buffer. The callback reads the newest snapshot at the top of each block.
   PRISM's usual handoff, `core::Shared<T>`, allocates on `set()`, which an audio callback must not
   do.
@@ -97,7 +97,7 @@ Link link{{[this] { return gather_settings(); },
   buffer until the first user gesture resumes it.
 - **The synth is pure.** `dsp/` holds it: `oscillator.hpp` (polyBLEP), `filter.hpp`,
   `envelope.hpp`, `delay.hpp`, `arpeggiator.hpp`, `engine.hpp` (the chain), `spectrum.hpp` (FFT,
-  log bands, scope trigger) and `rt_latest.hpp` (the two handoffs). No threads, no IO, no SDL.
+  log bands, scope trigger) and `sample_ring.hpp` (the display tap). No threads, no IO, no SDL.
   `tests/test_synth_rack.cpp` tests them directly.
 
 There is no Python counterpart: PRISM's Python bindings have no audio device, and the whole

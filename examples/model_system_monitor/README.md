@@ -17,53 +17,30 @@ computing CPU/mem/net deltas and a full process list, then publish into two `Sha
 The loops take their reader as a parameter: `proc_system_reader()` and `read_process_list` on
 Linux, `simulated_system_sample` and `simulated_processes` elsewhere (`main()` picks with
 `has_proc()`).
-The UI thread never touches `/proc` directly — it only ever reads through
-`Shared<T>::observe()`, called during a drain the model opts into explicitly.
+The UI thread never touches `/proc` directly — it only ever receives what the sampler threads
+set, through `ctx.receive()`.
 
 ## Walkthrough
 
-**Cross-thread ingest.** `SystemMonitor` holds its background-fed state in `Shared<T>`, not
-`Field<T>` — and its own `drain()` method is how those two fields get flushed into the reactive
-graph on the UI thread's turn:
+**Cross-thread ingest.** `SystemMonitor` holds its background-fed state in `Shared<T>` and
+`Channel<T>`, not `Field<T>`: the sampler threads set them, and only the logic thread touches
+the model.
 
 ```cpp
 struct SystemMonitor {
-    // Background-thread ingest points. Never placed via vb.widget() -- they are read only
-    // through .observe(), which fires during drain via the void drain() opt-in below.
     core::Shared<SystemSample> sys_sample{};
     core::Shared<std::vector<ProcessInfo>> proc_list{};
+    core::Channel<ProcessEvent> process_events{};
     ...
-
-    void drain() {
-        sys_sample.drain_notifications();
-        proc_list.drain_notifications();
-    }
 };
 ```
 
-A model exposing a `void drain()` method is itself a piece of reflection-driven wiring — PRISM's
-app loop calls it on every tick, exactly the same as it would call a `view()` method. The
-"harmless not-placed-by-view() debug warning" for these two fields is expected: they're
-deliberately never given a `Widget<T>` of their own.
-
-Because the tree never sees these members, it cannot wire them to wake the app. The setup does
-it by hand, so a sample arriving from a worker thread is drained right away, not on the next
-input event or tick:
+**Ingest → derived state.** One call per value in `main()`'s setup. `ctx.receive()` wakes the
+logic thread when a sampler sets the value and hands it to the callback there:
 
 ```cpp
-app.sys_sample.set_waker(ctx.waker());
-app.proc_list.set_waker(ctx.waker());
-app.process_events.set_waker(ctx.waker());
-```
-
-`Shared<T>`/`Channel<T>` members the tree does see (reflected members, `vb.widget(shared)`) are
-wired automatically.
-
-**Ingest → derived state**, run from `.observe()` callbacks registered in `main()`'s setup:
-
-```cpp
-app.sys_sample.observe([&app](const SystemSample& s) { app.ingest_system(s); });
-app.proc_list.observe([&app](const std::vector<ProcessInfo>& p) { app.ingest_processes(p); });
+ctx.receive(app.sys_sample, [&app](const SystemSample& s) { app.ingest_system(s); });
+ctx.receive(app.proc_list, [&app](const std::vector<ProcessInfo>& p) { app.ingest_processes(p); });
 ```
 
 `ingest_processes()` feeds one process list to two views, a table and a tree:
@@ -123,7 +100,7 @@ if (argc >= 2) {
 ## Key concepts
 
 - `Shared<T>` — the lock-free cross-thread cell; `.get()`/`.set()` from any thread, `.observe()`/`drain_notifications()` on the owning thread. See the root README's [Reactive core](../../README.md#reactive-core).
-- `void drain()` — the model-level opt-in that makes PRISM's app loop flush `Shared<T>` notifications every tick.
+- `ctx.receive(shared_or_channel, callback)` — what a worker thread sets reaches the logic thread, with no wiring to forget.
 - A hand-written `ColumnStorage` (tier 1) and `.depends_on()` — the table redraws when the list is replaced.
 - Readers passed to the sampler loops — the real `/proc`, or a simulated machine, behind one loop.
 - Variadic `.depends_on(a, b, c, ...)` — one call instead of chained `.depends_on()`s.

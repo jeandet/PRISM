@@ -15,11 +15,11 @@
 
 #include "dsp/audio_device.hpp"
 #include "dsp/engine.hpp"
-#include "dsp/rt_latest.hpp"
+#include "dsp/sample_ring.hpp"
 #include "dsp/spectrum.hpp"
 
 // The audio side of the app, and the only part of it with threads in it. It never reads a Field:
-// settings come in through `publish()` (an RtLatest the callback copies per block) and display
+// settings come in through `publish()` (a core::Latest the callback copies per block) and display
 // frames go out through the `core::Shared<AnalyzerFrame>` it was handed.
 namespace prism::synth {
 
@@ -155,7 +155,7 @@ private:
     };
 
     core::Shared<AnalyzerFrame>& frames_;
-    RtLatest<SynthSettings> to_audio_{};
+    core::Latest<SynthSettings> to_audio_{};
     SampleRing samples_{1u << 14};
     Telemetry telemetry_{};
     AudioDevice device_{{kDeviceRate, kChannels, kBufferFrames}};
