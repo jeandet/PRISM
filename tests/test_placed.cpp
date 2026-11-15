@@ -108,4 +108,27 @@ TEST_CASE("the check names a forgotten widget, not a borrowed value nor thread p
     const std::vector<std::string_view> names = app::widget_detail::unplaced_fields(b, {});
     CHECK(names == std::vector<std::string_view>{"forgotten"});
 }
+
+namespace {
+// A selection index beside the widget it selects: a value the block reads, never a widget.
+struct Picker {
+    [[=core::skip]] Field<int> selected{0};
+    Field<Label<>> forgotten{};   // a widget nobody placed: the check is still for this
+    void view(WidgetTree::ViewBuilder& vb) { vb.canvas(*this); }
+    void canvas(render::DrawList&, const Rect&, const WidgetNode&) {}
+};
+} // namespace
+
+TEST_CASE("a Field marked skip is a value the view does not have to place") {
+    Picker m;
+    const std::vector<std::string_view> names = app::widget_detail::unplaced_fields(m, {});
+    CHECK(names == std::vector<std::string_view>{"forgotten"});
+}
+
+TEST_CASE("the check says nothing about a skipped value, and still names a forgotten widget") {
+    Picker m;
+    const std::string said = warnings_while([&] { WidgetTree tree{m}; });
+    CHECK(said.find("selected") == std::string::npos);
+    CHECK(said.find("forgotten") != std::string::npos);
+}
 #endif

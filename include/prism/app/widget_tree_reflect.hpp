@@ -42,8 +42,9 @@ void record_field_names(Model& model, std::unordered_map<const void*, std::strin
 }
 
 // The members that could have been a widget and that view() never placed: a forgotten widget.
-// Not a reference (the model that owns it answers for it) and not a Shared (plumbing between
-// threads, read through a Field or a Derived, never shown as itself).
+// Not a reference (the model that owns it answers for it), not a Shared (plumbing between
+// threads, read through a Field or a Derived, never shown as itself), and not one the block
+// marked [[=core::skip]]: a value it reads, never a widget.
 template <typename Model>
 std::vector<std::string_view> unplaced_fields(Model& model, const std::set<const void*>& placed) {
     static constexpr auto members = std::define_static_array(
@@ -51,7 +52,8 @@ std::vector<std::string_view> unplaced_fields(Model& model, const std::set<const
             ^^Model, std::meta::access_context::unchecked()));
     std::vector<std::string_view> names;
     template for (constexpr auto m : members) {
-        if constexpr (!std::meta::is_reference_type(std::meta::type_of(m))) {
+        if constexpr (!std::meta::is_reference_type(std::meta::type_of(m)) &&
+                      !has_annotation<m, decltype(skip)>()) {
             auto& member = model.[:m:];
             using M = std::remove_cvref_t<decltype(member)>;
             if constexpr (is_field_v<M> || is_derived_v<M>)

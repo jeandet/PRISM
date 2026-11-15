@@ -189,6 +189,16 @@ int main() {
 
 ## Design Decisions
 
+### Skipped fields: a value, not a widget
+
+A block sometimes keeps a `Field` that no widget shows: a selection index, the mask behind a row of
+checkboxes. A `view()` that does not place it is right, so `[[=core::skip]]` on the member tells the
+debug "not placed by view()" check to skip it — the same annotation that leaves a member out of the
+automatic UI (`core/reflect_annotations.hpp`). Before it could be used there, the only way to
+silence that warning was to hide the field in a nested struct, which told the reader nothing about
+why it was there. Only a compiler with reflection parses the annotation (clang 22 rejects `[[=x]]`), so
+code that must build everywhere still nests the field; the check does not run without reflection.
+
 ### Why inheritance, not concepts
 
 Three approaches were considered:
