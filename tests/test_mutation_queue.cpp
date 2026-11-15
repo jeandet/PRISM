@@ -563,10 +563,14 @@ struct Ticker {
     prism::Field<int> count{0};
     prism::Channel<int> ticks;
     int attached = 0;
+    std::atomic<int> seen{0};   // what the test thread may read while the app runs
     void view(prism::WidgetTree::ViewBuilder& vb) { vb.widget(count); }
     void attach(prism::AppContext& ctx) {
         ++attached;
-        ctx.receive(ticks, [this](const int& n) { count.set(n); });
+        ctx.receive(ticks, [this](const int& n) {
+            count.set(n);
+            seen.store(n);
+        });
     }
 };
 struct TickerApp {
@@ -579,7 +583,7 @@ TEST_CASE("a block's attach() runs once and can wire its own channel") {
     std::atomic<bool> ready{false};
     std::atomic<int> attached_at_setup{-1};
     auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
-        [&] { model.ticker.ticks.send(5); }, [&] { return model.ticker.count.get() == 5; }, ready)};
+        [&] { model.ticker.ticks.send(5); }, [&] { return model.ticker.seen.load() == 5; }, ready)};
     auto& window = backend.create_window({.width = 200, .height = 100});
     prism::model_app(backend, window, model, [&](prism::AppContext&) {
         attached_at_setup.store(model.ticker.attached);

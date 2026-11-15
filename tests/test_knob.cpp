@@ -133,7 +133,7 @@ TEST_CASE("knob record: a body, a track, the filled part, one pointer, and both 
     for (auto& cmd : dl.commands) {
         if (auto* t = std::get_if<TextCmd>(&cmd)) texts.push_back(t->text);
         else if (std::holds_alternative<Circle>(cmd)) ++discs;
-        else if (std::holds_alternative<Polyline>(cmd)) ++arcs;
+        else if (std::holds_alternative<render::Polyline>(cmd)) ++arcs;   // Windows has a Polyline() too
         else if (std::holds_alternative<Line>(cmd)) ++pointers;
     }
     CHECK(discs == 2);       // the dial's body, then its edge
