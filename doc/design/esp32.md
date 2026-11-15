@@ -51,7 +51,10 @@ Arithmetic this note did, not a vendor claim. RGB565 is two bytes per pixel.
 
 So a P4 port at any usable resolution is either strip-buffered — rasterise N lines, flush, repeat —
 or it renders into PSRAM. Strip buffering is what esp_lcd is built around: the driver takes a
-rectangular window and a pixel buffer for it.
+rectangular window and a pixel buffer for it. Both are supported on the P4: `esp_lcd_panel_dpi.c`
+allocates its frame buffer with `MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA` and follows the draw with
+`esp_cache_msync()`, and the RGB panel has an explicit `fb_in_psram` flag plus a documented
+"Bounce Buffer with Single PSRAM Frame Buffer" mode (see Risks below).
 
 The 400 MHz dual-core budget is roughly a thousandth of a desktop core per cycle, per pixel, if you
 want 60 Hz on a full 800×480 panel. That rules out the desktop strategy of repainting everything on
@@ -62,17 +65,23 @@ to actually use it.
 
 Facts from ESP-IDF v6.1.1 documentation.
 
-- Compiler: GCC 15.2.0 for both `riscv32-esp-elf` and `xtensa-esp-elf`, plus an optional clang-esp
-  21.1.3
+- Compiler: GCC 15.2.0 for both `riscv32-esp-elf` and `xtensa-esp-elf`
+  (`xtensa-esp-elf-15.2.0_20251204`, `riscv32-esp-elf-15.2.0_20251204`), plus an optional clang-esp
+  21.1.3 (`clang-esp-21.1.3_20260408`, Apache-2.0, built from
+  https://github.com/espressif/llvm-project)
   (https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-guides/tools/idf-tools.html).
-  Upstream Clang does not implement P2996. Whether clang-esp does is unchecked.
+  Upstream Clang does not implement P2996 — the reflection row of cppreference's C++26 support table
+  names GCC 16 and leaves the Clang cell empty
+  (https://en.cppreference.com/w/cpp/compiler_support/26.html) — and clang-esp is a build of upstream
+  LLVM 21, so treat reflection as absent under it too.
 - **Consequence: no `-freflection`.** PRISM's `has_reflection` probe fails, which is the same path
   the web build already takes.
 - Default language level: `-std=gnu++26`
   (https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-guides/cplusplus.html). The
   standard is not the problem; reflection is.
-- C++ exceptions are off by default (`CONFIG_COMPILER_CXX_EXCEPTIONS`). RTTI is off by default
-  (`CONFIG_COMPILER_CXX_RTTI`).
+- C++ exceptions are off by default (`CONFIG_COMPILER_CXX_EXCEPTIONS`) and RTTI is off by default
+  (`CONFIG_COMPILER_CXX_RTTI`); the C++ support page words both as "disabled by default, but can be
+  enabled" (https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-guides/cplusplus.html).
 - `std::thread`, `std::mutex`, `std::condition_variable` exist and map onto pthreads, which wrap
   FreeRTOS tasks
   (https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-reference/system/pthread.html).
@@ -166,8 +175,10 @@ what stops text from overflowing its box on one machine and not the other.
 Cost: no complex-script shaping unless the atlas includes pre-shaped runs. For a device UI that is
 acceptable. For a P4 driving an instrument panel, Latin plus symbols is the whole alphabet.
 
-Whether FreeType alone (no HarfBuzz, no SDL3_ttf) is small enough to keep is unchecked. It would
-preserve hinting and arbitrary sizes, at a size cost this note did not measure.
+Whether FreeType alone (no HarfBuzz, no SDL3_ttf) is small enough to keep is still unchecked: FreeType
+publishes no size figure, and nothing was measured here. It would preserve hinting and arbitrary
+sizes, at a size cost this note did not measure. FreeType and HarfBuzz are both on WrapDB
+(`freetype2` 2.15.0-1, `harfbuzz` 13.0.1-1), so the choice is a link-time one, not a porting one.
 
 ### Memory
 
@@ -208,8 +219,8 @@ do not depend on either.
 | Peripheral | Seam | Notes |
 |---|---|---|
 | UART | `ByteStream` | ESP-IDF UART driver, wrapped as an adapter. The instrument case of item 19, on a wire. |
-| Wi-Fi | sockets | lwIP's BSD socket API. Whether Asio builds on it is unchecked. |
-| MQTT | `Channel<T>` | `esp-mqtt` is a component; whether Paho C is packaged for IDF is unchecked. |
+| Wi-Fi | sockets | lwIP's BSD socket API. Asio does build on it: `espressif/asio` (1.32.0, the port moved out of ESP-IDF at v5.0, now in `espressif/esp-protocols`) supports network async sockets, serial port excluded, SSL/TLS off by default. |
+| MQTT | `Channel<T>` | `esp-mqtt` is a component. Paho C is not packaged for IDF — the Component Registry has no entry, only `wolfssl/wolfmqtt` — so the adapter is `esp-mqtt`. |
 | I2C, SPI | none of them | Register transactions, not byte streams. Keep out of the concept; wrap per device. |
 | BLE | request/response | GATT is closer to `Requester` than to `ByteStream`. NimBLE is the component. |
 
@@ -220,7 +231,9 @@ adapter per seam, and the app keeps writing `telemetry_ingest.set(...)`.
 
 **Milestone 0 — toolchain, no UI.** A Meson cross file for `riscv32-esp-elf`. `libprism_core.a`
 built and linked into an IDF component. It boots, logs its version and the size of `Field<int>`.
-Nothing else. If this is not clean, nothing after it is.
+It also carries the two `static_assert`s the Risks section defers here: that `std::atomic<float>` is
+lock-free on this core, and that the dependency set compiles with `-fno-exceptions`. Nothing else.
+If this is not clean, nothing after it is.
 
 **Milestone 1 — one static screen.** Finish the rasteriser for `FilledRect`, `TextCmd` and `Line`.
 Presenter over `esp_lcd` with a strip buffer. One hard-coded model with two fields, no input, no
@@ -243,14 +256,28 @@ avoids the panel, the fonts and the memory budget all at once.
 
 ## Risks
 
-- **PSRAM and DMA.** `esp_lcd_panel_draw_bitmap()` needs a buffer the panel's DMA can read. Whether
-  a PSRAM framebuffer is DMA-able on the P4 is unchecked, and it decides between a PSRAM
-  framebuffer and strict strip buffering. Check this before writing the presenter, not after.
-- **Exceptions off.** Whether the dependency set (fmt, Glaze, stdexec, sheenbidi) builds with
-  `-fno-exceptions` is unchecked. fmt and stdexec both have throw paths in normal use.
-- **32-bit.** ESP32-S3 is 32-bit. `cpp-httplib` explicitly refuses 32-bit platforms, so that HTTP
-  path is closed there. PRISM's own `SampleRing` asserts `std::atomic<float>::is_always_lock_free`,
-  which is unchecked on RV32 without the atomics extension in use.
+- **PSRAM and DMA: yes, confirmed.** `esp_lcd_panel_draw_bitmap()` needs a buffer the panel's DMA can
+  read, and on the P4 a PSRAM one qualifies. `components/esp_lcd/dsi/esp_lcd_panel_dpi.c` allocates
+  the DPI frame buffer with `heap_caps_aligned_calloc(..., MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT |
+  MALLOC_CAP_DMA)` and calls `esp_cache_msync(..., ESP_CACHE_MSYNC_FLAG_DIR_C2M)` after it;
+  `esp_lcd_panel_rgb.h` carries `fb_in_psram`, and the RGB LCD guide lists "Single Frame Buffer in
+  PSRAM" and "Bounce Buffer with Single PSRAM Frame Buffer" as modes
+  (https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-reference/peripherals/lcd/rgb_lcd.html).
+  So the choice is open, and the cost is a cache writeback per frame plus PSRAM bandwidth shared with
+  the CPU and PPA. Milestone 1 keeps the strip buffer because it needs no writeback and matches how
+  `esp_lcd` wants to be driven; a full PSRAM frame becomes worthwhile once damage tracking wants to
+  redraw arbitrary regions instead of a top-to-bottom sweep.
+- **Exceptions off.** The dependency set survives `-fno-exceptions`: Glaze states "No exceptions
+  (compiles with `-fno-exceptions`)", fmt defaults `FMT_USE_EXCEPTIONS` to `0` when built with
+  `-fno-exceptions` (fmt `doc/api.md`), stdexec detects the no-exceptions case in
+  `STDEXEC_NO_STDCPP_EXCEPTIONS()` (`include/stdexec/__detail/__config.hpp`) and swaps in
+  `STDEXEC_CATCH`, and SheenBidi is C, so C++ exceptions do not apply to it. The throw paths exist
+  but compile out, which is what the milestone-0 build has to prove.
+- **32-bit.** ESP32-S3 is 32-bit Xtensa (LX7), not RISC-V, so the RV32 atomics question does not
+  arise for it. `cpp-httplib` explicitly refuses 32-bit platforms, so that HTTP path is closed there.
+  PRISM's own `SampleRing` asserts `std::atomic<float>::is_always_lock_free`; GCC's answer for Xtensa
+  is unchecked, because no ESP-IDF page states it, and the milestone-0 build's `static_assert` is
+  what settles it.
 - **Dirty repaint underused.** If the port repaints the whole panel every frame, 400 MHz will not
   get to 60 Hz on anything above 480×320. The instrumentation fields in `SceneSnapshot`
   (`dirty_widget_count`, `draw_command_count`, `approx_bytes`) already exist to catch that.

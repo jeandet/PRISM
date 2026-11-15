@@ -27,7 +27,7 @@ Facts, from this tree.
 - `examples/model_synth_rack/audio_device.hpp` is the only file in that example that includes SDL.
   It calls `SDL_OpenAudioDeviceStream` with `SDL_AUDIO_F32`, pumps with `SDL_PutAudioStreamData`,
   and falls back to a `std::jthread` timer when no device opens.
-- `examples/model_synth_rack/rt_latest.hpp` holds `RtLatest<T>`, a three-slot handoff with no lock
+- `include/prism/core/latest.hpp` holds `core::Latest<T>` (it was the synth rack's `RtLatest<T>`), a three-slot handoff with no lock
   and no allocation, because `Shared<T>::set()` allocates a `shared_ptr` and cannot run in a
   callback.
 - `examples/model_lab_bench/` already crosses threads with no adapter: `Shared<DaqSettings>` into a
@@ -48,20 +48,22 @@ Four ways, and the choice is not taste — it follows from the producer.
 | `Field<T>` | one value, logic thread | on change | logic thread only (`set()` asserts `may_change_model()`) | model state the UI edits |
 | `Shared<T>` | latest value, coalescing | yes, one `shared_ptr` per `set()` | any thread | telemetry, settings pushed to a worker |
 | `Channel<T>` | ordered, lossless, unbounded queue | yes (`simplify:` in `channel.hpp`) | any thread | events that must not be lost |
-| `Latest<T>` (planned) | latest value, no lock, no alloc | no | one RT producer → anyone | audio callback → UI |
+| `Latest<T>` | latest value, no lock, no alloc | no | one RT producer → anyone | audio callback → UI |
 
-The fourth does not exist in core yet. Plan item 18 already asks for it, replacing `rt_latest.hpp`,
-so it lands first.
+The fourth landed with plan item 18 (it was the synth rack's `RtLatest`):
 
 ```cpp
-// include/prism/core/latest.hpp (planned, plan item 18)
-template <typename T>  // trivially copyable; one producer
+// include/prism/core/latest.hpp
+template <typename T>  // trivially copyable; one producer, one consumer
 class Latest {
 public:
-    void publish(const T& value) noexcept;   // writer side, never blocks
-    std::optional<T> read() const noexcept;  // reader side, may miss intermediate values
+    void publish(const T& value) noexcept;   // writer side, never blocks, never allocates
+    T read() noexcept;                       // reader side: the newest value, whole
 };
 ```
+
+On the logic thread side, `ctx.receive(shared_or_channel, callback)` is the one call that hands
+what another thread delivered to the model (it binds the waker and drains on wake).
 
 The rule that keeps this honest: a chain of updates always ends in exactly one of these four, and
 the adapter never exposes a raw callback that writes a `Field`. A network thread cannot touch the
@@ -163,12 +165,12 @@ does not state it and this note did not verify it.
 | Domain | Candidate | Licence | Maintenance | C++ | wasm | ESP32 | Meson/WrapDB |
 |---|---|---|---|---|---|---|---|
 | Audio | SDL3 audio | zlib | active, SDL3 3.4.0 already wrapped here | C99 API, C++ usable | yes, Emscripten | no ESP32 target | already in `subprojects/` |
-| Audio | miniaudio | public domain or MIT-0 | single-file, active | C89, C++ usable | yes, WebAudio | unchecked | none needed, single header |
-| Sockets, serial | Asio (standalone) | BSL-1.0 | 1.38.2 stable, active | C++11 and later | unchecked | unchecked | not on WrapDB as far as this note checked |
-| HTTP | cpp-httplib | MIT | ~17k stars, active | C++11 | unchecked | **no, 32-bit unsupported** | own `meson.build` upstream, not on WrapDB (unchecked) |
-| HTTP, WebSocket | Boost.Beast | BSL-1.0 | active, part of Boost | C++11 | unchecked | unchecked | requires Boost |
-| MQTT | Eclipse Paho MQTT C++ | EPL-2.0 or EDL-1.0 | active | C++17 | unchecked | unchecked | CMake only, no Meson |
-| MQTT | async_mqtt | unchecked | 10.3.0, active | C++17 | unchecked | unchecked | requires Boost ≥ 1.84 |
+| Audio | miniaudio | public domain or MIT-0 | single-file, active | C89, C++ usable | yes, WebAudio | no backend, custom one needed | on WrapDB (0.11.22-2) |
+| Sockets, serial | Asio (standalone) | BSL-1.0 | 1.38.2 stable, active | C++11 and later | no, POSIX and Windows only | sockets only, via `espressif/asio` | on WrapDB (1.38.2-1) |
+| HTTP | cpp-httplib | MIT | ~17k stars, active | C++11 | no, blocking sockets | **no, 32-bit unsupported** | on WrapDB (0.66.0-1) |
+| HTTP, WebSocket | Boost.Beast | BSL-1.0 | active, part of Boost | C++11 | unchecked, no Emscripten note | unchecked, Boost ports exist | requires Boost |
+| MQTT | Eclipse Paho MQTT C++ | EPL-2.0 or EDL-1.0 | active | C++17 | no, memory-managed OSes only | no IDF component | CMake only, no Meson |
+| MQTT | async_mqtt | BSL-1.0 | 10.3.0, active | C++17 | unchecked, no wasm note | unchecked, no ESP32 note | requires Boost ≥ 1.84 |
 
 Where the facts come from, checked 2026-11-15:
 
@@ -188,18 +190,51 @@ Where the facts come from, checked 2026-11-15:
 - SDL3 platforms: https://github.com/libsdl-org/SDL/blob/main/docs/README-platforms.md — consoles,
   mobile, desktop and Emscripten; no microcontroller target.
 
+Checked later the same day, for the cells that first read "unchecked":
+
+- miniaudio platforms: https://github.com/mackron/miniaudio#supported-platforms — Windows, macOS/iOS,
+  Linux, the BSDs, Android, Raspberry Pi, Emscripten, plus a null backend. Other platforms compile
+  "but will not include any support for playback or capture by default" without a custom backend.
+  So there is no ESP32 backend.
+- Asio licence and tested platforms: https://think-async.com/Asio/ — Boost Software License;
+  tested on Linux, macOS, Windows and FreeBSD. No WebAssembly target is listed.
+- Asio on ESP-IDF: https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-reference/protocols/asio.html
+  and https://docs.espressif.com/projects/esp-protocols/asio/docs/latest/index.html — the
+  `espressif/asio` component, version 1.32.0 on the Component Registry. Its supported-features
+  section says it "currently supports only network asynchronous socket operations; does not
+  support serial port".
+- WrapDB index: https://github.com/mesonbuild/wrapdb/blob/master/releases.json — `asio` 1.38.2-1,
+  `cpp-httplib` 0.66.0-1 and `miniaudio` 0.11.22-2 are entries. No Boost, Beast, Paho or
+  async_mqtt entry.
+- async_mqtt licence: https://github.com/redboltz/async_mqtt/blob/main/LICENSE — Boost Software
+  License 1.0.
+- cpp-httplib on the web: https://github.com/yhirose/cpp-httplib — its own README says the library
+  "uses 'blocking' socket I/O", and names no Emscripten or WebAssembly target.
+- Paho MQTT C++ scope: https://github.com/eclipse-paho/paho.mqtt.cpp — README: "for memory-managed
+  operating systems such as Linux, MacOS, and Windows". The ESP Component Registry
+  (https://components.espressif.com/) has no Paho entry; `espressif/esp-mqtt` is the IDF client.
+- Boost.Beast on the web and on ESP32: https://github.com/boostorg/beast — no Emscripten or ESP32
+  statement in its README, so still unchecked. Boost itself is packaged for ESP32 as
+  `espressif/esp-boost`; whether Beast is in it was not checked.
+- async_mqtt on the web and on ESP32: https://github.com/redboltz/async_mqtt — README states C++17
+  and Boost ≥ 1.84, and names no Emscripten or ESP32 target, so still unchecked.
+
 ### Recommended, per domain
 
 **Audio: SDL3, with miniaudio as the second adapter.** SDL3 is already linked, already exercised by
 the synth rack, and covers every platform PRISM builds for today, including the browser. Adding
 miniaudio as the default would put a second audio stack in a build that already has one. miniaudio
 earns its place as the adapter for builds without SDL — it is one header, one file, and no build
-system change.
+system change. It is not the board's audio path: miniaudio ships no ESP32 backend, so on the P4 the
+ESP-IDF I2S driver would sit behind the same `Sink` concept.
 
 **Sockets and serial: Asio standalone.** One library covers TCP, UDP and serial ports with the same
 `async_read`/`async_write` shape, which means one `ByteStream` adapter instead of three. Standalone
-keeps Boost out of the Meson build. Writing a serial port by hand means `termios` and a
-platform-specific mess — exactly the reimplementation this note rules out.
+keeps Boost out of the Meson build, and WrapDB already carries `asio` 1.38.2-1, so the dependency
+costs one wrap file. Writing a serial port by hand means `termios` and a platform-specific mess —
+exactly the reimplementation this note rules out. On ESP32 the `espressif/asio` component gives the
+socket half for free and the serial half not at all, so `serial_link()` stays a host adapter and the
+board's UART goes through the ESP-IDF driver.
 
 **HTTP: no default; cpp-httplib when an app asks for it, Beast when WebSocket matters.** HTTP is a
 protocol on top of a socket, not a separate I/O domain, so it does not get its own dependency by
@@ -210,7 +245,9 @@ platforms are unsupported, so it is not a candidate on the S3.
 **MQTT: Eclipse Paho MQTT C++.** Its documented threading model — one internal network thread,
 callbacks must not block — matches PRISM's crossing rule, so the adapter's job is a `Channel` write
 and nothing else. async_mqtt is the better choice only when a broker or MQTT 5 topic aliases are
-needed, and it pulls in Boost.
+needed, and it pulls in Boost. On the board neither applies: Paho scopes itself to memory-managed
+OSes and has no Component Registry entry, so the P4's MQTT path is `espressif/esp-mqtt` behind the
+same adapter.
 
 ## Pilot 1: audio out of the synth rack
 
@@ -223,7 +260,6 @@ Files:
   for tests and headless runs.
 - `include/prism/audio/sdl_sink.hpp`, `src/audio/sdl_sink.cpp` — moves the existing SDL audio code
   down to the backend layer, beside the other SDL code.
-- `include/prism/core/latest.hpp` — `Latest<T>`, which the synth rack uses to publish its state.
 - `examples/model_synth_rack/src/audio_device.hpp` — deleted; the example keeps only the parts that
   are about the synth (callback load measurement stays, it is app-level instrumentation).
 
@@ -296,5 +332,10 @@ Tests that prove it:
 4. Backpressure on `Channel<T>`. A fast link and a slow UI grow an unbounded queue. Today's answer:
    coalesce into `Shared<T>` when only the latest value matters, `Channel<T>` for events. Whether
    that is enough needs a measurement, not an opinion.
-5. Asio on an ESP32 over lwIP and FreeRTOS: unchecked. It decides whether the ESP32 note's peripheral
-   plan reuses these adapters or writes ESP-IDF-specific ones.
+5. Asio on an ESP32 over lwIP and FreeRTOS: sockets only. The `espressif/asio` component — 1.32.0 on
+   the Component Registry, the port ESP-IDF moved out of tree at v5.0, now living in
+   `espressif/esp-protocols` — states that it "currently supports only network asynchronous socket
+   operations; does not support serial port", with SSL/TLS off by default. That is enough for a TCP
+   or WebSocket transport and not enough for `serial_link()`, so on the board the UART path has to
+   be an ESP-IDF driver adapter rather than reuse of the host one. The adapter interfaces still
+   match, so the split costs an implementation, not a design change.
