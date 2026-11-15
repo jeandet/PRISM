@@ -15,6 +15,11 @@ It shows three things:
 - **A table over a plain struct.** `ResultSet` is columns and cells; the table reads it through
   `ColumnStorage` and repaints when a revision field moves.
 
+The same window with each block outlined and named: every panel is one small struct, placed with
+`vb.block()`.
+
+<p align="center"><img src="../../doc/screenshots/data_studio_blocks.svg" alt="The same screenshot with a purple frame around each block and its type name on a tab" width="700"/></p>
+
 ## Running the example
 
 - **In the browser:** open the [live demo](https://jeandet.github.io/PRISM/model_data_studio.html).

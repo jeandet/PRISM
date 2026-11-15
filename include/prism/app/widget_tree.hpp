@@ -24,6 +24,7 @@
 #include <prism/app/handle_drag.hpp>
 #include <prism/app/table_input.hpp>
 #include <prism/app/table_paint.hpp>
+#include <prism/app/block_outline.hpp>
 #include <prism/ui/popup_place.hpp>
 #include <prism/ui/tooltip.hpp>
 #if __cpp_impl_reflection
@@ -751,6 +752,10 @@ public:
 
     void mark_dirty_by_id(WidgetId id) { set_dirty(id); }
 
+    // Outlines each block placed with vb.block(), labelled with its name: what a block is, seen on
+    // the screen. Starts on when PRISM_SHOW_BLOCKS is set (the README captures use it).
+    void show_blocks(bool on) { show_blocks_ = on; }   // the overlay is redrawn every publish
+
     void set_debug_highlight(std::optional<WidgetId> id) {
         highlight_id_ = id;
         mark_dirty_by_id(root_.id);
@@ -859,6 +864,7 @@ public:
                 }
             }
         }
+        if (show_blocks_) draw_block_outlines(root_, *snap);
         if (popup_owner() != 0) tooltip_ = tooltip_dismissed(tooltip_);   // e.g. a dialog the app opened
         if (auto text = tooltip_of(tooltip_.target); tooltip_.shown && !text.empty())
             draw_tooltip(snap->overlay, text, tooltip_.pointer, snap->viewport, theme_);
@@ -905,6 +911,7 @@ private:
     WindowOpener window_opener_;
     std::function<void(WindowId)> window_closer_;
     std::optional<WidgetId> highlight_id_;
+    bool show_blocks_ = std::getenv("PRISM_SHOW_BLOCKS") != nullptr;
     ScrollbarDrag scrollbar_drag_;
     SplitDrag split_drag_;
     std::vector<WidgetId> focus_order_;
@@ -966,6 +973,7 @@ private:
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
         wn.debug_name = node.debug_name;
 #endif
+        wn.block = node.block;
         build_widget_kind(node, wn);
         if (!node.enablers.empty()) make_disableable(wn, node.enablers);
         if (node.split_get) restore_split(node, wn);

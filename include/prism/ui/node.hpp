@@ -80,6 +80,7 @@ struct Node {
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
+    std::optional<std::string> block;   // placed with vb.block(): the block's type name
     LayoutKind layout_kind = LayoutKind::Default;
     float spacer_size = 0.f;   // a Spacer: 0 stretches, more is a fixed gap of that many points
     std::vector<Node> children;

@@ -39,6 +39,19 @@ using namespace prism::ui;
 
 namespace view_builder_detail {
 
+// A block's type name, for the outline that shows it (WidgetTree::show_blocks); without
+// reflection every block is just "block".
+template <typename C>
+std::string_view block_name() {
+#if __cpp_impl_reflection
+    static constexpr std::string_view name =
+        std::meta::has_identifier(^^C) ? std::meta::identifier_of(^^C) : std::string_view{"block"};
+    return name;
+#else
+    return "block";
+#endif
+}
+
 // Shared by list(), tree() and table(List<T>&): adapt a List<T>'s three signals
 // into the Node's vlist_on_* connector slots (identical shape at every call site).
 template <typename T>
@@ -557,6 +570,7 @@ public:
     template <typename C>
     void block(C& comp) {
         current_parent().children.push_back(tree_.build_node_tree(comp));
+        current_parent().children.back().block = std::string(view_builder_detail::block_name<C>());
     }
 
     void vstack(auto&... args) { (item(args), ...); }

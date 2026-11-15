@@ -82,6 +82,7 @@ struct WidgetNode {
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     std::string debug_name;
 #endif
+    std::optional<std::string> block;   // see Node::block
     bool dirty = false;
     // Layout kept between publishes (app/widget_tree_layout.hpp, link_layout_cache): this
     // node's layout node from the last publish, and whether it still holds as it is. `relayout`

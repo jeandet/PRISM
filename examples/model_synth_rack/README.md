@@ -14,6 +14,11 @@ It shows three things:
   lock; display frames come back without blocking it.
 - **Custom drawing.** The analyzer is one canvas: spectrum bands, a scope, a playhead, a meter.
 
+The same window with each block outlined and named: every panel is one small struct, placed with
+`vb.block()`.
+
+<p align="center"><img src="../../doc/screenshots/synth_rack_blocks.svg" alt="The same screenshot with a purple frame around each block and its type name on a tab" width="700"/></p>
+
 ## Running the example
 
 - **In the browser:** open the [live demo](https://jeandet.github.io/PRISM/model_synth_rack.html).

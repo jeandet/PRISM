@@ -98,6 +98,7 @@ headless_tests = {
   'knob' : files('test_knob.cpp'),
   'placed' : files('test_placed.cpp'),
   'latest' : files('test_latest.cpp'),
+  'block_outline' : files('test_block_outline.cpp'),
   'color_picker' : files('test_color_picker.cpp'),
   'date_picker' : files('test_date_picker.cpp'),
   'time_picker' : files('test_time_picker.cpp'),

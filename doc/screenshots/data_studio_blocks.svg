@@ -1,0 +1,392 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 760">
+<rect width="1180" height="760" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="281.76" height="32"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="0" width="82.4" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="16" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Schema</text>
+<rect x="0" y="30" width="82.4" height="2" fill="rgba(124,111,255,1)"/>
+</g>
+<clipPath id="clip-1"><rect x="0" y="32" width="281.76" height="284.48"/></clipPath>
+<g clip-path="url(#clip-1)">
+<clipPath id="clip-2"><rect x="0" y="32" width="281.76" height="284.48"/></clipPath>
+<g clip-path="url(#clip-2)">
+<text xml:space="preserve" x="12" y="42" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">trips</text>
+<text xml:space="preserve" x="144" y="43" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(0,140,200,1)" dominant-baseline="hanging">4,000 rows</text>
+<text xml:space="preserve" x="24" y="61" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">id</text>
+<text xml:space="preserve" x="144" y="61" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">INTEGER</text>
+<text xml:space="preserve" x="24" y="76" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">pickup</text>
+<text xml:space="preserve" x="144" y="76" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">TEXT</text>
+<text xml:space="preserve" x="24" y="91" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">pickup_minute</text>
+<text xml:space="preserve" x="144" y="91" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">INTEGER</text>
+<text xml:space="preserve" x="24" y="106" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">zone_id</text>
+<text xml:space="preserve" x="144" y="106" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">INTEGER</text>
+<text xml:space="preserve" x="24" y="121" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">km</text>
+<text xml:space="preserve" x="144" y="121" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">REAL</text>
+<text xml:space="preserve" x="24" y="136" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">minutes</text>
+<text xml:space="preserve" x="144" y="136" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">REAL</text>
+<text xml:space="preserve" x="24" y="151" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">fare</text>
+<text xml:space="preserve" x="144" y="151" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">REAL</text>
+<text xml:space="preserve" x="24" y="166" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">tip</text>
+<text xml:space="preserve" x="144" y="166" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">REAL</text>
+<text xml:space="preserve" x="24" y="181" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">passengers</text>
+<text xml:space="preserve" x="144" y="181" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">INTEGER</text>
+<text xml:space="preserve" x="24" y="196" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">payment</text>
+<text xml:space="preserve" x="144" y="196" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">TEXT</text>
+<text xml:space="preserve" x="12" y="219" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">zones</text>
+<text xml:space="preserve" x="24" y="238" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">id</text>
+<text xml:space="preserve" x="144" y="238" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">INTEGER</text>
+<text xml:space="preserve" x="24" y="253" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">name</text>
+<text xml:space="preserve" x="144" y="253" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">TEXT</text>
+<text xml:space="preserve" x="24" y="268" font-family="monospace" font-size="11.5" fill="rgba(180,180,190,1)" dominant-baseline="hanging">borough</text>
+<text xml:space="preserve" x="144" y="268" font-family="monospace" font-size="11.5" fill="rgba(120,120,130,1)" dominant-baseline="hanging">TEXT</text>
+</g>
+</g>
+<clipPath id="clip-3"><rect x="0" y="316.48" width="281.76" height="6"/></clipPath>
+<g clip-path="url(#clip-3)">
+<rect x="0" y="316.48" width="281.76" height="6" fill="rgba(90,90,100,0.627451)"/>
+</g>
+<clipPath id="clip-4"><rect x="0" y="322.48" width="281.76" height="32"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="0" y="322.48" width="141.2" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="322.48" width="141.2" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="16" y="330.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Saved queries</text>
+<rect x="0" y="352.48" width="141.2" height="2" fill="rgba(124,111,255,1)"/>
+</g>
+<clipPath id="clip-5"><rect x="0" y="354.48" width="281.76" height="309.52"/></clipPath>
+<g clip-path="url(#clip-5)">
+<clipPath id="clip-6"><rect x="0" y="354.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-6)">
+<rect x="0" y="354.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="358.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Busiest hours</text>
+<rect x="0" y="354.48" width="281.76" height="30" fill="rgba(60,100,180,0.54902)"/>
+</g>
+<clipPath id="clip-7"><rect x="0" y="384.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-7)">
+<rect x="0" y="384.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="388.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Tips by payment</text>
+</g>
+<clipPath id="clip-8"><rect x="0" y="414.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-8)">
+<rect x="0" y="414.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="418.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Fare per km by borough</text>
+</g>
+<clipPath id="clip-9"><rect x="0" y="444.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-9)">
+<rect x="0" y="444.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="448.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Distance vs duration</text>
+</g>
+<clipPath id="clip-10"><rect x="0" y="474.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-10)">
+<rect x="0" y="474.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="478.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Slowest zones</text>
+</g>
+<clipPath id="clip-11"><rect x="0" y="504.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-11)">
+<rect x="0" y="504.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="508.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Passengers per trip</text>
+</g>
+<clipPath id="clip-12"><rect x="0" y="534.48" width="281.76" height="30"/></clipPath>
+<g clip-path="url(#clip-12)">
+<rect x="0" y="534.48" width="281.76" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="538.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Rush-hour fare premium (slow)</text>
+</g>
+</g>
+<clipPath id="clip-13"><rect x="0" y="670" width="281.76" height="24"/></clipPath>
+<g clip-path="url(#clip-13)">
+<rect x="0" y="670" width="281.76" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="674" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">demand by hour of day</text>
+</g>
+<clipPath id="clip-14"><rect x="281.76" y="0" width="6" height="694"/></clipPath>
+<g clip-path="url(#clip-14)">
+<rect x="281.76" y="0" width="6" height="694" fill="rgba(90,90,100,0.627451)"/>
+</g>
+<clipPath id="clip-15"><rect x="287.76" y="0" width="892.24" height="32"/></clipPath>
+<g clip-path="url(#clip-15)">
+<rect x="287.76" y="0" width="74" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="287.76" y="0" width="74" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="303.76" y="8" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Query</text>
+<rect x="287.76" y="30" width="74" height="2" fill="rgba(124,111,255,1)"/>
+</g>
+<clipPath id="clip-16"><rect x="287.76" y="32" width="892.24" height="40"/></clipPath>
+<g clip-path="url(#clip-16)">
+<rect x="287.76" y="32" width="892.24" height="40" fill="rgba(45,45,48,1)"/>
+<line x1="287.76" y1="71.5" x2="1180" y2="71.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
+</g>
+<clipPath id="clip-17"><rect x="291.76" y="36" width="137.2" height="32"/></clipPath>
+<g clip-path="url(#clip-17)">
+<rect x="291.76" y="36" width="137.2" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="291.76" y="36" width="137.2" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="299.76" y="43" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Run</text>
+<text xml:space="preserve" x="336.96" y="43" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Ctrl+Enter</text>
+</g>
+<clipPath id="clip-18"><rect x="428.96" y="36" width="66.4" height="32"/></clipPath>
+<g clip-path="url(#clip-18)">
+<rect x="428.96" y="36" width="66.4" height="32" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="436.96" y="43" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cancel</text>
+</g>
+<clipPath id="clip-19"><rect x="882.4" y="36" width="293.6" height="32"/></clipPath>
+<g clip-path="url(#clip-19)">
+<rect x="882.4" y="36" width="293.6" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="886.4" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Ctrl+Enter runs the editor's query</text>
+</g>
+<clipPath id="clip-20"><rect x="287.76" y="72" width="892.24" height="164.8"/></clipPath>
+<g clip-path="url(#clip-20)">
+<rect x="287.76" y="72" width="892.24" height="164.8" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-21"><rect x="291.76" y="76" width="884.24" height="156.8"/></clipPath>
+<g clip-path="url(#clip-21)">
+<text xml:space="preserve" x="291.76" y="78" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">SELECT strftime('%H:00', pickup) AS hour, COUNT(*) AS trips</text>
+<text xml:space="preserve" x="291.76" y="97.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">  FROM trips</text>
+<text xml:space="preserve" x="291.76" y="117.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> GROUP BY hour</text>
+<text xml:space="preserve" x="291.76" y="136.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> ORDER BY hour</text>
+</g>
+</g>
+<clipPath id="clip-22"><rect x="287.76" y="316.48" width="892.24" height="6"/></clipPath>
+<g clip-path="url(#clip-22)">
+<rect x="287.76" y="316.48" width="892.24" height="6" fill="rgba(90,90,100,0.627451)"/>
+</g>
+<clipPath id="clip-23"><rect x="287.76" y="322.48" width="892.24" height="32"/></clipPath>
+<g clip-path="url(#clip-23)">
+<rect x="287.76" y="322.48" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="287.76" y="322.48" width="90.8" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="303.76" y="330.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Results</text>
+<rect x="287.76" y="352.48" width="90.8" height="2" fill="rgba(124,111,255,1)"/>
+</g>
+<clipPath id="clip-24"><rect x="287.76" y="354.48" width="892.24" height="32"/></clipPath>
+<g clip-path="url(#clip-24)">
+<rect x="287.76" y="354.48" width="148" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="287.76" y="354.48" width="74" height="32" fill="rgba(30,30,46,1)"/>
+<text xml:space="preserve" x="303.76" y="362.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Table</text>
+<rect x="287.76" y="384.48" width="74" height="2" fill="rgba(124,111,255,1)"/>
+<rect x="361.76" y="354.48" width="74" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="377.76" y="362.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Chart</text>
+</g>
+<clipPath id="clip-25"><rect x="287.76" y="386.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-25)">
+<rect x="575.52" y="772.96" width="892.24" height="24" fill="rgba(42,42,74,1)"/>
+<rect x="575.52" y="794.96" width="892.24" height="2" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-26"><rect x="287.76" y="386.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-26)">
+<text xml:space="preserve" x="291.76" y="390.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">hour</text>
+</g>
+<rect x="733.88" y="390.48" width="1" height="16" fill="rgba(74,74,106,1)"/>
+<clipPath id="clip-27"><rect x="733.88" y="386.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-27)">
+<text xml:space="preserve" x="737.88" y="390.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(136,136,204,1)" dominant-baseline="hanging">trips</text>
+</g>
+<rect x="1180" y="390.48" width="1" height="16" fill="rgba(74,74,106,1)"/>
+</g>
+<clipPath id="clip-28"><rect x="287.76" y="410.48" width="892.24" height="283.52"/></clipPath>
+<g clip-path="url(#clip-28)">
+<clipPath id="clip-29"><rect x="287.76" y="410.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-29)">
+<rect x="287.76" y="410.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-30"><rect x="287.76" y="410.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-30)">
+<text xml:space="preserve" x="291.76" y="414.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">00:00</text>
+</g>
+<clipPath id="clip-31"><rect x="733.88" y="410.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-31)">
+<text xml:space="preserve" x="737.88" y="414.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">179</text>
+</g>
+<rect x="733.88" y="410.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-32"><rect x="287.76" y="434.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-32)">
+<rect x="287.76" y="434.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-33"><rect x="287.76" y="434.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-33)">
+<text xml:space="preserve" x="291.76" y="438.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">01:00</text>
+</g>
+<clipPath id="clip-34"><rect x="733.88" y="434.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-34)">
+<text xml:space="preserve" x="737.88" y="438.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">89</text>
+</g>
+<rect x="733.88" y="434.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-35"><rect x="287.76" y="458.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-35)">
+<rect x="287.76" y="458.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-36"><rect x="287.76" y="458.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-36)">
+<text xml:space="preserve" x="291.76" y="462.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">02:00</text>
+</g>
+<clipPath id="clip-37"><rect x="733.88" y="458.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-37)">
+<text xml:space="preserve" x="737.88" y="462.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">79</text>
+</g>
+<rect x="733.88" y="458.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-38"><rect x="287.76" y="482.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-38)">
+<rect x="287.76" y="482.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-39"><rect x="287.76" y="482.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-39)">
+<text xml:space="preserve" x="291.76" y="486.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">03:00</text>
+</g>
+<clipPath id="clip-40"><rect x="733.88" y="482.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-40)">
+<text xml:space="preserve" x="737.88" y="486.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">61</text>
+</g>
+<rect x="733.88" y="482.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-41"><rect x="287.76" y="506.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-41)">
+<rect x="287.76" y="506.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-42"><rect x="287.76" y="506.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-42)">
+<text xml:space="preserve" x="291.76" y="510.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">04:00</text>
+</g>
+<clipPath id="clip-43"><rect x="733.88" y="506.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-43)">
+<text xml:space="preserve" x="737.88" y="510.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">36</text>
+</g>
+<rect x="733.88" y="506.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-44"><rect x="287.76" y="530.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-44)">
+<rect x="287.76" y="530.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-45"><rect x="287.76" y="530.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-45)">
+<text xml:space="preserve" x="291.76" y="534.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">05:00</text>
+</g>
+<clipPath id="clip-46"><rect x="733.88" y="530.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-46)">
+<text xml:space="preserve" x="737.88" y="534.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">41</text>
+</g>
+<rect x="733.88" y="530.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-47"><rect x="287.76" y="554.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-47)">
+<rect x="287.76" y="554.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-48"><rect x="287.76" y="554.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-48)">
+<text xml:space="preserve" x="291.76" y="558.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">06:00</text>
+</g>
+<clipPath id="clip-49"><rect x="733.88" y="554.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-49)">
+<text xml:space="preserve" x="737.88" y="558.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">82</text>
+</g>
+<rect x="733.88" y="554.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-50"><rect x="287.76" y="578.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-50)">
+<rect x="287.76" y="578.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-51"><rect x="287.76" y="578.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-51)">
+<text xml:space="preserve" x="291.76" y="582.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">07:00</text>
+</g>
+<clipPath id="clip-52"><rect x="733.88" y="578.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-52)">
+<text xml:space="preserve" x="737.88" y="582.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">140</text>
+</g>
+<rect x="733.88" y="578.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-53"><rect x="287.76" y="602.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-53)">
+<rect x="287.76" y="602.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-54"><rect x="287.76" y="602.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-54)">
+<text xml:space="preserve" x="291.76" y="606.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">08:00</text>
+</g>
+<clipPath id="clip-55"><rect x="733.88" y="602.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-55)">
+<text xml:space="preserve" x="737.88" y="606.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">235</text>
+</g>
+<rect x="733.88" y="602.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-56"><rect x="287.76" y="626.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-56)">
+<rect x="287.76" y="626.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-57"><rect x="287.76" y="626.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-57)">
+<text xml:space="preserve" x="291.76" y="630.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">09:00</text>
+</g>
+<clipPath id="clip-58"><rect x="733.88" y="626.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-58)">
+<text xml:space="preserve" x="737.88" y="630.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">208</text>
+</g>
+<rect x="733.88" y="626.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-59"><rect x="287.76" y="650.48" width="892.24" height="24"/></clipPath>
+<g clip-path="url(#clip-59)">
+<rect x="287.76" y="650.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-60"><rect x="287.76" y="650.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-60)">
+<text xml:space="preserve" x="291.76" y="654.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">10:00</text>
+</g>
+<clipPath id="clip-61"><rect x="733.88" y="650.48" width="446.12" height="24"/></clipPath>
+<g clip-path="url(#clip-61)">
+<text xml:space="preserve" x="737.88" y="654.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">143</text>
+</g>
+<rect x="733.88" y="650.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-62"><rect x="287.76" y="674.48" width="892.24" height="19.52"/></clipPath>
+<g clip-path="url(#clip-62)">
+<rect x="287.76" y="674.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-63"><rect x="287.76" y="674.48" width="446.12" height="19.52"/></clipPath>
+<g clip-path="url(#clip-63)">
+<text xml:space="preserve" x="291.76" y="678.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">11:00</text>
+</g>
+<clipPath id="clip-64"><rect x="733.88" y="674.48" width="446.12" height="19.52"/></clipPath>
+<g clip-path="url(#clip-64)">
+<text xml:space="preserve" x="737.88" y="678.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">145</text>
+</g>
+<rect x="733.88" y="674.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-65"><rect x="287.76" y="698.48" width="892.24" height="0"/></clipPath>
+<g clip-path="url(#clip-65)">
+<rect x="287.76" y="698.48" width="892.24" height="24" fill="rgba(30,30,50,1)"/>
+<clipPath id="clip-66"><rect x="287.76" y="698.48" width="446.12" height="0"/></clipPath>
+<g clip-path="url(#clip-66)">
+<text xml:space="preserve" x="291.76" y="702.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">12:00</text>
+</g>
+<clipPath id="clip-67"><rect x="733.88" y="698.48" width="446.12" height="0"/></clipPath>
+<g clip-path="url(#clip-67)">
+<text xml:space="preserve" x="737.88" y="702.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">174</text>
+</g>
+<rect x="733.88" y="698.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+<clipPath id="clip-68"><rect x="287.76" y="722.48" width="892.24" height="0"/></clipPath>
+<g clip-path="url(#clip-68)">
+<rect x="287.76" y="722.48" width="892.24" height="24" fill="rgba(26,26,46,1)"/>
+<clipPath id="clip-69"><rect x="287.76" y="722.48" width="446.12" height="0"/></clipPath>
+<g clip-path="url(#clip-69)">
+<text xml:space="preserve" x="291.76" y="726.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">13:00</text>
+</g>
+<clipPath id="clip-70"><rect x="733.88" y="722.48" width="446.12" height="0"/></clipPath>
+<g clip-path="url(#clip-70)">
+<text xml:space="preserve" x="737.88" y="726.48" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">178</text>
+</g>
+<rect x="733.88" y="722.48" width="1" height="24" fill="rgba(50,50,70,1)"/>
+</g>
+</g>
+<clipPath id="clip-71"><rect x="0" y="694" width="1180" height="34"/></clipPath>
+<g clip-path="url(#clip-71)">
+<rect x="0" y="694" width="1180" height="34" fill="rgba(45,45,48,1)"/>
+<line x1="0" y1="694.5" x2="1180" y2="694.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
+</g>
+<clipPath id="clip-72"><rect x="8" y="696" width="200" height="30"/></clipPath>
+<g clip-path="url(#clip-72)">
+<rect x="8" y="696" width="200" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="12" y="700" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">24 rows in 0 ms</text>
+</g>
+<clipPath id="clip-73"><rect x="972" y="696" width="200" height="30"/></clipPath>
+<g clip-path="url(#clip-73)">
+<rect x="972" y="696" width="200" height="16" fill="rgba(0,0,0,0)"/>
+<rect x="972" y="700" width="200" height="8" rx="4" fill="rgba(60,60,70,1)"/>
+</g>
+<rect x="1172" y="410.48" width="6" height="139.555" fill="rgba(120,120,130,0.627451)"/>
+<rect x="0" y="32" width="281.76" height="284.48" stroke="rgba(124,60,245,1)" fill="none" stroke-width="2"/>
+<rect x="235.36" y="13" width="46.4" height="19" fill="rgba(124,60,245,1)"/>
+<text xml:space="preserve" x="239.36" y="17" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(255,255,255,1)" dominant-baseline="hanging">Schema</text>
+<rect x="0" y="354.48" width="281.76" height="339.52" stroke="rgba(124,60,245,1)" fill="none" stroke-width="2"/>
+<rect x="228.96" y="335.48" width="52.8" height="19" fill="rgba(124,60,245,1)"/>
+<text xml:space="preserve" x="232.96" y="339.48" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(255,255,255,1)" dominant-baseline="hanging">Queries</text>
+<rect x="287.76" y="32" width="892.24" height="204.8" stroke="rgba(124,60,245,1)" fill="none" stroke-width="2"/>
+<rect x="1133.6" y="13" width="46.4" height="19" fill="rgba(124,60,245,1)"/>
+<text xml:space="preserve" x="1137.6" y="17" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(255,255,255,1)" dominant-baseline="hanging">Editor</text>
+<rect x="0" y="0" width="1180" height="694" stroke="rgba(124,60,245,1)" fill="none" stroke-width="2"/>
+<rect x="1127.2" y="0" width="52.8" height="19" fill="rgba(124,60,245,1)"/>
+<text xml:space="preserve" x="1131.2" y="4" font-family="Noto Sans, sans-serif" font-size="11" fill="rgba(255,255,255,1)" dominant-baseline="hanging">Results</text>
+</svg>

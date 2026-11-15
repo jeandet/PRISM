@@ -234,6 +234,9 @@ struct Mixer {
 No base class and nothing to register; a block saves and restores like any other field. The
 widget gallery's "Build your own" tab runs this mixer, next to the one-header `Knob` widget it uses.
 
+Run any app with `PRISM_SHOW_BLOCKS=1` (or call `tree.show_blocks(true)`) and each block is
+outlined and named on screen, as in the [synth rack's](examples/model_synth_rack/) second screenshot.
+
 A block that needs the running app (a worker's results, the clock) says so with an `attach()`.
 It runs once, on the logic thread, before the app's setup:
 

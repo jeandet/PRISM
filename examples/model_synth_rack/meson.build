@@ -15,4 +15,12 @@ if not is_wasm
     depends : model_synth_rack_exe,
     build_by_default : true,
   )
+  # The same screenshot with each block outlined and named (WidgetTree::show_blocks).
+  custom_target('svg_synth_rack_blocks',
+    output : 'synth_rack_blocks.svg',
+    command : [model_synth_rack_exe, '@OUTPUT@'],
+    env : {'PRISM_SHOW_BLOCKS' : '1'},
+    depends : model_synth_rack_exe,
+    build_by_default : true,
+  )
 endif

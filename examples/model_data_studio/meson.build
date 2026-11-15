@@ -14,4 +14,12 @@ if not is_wasm
     depends : model_data_studio_exe,
     build_by_default : true,
   )
+  # The same screenshot with each block outlined and named (WidgetTree::show_blocks).
+  custom_target('svg_data_studio_blocks',
+    output : 'data_studio_blocks.svg',
+    command : [model_data_studio_exe, '@OUTPUT@'],
+    env : {'PRISM_SHOW_BLOCKS' : '1'},
+    depends : model_data_studio_exe,
+    build_by_default : true,
+  )
 endif

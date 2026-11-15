@@ -12,4 +12,12 @@ if not is_wasm
     depends : model_lab_bench_exe,
     build_by_default : true,
   )
+  # The same screenshot with each block outlined and named (WidgetTree::show_blocks).
+  custom_target('svg_lab_bench_blocks',
+    output : 'lab_bench_blocks.svg',
+    command : [model_lab_bench_exe, '@OUTPUT@'],
+    env : {'PRISM_SHOW_BLOCKS' : '1'},
+    depends : model_lab_bench_exe,
+    build_by_default : true,
+  )
 endif
