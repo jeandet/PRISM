@@ -220,6 +220,38 @@ TEST_CASE("the dock builds the layout: groups side by side, a group of two shows
     CHECK(text_rect(*snap, "Files"));                       // a lone panel has its tab too: its handle
 }
 
+TEST_CASE("a nested column of three groups, each a scroll view, shows all three, one above the other") {
+    struct Rack {
+        Field<Label<>> a{{"AAA"}}, b{{"BBB"}}, c{{"CCC"}}, main{{"MAIN"}};
+        Field<Label<>> foot{{"FOOT"}};
+        Field<DockLayout> layout{{dock_split(true, {
+            dock_split(false, {dock_group({"main"}),
+                dock_split(true, {dock_group({"a"}), dock_group({"b"}), dock_group({"c"})}, {0.3f, 0.4f, 0.3f})},
+                {0.6f, 0.4f}),
+            dock_group({"foot"})}, {0.85f, 0.15f})}};
+        void view(WidgetTree::ViewBuilder& vb) {
+            auto scrolled = [](Field<Label<>>& f) {
+                return [&f](WidgetTree::ViewBuilder& p) { p.scroll([&] { p.widget(f); }); };
+            };
+            vb.dock(layout, {{"main", "Main", scrolled(main)}, {"a", "A", scrolled(a)},
+                             {"b", "B", scrolled(b)}, {"c", "C", scrolled(c)},
+                             {"foot", "Foot", scrolled(foot)}});
+        }
+    } model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(1000, 700, 1);
+    for (uint64_t v = 2; v < 6; ++v) snap = tree.build_snapshot(1000, 700, v);
+    auto a = text_rect(*snap, "AAA"), b = text_rect(*snap, "BBB"), c = text_rect(*snap, "CCC");
+    REQUIRE(a);
+    REQUIRE(b);
+    REQUIRE(c);
+    CHECK(a->origin.y.raw() < b->origin.y.raw());
+    CHECK(b->origin.y.raw() < c->origin.y.raw());
+    CHECK(a->origin.x.raw() > 500.f);
+    float first = b->origin.y.raw() - a->origin.y.raw(), second = c->origin.y.raw() - b->origin.y.raw();
+    CHECK(second == doctest::Approx(first * 4.f / 3.f).epsilon(0.05));   // 0.3 : 0.4 kept
+}
+
 TEST_CASE("a new layout rebuilds the dock") {
     Ide model;
     WidgetTree tree{model};

@@ -455,6 +455,12 @@ struct TableState {
         return source.row_count ? source.row_count() : 0;
     }
 
+    // Read from the source each time, like the row count: a query result changes shape with
+    // each query. `column_count` is only for a source without one.
+    size_t columns() const {
+        return source.column_count ? source.column_count() : column_count;
+    }
+
     std::string_view column_header(size_t col) const {
         if (col < header_overrides.size() && !header_overrides[col].empty())
             return header_overrides[col];

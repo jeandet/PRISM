@@ -161,6 +161,10 @@ struct VirtualListState {
     ScrollEventPolicy event_policy{ScrollEventPolicy::BubbleAtBounds};
     uint8_t show_ticks = 0;
 
+    // A log or console: rows appended while the list shows its bottom scroll it to the new bottom.
+    bool follow_tail = false;
+    DY tail_offset{0};   // the bottom as of the last layout; at it, the list is following
+
     std::vector<WidgetNode> pool;
     std::function<void(WidgetNode&, size_t index)> bind_row;
     std::function<void(WidgetNode&)> unbind_row;

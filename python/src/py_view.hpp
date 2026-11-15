@@ -209,11 +209,13 @@ inline std::function<void(ViewBuilder&)> py_tooltip_for(nb::object h, std::strin
     throw nb::type_error("tooltip: this kind of field has no single widget to hover");
 }
 
-inline void py_list_dispatch(ViewBuilder& vb, nb::object h, bool reorderable = false, bool selectable = false) {
+inline void py_list_dispatch(ViewBuilder& vb, nb::object h, bool reorderable = false, bool selectable = false,
+                             bool follow_tail = false) {
     auto place = [&](auto& bound) {
         auto handle = vb.list(*bound.list);
         if (reorderable) std::move(handle).reorderable();
         if (selectable) std::move(handle).selection(*bound.selected);
+        if (follow_tail) std::move(handle).follow_tail();
     };
     if (nb::isinstance<BoundList<int>>(h)) place(nb::cast<BoundList<int>&>(h));
     else if (nb::isinstance<BoundList<double>>(h)) place(nb::cast<BoundList<double>&>(h));

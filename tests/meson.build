@@ -94,6 +94,7 @@ headless_tests = {
   'section' : files('test_section.cpp'),
   'table_edit' : files('test_table_edit.cpp'),
   'list_selection' : files('test_list_selection.cpp'),
+  'list_follow' : files('test_list_follow.cpp'),
   'color_picker' : files('test_color_picker.cpp'),
   'date_picker' : files('test_date_picker.cpp'),
   'time_picker' : files('test_time_picker.cpp'),

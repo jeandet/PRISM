@@ -987,6 +987,7 @@ private:
                 auto vls = std::make_shared<VirtualListState>();
                 vls->item_count = ItemCount{node.vlist_item_count};
                 vls->event_policy = node.scroll_event_policy;
+                vls->follow_tail = node.vlist_follow_tail;
                 if (node.vlist_bind_row) vls->bind_row = node.vlist_bind_row;
                 if (node.vlist_unbind_row) vls->unbind_row = node.vlist_unbind_row;
                 wn.edit_state = vls;

@@ -104,6 +104,7 @@ struct Node {
     std::function<Connection(size_t, std::function<void()>)> vlist_on_remove;
     std::function<Connection(size_t, std::function<void()>)> vlist_on_update;
     size_t vlist_item_count = 0;
+    bool vlist_follow_tail = false;   // vb.list(...).follow_tail()
 
     // Table metadata (only meaningful when layout_kind == Table)
     std::shared_ptr<TableState> table_state;

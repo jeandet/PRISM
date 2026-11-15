@@ -5,9 +5,11 @@
 #include <prism/ui/delegate.hpp>
 #include <prism/input/hit_test.hpp>
 #include <prism/app/widget_tree.hpp>
+#include <prism/ui/dock.hpp>
 
 #include <fmt/format.h>
 #include <array>
+#include <set>
 namespace prism::core {} namespace prism::render {} namespace prism::input {}
 namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
 namespace prism {
@@ -545,6 +547,131 @@ TEST_CASE("ColumnStorage table re-renders on depends_on trigger") {
 
     model.data_updated.set(true);
     CHECK(tree.any_dirty());
+}
+
+// A query result: its shape changes with each query.
+struct ResultModel {
+    std::vector<std::string> headers{"count"};
+    prism::Field<int> generation{0};
+
+    size_t column_count() const { return headers.size(); }
+    size_t rows = 2;
+    size_t row_count() const { return rows; }
+    std::string_view header(size_t c) const { return headers[c]; }
+    std::string cell_text(size_t r, size_t c) const { return headers[c] + std::to_string(r); }
+
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.table(*this).depends_on(generation); }
+};
+
+TEST_CASE("a table whose source gains columns shows them on the next frame") {
+    ResultModel model;
+    prism::WidgetTree tree(model);
+    (void)tree.build_snapshot(800, 600, 1);
+    (void)tree.build_snapshot(800, 600, 2);
+    tree.clear_dirty();
+
+    model.headers = {"borough", "trips", "avg_fare"};
+    model.generation.set(1);
+    (void)tree.build_snapshot(800, 600, 3);
+    auto snap = tree.build_snapshot(800, 600, 4);
+
+    std::set<std::string> texts;
+    for (auto& dl : snap->draw_lists)
+        for (auto& cmd : dl->commands)
+            if (auto* tc = std::get_if<prism::TextCmd>(&cmd)) texts.insert(tc->text);
+    CHECK(texts.contains("borough"));
+    CHECK(texts.contains("avg_fare"));
+    CHECK(texts.contains("avg_fare1"));
+}
+
+TEST_CASE("a table that starts with no columns and no rows shows the first result") {
+    ResultModel model;
+    model.headers.clear();
+    model.rows = 0;
+    prism::WidgetTree tree(model);
+    (void)tree.build_snapshot(800, 600, 1);
+    (void)tree.build_snapshot(800, 600, 2);
+    tree.clear_dirty();
+
+    model.headers = {"hour", "trips"};
+    model.rows = 24;
+    model.generation.set(1);
+    auto snap = tree.build_snapshot(800, 600, 3);   // the very frame the result arrives in
+
+    std::set<std::string> texts;
+    for (auto& dl : snap->draw_lists)
+        for (auto& cmd : dl->commands)
+            if (auto* tc = std::get_if<prism::TextCmd>(&cmd)) texts.insert(tc->text);
+    CHECK(texts.contains("hour"));
+    CHECK(texts.contains("trips"));
+    CHECK(texts.contains("hour3"));
+}
+
+TEST_CASE("a result arriving in a table on a tab page in a dock shows all its rows and columns") {
+    struct Studio {
+        ResultModel result;
+        prism::Field<prism::TabBar<>> pages{};
+        prism::Field<prism::ui::DockLayout> layout{{prism::ui::dock_split(true,
+            {prism::ui::dock_group({"editor"}), prism::ui::dock_group({"results"})}, {0.4f, 0.6f})}};
+        prism::Field<prism::Label<>> editor{{"SQL"}};
+        void view(prism::WidgetTree::ViewBuilder& vb) {
+            vb.dock(layout, {{"editor", "Query", [&](prism::WidgetTree::ViewBuilder& p) { p.widget(editor); }},
+                             {"results", "Results", [&](prism::WidgetTree::ViewBuilder& p) {
+                                 p.tabs(pages, [&] {
+                                     p.tab("Table", [&](prism::WidgetTree::ViewBuilder& page) {
+                                         page.table(result).depends_on(result.generation);
+                                     });
+                                 });
+                             }}});
+        }
+    } model;
+    model.result.headers.clear();
+    model.result.rows = 0;
+    prism::WidgetTree tree(model);
+    for (uint64_t v = 1; v < 4; ++v) { (void)tree.build_snapshot(800, 600, v); tree.clear_dirty(); }
+
+    model.result.headers = {"hour", "trips"};
+    model.result.rows = 24;
+    model.result.generation.set(1);
+    std::unique_ptr<prism::SceneSnapshot> snap;
+    for (uint64_t v = 4; v < 7; ++v) { snap = tree.build_snapshot(800, 600, v); tree.clear_dirty(); }
+
+    std::set<std::string> texts;
+    for (auto& dl : snap->draw_lists)
+        for (auto& cmd : dl->commands)
+            if (auto* tc = std::get_if<prism::TextCmd>(&cmd)) texts.insert(tc->text);
+    CHECK(texts.contains("hour"));
+    CHECK(texts.contains("trips"));
+    CHECK(texts.contains("hour0"));
+    CHECK(texts.contains("hour5"));
+}
+
+TEST_CASE("a table whose panel grows shows the rows that now fit") {
+    struct Panes {
+        ResultModel result;
+        prism::Field<prism::Label<>> top{{"TOP"}};
+        prism::Field<prism::ui::DockLayout> layout{{prism::ui::dock_split(true,
+            {prism::ui::dock_group({"top"}), prism::ui::dock_group({"table"})}, {0.85f, 0.15f})}};
+        void view(prism::WidgetTree::ViewBuilder& vb) {
+            vb.dock(layout, {{"top", "Top", [&](prism::WidgetTree::ViewBuilder& p) { p.widget(top); }},
+                             {"table", "Table", [&](prism::WidgetTree::ViewBuilder& p) {
+                                 p.table(result).depends_on(result.generation);
+                             }}});
+        }
+    } model;
+    model.result.headers = {"hour"};
+    model.result.rows = 40;
+    prism::WidgetTree tree(model);
+    for (uint64_t v = 1; v < 4; ++v) { (void)tree.build_snapshot(800, 600, v); tree.clear_dirty(); }
+
+    std::unique_ptr<prism::SceneSnapshot> snap;   // the window grows: so does the table's panel
+    for (uint64_t v = 4; v < 7; ++v) { snap = tree.build_snapshot(800, 3000, v); tree.clear_dirty(); }
+
+    std::set<std::string> texts;
+    for (auto& dl : snap->draw_lists)
+        for (auto& cmd : dl->commands)
+            if (auto* tc = std::get_if<prism::TextCmd>(&cmd)) texts.insert(tc->text);
+    CHECK(texts.contains("hour10"));   // 450 px of rows now: well past the few the small panel held
 }
 
 struct HeaderOverrideModel {

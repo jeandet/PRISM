@@ -141,7 +141,7 @@ inline bool can_patch(const TableState& ts, SortSpec spec, size_t changed) {
 inline void refresh_order(TableState& ts) {
     prune_selection(ts);
     auto spec = ts.sort.get();
-    if (!spec || spec->column >= ts.column_count) {
+    if (!spec || spec->column >= ts.columns()) {
         ts.order.clear();
         ts.rank.clear();
         ts.keys.clear();
@@ -183,11 +183,11 @@ inline std::vector<size_t> shown_columns(const TableState& ts) {
     const auto& chosen = columns_field(ts).get();
     std::vector<size_t> out;
     if (chosen.empty()) {
-        out.resize(ts.column_count);
+        out.resize(ts.columns());
         std::iota(out.begin(), out.end(), size_t{0});
     } else {
         for (size_t c : chosen)
-            if (c < ts.column_count) out.push_back(c);
+            if (c < ts.columns()) out.push_back(c);
     }
     return out;
 }
@@ -313,7 +313,7 @@ inline void select_all(TableState& ts) {
 inline bool editable(const TableState& ts) { return static_cast<bool>(ts.source.set_cell); }
 
 inline bool column_editable(const TableState& ts, size_t column) {
-    return editable(ts) && column < ts.column_count && (!ts.source.column_editable || ts.source.column_editable(column));
+    return editable(ts) && column < ts.columns() && (!ts.source.column_editable || ts.source.column_editable(column));
 }
 
 inline bool is_check_cell(const TableState& ts, size_t row, size_t column) {

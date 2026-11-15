@@ -783,6 +783,12 @@ public:
         List<T>& items;
         WidgetTree& tree;
         std::set<const void*>& placed;
+        // Rows appended while the list shows its last row scroll it to the new last row, as a
+        // terminal does; scrolling up stops that, scrolling back to the bottom resumes it.
+        ListHandle&& follow_tail() && {
+            node_ref.vlist_follow_tail = true;
+            return std::move(*this);
+        }
         // The user can drag rows to put them in another order (List::move).
         ListHandle&& reorderable() && {
             node_ref.row_drag = [&items = items](std::size_t i) { return view_builder_detail::list_row_drag(items, i); };

@@ -17,8 +17,19 @@ namespace prism::app::widget_detail {
 using namespace prism::core;
 using namespace prism::ui;
 
-// Returns whether a virtual list's or table's viewport changed height: its rows were
-// materialized for the old one.
+// A following list (VirtualListState::follow_tail) that showed its bottom before rows were
+// appended moves to the new bottom. Returns whether it moved: its rows are for the old offset.
+inline bool keep_at_tail(VirtualListState& vls) {
+    DY bottom = max_scroll(Height{static_cast<float>(vls.item_count.raw()) * vls.item_height.raw()}, vls.viewport_h);
+    bool following = vls.scroll_offset.raw() >= vls.tail_offset.raw() - 1.f;
+    vls.tail_offset = bottom;
+    if (!following || vls.scroll_offset.raw() == bottom.raw()) return false;
+    vls.scroll_offset = bottom;
+    return true;
+}
+
+// Returns whether a virtual list's or table's viewport changed height, or a following list
+// moved: its rows were materialized for the old one.
 inline bool update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
     WidgetNode* wn = &node;
     bool viewport_moved = false;
@@ -32,6 +43,7 @@ inline bool update_scroll_state_of(LayoutNode& layout_node, WidgetNode& node) {
         if (auto* vls = get_vlist_state(*wn)) {
             viewport_moved = vls->viewport_h != layout_node.allocated.extent.h;
             vls->viewport_h = layout_node.allocated.extent.h;
+            if (vls->follow_tail) viewport_moved |= keep_at_tail(*vls);
         }
     if (layout_node.kind == LayoutNode::Kind::Table) {
         if (auto* ts = get_table_state(*wn)) {
@@ -88,7 +100,10 @@ inline void update_split_state(LayoutNode& layout_node) {
                 float pane_total = 0.f;
                 for (float sz : ss->pane_sizes) pane_total += sz;
                 float target = available - handle_total;
-                if (pane_total > 0.f && std::abs(target - pane_total) > 0.5f) {
+                // A split nested in another starts out squeezed (the outer one's sizes are still
+                // fractions on the first pass): scaling to a target below zero would leave
+                // negative sizes that no later pass corrects.
+                if (pane_total > 0.f && target > 0.f && std::abs(target - pane_total) > 0.5f) {
                     float scale = target / pane_total;
                     for (auto& sz : ss->pane_sizes) sz *= scale;
                 }

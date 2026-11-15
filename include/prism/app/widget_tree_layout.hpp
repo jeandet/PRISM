@@ -239,7 +239,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep) {
                 static_cast<float>(ts->row_count()) * ts->row_height.raw()};
             container.vlist_visible_start = ts->visible_start.raw();
             container.vlist_item_height = ts->row_height;
-            container.table_column_count = ts->column_count;
+            container.table_column_count = ts->columns();
             container.table_header_h = ts->row_height;
             container.table_scroll_x = ts->scroll_x;
         }

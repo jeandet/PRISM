@@ -447,13 +447,16 @@ static void bind_view(nb::module_& m) {
             }, nb::arg("flag"), nb::arg("fn"),
              "Everything fn() places is greyed out and takes no input while flag (a bool field, "
              "derived bool or checkbox) is false.")
-        .def("list", [](ViewBuilder& vb, nb::object h, bool reorderable, bool selectable){
-                py_list_dispatch(vb, h, reorderable, selectable);
+        .def("list", [](ViewBuilder& vb, nb::object h, bool reorderable, bool selectable, bool follow_tail){
+                py_list_dispatch(vb, h, reorderable, selectable, follow_tail);
              },
              nb::arg("handle"), nb::arg("reorderable") = false, nb::arg("selectable") = false,
+             nb::arg("follow_tail") = false,
              "Add a list widget for a bound list handle (list_field()). reorderable: the user "
              "can drag rows to another place. selectable: a click or the arrow keys select a row, "
-             "read and set through handle.selected (None: no row).")
+             "read and set through handle.selected (None: no row). follow_tail: rows appended while "
+             "the last row shows scroll to the new last row, as in a terminal; scrolling up "
+             "stops that until the user scrolls back down.")
         .def("canvas", [](ViewBuilder& vb, nb::object h){ py_canvas_dispatch(vb, h); }, nb::arg("handle"),
              "Add a canvas widget for a bound plot handle (plot_field()).")
         .def("tree", [](ViewBuilder& vb, nb::object h){ py_tree_dispatch(vb, h); }, nb::arg("handle"),

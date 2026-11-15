@@ -4446,6 +4446,18 @@ def test_a_list_selection_follows_the_keys_and_the_app():
     assert t.items.selected is None
 
 
+def test_a_following_list_shows_its_newest_rows():
+    class Console(prism.Model):
+        lines = prism.list_field([f"line {i}" for i in range(200)])
+
+        def view(self, vb):
+            vb.list(self.lines, follow_tail=True)
+
+    texts = prism._texts(Console())
+    assert "line 199" in texts
+    assert "line 0" not in texts
+
+
 def test_a_color_field_shows_its_hex_code_and_takes_new_ones():
     seen = []
 
