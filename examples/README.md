@@ -12,7 +12,7 @@ WebAssembly: see the [live demos](https://jeandet.github.io/PRISM/).
 <tr>
 <td><a href="widget_gallery/">widget_gallery</a></td>
 <td><img src="../doc/screenshots/widget_gallery.svg" width="180"/></td>
-<td>Every widget, in seven tabs: controls with tooltips, text in several scripts (right to left
+<td>Every widget, in eight tabs: controls with tooltips, text in several scripts (right to left
 too), a table, tree and list, a plot and a canvas, menus, dialogs (one holding a form), a popover,
 file dialogs, drag and drop, and a dock whose panels the user rearranges. Start here.</td>
 </tr>

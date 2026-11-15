@@ -295,7 +295,7 @@ private:
     bool gate_ = false;
 };
 
-// A feedback delay with a fractional read head, so dragging the time slider glides instead of
+// A feedback delay with a fractional read head, so turning the time knob glides instead of
 // clicking. Fixed storage: the longest time it holds is kCapacity / sample_rate.
 class DelayLine {
 public:

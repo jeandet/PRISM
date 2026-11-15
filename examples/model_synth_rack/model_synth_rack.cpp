@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "../showcase/showcase_common.hpp"
+#include "../widget_gallery/knob.hpp"
 #include "audio_device.hpp"
 #include "rack_canvas.hpp"
 #include "rt_latest.hpp"
@@ -86,30 +87,30 @@ struct SynthApp {
 
     // One Field per control. The settings value the audio thread reads is a Derived of them.
     core::Field<ui::Button> power{{.text = "Power", .primary = true, .checked = false}};
-    core::Field<ui::Slider<double>> tempo{
+    core::Field<gallery::Knob> tempo{
         {.value = 96.0, .min = 60.0, .max = 200.0, .step = 1.0, .label = "Tempo", .unit = "BPM"}};
     core::Field<Chord> chord{Chord::Cmaj7};
     core::Field<ArpPattern> pattern{ArpPattern::Up};
-    core::Field<ui::Slider<double>> octaves{
-        {.value = 2.0, .min = 1.0, .max = 3.0, .step = 1.0, .label = "Octave span", .unit = "oct"}};
+    core::Field<gallery::Knob> octaves{
+        {.value = 2.0, .min = 1.0, .max = 3.0, .step = 1.0, .label = "Octaves", .unit = "oct"}};
 
     core::Field<Waveform> waveform{Waveform::Saw};
-    core::Field<ui::Slider<double>> cutoff{
+    core::Field<gallery::Knob> cutoff{
         {.value = 2400.0, .min = 100.0, .max = 12000.0, .step = 10.0, .label = "Cutoff", .unit = "Hz"}};
-    core::Field<ui::Slider<double>> resonance{
+    core::Field<gallery::Knob> resonance{
         {.value = 1.4, .min = 0.5, .max = 12.0, .step = 0.1, .label = "Resonance", .unit = "Q"}};
-    core::Field<ui::Slider<double>> attack{
+    core::Field<gallery::Knob> attack{
         {.value = 6.0, .min = 1.0, .max = 400.0, .step = 1.0, .label = "Attack", .unit = "ms"}};
-    core::Field<ui::Slider<double>> release{
+    core::Field<gallery::Knob> release{
         {.value = 180.0, .min = 20.0, .max = 1200.0, .step = 5.0, .label = "Release", .unit = "ms"}};
-    core::Field<ui::Slider<double>> delay_time{
-        {.value = 260.0, .min = 20.0, .max = 600.0, .step = 5.0, .label = "Delay time", .unit = "ms"}};
-    core::Field<ui::Slider<double>> delay_feedback{
-        {.value = 0.32, .min = 0.0, .max = 0.85, .step = 0.01, .label = "Delay feedback"}};
-    core::Field<ui::Slider<double>> delay_mix{
-        {.value = 0.22, .min = 0.0, .max = 1.0, .step = 0.01, .label = "Delay mix"}};
-    core::Field<ui::Slider<double>> volume{
-        {.value = -8.0, .min = -40.0, .max = 0.0, .step = 0.5, .label = "Master volume", .unit = "dB"}};
+    core::Field<gallery::Knob> delay_time{
+        {.value = 260.0, .min = 20.0, .max = 600.0, .step = 5.0, .label = "Delay", .unit = "ms"}};
+    core::Field<gallery::Knob> delay_feedback{
+        {.value = 0.32, .min = 0.0, .max = 0.85, .step = 0.01, .label = "Feedback"}};
+    core::Field<gallery::Knob> delay_mix{
+        {.value = 0.22, .min = 0.0, .max = 1.0, .step = 0.01, .label = "Mix"}};
+    core::Field<gallery::Knob> volume{
+        {.value = -8.0, .min = -40.0, .max = 0.0, .step = 0.5, .label = "Volume", .unit = "dB"}};
 
     core::Field<ui::Button> stall_button{{.text = "Stall the logic thread (2 s)", .primary = false}};
 
@@ -395,10 +396,14 @@ struct SynthApp {
                          [&](app::WidgetTree::ViewBuilder& p) {
                              p.scroll([&] {
                                  p.widget(power).tooltip("Open the audio device and start the engine");
-                                 p.widget(tempo);
+                                 p.hstack([&] {
+                                     p.widget(tempo);
+                                     p.gap(8.f);
+                                     p.widget(octaves);
+                                     p.spacer();
+                                 });
                                  p.widget(chord);
                                  p.widget(pattern);
-                                 p.widget(octaves);
                                  p.widget(arp_caption);
                              });
                          }},
@@ -406,20 +411,36 @@ struct SynthApp {
                          [&](app::WidgetTree::ViewBuilder& p) {
                              p.scroll([&] {
                                  p.widget(waveform);
-                                 p.widget(cutoff);
-                                 p.widget(resonance);
-                                 p.widget(attack);
-                                 p.widget(release);
-                                 p.widget(delay_time);
-                                 p.widget(delay_feedback);
-                                 p.widget(delay_mix);
+                                 p.hstack([&] {
+                                     p.widget(cutoff);
+                                     p.gap(6.f);
+                                     p.widget(resonance);
+                                     p.spacer();
+                                 });
+                                 p.hstack([&] {
+                                     p.widget(attack);
+                                     p.gap(6.f);
+                                     p.widget(release);
+                                     p.spacer();
+                                 });
+                                 p.hstack([&] {
+                                     p.widget(delay_time);
+                                     p.gap(6.f);
+                                     p.widget(delay_feedback);
+                                     p.gap(6.f);
+                                     p.widget(delay_mix);
+                                     p.spacer();
+                                 });
                                  p.widget(voice_caption);
                              });
                          }},
                         {"engine", "Output & Callback Budget",
                          [&](app::WidgetTree::ViewBuilder& p) {
                              p.scroll([&] {
-                                 p.widget(volume);
+                                 p.hstack([&] {
+                                     p.widget(volume);
+                                     p.spacer();
+                                 });
                                  p.widget(budget_caption);
                                  p.widget(engine_caption);
                                  p.widget(stall_button)

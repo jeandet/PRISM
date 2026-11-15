@@ -21,10 +21,12 @@ actually costs, measured on the machine you are looking at.
 
 ## How it is built
 
-- **Controls are fields.** Every slider is a `Field<ui::Slider<double>>` carrying its own label
-  and step (and a unit where the value has one), so it prints its value and snaps to its step on
-  its own. The waveform, chord and pattern are enums, so their dropdowns come free, and the
-  sixteen step gates are `Field<ui::Checkbox>`.
+- **Controls are knobs.** Every knob is a `Field<gallery::Knob>` — the same widget the widget
+  gallery builds from scratch in `examples/widget_gallery/knob.hpp`: a value type, its geometry,
+  and one `Widget<Knob>` specialization, no base class. Each carries its own label and step (and a
+  unit where the value has one), so it prints its value and snaps to its step on its own. The
+  waveform, chord and pattern are enums, so their dropdowns come free, and the sixteen step gates
+  are `Field<ui::Checkbox>`.
 - **One value crosses to the audio thread.** A `Derived<SynthSettings>` gathers every control on
   the logic thread and publishes a trivially copyable snapshot into an `RtLatest`, a lock-free
   triple buffer. The callback reads the newest snapshot at the top of each block. PRISM's usual

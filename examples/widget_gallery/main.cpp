@@ -1,5 +1,6 @@
-// Widget Gallery: every PRISM widget in one window, in seven tabs, under a menu bar with Alt
+// Widget Gallery: every PRISM widget in one window, in eight tabs, under a menu bar with Alt
 // shortcuts. The tabs are plain model structs (controls_tab.hpp, ...); this file arranges them.
+#include "build_your_own_tab.hpp"
 #include "catalog_tab.hpp"
 #include "controls_tab.hpp"
 #include "data_tab.hpp"
@@ -19,13 +20,14 @@
 using namespace prism;
 
 struct Gallery {
-    static constexpr std::array<const char*, 7> tab_names{"Controls", "Catalog", "Text", "Data", "Plot", "Popups", "Docking"};
+    static constexpr std::array<const char*, 8> tab_names{
+        "Controls", "Catalog", "Text", "Data", "Plot", "Popups", "Docking", "Build your own"};
 
     core::Field<ui::Menu> file_menu{{.title = "&File", .items = {
         {.text = "&Open…", .shortcut = {ui::keys::o, ui::mods::ctrl}, .icon = gallery::icon("folder.svg")},
         {.text = "&Save as…", .shortcut = {ui::keys::s, ui::mods::ctrl | ui::mods::shift}, .icon = gallery::icon("save.svg")},
     }}};
-    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"&Data"}, {"&Plot"}, {"P&opups"}, {"Doc&king"}}}};
+    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"&Data"}, {"&Plot"}, {"P&opups"}, {"Doc&king"}, {"&Build your own"}}}};
     core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {{"&About PRISM"}}}};
     core::Field<ui::Dialog> about{{.title = "PRISM Widget Gallery",
                                    .message = "A C++26 GUI framework: model structs, persistent widgets, "
@@ -45,6 +47,7 @@ struct Gallery {
     gallery::PlotTab plot;
     gallery::PopupsTab popups;
     gallery::DockingTab docking{prefs.layout};
+    gallery::BuildYourOwnTab build_your_own;
     std::vector<core::Connection> wiring;   // captures `this`: the gallery never moves
 
     Gallery() {
@@ -86,6 +89,7 @@ struct Gallery {
             vb.tab(tab_names[4], [&](app::WidgetTree::ViewBuilder& t) { t.component(plot); });
             vb.tab(tab_names[5], [&](app::WidgetTree::ViewBuilder& t) { t.component(popups); });
             vb.tab(tab_names[6], [&](app::WidgetTree::ViewBuilder& t) { t.component(docking); });
+            vb.tab(tab_names[7], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.component(build_your_own); }); });
         });
         vb.status_bar([&] { vb.widget(status); vb.spacer(); });
         vb.dialog(about);

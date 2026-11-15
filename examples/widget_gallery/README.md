@@ -1,6 +1,6 @@
 # Widget Gallery
 
-Every PRISM widget in one window: seven tabs under a menu bar. It is the place to try what the
+Every PRISM widget in one window: eight tabs under a menu bar. It is the place to try what the
 framework does, on the desktop or [in the browser](https://jeandet.github.io/PRISM/widget_gallery.html).
 
 | Tab | What to try |
@@ -12,18 +12,28 @@ framework does, on the desktop or [in the browser](https://jeandet.github.io/PRI
 | Plot | Drag the chart to pan, scroll to zoom, right-click to fit; the sliders change the curves, the spin box changes the canvas. |
 | Popups | Open the dialogs (Enter, Escape, Tab), rename in a dialog holding a form, open the popover, right-click for a context menu, try the file dialogs and message box, drop a file on the window. |
 | Docking | Drag a panel's tab: the guide's buttons put it in another panel's tabs, beside it, or along a whole side of the dock, or out of the window to float it in a window of its own (desktop). Type in the notes, pick a list row, change the controls: their state survives a move, and the arrangement is saved in `settings.toml`. |
+| Build your own | Three live knobs from `knob.hpp` — drag one up or down, or focus one and hold an arrow key — then scroll the file they come from. Under it, the `ChannelStrip` struct and eight of them as a mixer: mute a channel and its meter dies, and the ninth knob is the master. |
 
 Alt+F, Alt+V and Alt+H open the menus; View switches tabs.
 
 ## How it is built
 
 Each tab is a plain model struct in its own header (`controls_tab.hpp`, `catalog_tab.hpp`, `text_tab.hpp`,
-`data_tab.hpp`, `plot_tab.hpp`, `popups_tab.hpp`, `docking_tab.hpp`); `main.cpp` puts them in tabs under
-the menu bar.
+`data_tab.hpp`, `plot_tab.hpp`, `popups_tab.hpp`, `docking_tab.hpp`, `build_your_own_tab.hpp`);
+`main.cpp` puts them in tabs under the menu bar.
 Every tab uses the tiers that need no reflection (hand-written `view()`, table and tree sources),
 so the same code builds with any C++23 compiler and with Emscripten. The Catalog is data: one
 `Entry` per widget (name, category, doc, code, a function placing the sample); `vb.pages()` shows
 the page of the entry selected in a `vb.tree(ctrl, /*detail=*/false)`.
+
+The last tab is the framework's own recipe, result first and code under it. `knob.hpp` is 168 lines,
+comments and all: a `Knob` value type, its geometry as free functions, and one `Widget<Knob>`
+specialization — `record()` draws the dial, its arc and its pointer with `DrawList`,
+`handle_input()` turns it by the vertical drag distance and by the arrow keys. There is no base
+class and nothing to register; `#embed` puts that exact file in the page, so the code and the
+knobs above it cannot disagree. `ChannelStrip` is the reuse tier: a struct of four `Field`s and a
+`view()`, so `std::array<ChannelStrip, 8>` is a mixer and its level meter is the strip's own
+`canvas()`.
 
 The icons are SVG files in `icons/`, decoded by `render::load_image` (bundled into the page on the
 web) and marked `render::symbolic`, so they take the color of the text beside them on either
@@ -36,4 +46,5 @@ in `settings.toml` (`app::SettingsFile`).
 ```bash
 ./builddir/examples/widget_gallery/widget_gallery            # the app
 ./builddir/examples/widget_gallery/widget_gallery out.svg 1  # a capture of the Catalog tab
+./builddir/examples/widget_gallery/widget_gallery out.svg 7  # ... and of the Build your own tab
 ```
