@@ -9,7 +9,7 @@
 
 #include <prism/prism.hpp>
 
-#include "runner_model.hpp"
+#include "../process/lines.hpp"
 
 #include <cstdint>
 #include <string>

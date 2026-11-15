@@ -1,7 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include "../examples/model_lab_bench/lab_bench_model.hpp"
+#include "../examples/model_lab_bench/daq/instrument.hpp"
+#include "../examples/model_lab_bench/daq/model.hpp"
 
 #include <cmath>
 

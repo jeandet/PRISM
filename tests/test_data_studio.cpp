@@ -2,7 +2,11 @@
 #include <doctest.h>
 
 #include "../examples/model_data_studio/query_runner.hpp"
-#include "../examples/model_data_studio/studio_model.hpp"
+#include "../examples/model_data_studio/sql/catalog.hpp"
+#include "../examples/model_data_studio/sql/dataset.hpp"
+#include "../examples/model_data_studio/sql/errors.hpp"
+#include "../examples/model_data_studio/sql/result_set.hpp"
+#include "../examples/model_data_studio/sql/status.hpp"
 
 #include <algorithm>
 #include <chrono>

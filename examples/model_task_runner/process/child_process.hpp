@@ -3,17 +3,11 @@
 // The one place in this example that talks to the operating system: a child process with its
 // stdout and stderr on a single non-blocking pipe, read by the caller's own thread, killed on
 // request. Everything else in the app is portable.
-//
-// A browser has no process to start, so the web build gets the flag and nothing else.
+
+#include "platform.hpp"
 
 #include <string>
 #include <string_view>
-
-#if !defined(__EMSCRIPTEN__) && !defined(_WIN32)
-#define PRISM_TASK_RUNNER_POSIX 1
-#else
-#define PRISM_TASK_RUNNER_POSIX 0
-#endif
 
 #if PRISM_TASK_RUNNER_POSIX
 // The C headers stay at global scope: included inside the namespace, they would declare poll(),
@@ -37,9 +31,6 @@ extern char** environ;   // what the child inherits
 #endif
 
 namespace prism::runner {
-
-// What the app asks before offering a task: can this build start a process at all?
-inline constexpr bool kNativeProcesses = PRISM_TASK_RUNNER_POSIX != 0;
 
 #if PRISM_TASK_RUNNER_POSIX
 
@@ -181,6 +172,3 @@ inline std::optional<ChildProcess> ChildProcess::spawn_shell(std::string_view co
 #endif // PRISM_TASK_RUNNER_POSIX
 
 } // namespace prism::runner
-
-// PRISM_TASK_RUNNER_POSIX is left defined on purpose: the app guards its own process code with
-// #if, which a constexpr bool cannot do.

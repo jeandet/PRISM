@@ -1,7 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include "../examples/model_task_runner/runner_model.hpp"
+#include "../examples/model_task_runner/process/catalog.hpp"
+#include "../examples/model_task_runner/process/lines.hpp"
+#include "../examples/model_task_runner/process/progress.hpp"
+#include "../examples/model_task_runner/process/simulation.hpp"
+#include "../examples/model_task_runner/process/text.hpp"
 
 #include <string>
 #include <vector>
