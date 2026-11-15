@@ -272,7 +272,9 @@ inline void layout_detail::measure_node(LayoutNode& node, LayoutAxis parent_axis
         auto bb = content_draws(node).bounding_box();
         bool horiz = (parent_axis == LayoutAxis::Horizontal);
         node.hint.preferred = horiz ? node.intrinsic_width.value_or(bb.extent.w.raw()) : bb.extent.h.raw();
-        node.hint.cross     = horiz ? bb.extent.h.raw() : bb.extent.w.raw();
+        // Across a column too, a widget is as wide as it says: what it drew may be the default
+        // width it was first recorded at, before it had a size.
+        node.hint.cross     = horiz ? bb.extent.h.raw() : node.intrinsic_width.value_or(bb.extent.w.raw());
         // Directional expand: only expand along the widget's declared axis
         if (node.hint.expand_axis != ExpandAxis::None) {
             bool expands_h = (node.hint.expand_axis == ExpandAxis::Both ||

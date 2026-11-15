@@ -242,3 +242,27 @@ TEST_CASE("a text area's scrollbar fades out among kept rows") {
     s.frame();
     CHECK(st.show_ticks == 3);
 }
+
+TEST_CASE("a column of small widgets is as wide as they say, not the 200 px they first draw at") {
+    struct Strip {
+        Field<Label<>> name{{"ch"}};
+        Field<Checkbox> mute{{.label = "Mute"}};
+        void view(WidgetTree::ViewBuilder& vb) { vb.vstack([&] { vb.widget(name); vb.widget(mute); }); }
+    };
+    struct Mixer {
+        std::array<Strip, 8> strips{};
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.hstack([&] {
+                for (auto& s : strips) vb.component(s);
+                vb.spacer();
+            });
+        }
+    } m;
+    for (std::size_t i = 0; i < m.strips.size(); ++i) m.strips[i].name.set(Label<>{"ch" + std::to_string(i)});
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(1000, 300, 1);
+    snap = tree.build_snapshot(1000, 300, 2);
+    auto last = rect_showing(*snap, "ch7");
+    REQUIRE(last.extent.w.raw() > 0);
+    CHECK(last.origin.x.raw() + 100.f < 1000.f);   // the eighth strip fits, with room to spare
+}
