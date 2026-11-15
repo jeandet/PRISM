@@ -5,7 +5,21 @@ if is_wasm
   gallery_args += ['--preload-file', gallery_icon_dir + '@' + gallery_icon_dir]
 endif
 
-widget_gallery_exe = executable('widget_gallery', 'main.cpp',
+# One translation unit per tab: each tab's view() builds its own widgets, so no single compile
+# carries every tab's ViewBuilder instantiations, and editing one tab recompiles only that tab.
+widget_gallery_sources = files(
+  'main.cpp',
+  'controls_tab.cpp',
+  'catalog_tab.cpp',
+  'text_tab.cpp',
+  'data_tab.cpp',
+  'plot_tab.cpp',
+  'popups_tab.cpp',
+  'docking_tab.cpp',
+  'build_your_own_tab.cpp'
+)
+
+widget_gallery_exe = executable('widget_gallery', widget_gallery_sources,
   dependencies : [prism_dep, fmt_dep],
   cpp_args : ['-DGALLERY_ICON_DIR="' + gallery_icon_dir + '"'],
   name_suffix : example_suffix,

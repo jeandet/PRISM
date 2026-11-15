@@ -20,7 +20,9 @@ Alt+F, Alt+V and Alt+H open the menus; View switches tabs.
 
 Each tab is a plain model struct in its own header (`controls_tab.hpp`, `catalog_tab.hpp`, `text_tab.hpp`,
 `data_tab.hpp`, `plot_tab.hpp`, `popups_tab.hpp`, `docking_tab.hpp`, `build_your_own_tab.hpp`);
-`main.cpp` puts them in tabs under the menu bar.
+`main.cpp` puts them in tabs under the menu bar. Each tab's `view()` — the function that builds its
+widgets — is compiled in that tab's `.cpp`, so editing one tab recompiles one file, and no single
+compile carries every tab at once.
 Every tab uses the tiers that need no reflection (hand-written `view()`, table and tree sources),
 so the same code builds with any C++23 compiler and with Emscripten. The Catalog is data: one
 `Entry` per widget (name, category, doc, code, a function placing the sample); `vb.pages()` shows

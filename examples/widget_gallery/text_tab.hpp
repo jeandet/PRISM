@@ -37,15 +37,7 @@ struct TextTab {
         .value = "Read-only: select and copy this text, but you cannot change it.",
         .rows = 1, .read_only = true, .font = prism::render::FontRole::Ui}};
 
-    void view(prism::app::WidgetTree::ViewBuilder& vb) {
-        vb.widget(title);
-        vb.widget(code_label);
-        vb.widget(code).tooltip("Monospace, with a scrollbar when it grows");
-        vb.widget(prose_label);
-        vb.widget(prose).tooltip("Click inside the Hebrew word: the caret follows the right-to-left run");
-        vb.widget(rtl).tooltip("A single-line field with mixed directions");
-        vb.widget(notice);
-    }
+    void view(prism::app::WidgetTree::ViewBuilder& vb);   // text_tab.cpp
 };
 
 } // namespace gallery

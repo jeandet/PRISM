@@ -6,7 +6,6 @@
 
 #include <prism/prism.hpp>
 
-#include <algorithm>
 #include <array>
 #include <string>
 #include <string_view>
@@ -45,28 +44,12 @@ struct ChannelStrip {
     core::Field<Knob> pan{{.min = -1.0, .max = 1.0, .step = 0.05, .label = "Pan"}};
     core::Field<ui::Checkbox> mute{{.label = "Mute"}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
-        vb.vstack([&] {
-            vb.widget(name);
-            vb.widget(gain);
-            vb.widget(pan);
-            vb.widget(mute);
-            vb.canvas(*this).depends_on(gain, mute).min_size(core::Height{6.f});
-        });
-    }
-
+    void view(app::WidgetTree::ViewBuilder& vb);
     // The level meter: the gain as a bar, dead when the channel is muted.
-    void canvas(render::DrawList& dl, const core::Rect& bounds, const ui::WidgetNode& node) {
-        const auto& t = ui::node_theme(node);
-        const bool silent = mute.get().checked;
-        const double level = std::clamp((gain.get().value + 60.0) / 66.0, 0.0, 1.0);
-        const core::Width lit{bounds.extent.w.raw() * static_cast<float>(silent ? 0.0 : level)};
-        dl.filled_rect(bounds, t.track);
-        dl.filled_rect({bounds.origin, {lit, bounds.extent.h}}, t.accent);
-    }
+    void canvas(render::DrawList& dl, const core::Rect& bounds, const ui::WidgetNode& node);
 };
 
-// The struct above, verbatim.
+// The struct above, as one would write it: here its view() and canvas() are compiled separately.
 inline constexpr std::string_view strip_source = R"(struct ChannelStrip {
     core::Field<ui::Label<>> name;
     core::Field<Knob> gain{{.min = -60.0, .max = 6.0, .step = 0.5, .label = "Gain", .unit = "dB"}};
@@ -128,42 +111,8 @@ struct BuildYourOwnTab {
                                             .rows = code_rows,
                                             .read_only = true}};
 
-    BuildYourOwnTab() {
-        for (std::size_t i = 0; i < strips.size(); ++i)
-            strips[i].name.set({.value = std::string{strip_names[i]}});
-    }
-
-    void view(Vb& vb) {
-        vb.widget(widget_title);
-        vb.widget(widget_note);
-        vb.gap(14.f);
-        vb.hstack([&] {   // the result, centred
-            vb.spacer();
-            vb.widget(cutoff);
-            vb.gap(36.f);
-            vb.widget(drive).tooltip("Continuous: no step, so it moves by a hundredth");
-            vb.gap(36.f);
-            vb.widget(ratio);
-            vb.spacer();
-        });
-        vb.gap(14.f);
-        vb.widget(widget_code).tooltip("The whole file, embedded at build time: scroll it");
-
-        vb.gap(28.f);
-        vb.widget(strip_title);
-        vb.widget(strip_note);
-        vb.gap(14.f);
-        vb.hstack([&] {
-            for (auto& strip : strips) {
-                vb.block(strip);
-                vb.gap(6.f);
-            }
-            vb.spacer();
-            vb.widget(master);
-        });
-        vb.gap(14.f);
-        vb.widget(strip_code).tooltip("That struct, verbatim");
-    }
+    BuildYourOwnTab();
+    void view(Vb& vb);   // build_your_own_tab.cpp
 };
 
 } // namespace gallery
