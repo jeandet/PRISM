@@ -251,6 +251,23 @@ struct Meter {
 };
 ```
 
+A block keeps its state in fields, and its `view()` shows them. In a debug build the app checks
+that every `Field` and `Derived` the model declares was placed by its `view()`, and names the ones
+that were not — a forgotten widget, usually. A field a block keeps as a value rather than a widget
+(a selection index, the mask behind a row of checkboxes) is marked `[[=core::skip]]`, the same
+annotation the automatic UI uses to leave a member out:
+
+```cpp
+struct StepGates {
+    std::array<core::Field<ui::Checkbox>, 16> boxes{};
+    [[=core::skip]] core::Field<std::uint16_t> step_mask{0xFFFF};   // a value, not a widget
+};
+```
+
+Only a compiler with reflection parses `[[=...]]`, and the check runs only there. Code that must
+also build with clang keeps such a field in a small nested struct instead, as the synth rack's step
+gates do.
+
 ### Canvas escape hatch
 
 Drop to raw drawing when you need it:
@@ -670,6 +687,8 @@ struct Settings {
 [browser](https://jeandet.github.io/PRISM/):
 
 - [`widget_gallery`](examples/widget_gallery/): every widget, in eight tabs, docking, drag and drop, and a custom widget built in the open. Start here.
+- [`tour`](examples/tour/): start here — five programs of 20 to 40 lines, one idea each, from a
+  struct that becomes a window to a block, each pointing at the big example that uses it.
 - [`model_notes`](examples/model_notes/): a small editor with a file tree, search, menus and undo.
 - [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a
   sortable process table and tree (Linux `/proc`, or a simulated machine elsewhere).
