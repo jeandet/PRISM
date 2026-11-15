@@ -13,8 +13,8 @@ namespace gallery {
 
 struct PlotTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Plot and canvas", .heading = true}};
-    prism::core::Field<prism::ui::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0}};
-    prism::core::Field<prism::ui::Slider<>> amplitude{{.value = 1.0, .min = 0.1, .max = 5.0}};
+    prism::core::Field<prism::ui::Slider<>> frequency{{.value = 2.0, .min = 0.1, .max = 10.0, .step = 0.1, .label = "Frequency", .unit = "Hz"}};
+    prism::core::Field<prism::ui::Slider<>> amplitude{{.value = 1.0, .min = 0.1, .max = 5.0, .step = 0.1, .label = "Amplitude"}};
     prism::core::Field<prism::ui::Checkbox> show_cos{{.checked = true, .label = "Show cosine"}};
     prism::core::Field<prism::ui::SpinBox<int>> ratio{{.value = 3, .min = 1, .max = 9, .step = 1}};
     prism::plot::PlotModel plot;
@@ -59,9 +59,9 @@ struct PlotTab {
             vb.canvas(*this).depends_on(ratio);
         });
         vb.hstack([&] {
-            vb.widget(frequency).tooltip("Frequency");
+            vb.widget(frequency);
             vb.gap(8.f);
-            vb.widget(amplitude).tooltip("Amplitude");
+            vb.widget(amplitude);
         });
         vb.hstack([&] {
             vb.widget(show_cos);

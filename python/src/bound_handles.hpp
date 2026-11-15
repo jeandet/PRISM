@@ -64,6 +64,11 @@ void slider_set(std::shared_ptr<void> keep, Field<Slider<double, O>>* field, dou
     list_op_dispatch(std::move(keep), [p, v](){ auto s = p->get(); s.value = v; p->set(s); });
 }
 template <Orientation O>
+Slider<double, O> slider_read(Field<Slider<double, O>>* field) {
+    Field<Slider<double, O>>* p = field;
+    return dispatch_sync_read<Slider<double, O>>([p](){ return p->get(); });
+}
+template <Orientation O>
 nb::tuple slider_range(Field<Slider<double, O>>* field) {
     Field<Slider<double, O>>* p = field;
     auto s = dispatch_sync_read<Slider<double, O>>([p](){ return p->get(); });
@@ -108,6 +113,16 @@ struct BoundSliderValue {
         if (field_v) return slider_range(field_v);
         return nb::make_tuple(0.0, 1.0);
     }
+    // The parts set once at construction: label, unit, step.
+    template <typename Fn>
+    auto read(Fn&& part) const {
+        if (field_h) return part(slider_read(field_h));
+        if (field_v) return part(slider_read(field_v));
+        return part(Slider<double>{});
+    }
+    std::string label() const { return read([](const auto& s) { return s.label; }); }
+    std::string unit() const { return read([](const auto& s) { return s.unit; }); }
+    double step() const { return read([](const auto& s) { return s.step; }); }
     void set_range(double mn, double mx) {
         if (field_h) slider_set_range(owner, field_h, mn, mx);
         else if (field_v) slider_set_range(owner, field_v, mn, mx);

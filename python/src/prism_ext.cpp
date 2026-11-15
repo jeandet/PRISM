@@ -73,6 +73,9 @@ static void bind_handles(nb::module_& m) {
         .def_prop_rw("range", &BoundSliderValue::range, &BoundSliderValue::set_range_tuple,
                      "Any thread. The slider's (min, max) bounds as a tuple; assigning a "
                      "(min, max) tuple posts the change to the logic thread, like .value.")
+        .def_prop_ro("label", &BoundSliderValue::label, "Caption drawn above the track; empty: none.")
+        .def_prop_ro("unit", &BoundSliderValue::unit, "Printed after the value in the caption.")
+        .def_prop_ro("step", &BoundSliderValue::step, "Snapping step; 0 = continuous. Sets the caption's decimals.")
         .def("observe", [](nb::object self, nb::callable cb) {
             return keep_connection(self, nb::cast<BoundSliderValue&>(self).observe(cb), cb);
         }, nb::arg("callback"), kObserveDoc)
@@ -510,14 +513,16 @@ static void bind_model(nb::module_& m) {
                 auto [owner, p] = self.add_bool_slot(v);
                 BoundField<bool> h; h.owner = std::move(owner); h.field = p; return h;
             }, nb::arg("value")=false)
-        .def("_add_slider_internal", [](PyModel& self, double v, double mn, double mx, std::string orientation){
+        .def("_add_slider_internal", [](PyModel& self, double v, double mn, double mx, std::string orientation, double step,
+                                         std::string label, std::string unit){
                 bool vertical;
                 if (orientation == "horizontal") vertical = false;
                 else if (orientation == "vertical") vertical = true;
                 else throw nb::value_error(("slider(): orientation must be 'horizontal' or 'vertical', got '" + orientation + "'").c_str());
-                auto alloc = self.add_slider_slot(v, mn, mx, vertical);
+                auto alloc = self.add_slider_slot(v, mn, mx, vertical, step, std::move(label), std::move(unit));
                 BoundSliderValue h; h.owner = std::move(alloc.owner); h.field_h = alloc.field_h; h.field_v = alloc.field_v; return h;
-            }, nb::arg("value")=0.0, nb::arg("min")=0.0, nb::arg("max")=1.0, nb::arg("orientation")="horizontal")
+            }, nb::arg("value")=0.0, nb::arg("min")=0.0, nb::arg("max")=1.0, nb::arg("orientation")="horizontal",
+               nb::arg("step")=0.0, nb::arg("label")="", nb::arg("unit")="")
         .def("_add_checkbox_internal", [](PyModel& self, bool v, std::string label){
                 auto [owner, p] = self.add_checkbox_slot(v, label);
                 BoundCheckboxValue h; h.owner = std::move(owner); h.field = p; h.label = std::move(label); return h;

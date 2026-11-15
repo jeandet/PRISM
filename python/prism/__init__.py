@@ -490,7 +490,8 @@ class _FieldDescriptor(_Descriptor):
         # allocate via Model's internal add_* (no keep_alive cycle — Model owns slots)
         if self.kind == "slider":
             mn, mx = self.meta["range"]
-            h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"])
+            h = instance._add_slider_internal(self.default, mn, mx, self.meta["orientation"],
+                                              self.meta["step"], self.meta["label"], self.meta["unit"])
         elif self.kind == "checkbox":
             h = instance._add_checkbox_internal(self.default, self.meta["label"])
         elif self.kind == "expander":
@@ -582,7 +583,8 @@ def field(default, validator=None, *, tooltip=None):
     return _tooltipped(_FieldDescriptor(default, validator=validator), tooltip)
 
 
-def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal", tooltip=None):
+def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal", tooltip=None,
+           step=0.0, label="", unit=""):
     """Value may be set from any thread (posted to the logic thread).
 
     Float field rendered as a ranged slider widget (C++ ``Slider<double>``
@@ -597,6 +599,11 @@ def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal
     only dragging the rendered widget with the mouse clamps into range, and
     changing the range never retroactively clamps an existing out-of-range
     value either.
+
+    ``label`` captions a horizontal slider: drawn above the track, with the
+    value and ``unit`` at its right end, printed to ``step``'s precision
+    (``step=0.1`` -> one decimal). ``step`` also snaps mouse drags; 0 is
+    continuous.
     """
     if orientation not in ("horizontal", "vertical"):
         raise ValueError(
@@ -606,7 +613,8 @@ def slider(default, min=0.0, max=1.0, validator=None, *, orientation="horizontal
         float(default),
         validator=validator,
         kind="slider",
-        meta={"range": (float(min), float(max)), "orientation": orientation},
+        meta={"range": (float(min), float(max)), "orientation": orientation,
+              "step": float(step), "label": str(label), "unit": str(unit)},
     ), tooltip)
 
 

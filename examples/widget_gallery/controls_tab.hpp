@@ -35,7 +35,7 @@ struct ControlsTab {
                                      .options = {"Apple", "Apricot", "Banana", "Blueberry", "Cherry", "Mango"}}};
     prism::core::Field<prism::ui::SpinBox<int>> copies{{.value = 2, .min = 1, .max = 20, .step = 1}};
     prism::core::Field<prism::ui::SpinBox<double>> scale{{.value = 1.0, .min = 0.25, .max = 4.0, .step = 0.25}};
-    prism::core::Field<prism::ui::Slider<>> volume{{.value = 0.6, .min = 0.0, .max = 1.0}};
+    prism::core::Field<prism::ui::Slider<>> volume{{.value = 0.6, .min = 0.0, .max = 1.0, .label = "Volume"}};
     prism::core::Field<prism::ui::Checkbox> notify{{.checked = true, .label = "Send notifications"}};
     prism::core::Field<prism::ui::Radio<Quality>> quality{{Quality::Normal}};
     prism::core::Field<Theme>& theme;   // the gallery's preference, shown here

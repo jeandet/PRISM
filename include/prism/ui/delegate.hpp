@@ -14,7 +14,9 @@
 
 #include <algorithm>
 #include <any>
+#include <cmath>
 #include <chrono>
+#include <charconv>
 #include <memory>
 #include <optional>
 #if __cpp_impl_reflection
@@ -818,8 +820,30 @@ struct Slider {
     T min = T{0};
     T max = T{1};
     T step = T{0};  // 0 = continuous
+    // Set: drawn above the track, with the value and `unit` at its right end, printed to the
+    // step's precision. simplify: a vertical slider draws no caption; add one when a layout needs it.
+    std::string label{};
+    std::string unit{};
     bool operator==(const Slider&) const = default;
 };
+
+namespace delegate_detail {
+// As many decimals as the step has: 0.1 -> 1, 0.05 -> 2, 50 -> 0. A continuous float slider: 2.
+template <Numeric T>
+std::string slider_value_text(T value, T step, std::string_view unit) {
+    char buf[48];
+    std::to_chars_result r;
+    if constexpr (std::integral<T>) r = std::to_chars(buf, buf + sizeof buf, value);
+    else {
+        int decimals = step == T{0} ? 2
+                     : std::clamp(static_cast<int>(std::ceil(-std::log10(static_cast<double>(step)) - 1e-9)), 0, 6);
+        r = std::to_chars(buf, buf + sizeof buf, static_cast<double>(value), std::chars_format::fixed, decimals);
+    }
+    std::string out(buf, r.ptr);
+    if (!unit.empty()) out.append(" ").append(unit);
+    return out;
+}
+}
 
 template <Numeric T, Orientation O>
 struct Widget<Slider<T, O>> {
@@ -831,6 +855,7 @@ struct Widget<Slider<T, O>> {
         a.min_value = static_cast<double>(s.min);
         a.max_value = static_cast<double>(s.max);
         if (s.step != T{0}) a.step = static_cast<double>(s.step);
+        a.name = s.label;
     }
     static constexpr bool vertical = (O == Orientation::Vertical);
     static constexpr bool expand = true;
@@ -839,6 +864,10 @@ struct Widget<Slider<T, O>> {
     static constexpr float track_thick = 6.f;
     static constexpr float thumb_len = 12.f;
     static constexpr float widget_extent = 30.f;
+    static constexpr float caption_h = 20.f;   // the label line above a horizontal track
+    static constexpr float caption_size = 13.f;
+
+    static bool captioned(const Slider<T, O>& s) { return !vertical && !s.label.empty(); }
 
     static float track_len(const WidgetNode& node) {
         auto sz = node_allocated(node);
@@ -871,13 +900,24 @@ struct Widget<Slider<T, O>> {
             if (vs.focused)
                 delegate_detail::draw_focus_ring(dl, Width{widget_extent}, Height{tl}, t);
         } else {
-            Y track_y{(widget_extent - track_thick) / 2.f};
+            float top = captioned(s) ? caption_h : 0.f;
+            if (top > 0.f) draw_caption(dl, s, tl, t);
+            Y track_y{top + (widget_extent - track_thick) / 2.f};
             dl.filled_rect(delegate_detail::make_rect(X{0}, track_y, Width{tl}, Height{track_thick}), track_bg);
             X thumb_x{r * (tl - thumb_len)};
-            dl.filled_rect(delegate_detail::make_rect(thumb_x, Y{0}, Width{thumb_len}, Height{widget_extent}), thumb_color);
+            dl.filled_rect(delegate_detail::make_rect(thumb_x, Y{top}, Width{thumb_len}, Height{widget_extent}), thumb_color);
             if (vs.focused)
-                delegate_detail::draw_focus_ring(dl, Width{tl}, Height{widget_extent}, t);
+                delegate_detail::draw_focus_ring(dl, Width{tl}, Height{top + widget_extent}, t);
         }
+    }
+
+    static void draw_caption(DrawList& dl, const Slider<T, O>& s, float width, const Theme& t) {
+        constexpr float inset = 4.f;   // as a label's text
+        dl.text(s.label, delegate_detail::make_point(X{inset}, Y{2}), caption_size, t.text_muted);
+        auto value = delegate_detail::slider_value_text(s.value, s.step, s.unit);
+        float vw = text_width(t.measurer, value, caption_size);
+        dl.text(std::move(value), delegate_detail::make_point(X{std::max(inset, width - inset - vw)}, Y{2}),
+                caption_size, t.text);
     }
 
     static void apply_position(Field<Slider<T, O>>& field, float pos, const WidgetNode& node) {

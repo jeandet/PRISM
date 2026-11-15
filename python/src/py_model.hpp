@@ -107,15 +107,16 @@ struct PyModel {
         slots.push_back(s);
         return {s, p};
     }
-    SliderAlloc add_slider_slot(double v, double mn, double mx, bool vertical) {
+    SliderAlloc add_slider_slot(double v, double mn, double mx, bool vertical, double step = 0.0,
+                                std::string label = {}, std::string unit = {}) {
         std::lock_guard<std::mutex> lk(slots_mutex);
         if (vertical) {
-            auto s = std::make_shared<SlotSliderV>(Slider<double, Orientation::Vertical>{v, mn, mx, 0.0});
+            auto s = std::make_shared<SlotSliderV>(Slider<double, Orientation::Vertical>{v, mn, mx, step, label, unit});
             auto* p = &s->field;
             slots.push_back(s);
             return {s, nullptr, p};
         }
-        auto s = std::make_shared<SlotSlider>(Slider<double>{v, mn, mx, 0.0});
+        auto s = std::make_shared<SlotSlider>(Slider<double>{v, mn, mx, step, std::move(label), std::move(unit)});
         auto* p = &s->field;
         slots.push_back(s);
         return {s, p, nullptr};

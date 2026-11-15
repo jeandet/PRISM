@@ -614,6 +614,21 @@ def test_slider_checkbox_descriptors():
     assert m.volume.value == 0.9
 
 
+def test_slider_caption_label_unit_and_step():
+    """A slider can carry its own caption: the label above the track, the value and unit at
+    its right end, printed to the step's precision (C++ Slider::label/unit/step)."""
+
+    class Bench(Model):
+        volts = prism.slider(12.0, min=0.0, max=30.0, step=0.1, label="Voltage", unit="V")
+        plain = prism.slider(0.5)
+
+    m = Bench()
+    assert (m.volts.label, m.volts.unit, m.volts.step) == ("Voltage", "V", 0.1)
+    assert (m.plain.label, m.plain.unit, m.plain.step) == ("", "", 0.0)
+    m.volts.range = (0.0, 40.0)   # changing the range keeps the caption
+    assert m.volts.label == "Voltage"
+
+
 def test_slider_range_is_exposed_as_a_tuple():
     """.range reads the Slider's current (min, max) from the logic thread
     (dispatch_sync_read) rather than a value cached once at allocation —

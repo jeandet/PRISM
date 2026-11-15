@@ -160,6 +160,49 @@ TEST_CASE("Slider<int> with step snaps value") {
     CHECK(dl.size() >= 2);
 }
 
+namespace {
+std::vector<std::string> texts_of(const prism::DrawList& dl) {
+    std::vector<std::string> out;
+    for (auto& c : dl.commands)
+        if (auto* t = std::get_if<prism::TextCmd>(&c)) out.push_back(t->text);
+    return out;
+}
+}
+
+TEST_CASE("a labelled slider captions its track with the name and the value, in the step's precision") {
+    prism::Field<prism::Slider<>> volts{{.value = 12.0, .min = 0.0, .max = 30.0, .step = 0.1,
+                                         .label = "Voltage", .unit = "V"}};
+    prism::Field<prism::Slider<>> amps{{.value = 2.0, .min = 0.1, .max = 5.0, .step = 0.05, .label = "Current",
+                                        .unit = "A"}};
+    prism::Field<prism::Slider<int>> count{{.value = 3, .min = 1, .max = 5, .step = 1, .label = "Count"}};
+    auto node = make_node();
+    prism::DrawList dv, da, dc;
+    prism::Widget<prism::Slider<>>::record(dv, volts, node);
+    prism::Widget<prism::Slider<>>::record(da, amps, node);
+    prism::Widget<prism::Slider<int>>::record(dc, count, node);
+    CHECK(texts_of(dv) == std::vector<std::string>{"Voltage", "12.0 V"});
+    CHECK(texts_of(da) == std::vector<std::string>{"Current", "2.00 A"});
+    CHECK(texts_of(dc) == std::vector<std::string>{"Count", "3"});
+}
+
+TEST_CASE("a labelled slider puts its track below the caption; an unlabelled one is unchanged") {
+    prism::Field<prism::Slider<>> plain{{.value = 0.5}};
+    prism::Field<prism::Slider<>> named{{.value = 0.5, .label = "Gain"}};
+    auto node = make_node();
+    prism::DrawList dp, dn;
+    prism::Widget<prism::Slider<>>::record(dp, plain, node);
+    prism::Widget<prism::Slider<>>::record(dn, named, node);
+    CHECK(texts_of(dp).empty());
+    CHECK(dn.bounding_box().extent.h.raw() > dp.bounding_box().extent.h.raw());
+    auto thumb = [](const prism::DrawList& dl) {
+        float x = -1.f;
+        for (auto& c : dl.commands)
+            if (auto* r = std::get_if<prism::FilledRect>(&c)) x = r->rect.origin.x.raw();
+        return x;
+    };
+    CHECK(thumb(dn) == thumb(dp));   // the same place on the track
+}
+
 // --- WidgetVisualState tests ---
 
 TEST_CASE("Widget<bool> record differs with hovered state") {

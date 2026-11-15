@@ -52,7 +52,7 @@ struct Samples {
     prism::core::Field<prism::ui::ComboBox> combo{{.value = "Ap", .placeholder = "Fruit",
                                                    .options = {"Apple", "Apricot", "Banana", "Cherry"}}};
     prism::core::Field<prism::ui::SpinBox<int>> spin{{.value = 7, .min = 0, .max = 20, .step = 1}};
-    prism::core::Field<prism::ui::Slider<>> slider{{.value = 0.3}};
+    prism::core::Field<prism::ui::Slider<>> slider{{.value = 30.0, .min = 0.0, .max = 100.0, .step = 1.0, .label = "Volume", .unit = "%"}};
     prism::core::Field<prism::ui::Checkbox> check{{.checked = true, .label = "Remember me"}};
     prism::core::Field<prism::ui::Radio<Shape>> radio{{Shape::Square}};
     prism::core::Field<Shape> dropdown{Shape::Triangle};
@@ -152,8 +152,9 @@ inline std::vector<Entry> catalog_entries(Samples& s) {
           "core::Field<ui::ComboBox> fruit{{.options = {\"Apple\", \"Banana\"}}};", one(s.combo)},
         E{"SpinBox", "Inputs", "A number with steppers: arrows, the wheel, or type it. Integers or decimals.",
           "core::Field<ui::SpinBox<int>> copies{{.value = 1, .min = 1, .max = 99}};", one(s.spin)},
-        E{"Slider", "Inputs", "A value in a range: drag, click, or the arrow keys. Horizontal or vertical.",
-          "core::Field<ui::Slider<>> volume{{.value = 0.5}};", one(s.slider)},
+        E{"Slider", "Inputs", "A value in a range: drag, click, or the arrows. A label shows the value.",
+          "core::Field<ui::Slider<>> volume{{.value = 30, .max = 100, .step = 1, .label = \"Volume\", .unit = \"%\"}};",
+          one(s.slider)},
         E{"Checkbox", "Inputs", "On or off, with a label. A plain Field<bool> is a checkbox too.",
           "core::Field<ui::Checkbox> remember{{.label = \"Remember me\"}};", one(s.check)},
         E{"Radio", "Inputs", "One choice among an enum's values, all visible. RadioGroup takes strings instead.",
