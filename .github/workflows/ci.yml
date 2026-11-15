@@ -204,7 +204,9 @@ jobs:
       - name: Setup ASan+UBSan builddir
         run: meson setup builddir-asan -Dmagic_enum:test=false -Dsdl3:werror=false -Dsdl3:warning_level=0 -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
       - name: Build ASan+UBSan
-        run: ninja -C builddir-asan
+        # Two at a time: a sanitized example (the gallery) peaks near 5 GB to compile, and six at
+        # once ran the 16 GB runner out of memory, which shuts it down mid-build.
+        run: ninja -C builddir-asan -j 2
       - name: Run ASan+UBSan tests (C++ + Python via meson test, SDL flaky suites excluded)
         env:
           # Leaks are errors: an SVG decode leak once slipped past this lane with them off.
