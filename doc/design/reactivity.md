@@ -109,6 +109,20 @@ The view consumes diffs incrementally. This is a Phase 4+ optimisation.
 
 All state mutation happens on the app thread. The view lambda runs on the app thread. `.on_X()` handlers run on the app thread. The only cross-thread data is the immutable `SceneSnapshot`.
 
+## Derived Source List, Checked in Debug Builds
+
+`core::Derived<T>` recomputes only when one of the sources it was given changes, so a source left
+out of the list is invisible to the compiler and to a test: the value simply goes stale (the synth
+stayed silent once because the power button was missing from the list). Debug builds close that
+hole with a small thread-local read log (`core/read_log.hpp`): `Field`/`State`, `Shared` and
+`Derived` record the address of the object `get()` was called on, a `Derived` arms the log around
+its first compute, and any address read that is not one of its sources is reported once on stderr as
+`prism: a Derived<T> reads a value it does not list as a source`. The log is saved and restored
+around a `Derived` constructed inside another one's compute. Only the first compute is watched, so a
+read behind a branch it did not take is still missed and a list longer than the log's fixed capacity
+stops being recorded; checking every recompute in debug is the upgrade path. A release build has
+no log, no `thread_local`, and the `get()` functions compile to what they were.
+
 ## Open Questions
 
 - Should the framework support async state updates (e.g., HTTP response arrives, needs to update state)?

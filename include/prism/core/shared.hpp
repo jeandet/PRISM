@@ -2,6 +2,7 @@
 
 #include <prism/core/atomic_cell.hpp>
 #include <prism/core/connection.hpp>
+#include <prism/core/read_log.hpp>
 #include <prism/core/waker.hpp>
 
 #include <atomic>
@@ -16,6 +17,7 @@ struct Shared {
     Shared(T init) : cell_(std::move(init)) {}
 
     T get() const {
+        read_log_detail::note_read(this);
         auto ptr = cell_.load();
         return ptr ? *ptr : T{};
     }

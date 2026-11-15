@@ -2,6 +2,7 @@
 
 #include <prism/core/connection.hpp>
 #include <prism/core/logic_thread.hpp>
+#include <prism/core/read_log.hpp>
 #include <prism/core/transaction.hpp>
 
 #include <cassert>
@@ -17,8 +18,14 @@ struct ObservableValue {
     ObservableValue() = default;
     ObservableValue(T init) : value(std::move(init)) {}
 
-    const T& get() const { return value; }
-    operator const T&() const { return value; }
+    const T& get() const {
+        read_log_detail::note_read(static_cast<const void*>(static_cast<const Derived*>(this)));
+        return value;
+    }
+    operator const T&() const {
+        read_log_detail::note_read(static_cast<const void*>(static_cast<const Derived*>(this)));
+        return value;
+    }
 
     void set(T new_value) {
         assert(may_change_model() && "a model field set off the app's logic thread: hand it over "
