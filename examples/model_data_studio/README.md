@@ -42,7 +42,7 @@ Two threads, and only one of them touches the model:
 2. The **worker thread** takes the request out of the slot and steps the statement against its
    in-memory database. It is the only thread that ever talks to SQLite.
 3. While it steps, SQLite calls a progress handler every 2,000 VM instructions. At most every 50 ms
-   that handler sends a `RunnerEvent` on a `Channel`. The app's `drain()` collects them on the logic
+   that handler sends a `RunnerEvent` on a `Channel`. `ctx.receive()` hands each one to the logic
    thread and the status bar counts the seconds.
 4. When the statement ends, the worker stores a whole `QueryOutcome` in a `Shared`. The newest one
    wins, and the app also drops any answer whose generation number is not the current one.
@@ -54,7 +54,7 @@ Two threads, and only one of them touches the model:
 ## Walkthrough
 
 Read the files in this order. The PRISM part is `model_data_studio.cpp`, `settings.hpp` and
-`blocks/`, 542 lines. `query_runner.hpp` (197 lines) is the thread glue, and the only file here that
+`blocks/`, 535 lines. `query_runner.hpp` (199 lines) is the thread glue, and the only file here that
 knows both a thread and a PRISM type. `sql/` is plain C++ with no PRISM in it.
 
 ### A block: the results panel
@@ -96,28 +96,22 @@ the insert through the same channel it later reports progress on:
 explicit QueryRunner(std::vector<Trip> trips) : trips_(std::move(trips)) {
     thread_ = std::jthread([this](std::stop_token stop) { run(stop); });
 }
-
-void drain() {
-    events_.drain_notifications();
-    results_.drain_notifications();
-}
 ```
 
-`drain()` runs once per frame on the logic thread, after the model's own notifications. That is the
-whole hand-over: the worker only ever sends and sets, and the model only ever reads here.
+The worker only ever sends and sets. The app drains nothing by hand: `ctx.receive()` binds each
+pipe's waker, observes it, and drains it on the logic thread whenever the worker wakes it, which is
+the whole hand-over.
 
-### Three pipes, for three kinds of news
+### Three kinds of news, two pipes
 
 The app connects them in `start_runner()`, all on the logic thread. Each pipe carries something
 different, and the difference is why it is not one pipe:
 
 ```cpp
-void start_runner(std::function<void()> waker) {
+void start_runner(app::AppContext& ctx) {
     runner = std::make_unique<QueryRunner>(make_trips(kFullDatasetRows));
-    runner->events().set_waker(waker);
-    runner->events().observe([this](const RunnerEvent& event) { on_runner_event(event); });
-    runner->results().set_waker(std::move(waker));
-    runner->results().observe([this](const QueryOutcome& outcome) { on_outcome(outcome); });
+    ctx.receive(runner->events(), [this](const RunnerEvent& event) { on_runner_event(event); });
+    ctx.receive(runner->results(), [this](const QueryOutcome& outcome) { on_outcome(outcome); });
 }
 ```
 
@@ -209,7 +203,7 @@ int main(int argc, char* argv[]) {
                        // The busy progress bar asks for a frame every 33 ms through node.redraw_at;
                        // a running clock is what turns those requests into frames.
                        ctx.clock().add([](auto) { return true; });
-                       app.start_runner(ctx.waker());
+                       app.start_runner(ctx);
                    });
     return 0;
 }

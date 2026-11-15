@@ -44,8 +44,6 @@ struct PerfLab {
             ring.push(gen.next(-static_cast<double>(points - i) / 1000.0));
     }
 
-    void drain() { telemetry.drain_notifications(); }
-
     void ingest(double v) {
         ring.push(v);
         table.update_slice((tick_count * 997) % table.row_count(), 1000, v);
@@ -153,9 +151,9 @@ int main(int argc, char* argv[]) {
         std::jthread producer;
         const auto started = std::chrono::steady_clock::now();
         app::model_app(backend, window, app, [&](app::AppContext& ctx) {
-            app.telemetry.observe([&app](const double& v) { app.ingest(v); });
-            // Perpetual tick: keeps Shared<T> draining with zero input events (same
-            // rationale as model_system_monitor's heartbeat callback).
+            ctx.receive(app.telemetry, [&app](const double& v) { app.ingest(v); });
+            // Perpetual tick: a frame per turn even with no sample landing, the same cadence the
+            // interactive path measures.
             ctx.clock().add([](ui::AnimationClock::time_point) { return true; });
             producer = std::jthread(produce_loop, std::ref(app.telemetry), cfg->rate_hz);
         });
@@ -183,10 +181,10 @@ int main(int argc, char* argv[]) {
     std::jthread producer;
     app::model_app({.title = "PRISM Perf Lab", .width = 1280, .height = 800}, app,
                      [&](app::AppContext& ctx) {
-        app.telemetry.observe([&app](const double& v) { app.ingest(v); });
+        ctx.receive(app.telemetry, [&app](const double& v) { app.ingest(v); });
         ctx.clock().add([&app, &ctx](ui::AnimationClock::time_point now) {
             app.update_stats(ctx, now);
-            return true; // perpetual — also what keeps Shared<T> draining with zero input
+            return true; // perpetual: the stats window needs a tick even when no sample lands
         });
         producer = std::jthread(produce_loop, std::ref(app.telemetry), cfg->rate_hz);
     });

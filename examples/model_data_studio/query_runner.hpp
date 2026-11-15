@@ -21,7 +21,7 @@
 
 // The engine on a worker thread. This is the only file in the studio that knows both a thread and
 // a PRISM type: the query itself is sql/engine.hpp, and everything here is the pipe that carries a
-// request in and results out for the model's drain() to pick up.
+// request in and results out to the logic thread, which wires both ends with ctx.receive().
 namespace prism::data_studio {
 
 // How often SQLite calls back while a query runs (VM instructions per call), and how often that
@@ -55,9 +55,11 @@ public:
     QueryRunner(const QueryRunner&) = delete;
     QueryRunner& operator=(const QueryRunner&) = delete;
 
-    // Drained by the model's drain(), on the logic thread.
     core::Shared<QueryOutcome>& results() { return results_; }
     core::Channel<RunnerEvent>& events() { return events_; }
+    // The app no longer calls this: ctx.receive() drains each pipe when the worker wakes the logic
+    // thread. Kept for a caller that owns the logic thread itself with no AppContext to wire the
+    // waker (tests/test_data_studio.cpp polls it).
     void drain() {
         events_.drain_notifications();
         results_.drain_notifications();

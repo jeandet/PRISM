@@ -6,7 +6,6 @@
 #include <fmt/format.h>
 
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -51,18 +50,12 @@ struct DataStudioApp {
         wiring.push_back(editor.cancel.on_change().connect([this](const auto&) { cancel(); }));
     }
 
-    // Generates the dataset and starts the worker that loads it.
-    void start_runner(std::function<void()> waker) {
+    // Generates the dataset and starts the worker that loads it. ctx.receive() binds the waker,
+    // observes, and drains the pipe on the logic thread, so the model needs no drain() of its own.
+    void start_runner(app::AppContext& ctx) {
         runner = std::make_unique<QueryRunner>(make_trips(kFullDatasetRows));
-        runner->events().set_waker(waker);
-        runner->events().observe([this](const RunnerEvent& event) { on_runner_event(event); });
-        runner->results().set_waker(std::move(waker));
-        runner->results().observe([this](const QueryOutcome& outcome) { on_outcome(outcome); });
-    }
-
-    // Called by the widget tree once per frame, after the model's notifications are drained.
-    void drain() {
-        if (runner) runner->drain();
+        ctx.receive(runner->events(), [this](const RunnerEvent& event) { on_runner_event(event); });
+        ctx.receive(runner->results(), [this](const QueryOutcome& outcome) { on_outcome(outcome); });
     }
 
     void submit(std::string sql) {
@@ -163,7 +156,7 @@ int main(int argc, char* argv[]) {
                        // The busy progress bar asks for a frame every 33 ms through node.redraw_at;
                        // a running clock is what turns those requests into frames.
                        ctx.clock().add([](auto) { return true; });
-                       app.start_runner(ctx.waker());
+                       app.start_runner(ctx);
                    });
     return 0;
 }

@@ -28,7 +28,7 @@ It shows three things:
 
 ## How it fits together
 
-<p align="center"><img src="diagrams/frame.svg" alt="A producer thread sets one coalescing Shared value at 1 kHz; the logic thread drains the newest value on a perpetual tick, ingests it into the ring buffer, the table slice and the plot, builds one scene snapshot from the dirty widgets, and hands it to the backend, which presents it or only keeps the build stats." width="900"/></p>
+<p align="center"><img src="diagrams/frame.svg" alt="A producer thread sets one coalescing Shared value at 1 kHz; the Shared wakes the logic thread, which takes the newest value, ingests it into the ring buffer, the table slice and the plot, builds one scene snapshot from the dirty widgets, and hands it to the backend, which presents it or only keeps the build stats." width="900"/></p>
 
 Three lanes, one value crossing between the first two:
 
@@ -36,10 +36,10 @@ Three lanes, one value crossing between the first two:
    `telemetry.set(v)`, then sleeps until the next deadline — computed from the start, so a late tick
    is caught up rather than added as drift.
 2. `Shared<double>` keeps only the newest value. `set()` marks it pending and wakes the logic
-   thread; calls made before the next drain replace the value instead of queueing.
-3. The logic thread drains it on every loop turn — the perpetual animation tick guarantees a turn
-   per frame even with no input — and `ingest()` pushes it into the ring buffer, mutates a 1000-row
-   slice of the table and marks the plot changed.
+   thread once; calls made before the next drain replace the value instead of queueing or waking
+   again.
+3. `ctx.receive()` hands the logic thread the newest value, which `ingest()` pushes into the ring
+   buffer, mutates a 1000-row slice of the table and marks the plot changed.
 4. The next publish redraws only the dirty widgets and builds one snapshot, which carries its build
    time, dirty count, command count and size.
 5. That snapshot goes to the backend: SDL3 presents it, or `--headless` counts the publish and keeps
@@ -47,7 +47,7 @@ Three lanes, one value crossing between the first two:
 
 ## Walkthrough
 
-Read the files in this order. `main.cpp` (194 lines) is the app, the producer and `main()`;
+Read the files in this order. `main.cpp` (192 lines) is the app, the producer and `main()`;
 `lab_model.hpp` (237 lines) is the workload and the arithmetic, with no PRISM in it, and
 `headless_lab_backend.hpp` (76 lines) is the backend behind `--headless`.
 
@@ -64,11 +64,10 @@ struct PerfLab {
 ```
 
 Nothing exotic: two containers of your own, a plot model and one field of text. The tree asks the
-model for a frame through `view()`, and `drain()` is the hook where cross-thread values arrive:
+model for a frame through `view()`, and the one cross-thread value arrives through `ingest()` —
+nothing in the model drains anything:
 
 ```cpp
-    void drain() { telemetry.drain_notifications(); }
-
     void ingest(double v) {
         ring.push(v);
         table.update_slice((tick_count * 997) % table.row_count(), 1000, v);
@@ -160,16 +159,17 @@ path.
     ...
     app::model_app({.title = "PRISM Perf Lab", .width = 1280, .height = 800}, app,
                      [&](app::AppContext& ctx) {
-        app.telemetry.observe([&app](const double& v) { app.ingest(v); });
+        ctx.receive(app.telemetry, [&app](const double& v) { app.ingest(v); });
         ctx.clock().add([&app, &ctx](ui::AnimationClock::time_point now) {
             app.update_stats(ctx, now);
-            return true; // perpetual — also what keeps Shared<T> draining with zero input
+            return true; // perpetual: the stats window needs a tick even when no sample lands
         });
         producer = std::jthread(produce_loop, std::ref(app.telemetry), cfg->rate_hz);
     });
 ```
 
-The setup callback is the only place with threads in it: the clock callback returns `true`, so the
+The setup callback is the only place with threads in it: `ctx.receive()` wires the `Shared` so the
+producer's wake reaches `ingest()` on the logic thread, the clock callback returns `true` so the
 tick never stops, and the producer is a `std::jthread` that lives in `main`, so it stops and joins
 when `main` returns. `--headless` builds the same model and the same snapshots with a backend that
 never draws, which is what makes the two reports comparable.
@@ -183,8 +183,8 @@ never draws, which is what makes the two reports comparable.
 3. `--headless 10 --points 5000 --rows 1000` against that one: the p95 falls with the ring and the
    table, leaving what the frame pipeline itself costs.
 4. `--rate 0.5`: one sample every two seconds reaches the logic thread, so the plot crawls. The
-   1 kHz default is the same thing from the other side: a thousand `set()`s a second, drained once
-   per frame, so most of them are replaced before anyone reads them.
+   1 kHz default is the same thing from the other side: a thousand `set()`s a second, most of them
+   replacing the previous one before the logic thread drains it.
 
 ## Files
 
