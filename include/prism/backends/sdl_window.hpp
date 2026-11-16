@@ -121,7 +121,7 @@ private:
     render::FrameCache<CachedText> text_cache_;
     render::FrameCache<SDL_Texture*> image_cache_;   // uploaded Images, keyed by Image::id()
     std::string text_key_;
-    const CachedText* text_texture(SdlFontSet& fonts, FontRole role, const std::string& text, float px_size);
+    const CachedText* text_texture(SdlFontSet& fonts, FontStyle font, const std::string& text, float px_size);
 
     void create_sdl_window();
     void destroy_sdl_window();

@@ -6,6 +6,7 @@
 
 #include <array>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -33,12 +34,14 @@ public:
     // Safe after TTF_Quit() (then the fonts are leaked, not closed: closing would crash).
     void close();
 
-    // The font for `role` at `px_size` (falls back to the other role's font if one failed to open);
-    // nullptr if none opened.
-    TTF_Font* get(render::FontRole role, float px_size);
+    // The font for `style` at `px_size` (falls back to the other family's font if one failed to
+    // open); nullptr if none opened. A bold or italic face opens on first use: the real face if
+    // its file sits beside the regular one (NotoSans-Bold.ttf beside NotoSans-Regular.ttf), else
+    // the regular file drawn bold or slanted by SDL_ttf. It has its regular face's fallbacks.
+    TTF_Font* get(render::FontStyle style, float px_size);
 
     // `text` in white at `px_size`, coverage in alpha (what a GPU renderer uploads and tints).
-    std::optional<render::TextBitmap> rasterize(std::string_view text, float px_size, render::FontRole role);
+    std::optional<render::TextBitmap> rasterize(std::string_view text, float px_size, render::FontStyle style);
 
     // File names of the script fallbacks, looked for in the UI font's folder.
     static constexpr std::array<const char*, 2> script_font_files{"NotoSansHebrew-Regular.ttf",
@@ -47,6 +50,7 @@ public:
 private:
     void open_script_fallbacks(const char* beside, float size);
     TTF_Font* open_extra(const char* path, float size);   // a fallback-only font, kept in extra_
+    TTF_Font* styled(render::FontStyle style);
     int baseline_shift(TTF_Font* primary, std::string_view run) const;
     std::optional<render::TextBitmap> rasterize_bidi(TTF_Font* font, std::string_view text,
                                                      const std::vector<ui::BidiRun>& runs);
@@ -56,6 +60,8 @@ private:
     std::vector<TTF_Font*> extra_;   // fallbacks only: a copy of the UI font, the script fonts
     TTF_Font* ui_copy_ = nullptr;      // in extra_: the UI font again, without fallbacks of its own
     std::vector<TTF_Font*> scripts_;   // in extra_: Hebrew, Arabic
+    std::array<TTF_Font*, 16> styled_{};   // in extra_: bold and italic faces, by FontStyle::key()
+    std::string ui_path_, mono_path_;
     float size_ = 0.f;
 };
 

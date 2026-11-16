@@ -37,6 +37,21 @@ TEST_CASE("ui role: proportional Noto Sans") {
     CHECK(m.width("abc", 28.f, FontRole::Ui) > m.width("abc", 14.f, FontRole::Ui));
 }
 
+TEST_CASE("bold is wider than regular, in both families; italic is measured too") {
+    TtfSession ttf;
+    auto m = bundled();
+    using prism::render::FontStyle;
+    const char* word = "Bold headings stand out";
+    for (FontRole family : {FontRole::Ui, FontRole::Mono}) {
+        CAPTURE(static_cast<int>(family));
+        CHECK(m.width(word, 14.f, FontStyle{family, true}) > m.width(word, 14.f, family));
+        CHECK(m.width(word, 14.f, FontStyle{family, false, true}) > 0.f);
+    }
+    // A styled face resizes with the rest: 28 px is twice 14 px.
+    CHECK(m.width(word, 28.f, FontStyle{FontRole::Ui, true})
+          == doctest::Approx(2.f * m.width(word, 14.f, FontStyle{FontRole::Ui, true})).epsilon(0.02));
+}
+
 TEST_CASE("ui role falls back to the mono font for symbols Noto Sans lacks") {
     TtfSession ttf;
     auto m = bundled();

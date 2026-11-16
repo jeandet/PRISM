@@ -35,6 +35,23 @@ enum class TextAnchor { TopLeft, Center };
 // Mono: fixed advance (code, text areas). Each backend maps roles to its own fonts.
 enum class FontRole : std::uint8_t { Ui, Mono };
 
+// The face a text is drawn in: its family, and whether it is bold or italic. A FontRole converts to
+// its regular face, so code that only names a family keeps reading as it did.
+struct FontStyle {
+    FontRole family = FontRole::Ui;
+    bool bold = false;
+    bool italic = false;
+
+    constexpr FontStyle() = default;
+    constexpr FontStyle(FontRole f, bool b = false, bool i = false) : family(f), bold(b), italic(i) {}
+    bool operator==(const FontStyle&) const = default;
+
+    // One byte that tells the faces apart: what the text caches key on.
+    [[nodiscard]] constexpr std::uint8_t key() const {
+        return static_cast<std::uint8_t>(static_cast<unsigned>(family) | (bold ? 4u : 0u) | (italic ? 8u : 0u));
+    }
+};
+
 struct TextCmd {
     std::string text;
     Point origin;
@@ -42,7 +59,7 @@ struct TextCmd {
     Color color;
     float angle = 0.f;       // degrees, counter-clockwise
     TextAnchor anchor = TextAnchor::TopLeft;
-    FontRole role = FontRole::Ui;
+    FontStyle font{};
 };
 
 struct ClipPush {
@@ -193,10 +210,10 @@ struct DrawList {
 
     void text(std::string s, Point origin, float size, Color c,
               float angle = 0.f, TextAnchor anchor = TextAnchor::TopLeft,
-              FontRole role = FontRole::Ui)
+              FontStyle font = {})
     {
         commands.emplace_back(
-            TextCmd{std::move(s), translated(origin), size, c, angle, anchor, role});
+            TextCmd{std::move(s), translated(origin), size, c, angle, anchor, font});
     }
 
     void image(std::shared_ptr<const Image> img, Rect r, Color tint = Color::rgba(255, 255, 255))

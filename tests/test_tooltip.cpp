@@ -76,8 +76,8 @@ TEST_CASE("tooltip: if the hovered widget loses its tooltip, the state lets go o
 
 TEST_CASE("tooltip: the box is as tall as the measurer's line, plus padding") {
     struct TallLines final : TextMeasurer {
-        float width(std::string_view t, float, FontRole) const override { return 7.f * static_cast<float>(t.size()); }
-        float line_height(float, FontRole) const override { return 30.f; }
+        float width(std::string_view t, float, prism::render::FontStyle) const override { return 7.f * static_cast<float>(t.size()); }
+        float line_height(float, prism::render::FontStyle) const override { return 30.f; }
     } tall;
     Theme theme;
     theme.measurer = &tall;
@@ -90,8 +90,8 @@ TEST_CASE("tooltip: the box is as tall as the measurer's line, plus padding") {
 
 namespace {
 struct FixedAdvance final : TextMeasurer {   // 7 px per byte, 20 px lines
-    float width(std::string_view t, float, FontRole) const override { return 7.f * static_cast<float>(t.size()); }
-    float line_height(float, FontRole) const override { return 20.f; }
+    float width(std::string_view t, float, prism::render::FontStyle) const override { return 7.f * static_cast<float>(t.size()); }
+    float line_height(float, prism::render::FontStyle) const override { return 20.f; }
 };
 
 std::vector<std::string> drawn_lines(const render::DrawList& dl) {

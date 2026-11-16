@@ -359,8 +359,8 @@ TEST_CASE("TextCmd defaults to the UI font role; text() can ask for mono") {
     dl.text("code", prism::Point{prism::X{0}, prism::Y{0}}, 14.f, prism::Color::rgba(0, 0, 0, 255),
             0.f, prism::TextAnchor::TopLeft, prism::FontRole::Mono);
     REQUIRE(dl.commands.size() == 2);
-    CHECK(std::get<prism::TextCmd>(dl.commands[0]).role == prism::FontRole::Ui);
-    CHECK(std::get<prism::TextCmd>(dl.commands[1]).role == prism::FontRole::Mono);
+    CHECK(std::get<prism::TextCmd>(dl.commands[0]).font == prism::render::FontStyle{prism::FontRole::Ui});
+    CHECK(std::get<prism::TextCmd>(dl.commands[1]).font == prism::render::FontStyle{prism::FontRole::Mono});
 }
 
 TEST_CASE("bounding box: what a clip cuts away does not count") {

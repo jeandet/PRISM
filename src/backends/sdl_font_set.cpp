@@ -17,6 +17,8 @@ namespace prism::backends {
 
 bool SdlFontSet::open(const char* ui_path, const char* mono_path, float size) {
     close();
+    ui_path_ = ui_path ? ui_path : "";
+    mono_path_ = mono_path ? mono_path : "";
     if (ui_path) ui_ = TTF_OpenFont(ui_path, size);
     bool same_file = ui_path && mono_path && std::string_view{ui_path} == mono_path;
     if (mono_path && !same_file) mono_ = TTF_OpenFont(mono_path, size);   // else ui_ serves both
@@ -69,10 +71,11 @@ void SdlFontSet::close() {
     ui_ = mono_ = ui_copy_ = nullptr;
     extra_.clear();
     scripts_.clear();
+    styled_.fill(nullptr);
 }
 
-TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
-    TTF_Font* wanted = role == render::FontRole::Mono ? mono_ : ui_;
+TTF_Font* SdlFontSet::get(render::FontStyle style, float px_size) {
+    TTF_Font* wanted = style.family == render::FontRole::Mono ? mono_ : ui_;
     TTF_Font* font = wanted ? wanted : (ui_ ? ui_ : mono_);
     if (font && std::abs(size_ - px_size) > 0.01f) {
         if (ui_) TTF_SetFontSize(ui_, px_size);      // both: each is the other's fallback
@@ -80,7 +83,38 @@ TTF_Font* SdlFontSet::get(render::FontRole role, float px_size) {
         for (TTF_Font* f : extra_) TTF_SetFontSize(f, px_size);
         size_ = px_size;
     }
+    if (font && (style.bold || style.italic))
+        if (TTF_Font* face = styled(style)) return face;
     return font;
+}
+
+namespace {
+// The file of a styled face beside the regular one ("NotoSans-Regular.ttf" -> "NotoSans-Bold.ttf"),
+// if it is there.
+std::optional<std::string> real_face(const std::string& regular, render::FontStyle style) {
+    const auto at = regular.rfind("-Regular");
+    if (at == std::string::npos) return std::nullopt;
+    const char* name = style.bold && style.italic ? "-BoldItalic" : style.bold ? "-Bold" : "-Italic";
+    std::string path = regular.substr(0, at) + name + regular.substr(at + 8);
+    if (!std::filesystem::is_regular_file(path)) return std::nullopt;
+    return path;
+}
+} // namespace
+
+TTF_Font* SdlFontSet::styled(render::FontStyle style) {
+    TTF_Font*& slot = styled_[style.key()];
+    if (slot) return slot;
+    const bool mono = style.family == render::FontRole::Mono && !mono_path_.empty();
+    const std::string& regular = mono || ui_path_.empty() ? mono_path_ : ui_path_;
+    const auto real = real_face(regular, style);
+    TTF_Font* face = open_extra(real ? real->c_str() : regular.c_str(), size_);
+    if (!face) return nullptr;
+    if (!real)
+        TTF_SetFontStyle(face, (style.bold ? TTF_STYLE_BOLD : 0) | (style.italic ? TTF_STYLE_ITALIC : 0));
+    // The regular face's fallbacks, so symbols and other scripts still draw (in their regular face).
+    if (TTF_Font* other = mono ? ui_copy_ : mono_) TTF_AddFallbackFont(face, other);
+    for (TTF_Font* script : scripts_) TTF_AddFallbackFont(face, script);
+    return slot = face;
 }
 
 namespace {
@@ -172,8 +206,8 @@ std::optional<render::TextBitmap> SdlFontSet::rasterize_bidi(TTF_Font* font, std
     return concat(pieces);
 }
 
-std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, float px_size, render::FontRole role) {
-    TTF_Font* font = get(role, px_size);
+std::optional<render::TextBitmap> SdlFontSet::rasterize(std::string_view text, float px_size, render::FontStyle style) {
+    TTF_Font* font = get(style, px_size);
     if (!font || text.empty()) return std::nullopt;
     auto runs = ui::bidi_runs(text);
     return ui::is_plain_ltr(runs) ? rasterize_run(font, text) : rasterize_bidi(font, text, runs);

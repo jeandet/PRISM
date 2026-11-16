@@ -14,7 +14,7 @@ using namespace ui; using namespace app; using namespace plot;
 
 namespace {
 struct TenPerChar final : prism::TextMeasurer {
-    float width(std::string_view s, float, prism::FontRole) const override { return 10.f * static_cast<float>(s.size()); }
+    float width(std::string_view s, float, prism::render::FontStyle) const override { return 10.f * static_cast<float>(s.size()); }
 };
 
 struct Toolbar {

@@ -118,7 +118,7 @@ TEST_CASE("set_theme repaints every widget, and keeps the backend's measurer") {
     Labelled model;
     prism::WidgetTree tree(model);
     struct Fixed final : prism::TextMeasurer {
-        float width(std::string_view t, float, prism::FontRole) const override { return 5.f * float(t.size()); }
+        float width(std::string_view t, float, prism::render::FontStyle) const override { return 5.f * float(t.size()); }
     } measurer;
     tree.set_text_measurer(&measurer);
     auto snap = tree.build_snapshot(300, 200, 1);

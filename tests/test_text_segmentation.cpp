@@ -100,7 +100,7 @@ TEST_CASE("Right and Left move over a whole character; Backspace and Delete remo
 
 namespace {
 struct PerByte final : prism::ui::TextMeasurer {   // 10 px per byte
-    float width(std::string_view t, float, prism::render::FontRole) const override { return 10.f * static_cast<float>(t.size()); }
+    float width(std::string_view t, float, prism::render::FontStyle) const override { return 10.f * static_cast<float>(t.size()); }
 };
 std::vector<std::string> wrapped(const std::string& text, float width) {
     static PerByte m;

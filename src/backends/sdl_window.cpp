@@ -392,7 +392,7 @@ void SdlWindow::render_cmd(const TextCmd& cmd, SdlFontSet& fonts) {
     // stretches it back to exactly the glyph bitmap's native size, instead of upscaling a
     // low-res texture and blurring it.
     float target_px_size = cmd.size * device_scale_;
-    const CachedText* cached = text_texture(fonts, cmd.role, cmd.text, target_px_size);
+    const CachedText* cached = text_texture(fonts, cmd.font, cmd.text, target_px_size);
     if (!cached) return;
     SDL_Texture* texture = cached->texture;
     // Rasterized in white: the colour is applied per draw, so one texture serves every colour.
@@ -424,20 +424,20 @@ void SdlWindow::render_cmd(const TextCmd& cmd, SdlFontSet& fonts) {
     }
 }
 
-const SdlWindow::CachedText* SdlWindow::text_texture(SdlFontSet& fonts, FontRole role,
+const SdlWindow::CachedText* SdlWindow::text_texture(SdlFontSet& fonts, FontStyle font,
                                                      const std::string& text, float px_size) {
-    // Keyed by role, not font: valid because a window's fonts never change while it lives.
+    // Keyed by style, not TTF_Font: valid because a window's fonts never change while it lives.
     // Reused buffer: building the key must not allocate on every text draw of every frame.
     std::string& key = text_key_;
     key.assign(1 + sizeof px_size, '\0');
-    key[0] = static_cast<char>(role);
+    key[0] = static_cast<char>(font.key());
     std::memcpy(key.data() + 1, &px_size, sizeof px_size);
     key += text;
     if (auto* hit = text_cache_.find(key)) return hit;
 
     // Through the font set, as the WebGPU renderer does: one place shapes text (bidi runs, the
     // script fallbacks' baselines), so both renderers draw the same pixels.
-    auto bitmap = fonts.rasterize(text, px_size, role);
+    auto bitmap = fonts.rasterize(text, px_size, font);
     if (!bitmap) return nullptr;
     SDL_Surface* surface = SDL_CreateSurfaceFrom(bitmap->width, bitmap->height, SDL_PIXELFORMAT_RGBA32,
                                                  bitmap->rgba.data(), bitmap->width * 4);

@@ -191,3 +191,33 @@ TEST_CASE("in a Hebrew sentence, the first word is drawn rightmost") {
     };
     CHECK(distance(*first) < distance(*second));
 }
+
+namespace {
+long ink(const prism::render::TextBitmap& b) {
+    long sum = 0;
+    for (std::size_t i = 3; i < b.rgba.size(); i += 4) sum += b.rgba[i];
+    return sum;
+}
+}
+
+TEST_CASE("bold draws more ink than regular; italic draws different pixels; both resize") {
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    using prism::render::FontStyle;
+    for (FontRole family : {FontRole::Ui, FontRole::Mono}) {
+        CAPTURE(static_cast<int>(family));
+        auto regular = fonts.rasterize("Heading", 20.f, family);
+        auto bold = fonts.rasterize("Heading", 20.f, FontStyle{family, true});
+        auto italic = fonts.rasterize("Heading", 20.f, FontStyle{family, false, true});
+        REQUIRE(regular);
+        REQUIRE(bold);
+        REQUIRE(italic);
+        CHECK(ink(*bold) > ink(*regular) * 11 / 10);
+        CHECK(italic->rgba != regular->rgba);
+        TTF_Font* styled = fonts.get(FontStyle{family, true}, 20.f);
+        CHECK(styled != fonts.get(family, 20.f));
+        fonts.get(family, 32.f);   // a size change reaches the styled face too
+        CHECK(TTF_GetFontSize(styled) == doctest::Approx(32.f));
+    }
+}

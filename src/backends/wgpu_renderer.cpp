@@ -324,11 +324,11 @@ const WgpuRenderer::Texture* WgpuRenderer::text_texture(const render::TextCmd& c
     if (!rasterize_) return nullptr;
     float px_size = cmd.size * scale;
     key_.assign(1 + sizeof px_size, '\0');
-    key_[0] = static_cast<char>(cmd.role);
+    key_[0] = static_cast<char>(cmd.font.key());
     std::memcpy(key_.data() + 1, &px_size, sizeof px_size);
     key_ += cmd.text;
     if (auto* hit = text_cache_.find(key_)) return hit;
-    auto bitmap = rasterize_(cmd.text, px_size, cmd.role);
+    auto bitmap = rasterize_(cmd.text, px_size, cmd.font);
     if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0) return nullptr;
     return &text_cache_.insert(key_, upload(bitmap->width, bitmap->height, bitmap->rgba.data()));
 }

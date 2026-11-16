@@ -101,9 +101,11 @@ struct SvgEmitter {
         // xml:space="preserve": SVG would otherwise collapse runs of spaces and drop indentation.
         out << "<text xml:space=\"preserve\" x=\"" << fmt_float(c.origin.x.raw())
             << "\" y=\"" << fmt_float(c.origin.y.raw())
-            << "\" font-family=\"" << (c.role == FontRole::Mono ? "monospace" : "Noto Sans, sans-serif") << "\""
+            << "\" font-family=\"" << (c.font.family == FontRole::Mono ? "monospace" : "Noto Sans, sans-serif") << "\""
             << " font-size=\"" << fmt_float(c.size)
             << "\" fill=\"" << fmt_color(c.color) << "\"";
+        if (c.font.bold) out << " font-weight=\"bold\"";
+        if (c.font.italic) out << " font-style=\"italic\"";
         if (c.anchor == TextAnchor::Center)
             out << " text-anchor=\"middle\" dominant-baseline=\"central\"";
         else

@@ -197,6 +197,21 @@ TEST_CASE("text uses a font family matching its role") {
           != std::string::npos);
 }
 
+TEST_CASE("bold and italic text say so in the SVG; regular text says nothing") {
+    prism::DrawList dl;
+    dl.text("plain", P(0, 0), 14.f, prism::Color::rgba(0, 0, 0, 255));
+    dl.text("strong", P(0, 20), 14.f, prism::Color::rgba(0, 0, 0, 255), 0.f, prism::TextAnchor::TopLeft,
+            prism::render::FontStyle{prism::FontRole::Ui, true, true});
+    auto svg = prism::to_svg(dl);
+    auto plain = svg.find(">plain<"), strong = svg.find(">strong<");
+    REQUIRE(strong != std::string::npos);
+    auto strong_tag = svg.substr(svg.rfind("<text", strong), strong - svg.rfind("<text", strong));
+    CHECK(strong_tag.find(R"(font-weight="bold")") != std::string::npos);
+    CHECK(strong_tag.find(R"(font-style="italic")") != std::string::npos);
+    auto plain_tag = svg.substr(svg.rfind("<text", plain), plain - svg.rfind("<text", plain));
+    CHECK(plain_tag.find("font-weight") == std::string::npos);
+}
+
 TEST_CASE("text keeps its spaces (SVG collapses them by default)") {
     prism::DrawList dl;
     dl.text("    indented  twice", P(0, 0), 14.f, prism::Color::rgba(0, 0, 0, 255));

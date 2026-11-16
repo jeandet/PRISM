@@ -20,6 +20,6 @@ struct TextBitmap {
 // Rasterizes `text` at `px_size` device pixels in the font for `role`; nullopt draws nothing.
 // The platform layer supplies it (the SDL backend through SDL_ttf), so a renderer has no font
 // code and text is drawn with the same fonts the measurer measures with.
-using TextRasterizer = std::function<std::optional<TextBitmap>(std::string_view text, float px_size, FontRole)>;
+using TextRasterizer = std::function<std::optional<TextBitmap>(std::string_view text, float px_size, FontStyle)>;
 
 } // namespace prism::render

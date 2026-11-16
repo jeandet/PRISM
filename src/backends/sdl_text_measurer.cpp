@@ -6,32 +6,32 @@
 
 namespace prism::backends {
 
-TTF_Font* SdlTextMeasurer::font(float size, ui::FontRole role) const {
+TTF_Font* SdlTextMeasurer::font(float size, ui::FontStyle style) const {
     if (!opened_ && TTF_WasInit() > 0) {   // never latch a failure from before TTF_Init
         fonts_.open(ui_path_.empty() ? nullptr : ui_path_.c_str(),
                     mono_path_.empty() ? nullptr : mono_path_.c_str(), size);
         opened_ = true;
     }
-    return opened_ ? fonts_.get(role, size) : nullptr;
+    return opened_ ? fonts_.get(style, size) : nullptr;
 }
 
-float SdlTextMeasurer::line_height(float size, ui::FontRole role) const {
-    TTF_Font* f = font(size, role);
-    return f ? static_cast<float>(TTF_GetFontLineSkip(f)) : ui::TextMeasurer::line_height(size, role);
+float SdlTextMeasurer::line_height(float size, ui::FontStyle style) const {
+    TTF_Font* f = font(size, style);
+    return f ? static_cast<float>(TTF_GetFontLineSkip(f)) : ui::TextMeasurer::line_height(size, style);
 }
 
-float SdlTextMeasurer::width(std::string_view utf8, float size, ui::FontRole role) const {
+float SdlTextMeasurer::width(std::string_view utf8, float size, ui::FontStyle style) const {
     if (utf8.empty()) return 0.f;
     std::string key(1 + sizeof size, '\0');
-    key[0] = static_cast<char>(role);
+    key[0] = static_cast<char>(style.key());
     std::memcpy(key.data() + 1, &size, sizeof size);
     key.append(utf8);
     if (auto it = cache_.find(key); it != cache_.end()) return it->second;
 
-    TTF_Font* f = font(size, role);
+    TTF_Font* f = font(size, style);
     int w = 0, h = 0;
     if (!f || !TTF_GetStringSize(f, utf8.data(), utf8.size(), &w, &h))
-        return ui::text_width(nullptr, utf8, size, role);   // not cached: before TTF_Init the fonts open later
+        return ui::text_width(nullptr, utf8, size, style);   // not cached: before TTF_Init the fonts open later
     if (cache_.size() >= cache_cap) cache_.clear();
     cache_.emplace(std::move(key), static_cast<float>(w));
     return static_cast<float>(w);

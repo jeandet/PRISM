@@ -776,7 +776,7 @@ TEST_CASE("releasing tab does not move focus a second time") {
 
 namespace {
 struct ZeroMeasurer final : prism::TextMeasurer {
-    float width(std::string_view, float, prism::render::FontRole) const override { return 0.f; }
+    float width(std::string_view, float, prism::render::FontStyle) const override { return 0.f; }
 };
 }
 

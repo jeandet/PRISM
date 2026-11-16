@@ -9,7 +9,7 @@
 namespace {
 // Proportional stub: 'i' = 2, 'm' = 10, any other code point = 6 (size ignored).
 struct StubMeasurer final : prism::ui::TextMeasurer {
-    float width(std::string_view s, float, prism::render::FontRole) const override {
+    float width(std::string_view s, float, prism::render::FontStyle) const override {
         float w = 0;
         for (size_t i = 0; i < s.size(); i = prism::core::utf8::next(s, i))
             w += s[i] == 'i' ? 2.f : s[i] == 'm' ? 10.f : 6.f;
@@ -49,8 +49,8 @@ TEST_CASE("fit_bytes returns the longest prefix that fits, at least one characte
 
 TEST_CASE("measurement helpers pass the font role through, UI by default") {
     struct Recorder final : prism::ui::TextMeasurer {
-        mutable std::vector<prism::render::FontRole> roles;
-        float width(std::string_view s, float, prism::render::FontRole r) const override {
+        mutable std::vector<prism::render::FontStyle> roles;
+        float width(std::string_view s, float, prism::render::FontStyle r) const override {
             roles.push_back(r);
             return static_cast<float>(s.size());
         }
@@ -67,8 +67,8 @@ TEST_CASE("measurement helpers pass the font role through, UI by default") {
 TEST_CASE("line height: estimate without a measurer, the measurer's own value with one") {
     CHECK(prism::ui::line_height(nullptr, 10.f) == doctest::Approx(14.f));
     struct Tall final : prism::ui::TextMeasurer {
-        float width(std::string_view, float, prism::render::FontRole) const override { return 0.f; }
-        float line_height(float size, prism::render::FontRole) const override { return 3.f * size; }
+        float width(std::string_view, float, prism::render::FontStyle) const override { return 0.f; }
+        float line_height(float size, prism::render::FontStyle) const override { return 3.f * size; }
     } m;
     CHECK(prism::ui::line_height(&m, 10.f, prism::render::FontRole::Mono) == doctest::Approx(30.f));
 }

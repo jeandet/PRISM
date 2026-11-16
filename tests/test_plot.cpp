@@ -1630,7 +1630,7 @@ TEST_CASE("tick labels are placed using the theme's text measurer")
     using namespace prism;
     using namespace prism::plot;
     struct Wide final : TextMeasurer {   // every label is 100 px wide
-        float width(std::string_view, float, prism::render::FontRole) const override { return 100.f; }
+        float width(std::string_view, float, prism::render::FontStyle) const override { return 100.f; }
     } m;
     PlotMapping map{
         .x_range = {0.0, 10.0},

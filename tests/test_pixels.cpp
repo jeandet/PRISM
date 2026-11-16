@@ -111,7 +111,7 @@ struct Rig {
         int pw = static_cast<int>(w * scale), ph = static_cast<int>(h * scale);
         auto* f = &fonts;
         Frame out{pw, ph, backends::render_to_pixels(*ctx, *snap, pw, ph, scale, tree.theme().canvas_bg,
-                    [f](std::string_view text, float px, FontRole role) { return f->rasterize(text, px, role); })};
+                    [f](std::string_view text, float px, FontStyle font) { return f->rasterize(text, px, font); })};
         REQUIRE(out.rgba.size() == static_cast<size_t>(pw) * ph * 4);
         if (const char* dir = std::getenv("PRISM_PIXEL_DUMP"))
             if (SDL_Surface* s = SDL_CreateSurfaceFrom(pw, ph, SDL_PIXELFORMAT_RGBA32, out.rgba.data(), pw * 4)) {

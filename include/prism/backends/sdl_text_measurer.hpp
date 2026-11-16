@@ -17,11 +17,11 @@ public:
         : ui_path_(std::move(ui_font_path)), mono_path_(std::move(mono_font_path)) {}
     SdlTextMeasurer(SdlTextMeasurer&&) = delete;
 
-    float width(std::string_view utf8, float size, ui::FontRole role) const override;
-    float line_height(float size, ui::FontRole role) const override;
+    float width(std::string_view utf8, float size, ui::FontStyle style) const override;
+    float line_height(float size, ui::FontStyle style) const override;
 
 private:
-    TTF_Font* font(float size, ui::FontRole role) const;   // null before TTF_Init or if none opened
+    TTF_Font* font(float size, ui::FontStyle style) const;   // null before TTF_Init or if none opened
 
     std::string ui_path_, mono_path_;
     mutable SdlFontSet fonts_;

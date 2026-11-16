@@ -948,7 +948,7 @@ TEST_CASE("TextArea down keeps the character column across multi-byte text") {
 
 TEST_CASE("wrap_lines breaks at the measured width") {
     struct M final : prism::TextMeasurer {   // 'm' = 10, others 2
-        float width(std::string_view s, float, prism::render::FontRole) const override {
+        float width(std::string_view s, float, prism::render::FontStyle) const override {
             float w = 0; for (char c : s) w += c == 'm' ? 10.f : 2.f; return w;
         }
     } m;
@@ -960,7 +960,7 @@ TEST_CASE("wrap_lines breaks at the measured width") {
 
 TEST_CASE("TextArea draws and measures its text in the mono font") {
     struct M final : prism::TextMeasurer {   // mono 10 per char, ui 1 per char
-        float width(std::string_view s, float, prism::FontRole r) const override {
+        float width(std::string_view s, float, prism::render::FontStyle r) const override {
             return static_cast<float>(s.size()) * (r == prism::FontRole::Mono ? 10.f : 1.f);
         }
     } m;
@@ -977,7 +977,7 @@ TEST_CASE("TextArea draws and measures its text in the mono font") {
     float caret_x = -1.f;
     for (auto& cmd : dl.commands) {
         if (auto* t = std::get_if<prism::TextCmd>(&cmd); t && t->text == "ab")
-            mono_text = t->role == prism::FontRole::Mono;
+            mono_text = t->font.family == prism::FontRole::Mono;
         if (auto* r = std::get_if<prism::FilledRect>(&cmd); r && r->rect.extent.w.raw() <= 3.f)
             caret_x = r->rect.origin.x.raw();
     }
@@ -987,8 +987,8 @@ TEST_CASE("TextArea draws and measures its text in the mono font") {
 
 namespace {
 struct TallLines final : prism::TextMeasurer {   // 10 px per char, 30 px lines
-    float width(std::string_view s, float, prism::FontRole) const override { return 10.f * static_cast<float>(s.size()); }
-    float line_height(float, prism::FontRole) const override { return 30.f; }
+    float width(std::string_view s, float, prism::render::FontStyle) const override { return 10.f * static_cast<float>(s.size()); }
+    float line_height(float, prism::render::FontStyle) const override { return 30.f; }
 };
 }
 

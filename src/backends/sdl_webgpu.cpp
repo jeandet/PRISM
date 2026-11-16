@@ -171,7 +171,7 @@ bool render_webgpu(WebGpuTarget& t, const render::SceneSnapshot& snap, SdlFontSe
     if (!t.renderer) {
         SdlFontSet* f = &fonts;   // the backend's, alive as long as its windows
         t.renderer = std::make_unique<WgpuRenderer>(*t.ctx, t.format,
-            [f](std::string_view text, float px, render::FontRole role) { return f->rasterize(text, px, role); });
+            [f](std::string_view text, float px, render::FontStyle font) { return f->rasterize(text, px, font); });
     }
     int w = 0, h = 0;
     SDL_GetWindowSizeInPixels(t.window, &w, &h);
