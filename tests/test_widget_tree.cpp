@@ -794,3 +794,39 @@ TEST_CASE("Composition reaches the focused widget") {
     REQUIRE(key_sink_events.size() == 1);
     CHECK(std::get<prism::Composition>(key_sink_events[0]).text == "ni");
 }
+
+#if __cpp_impl_reflection
+// A model with no view(): its members become widgets by reflection.
+struct SupplyModel {
+    [[=prism::core::range<0.0, 10.0, 0.5>, =prism::core::unit<"V">]] prism::Field<double> volts{2.0};
+    prism::Field<int> count{1};
+};
+
+bool shows_text(const prism::SceneSnapshot& s, std::string_view text) {
+    for (auto& dl : s.draw_lists)
+        for (auto& c : dl->commands)
+            if (auto* t = std::get_if<prism::TextCmd>(&c); t && t->text == text) return true;
+    return false;
+}
+
+TEST_CASE("a range annotation makes a model's number a captioned slider that writes the field") {
+    SupplyModel model;
+    prism::WidgetTree tree(model);
+    auto ids = tree.leaf_ids();
+    REQUIRE(ids.size() == 2);
+    auto snap = tree.build_snapshot(400, 200, 1);
+    CHECK(shows_text(*snap, "volts"));
+    CHECK(shows_text(*snap, "2.0 V"));
+    tree.clear_dirty();
+
+    tree.dispatch(ids[0], prism::MouseButton{P(1000, 25), 1, true});   // past the end: the maximum
+    CHECK(model.volts.get() == doctest::Approx(10.0));
+    snap = tree.build_snapshot(400, 200, 2);
+    CHECK(shows_text(*snap, "10.0 V"));
+    tree.clear_dirty();
+
+    model.volts.set(7.5);   // and the other way: the slider follows the field
+    snap = tree.build_snapshot(400, 200, 3);
+    CHECK(shows_text(*snap, "7.5 V"));
+}
+#endif

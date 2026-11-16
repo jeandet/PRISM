@@ -71,6 +71,13 @@ consteval std::string_view extract_string_annotation() {
     return {};
 }
 
+// The caption a member shows: its label annotation, or its own name.
+template <std::meta::info M>
+consteval std::string_view caption_of() {
+    constexpr auto label = extract_string_annotation<M, label_t>();
+    return label.empty() ? std::meta::identifier_of(M) : label;
+}
+
 // The member's range_t<...> type, or a null reflection when it has none.
 template <std::meta::info M>
 consteval std::meta::info range_annotation() {

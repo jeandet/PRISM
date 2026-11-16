@@ -602,7 +602,7 @@ private:
                     waker_binders_.push_back(
                         [&member](std::function<void()> w) { member.set_waker(std::move(w)); });
                 } else if constexpr (is_field_v<M>) {
-                    auto leaf = node_leaf(member, next_id_);
+                    auto leaf = reflected_leaf<m>(member);
                     leaf.name = std::string(std::meta::identifier_of(m));
                     leaf.tooltip = std::string(core::extract_string_annotation<m, core::tooltip_t>());
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
@@ -633,6 +633,25 @@ private:
             note_attach(&model, [&model](AppContext& ctx) { model.attach(ctx); });
         return root;
     }
+
+#if __cpp_impl_reflection
+    // A model's Field member as a widget: its value type's, or a slider for a number with a
+    // [[=core::range<min, max, step>]] annotation.
+    template <std::meta::info Member, typename T>
+    Node reflected_leaf(Field<T>& field) {
+        if constexpr (constexpr auto r = core::range_annotation<Member>(); r != std::meta::info{}) {
+            static_assert(Numeric<T>, "[[=prism::core::range<...>]] is only supported on numbers");
+            using R = [:r:];
+            return node_slider_leaf(field, Slider<T>{.min = static_cast<T>(R::min), .max = static_cast<T>(R::max),
+                                                     .step = static_cast<T>(R::step),
+                                                     .label = std::string(core::caption_of<Member>()),
+                                                     .unit = std::string(core::extract_string_annotation<Member, core::unit_t>())},
+                                    next_id_);
+        } else {
+            return node_leaf(field, next_id_);
+        }
+    }
+#endif
 
     // Views are rebuilt, so a block is met many times: remember each one once, by address.
     void note_attach(const void* key, std::function<void(AppContext&)> attach) {

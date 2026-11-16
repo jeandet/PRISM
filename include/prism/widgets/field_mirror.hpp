@@ -79,13 +79,6 @@ concept NestedMirrorSlot = requires(T& t) { t.slots; };
 
 template <typename T> struct FieldMirror;
 
-// The caption a leaf shows: its label annotation, or the member's own name.
-template <std::meta::info M>
-consteval std::string_view caption_of() {
-    constexpr auto label = extract_string_annotation<M, label_t>();
-    return label.empty() ? std::meta::identifier_of(M) : label;
-}
-
 template <typename T>
 consteval std::size_t field_mirror_member_count() {
     return std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()).size();

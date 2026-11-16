@@ -389,6 +389,44 @@ Node node_leaf(Field<T>& field, WidgetId& next_id) {
     return n;
 }
 
+// A number drawn and edited as a slider with fixed bounds: `look` gives them, the caption and
+// the unit; the field keeps only the number ([[=core::range<...>]] on a model's member).
+template <Numeric T>
+Node node_slider_leaf(Field<T>& field, Slider<T> look, WidgetId& next_id) {
+    using W = Widget<Slider<T>>;
+    Node n;
+    n.id = next_id++;
+    n.is_leaf = true;
+    auto as_slider = [&field, look] {
+        auto s = look;
+        s.value = field.get();
+        return Field<Slider<T>>{std::move(s)};
+    };
+    n.build_widget = [&field, as_slider](WidgetNode& wn) {
+        wn.focus_policy = W::focus_policy;
+        wn.expand = W::expand;
+        wn.expand_axis = W::expand_axis;
+        wn.access = [as_slider] { return access_info(as_slider()); };
+        wn.record = [as_slider](WidgetNode& node) {
+            node.draws.clear();
+            node.overlay_draws.clear();
+            W::record(node.draws, as_slider(), node);
+        };
+        wn.wire = [&field, as_slider](WidgetNode& node) {
+            node.connections.push_back(node.on_input.connect([&field, &node, as_slider](const InputEvent& ev) {
+                auto slider = as_slider();
+                W::handle_input(slider, ev, node);
+                if (slider.get().value != field.get()) field.set(slider.get().value);
+            }));
+        };
+        wn.record(wn);
+    };
+    n.on_change = [&field](std::function<void()> cb) -> Connection {
+        return field.on_change().connect([cb = std::move(cb)](const T&) { cb(); });
+    };
+    return n;
+}
+
 template <typename T, typename Observable>
 Node node_readonly_leaf(Observable& obs, WidgetId& next_id) {
     Node n;

@@ -685,6 +685,10 @@ struct Settings {
 };
 ```
 
+`range` and `unit` work the same on a `Field` of a model with no `view()`: there
+`[[=core::range<0.0, 30.0, 0.1>, =core::unit<"V">]] core::Field<double> volts;` is a slider
+captioned "volts" that writes a plain `double`.
+
 ### Full examples
 
 [`examples/`](examples/README.md) holds eight complete apps, all of which also run in the
