@@ -21,26 +21,28 @@ struct Log {
 };
 
 // Defined once, in libprism (src/core/shared_state.cpp): an inline variable gets one copy per
-// shared object that hides its symbols (a Python extension does), and the copies disagree.
-extern thread_local Log* watching;
+// shared object that hides its symbols (a Python extension does), and the copies disagree. A
+// function, not an extern thread_local: a Windows DLL cannot export a thread_local.
+Log*& watching();
 
 inline void note_read(const void* address) {
-    if (watching == nullptr || watching->count == kMaxReads) return;
-    watching->reads[watching->count++] = address;
+    Log* log = watching();
+    if (log == nullptr || log->count == kMaxReads) return;
+    log->reads[log->count++] = address;
 }
 
 // Watches the reads done during its lifetime (a local: it never outlives the log it replaced), then puts the previous log back: a Derived built
 // inside another one's compute must not be credited with the outer one's reads.
 class Watch {
 public:
-    Watch() : previous_(std::exchange(watching, &log_)) {}
-    ~Watch() { watching = previous_; }
+    Watch() : previous_(std::exchange(watching(), &log_)) {}
+    ~Watch() { watching() = previous_; }
 
     Watch(const Watch&) = delete;
     Watch& operator=(const Watch&) = delete;
 
     // The first compute is over: what this object reads from now on is not part of it.
-    void end() noexcept { watching = previous_; }
+    void end() noexcept { watching() = previous_; }
 
     [[nodiscard]] bool read_something_unlisted(const void* const* listed, std::size_t count) const {
         for (std::size_t i = 0; i < log_.count; ++i)

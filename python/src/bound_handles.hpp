@@ -9,12 +9,12 @@
 // `fn` closes over cannot be freed before the logic thread runs it.
 inline void list_op_dispatch(std::shared_ptr<void> keep, std::function<void()> fn) {
     if (txn_active()) { txn_queue.emplace_back([keep, fn]() mutable { fn(); }); return; }
-    if (!prism::app::detail_is_logic_thread) {
+    if (!prism::app::detail_is_logic_thread()) {
         auto res = try_post_via_handle_impl([keep, fn]() mutable { fn(); }, false);
         if (res == PostResult::Posted) return;
         if (res == PostResult::Closed) return;
     }
-    if (prism::app::detail_is_logic_thread && Py_IsInitialized()) {
+    if (prism::app::detail_is_logic_thread() && Py_IsInitialized()) {
         nb::gil_scoped_acquire g; fn();
     } else {
         std::lock_guard<std::recursive_mutex> direct_lk(g_direct_dispatch_mutex);

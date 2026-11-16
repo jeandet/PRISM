@@ -49,7 +49,7 @@ static void bind_runtime(nb::module_& m) {
         }
         if (old_raw) nb::handle(old_raw).dec_ref();
     }, nb::arg("handler").none());
-    m.def("is_logic_thread", [](){ return detail_is_logic_thread; });
+    m.def("is_logic_thread", [](){ return detail_is_logic_thread(); });
     m.attr("_observed_handles") = observed_handles();
     m.def("_standalone_state_alive_count", [](){ return g_standalone_state_alive.load(std::memory_order_relaxed); });
     m.def("_standalone_shared_use_count", &standalone_state_use_count, nb::arg("handle"));

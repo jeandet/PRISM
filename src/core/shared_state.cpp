@@ -16,11 +16,20 @@ ErrorHandler error_handler;
 
 #ifndef NDEBUG
 namespace prism::core::read_log_detail {
-thread_local Log* watching = nullptr;
+Log*& watching() {
+    thread_local Log* log = nullptr;
+    return log;
+}
 } // namespace prism::core::read_log_detail
 #endif
 
 namespace prism::app {
-thread_local bool detail_is_logic_thread = false;
-thread_local bool detail_in_mutation_batch = false;
+bool& detail_is_logic_thread() {
+    thread_local bool flag = false;
+    return flag;
+}
+bool& detail_in_mutation_batch() {
+    thread_local bool flag = false;
+    return flag;
+}
 } // namespace prism::app

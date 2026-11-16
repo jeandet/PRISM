@@ -89,7 +89,7 @@ TEST_CASE("choose_files: the platform's answer arrives on the logic thread") {
             ctx.choose_files({.kind = FileDialogKind::Open, .title = "Open a note",
                               .filters = {{"Text", "txt;md"}}, .start = {}},
                              [&](FileDialogResult r) {
-                                 on_logic_thread = detail_is_logic_thread;
+                                 on_logic_thread = detail_is_logic_thread();
                                  paths = r.paths;
                                  got = true;
                              });
@@ -178,7 +178,7 @@ TEST_CASE("a file drop reaches the app's drop handler on the logic thread") {
     model_app(backend, window, model, [&](AppContext& ctx) {
         ctx.on_file_drop([&](const FileDrop& d) {
             got = d.paths;
-            on_logic_thread = detail_is_logic_thread;
+            on_logic_thread = detail_is_logic_thread();
         });
     });
     CHECK(got == std::vector<std::string>{"/tmp/a.txt", "/tmp/b.txt"});

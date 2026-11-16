@@ -32,6 +32,7 @@ prism_headers_dep = declare_dependency(
 # whose inline code differs on those must keep that code in the header. A project linking an
 # installed libprism with other flags needs a library per flag set; add when one is packaged.
 prism_lib = library('prism',
+  'app/backend.cpp',
   'app/model_app.cpp',
   'app/view_builder.cpp',
   'app/widget_tree.cpp',

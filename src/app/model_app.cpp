@@ -92,8 +92,8 @@ void AppContext::set_logic_wrapper(std::function<void(std::function<void()>)> w)
 void AppContext::post(std::function<void()> fn) {
     if (!fn) return;
     if (closed_ && closed_->load(std::memory_order_acquire)) return;
-    if (detail_is_logic_thread) {
-        if (detail_in_mutation_batch) {
+    if (detail_is_logic_thread()) {
+        if (detail_in_mutation_batch()) {
             // Re-entrant from within a batch drain — defer publish to the
             // outer batch's tail (publish-after-whole-batch ordering).
             run_wrapped(std::move(fn));
@@ -138,7 +138,7 @@ std::vector<std::function<void()>> AppContext::take_queued() {
 }
 
 void AppContext::run_mutations(std::vector<std::function<void()>> batch) {
-    detail_in_mutation_batch = true;
+    detail_in_mutation_batch() = true;
     for (auto& f : batch) {
         try {
             f();
@@ -146,7 +146,7 @@ void AppContext::run_mutations(std::vector<std::function<void()>> batch) {
             report_unhandled_error(std::current_exception());
         }
     }
-    detail_in_mutation_batch = false;
+    detail_in_mutation_batch() = false;
 }
 
 void AppContext::run_publish_tail() {
@@ -309,7 +309,7 @@ void AppRun::arm_deadlines() {
 }
 
 void AppRun::logic_main(std::function<void(AppContext&)> setup) {
-    detail_is_logic_thread = true;
+    detail_is_logic_thread() = true;
     core::logic_thread.store(std::this_thread::get_id());
     backend_.wait_ready();
     registry_.for_each([this](WindowId id, WindowRegistry::Entry& entry) {

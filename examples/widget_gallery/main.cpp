@@ -63,8 +63,11 @@ struct Gallery {
             if (m.chosen) tabs.set({.selected = *m.chosen});
         }));
         wiring.push_back(help_menu.on_change().connect([this](const ui::Menu& m) {
-            if (m.chosen) about.set({.title = about.get().title, .message = about.get().message,
-                                     .buttons = about.get().buttons, .open = true});
+            if (!m.chosen) return;
+            auto dialog = about.get();
+            dialog.open = true;
+            dialog.chosen.reset();
+            about.set(std::move(dialog));
         }));
     }
 

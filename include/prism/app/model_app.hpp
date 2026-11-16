@@ -30,9 +30,10 @@ using namespace prism::input;
 using namespace prism::ui;
 
 // Defined once, in libprism (src/core/shared_state.cpp): an inline variable gets one copy per
-// shared object that hides its symbols (a Python extension does), and the copies disagree.
-extern thread_local bool detail_is_logic_thread;
-extern thread_local bool detail_in_mutation_batch;
+// shared object that hides its symbols (a Python extension does), and the copies disagree. A
+// function, not an extern thread_local: a Windows DLL cannot export a thread_local.
+bool& detail_is_logic_thread();
+bool& detail_in_mutation_batch();
 
 class AppContext {
 public:

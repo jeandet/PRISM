@@ -83,7 +83,7 @@ static void drain_queue_loop(const std::shared_ptr<mpsc_queue<std::function<void
                              const std::shared_ptr<std::atomic<bool>>& sf,
                              const std::shared_ptr<std::function<void()>>& tp) {
     do {
-        prism::app::detail_in_mutation_batch = true;
+        prism::app::detail_in_mutation_batch() = true;
         while (auto f = q->pop()) {
             try {
                 (*f)();
@@ -91,7 +91,7 @@ static void drain_queue_loop(const std::shared_ptr<mpsc_queue<std::function<void
                 prism::core::report_unhandled_error(std::current_exception());
             }
         }
-        prism::app::detail_in_mutation_batch = false;
+        prism::app::detail_in_mutation_batch() = false;
         if (tp && *tp) {
             try {
                 (*tp)();
@@ -107,7 +107,7 @@ static void drain_queue_loop(const std::shared_ptr<mpsc_queue<std::function<void
 }
 
 static PostResult try_post_via_handle_impl(std::function<void()> fn, bool allow_logic_thread) {
-    if (!allow_logic_thread && prism::app::detail_is_logic_thread) return PostResult::NoApp;
+    if (!allow_logic_thread && prism::app::detail_is_logic_thread()) return PostResult::NoApp;
     // Startup window: g_run_guard true but g_has_handle not yet set (setup hasn't run).
     // Don't fall back to direct unsync write — spin briefly for handle to appear.
     // 1000ms survives slow debug/CI runners; still NoApp/Closed check below handles overflow.
@@ -170,7 +170,7 @@ static PostResult try_post_any_thread(std::function<void()> fn) {
 }
 
 static void ensure_idle_wake() {
-    if (prism::app::detail_in_mutation_batch) return;
+    if (prism::app::detail_in_mutation_batch()) return;
     (void)try_post_any_thread([] {});
 }
 
@@ -187,7 +187,7 @@ static std::recursive_mutex g_direct_dispatch_mutex;
 
 template <typename T>
 T dispatch_sync_read(std::function<T()> reader) {
-    if (prism::app::detail_is_logic_thread) return reader();
+    if (prism::app::detail_is_logic_thread()) return reader();
     // Startup window: spin briefly like the write path, and same GIL-holding
     // condition — see try_post_via_handle_impl. SlotDerived::get() is called from the
     // initial widget tree build (registry.add in model_app), which runs on the calling
@@ -266,13 +266,13 @@ inline void txn_flush_batch() {
     txn_queue.clear();
     txn_queue.shrink_to_fit();
     txn_marks.clear();
-    if (prism::app::detail_is_logic_thread) {
+    if (prism::app::detail_is_logic_thread()) {
         // GIL needed: field->set will emit copying handlers holding Python objects.
         nb::gil_scoped_acquire gil;
         prism::TransactionGuard g;
         for (auto& fn : batch) fn();
         // If inside outer batch drain, defer publish to outer tail; else wake directly via tail if available.
-        if (prism::app::detail_in_mutation_batch) return;
+        if (prism::app::detail_in_mutation_batch()) return;
         // Try direct tail if we have handle, else fallback to coalesced wake.
         {
             std::optional<AppContext::PostHandle> hopt;
@@ -322,7 +322,7 @@ inline bool txn_buffer_or_dispatch(std::shared_ptr<void> keep, Field<T>* field, 
 template <typename T>
 void field_set_dispatch(std::shared_ptr<void> keep, Field<T>* field, T v) {
     if (txn_buffer_or_dispatch(keep, field, v)) return;
-    if (!prism::app::detail_is_logic_thread) {
+    if (!prism::app::detail_is_logic_thread()) {
         T copy = v;
         auto res = try_post_via_handle_impl([keep, field, copy = std::move(copy)]() mutable {
             field->set(std::move(copy));
@@ -331,7 +331,7 @@ void field_set_dispatch(std::shared_ptr<void> keep, Field<T>* field, T v) {
         if (res == PostResult::Closed) return; // post-close: no-op per spec (no direct fallback)
         // NoApp: fall through to direct (pre-run single-threaded)
     }
-    if (prism::app::detail_is_logic_thread && Py_IsInitialized()) {
+    if (prism::app::detail_is_logic_thread() && Py_IsInitialized()) {
         nb::gil_scoped_acquire gil;
         field->set(std::move(v));
     } else {
@@ -451,7 +451,7 @@ void field_add_dispatch(nb::object self, std::shared_ptr<void> keep, Field<T>* f
     } else {
         do_add = [field, n]() { field->set(field->get() + n); };
     }
-    if (prism::app::detail_is_logic_thread) {
+    if (prism::app::detail_is_logic_thread()) {
         // No Py_IsInitialized()/gil_scoped_acquire dance needed here (unlike
         // field_set_dispatch/list_op_dispatch): this function takes `self` as
         // nb::object, so the GIL is already held for the `self.attr(...)`

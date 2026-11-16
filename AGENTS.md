@@ -139,7 +139,8 @@ inspector), `backends` (SDL3, headless software/null backends used by tests).
 Non-template code goes in `src/<module>/<header>.cpp` (libprism), not in the header: headers keep
 templates, reflection code and short getters, so each file that includes them parses less. Never
 add a mutable `inline` variable to a header: a Python extension hides its symbols and gets its own
-copy. Declare it `extern` and define it in `src/core/shared_state.cpp`.
+copy. Declare it `extern` and define it in `src/core/shared_state.cpp`; a `thread_local` becomes a
+function returning a reference to it there, since a Windows DLL cannot export a `thread_local`.
 
 ## Conventions
 
