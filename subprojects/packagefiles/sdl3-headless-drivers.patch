@@ -13,3 +13,14 @@
  if host_machine.system() == 'windows'
    cdata.set('SDL_VIDEO_DRIVER_WINDOWS', 1)
    subdir('windows')
+--- a/src/audio/meson.build
++++ b/src/audio/meson.build
+@@ -1,3 +1,8 @@
++# PRISM: the dummy audio driver, for audio tests and CI without a sound card
++# (SDL_AUDIO_DRIVER=dummy).
++cdata.set('SDL_AUDIO_DRIVER_DUMMY', 1)
++subdir('dummy')
++
+ if host_machine.system() == 'windows'
+   cdata.set('SDL_AUDIO_DRIVER_DSOUND', 1)
+   #  cdata.set('SDL_AUDIO_DRIVER_WASAPI', 1)

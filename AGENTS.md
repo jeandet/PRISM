@@ -112,7 +112,7 @@ meson test -C builddir
   build dir have visibly degraded the host machine before.
 - `meson wrap update` periodically bumps wrapdb-tracked dependencies (routine hygiene, e.g.
   before a PR) — rebuild and rerun the full suite afterward. `subprojects/sdl3.wrap` carries
-  `diff_files = sdl3-headless-drivers.patch` (enables SDL's offscreen and dummy video drivers);
+  `diff_files = sdl3-headless-drivers.patch` (enables SDL's offscreen and dummy video drivers and its dummy audio driver);
   check the line survives an update, or the SDL tests lose their display-free driver.
   `subprojects/sdl3_image.wrap` uses our own build file (`subprojects/packagefiles/sdl3_image/`,
   `patch_directory`) instead of WrapDB's, whose port compiles every format as a stub: an update
@@ -130,11 +130,12 @@ meson test -C builddir
 
 ## Module layout (`include/prism/`)
 
-Eight namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`List`/
+Nine namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`List`/
 `Connection`/reflection), `render` (`DrawList`), `input` (`InputEvent`/hit testing), `ui`
 (`Widget<T>` delegates, layout, `Node`), `delegates` (built-in widget implementations), `app`
 (`WidgetTree`, `ViewBuilder`, `model_app`, event routing), `widgets` (`Tree`/`Table`/`Plot`/debug
-inspector), `backends` (SDL3, headless software/null backends used by tests).
+inspector), `backends` (SDL3, headless software/null backends used by tests), `audio` (`Output`:
+sound out through a render function; SDL code in `src/backends/sdl_audio.cpp`).
 
 Non-template code goes in `src/<module>/<header>.cpp` (libprism), not in the header: headers keep
 templates, reflection code and short getters, so each file that includes them parses less. Never

@@ -122,6 +122,7 @@ prism_software_backend_lib = library('prism-software-backend',
   'backends/font_lookup.cpp',
   'backends/settings_dir.cpp',
   'backends/sdl_image_decoder.cpp',
+  'backends/sdl_audio.cpp',
   sdl_platform_src,
   sdl_webgpu_src,
   # dl: dladdr() lives in libdl before glibc 2.34; empty dependency elsewhere.

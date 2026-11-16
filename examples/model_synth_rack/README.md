@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
 | `blocks/effects.hpp` | Delay time, feedback, mix. |
 | `blocks/output.hpp` | Volume, the callback budget readout, the stall button. |
 | `blocks/analyzer.hpp`, `analyzer_canvas.hpp` | The analyzer panel, and its drawing. |
-| `audio_thread.hpp` | The audio device, the engine, the ring and the analysis loop. |
+| `audio_thread.hpp` | The engine on an `audio::Output`, the sample ring and the analysis loop. |
 | `dsp/` | The synth itself, no PRISM: oscillator, filter, envelope, delay, arpeggiator, engine, FFT. |
 | `diagrams/threads.svg` | The picture above. |
 

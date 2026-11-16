@@ -24,9 +24,9 @@ Facts, from this tree.
   satellite libs, FreeType, HarfBuzz, libunibreak, sheenbidi, Glaze, fmt, doctest, nanobind,
   robin-map, sqlite3, stdexec, magic_enum and wgpu-native. Nothing else.
 - `prism_core_dep` links stdexec, fmt, magic_enum, libunibreak, sheenbidi and Glaze. No SDL.
-- `examples/model_synth_rack/audio_device.hpp` is the only file in that example that includes SDL.
-  It calls `SDL_OpenAudioDeviceStream` with `SDL_AUDIO_F32`, pumps with `SDL_PutAudioStreamData`,
-  and falls back to a `std::jthread` timer when no device opens.
+- `audio::Output` (`include/prism/audio/output.hpp`, SDL in `src/backends/sdl_audio.cpp`) is
+  pilot 1, done 2026-11-16: a playback device calling a render function, with a timer fallback
+  when no device opens. The synth rack plays through it; it was the example's own SDL wrapper.
 - `include/prism/core/latest.hpp` holds `core::Latest<T>` (it was the synth rack's `RtLatest<T>`), a three-slot handoff with no lock
   and no allocation, because `Shared<T>::set()` allocates a `shared_ptr` and cannot run in a
   callback.
@@ -236,7 +236,13 @@ exactly the reimplementation this note rules out. On ESP32 the `espressif/asio` 
 socket half for free and the serial half not at all, so `serial_link()` stays a host adapter and the
 board's UART goes through the ESP-IDF driver.
 
-**HTTP: no default; cpp-httplib when an app asks for it, Beast when WebSocket matters.** HTTP is a
+**HTTP: the user wants an API in the style of Python's `requests` or `httpx`** (2026-11-16): one
+call per request, a response object with status, headers, text and json, and an async form whose
+reply crosses into the model like any other. Candidates named: cpp-httplib (below) and aeronet
+(https://github.com/sjanel/aeronet, not yet checked). Under it, the byte stream is PRISM's
+`QIODevice`: one `ByteStream` shape for TCP, serial, files, pipes, a buffer and a test double.
+
+**HTTP, first assessment: no default; cpp-httplib when an app asks for it, Beast when WebSocket matters.** HTTP is a
 protocol on top of a socket, not a separate I/O domain, so it does not get its own dependency by
 default. cpp-httplib is the cheapest way to make one request from app code and runs on its own
 thread, which the `Shared`/`Channel` crossing already supports. Its README states that 32-bit
@@ -250,6 +256,15 @@ OSes and has no Component Registry entry, so the P4's MQTT path is `espressif/es
 same adapter.
 
 ## Pilot 1: audio out of the synth rack
+
+**Done 2026-11-16**, simpler than planned below: no `Sink` concept yet, one concrete
+`audio::Output(Format, RenderFn)` whose SDL code lives in the backend library. The render function
+gets a `std::span<float>` of interleaved samples. `tests/test_audio_output.cpp` runs it on SDL's
+dummy audio driver (added to `sdl3-headless-drivers.patch`) and on the timer, and checks that the
+rendering thread allocates nothing between blocks. → skipped: a concept and a second backend
+(miniaudio, ESP-IDF I2S); add when a build without SDL needs sound.
+
+The plan as first written:
 
 Replaces `examples/model_synth_rack/audio_device.hpp`. Same behaviour, but SDL stops leaking into
 the example and the callback contract becomes public.

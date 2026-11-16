@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/prism.hpp>
+#include <prism/audio/output.hpp>
 
 #include <algorithm>
 #include <array>
@@ -9,11 +10,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>
+#include <memory>
+#include <mutex>
 #include <span>
 #include <string>
 #include <thread>
 
-#include "dsp/audio_device.hpp"
 #include "dsp/engine.hpp"
 #include "dsp/sample_ring.hpp"
 #include "dsp/spectrum.hpp"
@@ -26,6 +28,7 @@ namespace prism::synth {
 inline constexpr int kDeviceRate = static_cast<int>(kSampleRate);
 inline constexpr int kBufferFrames = 512;
 inline constexpr int kChannels = 2;
+inline constexpr audio::Format kFormat{.sample_rate = kDeviceRate, .channels = kChannels, .block_frames = kBufferFrames};
 inline constexpr std::chrono::milliseconds kAnalysisPeriod{33};   // ~30 frames per second
 inline constexpr std::chrono::milliseconds kSleepSlice{5};
 
@@ -49,31 +52,40 @@ public:
     // No audio thread exists before this call, so the engine can be reset here.
     void open() {
         engine_.reset();
-        device_.open(
-            [this](float* interleaved, int frames) { render(interleaved, frames); });
+        auto output = std::make_unique<audio::Output>(kFormat, [this](std::span<float> out) { render(out); });
+        std::lock_guard lock{device_mutex_};
+        device_ = std::move(output);
     }
 
-    void close() { device_.close(); }
+    void close() {
+        std::lock_guard lock{device_mutex_};
+        device_.reset();   // joins the thread that renders
+    }
 
-    bool is_open() const { return device_.is_open(); }
+    bool is_open() const {
+        std::lock_guard lock{device_mutex_};
+        return device_ != nullptr;
+    }
 
     std::string status_text() const {
-        const auto config = device_.config();
-        if (device_.is_playing())
+        std::lock_guard lock{device_mutex_};
+        if (!device_) return "engine off";
+        const auto budget = device_->load().budget_ms;
+        if (device_->playing())
             return fmt::format("audio {} Hz · {} frame block · {:.2f} ms per block",
-                               config.sample_rate, config.buffer_frames, device_.budget_ms());
-        return fmt::format("no audio device ({}) — still rendering, silently", device_.error());
+                               kFormat.sample_rate, kFormat.block_frames, budget);
+        return fmt::format("no audio device ({}) — still rendering, silently", device_->error());
     }
 
     // Headless capture: run the same render path offline and time it here, since a capture run
     // has no callback to measure.
     AnalyzerFrame render_offline(int blocks) {
-        std::array<float, kChannels * AudioDevice::kMaxFrames> interleaved{};
+        std::array<float, kChannels * audio::kMaxBlockFrames> interleaved{};
         float total_ms = 0.f;
         float slowest_ms = 0.f;
         for (int block = 0; block < blocks; ++block) {
             const auto began = std::chrono::steady_clock::now();
-            render(interleaved.data(), AudioDevice::kMaxFrames);
+            render(interleaved);
             const float elapsed =
                 std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - began)
                     .count();
@@ -106,14 +118,14 @@ public:
 private:
     // The audio callback: one settings snapshot in, one block of interleaved samples out. Never
     // blocks, never allocates, never touches a Field.
-    void render(float* interleaved, int frames) {
+    void render(std::span<float> interleaved) {
         const SynthSettings settings = to_audio_.read();
         if (!(settings == last_settings_)) {
             last_settings_ = settings;
             telemetry_.parameter_updates.fetch_add(1, std::memory_order_relaxed);
         }
 
-        const auto count = static_cast<std::size_t>(frames);
+        const std::size_t count = interleaved.size() / kChannels;
         const std::span<float> mono{mono_scratch_.data(), count};
         const SynthEngine::Report report = engine_.render(settings, mono);
 
@@ -135,16 +147,22 @@ private:
 
     AnalyzerFrame make_frame(std::span<const float> newest) {
         AnalyzerFrame shot = spectrum_.analyze(newest);
-        const CallbackLoad load = device_.load();
+        const audio::Load load = device_load();
         shot.callback_max_ms = load.max_ms;
         shot.callback_mean_ms = load.mean_ms;
-        shot.buffer_frames = static_cast<std::uint32_t>(device_.config().buffer_frames);
-        shot.sample_rate = device_.config().sample_rate;
+        shot.buffer_frames = static_cast<std::uint32_t>(kFormat.block_frames);
+        shot.sample_rate = kFormat.sample_rate;
         shot.parameter_updates = telemetry_.parameter_updates.load(std::memory_order_relaxed);
         shot.step = telemetry_.step.load(std::memory_order_relaxed);
         shot.note = telemetry_.note.load(std::memory_order_relaxed);
         shot.sounding = telemetry_.sounding.load(std::memory_order_relaxed);
         return shot;
+    }
+
+    // The analysis thread asks while the logic thread may be closing the device.
+    audio::Load device_load() const {
+        std::lock_guard lock{device_mutex_};
+        return device_ ? device_->load() : audio::Load{};
     }
 
     struct Telemetry {
@@ -158,10 +176,12 @@ private:
     core::Latest<SynthSettings> to_audio_{};
     SampleRing samples_{1u << 14};
     Telemetry telemetry_{};
-    AudioDevice device_{{kDeviceRate, kChannels, kBufferFrames}};
+    // Never locked on the audio thread: the callback does not touch device_.
+    mutable std::mutex device_mutex_;
+    std::unique_ptr<audio::Output> device_;
     SynthEngine engine_{kSampleRate};
     SpectrumAnalyzer spectrum_{kSampleRate};
-    std::array<float, AudioDevice::kMaxFrames> mono_scratch_{};
+    std::array<float, audio::kMaxBlockFrames> mono_scratch_{};
     std::array<float, kFftSize> scratch_window_{};
 
     // Audio-thread state, owned by the render callback.

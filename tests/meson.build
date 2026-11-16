@@ -188,6 +188,15 @@ test_software_backend_request_window = executable('test_software_backend_request
 )
 test('software_backend_request_window', test_software_backend_request_window)
 
+# audio::Output on SDL's dummy audio driver, and on its timer when no driver opens.
+test_audio_output = executable('test_audio_output', files('test_audio_output.cpp'),
+  dependencies : [prism_software_backend_dep, doctest_dep],
+)
+test('audio_output_device', test_audio_output, args : ['-tc=device:*'],
+     env : {'SDL_AUDIO_DRIVER' : 'dummy'})
+test('audio_output_timer', test_audio_output, args : ['-tc=timer:*'],
+     env : {'SDL_AUDIO_DRIVER' : 'no-such-driver'})
+
 test_sdl_window = executable('test_sdl_window',
   files('test_sdl_window.cpp'),
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
