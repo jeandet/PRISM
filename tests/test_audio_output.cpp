@@ -22,6 +22,8 @@ thread_local bool counting = false;
 std::atomic<int> render_thread_allocations{0};
 }
 
+// new is malloc and delete is free on purpose; GCC 14 still flags each delete as mismatched.
+#pragma GCC diagnostic ignored "-Wmismatched-new-delete"
 void* operator new(std::size_t n) {
     if (counting) render_thread_allocations.fetch_add(1);
     if (void* p = std::malloc(n == 0 ? 1 : n)) return p;
