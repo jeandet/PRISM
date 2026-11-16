@@ -72,6 +72,8 @@ class Document;   // a vector of blocks, with insert/erase/replace and change no
 - `Document` is an observable container like `core::List<T>`, not a value in a `Field`: an edit
   says which blocks changed (`{first, count_removed, count_inserted}`), so the views redo only
   those. A `Field` would copy the whole text on every key.
+- Inside, the blocks sit in a **sum tree** (below, "Algorithms"): a B+ tree whose nodes carry
+  totals, so a byte offset, a line number or a y position finds its block in O(log n).
 - Edits are a few operations on a position `{block, byte}`: insert text, erase a range, set a
   block's kind, add or remove a span. Each records its inverse: that is the editor's undo, for
   free, and the same record serves a collaborative or remote edit later.
@@ -160,6 +162,27 @@ With reflection, a `text::Document` member shows as a `TextEditor`.
 cmark-gfm (GitHub's CommonMark with tables; on WrapDB) parses the source into a tree; one function
 walks it into blocks and spans. Code blocks name their language, so they get the matching
 highlighter. Images and tables come after text, lists and code.
+
+## Algorithms, and where they come from
+
+The choices below follow what current editors do, each picked for what PRISM already has.
+
+| Problem | Choice | Used by | Why here |
+|---|---|---|---|
+| Storing a large, edited text | A **sum tree**: a copy-on-write B+ tree of blocks whose inner nodes keep totals (blocks, bytes, newlines, height) | Zed ([rope and SumTree](https://zed.dev/blog/zed-decoded-rope-sumtree)); VS Code uses a piece tree for the same O(log n) lookups | Copy-on-write gives a cheap immutable snapshot: the render thread already works from snapshots. The height total doubles as the height map. |
+| Scrolling a document much taller than the window | A **height map**: each block's height is an estimate until it is laid out, then measured; the tree's height totals find the block at a y in O(log n) | CodeMirror 6 (its viewport and height map) | Only the visible blocks, plus a margin, are ever laid out. Kept in the same tree, not a second structure. |
+| Syntax colors that stay right while typing | **Per-block end state, with early stop**: highlight a block from the state the previous one ended in; after an edit, go on down only until a block ends in the same state as before | VS Code's TextMate tokenizer ([2017 write-up](https://code.visualstudio.com/blogs/2017/02/08/syntax-highlighting-optimizations)) | Usually one block per key. Blocks off screen are highlighted when idle, never on the key's path. |
+| Exact syntax trees | **Incremental parsing**: re-parse only the edited part of the tree | tree-sitter (on WrapDB) | Later, behind the same `Highlighter` interface, for languages where rules are not enough. |
+| Shaping, line breaking, bidi, graphemes | **HarfBuzz** (shaping), **UAX #14** line breaking (libunibreak), **UAX #9** bidi (SheenBidi), **UAX #29** clusters | Parley, cosmic-text and browsers do the same | All four are already PRISM dependencies; today they run per line with one font, and become per styled run. |
+| Not shaping the same text twice | A **layout cache per block**, keyed by the block's version, the width and the theme, within a memory budget (least recently used dropped first) | cosmic-text caches each line's shaping and layout; parley-based crates do the same | Typing re-shapes one block; scrolling back re-shapes nothing. |
+| Formatting that behaves at its edges | **Spans with an expand rule**: typing at the end of bold continues bold, at the end of a link does not | Peritext ([paper](https://www.inkandswitch.com/peritext/)), the rich-text CRDT | The same model later supports editing by several people (a CRDT), without changing what a span is. |
+| Undo that feels right | **Inverse operations, grouped**: typing merges until a pause, a word boundary or a caret jump; the selection is restored with the text | every editor | Free from the document's edit records. |
+| Find in a large document | **Boyer-Moore-Horspool** over the blocks (`std::boyer_moore_horspool_searcher`); a regex engine later | standard | No dependency for plain search. `std::regex` is too slow for this; a regex comes with its own step. |
+| Markdown | **cmark-gfm**, GitHub's spec-compliant CommonMark with tables | GitHub | On WrapDB; one walk turns its tree into blocks and spans. |
+
+simplify: one block holds a whole line. A single huge line (a minified file) is then laid out at
+once; Zed instead cuts text into fixed-size chunks independent of lines. Add chunking inside a
+block when such a file is measured to matter.
 
 ## Order of work
 
