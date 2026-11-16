@@ -2,6 +2,8 @@
 #include <doctest.h>
 
 #include <prism/core/connection.hpp>
+
+#include <memory>
 namespace prism::core {} namespace prism::render {} namespace prism::input {}
 namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
 namespace prism {
@@ -106,4 +108,28 @@ TEST_CASE("Receiver can disconnect itself during emit") {
     hub.emit();
     hub.emit();
     CHECK(calls == 1);
+}
+
+// Qt's other half: the sender may die first. The watcher's Connection then outlives its hub, and
+// destroying or disconnecting it must not touch the dead hub (ASAN reports it if it does).
+TEST_CASE("a Connection that outlives its hub disconnects harmlessly") {
+    prism::Connection conn;
+    {
+        auto hub = std::make_unique<prism::SenderHub<int>>();
+        conn = hub->connect([](int) {});
+    }
+    conn.disconnect();   // the hub is gone: nothing to remove it from
+    CHECK(true);
+}
+
+TEST_CASE("a moved hub keeps its connections: they follow the hub, and disconnect from it") {
+    int calls = 0;
+    prism::SenderHub<int> first;
+    prism::Connection conn = first.connect([&](int) { ++calls; });
+    prism::SenderHub<int> moved{std::move(first)};
+    moved.emit(1);
+    CHECK(calls == 1);
+    conn.disconnect();
+    moved.emit(2);
+    CHECK(calls == 1);   // disconnected from the hub it moved into
 }
