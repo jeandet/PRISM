@@ -660,7 +660,7 @@ workers, plugin config.
 
 ```cpp
 struct DeviceState {
-    float voltage = 3.3f;
+    [[=core::range<0.f, 5.f, 0.1f>, =core::unit<"V">]] float voltage = 3.3f;   // a slider
     int mode = 2;
     bool enabled = true;
 };
@@ -680,6 +680,8 @@ struct Settings {
     [[=inspector::readonly]]              std::string device_id;  // shown, not editable
     [[=inspector::label<"Sample Rate">]]  int sample_rate;        // custom caption
     [[=inspector::section<"Audio">]]      float volume;           // header row above
+    [[=core::range<0, 100>]]              int gain;               // a slider from 0 to 100
+    [[=core::range<0.0, 1.0, 0.01>, =core::unit<"%">]] double mix;   // step 0.01, shown with a unit
 };
 ```
 

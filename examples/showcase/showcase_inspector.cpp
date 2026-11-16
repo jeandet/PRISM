@@ -6,7 +6,7 @@
 using namespace prism;
 
 struct DeviceState {
-    float voltage = 3.3f;
+    [[=core::range<0.f, 5.f, 0.1f>, =core::unit<"V">]] float voltage = 3.3f;
     int mode = 2;
     bool enabled = true;
 };
@@ -14,7 +14,7 @@ struct DeviceState {
 int main(int argc, char* argv[]) {
     core::Shared<DeviceState> device_state{DeviceState{}};
     inspector::Inspector<DeviceState> inspector(device_state);
-    return showcase(argc, argv, inspector, 300, 165);
+    return showcase(argc, argv, inspector, 300, 190);
 }
 #else
 // Inspector<T> is reflection-only; produce a trivial placeholder SVG so

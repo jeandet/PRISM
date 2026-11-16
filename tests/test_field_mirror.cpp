@@ -260,4 +260,39 @@ TEST_CASE("readonly excludes the member from focus order, editable member stays 
     // focusable.
     CHECK(tree.focus_order().size() == 1);
 }
+
+struct SupplySettings {
+    [[=prism::core::range<0.0, 30.0, 0.1>, =prism::core::unit<"V">]] double volts;
+    [[=prism::core::range<0, 10>, =prism::core::label<"Channel">]] int channel;
+    bool enabled;
+};
+
+TEST_CASE("range turns a number into a captioned slider that round-trips through build()") {
+    prism::inspector::FieldMirror<SupplySettings> mirror;
+    mirror.sync_from(SupplySettings{12.5, 3, true});
+
+    const auto& volts = std::get<0>(mirror.slots).value.get();
+    CHECK(volts.value == doctest::Approx(12.5));
+    CHECK(volts.min == doctest::Approx(0.0));
+    CHECK(volts.max == doctest::Approx(30.0));
+    CHECK(volts.step == doctest::Approx(0.1));
+    CHECK(volts.label == "volts");
+    CHECK(volts.unit == "V");
+
+    const auto& channel = std::get<1>(mirror.slots).value.get();
+    CHECK(channel.max == 10);
+    CHECK(channel.label == "Channel");
+
+    auto edited = channel;
+    edited.value = 7;
+    std::get<1>(mirror.slots).value.set(edited);
+    SupplySettings rebuilt = mirror.build();
+    CHECK(rebuilt.volts == doctest::Approx(12.5));
+    CHECK(rebuilt.channel == 7);
+    CHECK(rebuilt.enabled);
+
+    prism::WidgetTree tree(mirror);
+    // volts and channel: one slider each, captioned on its own; enabled: name + value
+    CHECK(tree.leaf_count() == 4);
+}
 #endif // __cpp_impl_reflection
