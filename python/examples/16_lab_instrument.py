@@ -3,7 +3,7 @@
 Demonstrates:
   - prism.plot_field() + vb.canvas() as the instrument's screen, redrawn from the controls
   - prism.slider(label=, unit=, step=): a control that prints its own value
-  - prism.derived() with descriptor deps: readouts computed from several controls
+  - prism.derived(): readouts computed from several controls, following what they read
   - prism.shared(): the three setpoints the hardware thread reads, and the frame it sends back
   - prism.channel(): ordered hardware events, each one a line in the log
   - a background prism.worker() that never touches a Field
@@ -44,15 +44,8 @@ class LabInstrument(prism.Model):
     voltage = prism.slider(12.0, min=0.0, max=30.0, step=0.1, label="Voltage", unit="V")
     current_limit = prism.slider(2.0, min=0.1, max=5.0, step=0.05, label="Current limit", unit="A")
     output_on = prism.button("Output", checked=True)
-    output_state = prism.derived(
-        lambda self: "Output: ON" if self.output_on.checked else "Output: OFF",
-        output_on,
-    )
-    max_power = prism.derived(
-        lambda self: f"Max power {self.voltage.value * self.current_limit.value:.1f} W",
-        voltage,
-        current_limit,
-    )
+    output_state = prism.derived(lambda self: "Output: ON" if self.output_on.checked else "Output: OFF")
+    max_power = prism.derived(lambda self: f"Max power {self.voltage.value * self.current_limit.value:.1f} W")
     trip_btn = prism.button("Trip over-current protection")
     reset_btn = prism.button("Reset protection circuit")
 
@@ -61,9 +54,7 @@ class LabInstrument(prism.Model):
     frequency = prism.slider(1000.0, min=50.0, max=20000.0, step=50.0, label="Frequency", unit="Hz")
     amplitude = prism.slider(5.0, min=0.5, max=10.0, step=0.1, label="Amplitude", unit="Vpp")
     offset = prism.slider(0.0, min=-4.0, max=4.0, step=0.1, label="Offset", unit="V")
-    period_caption = prism.derived(
-        lambda self: f"Period {1e3 / self.frequency.value:.3f} ms", frequency
-    )
+    period_caption = prism.derived(lambda self: f"Period {1e3 / self.frequency.value:.3f} ms")
 
     # The screen, and the transport to the hardware thread: one Shared slot per value the worker
     # reads, so it never touches a Field (a Field belongs to the logic thread).

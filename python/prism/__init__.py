@@ -225,6 +225,7 @@ import inspect as _inspect_mod
 import threading as _threading_mod
 import time as _time_mod
 import traceback as _traceback_mod
+import types as _types_mod
 
 from . import _prism_ext
 
@@ -948,6 +949,27 @@ def channel(type_hint=0):
     return _ChannelDescriptor(type_hint)
 
 
+class _Reads:
+    """Stands in for the model while a derived function runs, and notes which of its prism
+    attributes (fields, sliders, other derived values...) the function reads. Methods and
+    properties run against it too, so a read inside a helper method counts."""
+
+    def __init__(self, model, read):
+        self._model = model
+        self._read = read
+
+    def __getattr__(self, name):
+        attr = _inspect_mod.getattr_static(type(self._model), name, None)
+        if isinstance(attr, _Descriptor):
+            self._read.add(name)
+            return getattr(self._model, name)
+        if isinstance(attr, property):
+            return attr.fget(self)
+        if _inspect_mod.isfunction(attr):
+            return _types_mod.MethodType(attr, self)
+        return getattr(self._model, name)
+
+
 class _DerivedDescriptor(_Descriptor):
     def __init__(self, fn, *deps, type_hint=None):
         super().__init__()
@@ -959,6 +981,8 @@ class _DerivedDescriptor(_Descriptor):
         cache, h = self._cached(instance)
         if h is not None:
             return h
+        if not self.deps:
+            return self._allocate_following(instance, cache)
         # resolve deps (string name or descriptor -> attribute name -> handle)
         dep_names = tuple(_dep_attr_name(d) for d in self.deps)
         dep_handles = [getattr(instance, n) for n in dep_names]
@@ -1006,6 +1030,41 @@ class _DerivedDescriptor(_Descriptor):
         cache[self.name] = h
         return h
 
+    def _allocate_following(self, instance, cache):
+        """No dep list: what the function reads are its deps, again at every recompute; a
+        value read for the first time (a branch now taken) is followed from then on.
+        simplify: a value no longer read is still followed (one extra recompute each time it
+        changes); dropping it needs the C++ side to disconnect a single dep."""
+        read = set()
+        try:
+            probe = self.fn(_Reads(instance, read))
+        except Exception as exc:
+            raise TypeError(f"derived '{self.name}': its first call raised {exc!r}") from exc
+        kind = _kind_of(self.type_hint if self.type_hint is not None else probe, "derived")
+        followed = set(read)
+        wref = _wr_mod.ref(instance)
+        orig = self.fn
+        handle = []  # a weakref to the handle once made: the handle owns this function
+
+        def call_fn():
+            inst = wref()
+            if inst is None:
+                return None
+            now = set()
+            result = orig(_Reads(inst, now))
+            h = handle[0]() if handle else None
+            for name in now - followed:
+                if h is not None:
+                    followed.add(name)
+                    h._follow(getattr(inst, name))
+            return result
+
+        deps = [getattr(instance, n) for n in sorted(read)]
+        h = getattr(instance, f"_add_derived_{kind}_internal")(call_fn, self.name, *deps)  # type: ignore[attr-defined]
+        handle.append(_wr_mod.ref(h))
+        cache[self.name] = h
+        return h
+
     # deprecated (2026-09-03 followups): prefer m.<name>.observe(cb)
     def observe(self, instance, callback):
         _warn_deprecated_class_observe(self.name)
@@ -1018,11 +1077,18 @@ class _DerivedDescriptor(_Descriptor):
 def derived(fn=None, *deps, type_hint=None, tooltip=None):
     """Read-only; computed on the logic thread.
 
-    Descriptor factory: derived(lambda self: ..., a, b) with descriptor deps
-    (preferred — a typo is a NameError at class-body time, not silent), or
-    derived(lambda self: ..., 'a', 'b') with string names.
+    Descriptor factory. With no deps, derived(lambda self: ...) follows the
+    model attributes the function reads (fields, sliders, other derived
+    values, also when read inside a method), again at every recompute.
+    With deps it follows exactly those: derived(lambda self: ..., a, b) with
+    descriptor deps, or derived(lambda self: ..., 'a', 'b') with string names.
 
     Usage:
+      class M(Model):
+        a = field(1)
+        b = field(2)
+        total = derived(lambda self: self.a.value + self.b.value)
+      # or listing the deps:
       class M(Model):
         a = field(1)
         b = field(2)

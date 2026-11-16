@@ -24,7 +24,7 @@ class StressModel(prism.Model):
     reading = prism.shared(0)
     events = prism.channel(0)
     counter = prism.field(0)
-    doubled = prism.derived(lambda self: self.counter.value * 2, counter)
+    doubled = prism.derived(lambda self: self.counter.value * 2)
 
 
 def stress(model: StressModel) -> None:

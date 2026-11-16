@@ -1832,6 +1832,45 @@ def test_derived_basic_and_gc():
     gc.collect()
 
 
+def test_derived_without_deps_follows_what_it_reads():
+    """derived(lambda self: ...) with no dep list follows the fields its function reads."""
+    from prism import derived
+
+    class M(Model):
+        a = field(2)
+        b = field(3)
+        unread = field(0)
+        total = derived(lambda self: self.a.value + self.b.value)
+
+    m = M()
+    assert m.total.value == 5
+    m.a.value = 10
+    assert m.total.value == 13
+    m.b.value = 7
+    assert m.total.value == 17
+
+
+def test_derived_without_deps_follows_a_branch_once_taken_and_methods():
+    from prism import derived
+
+    class M(Model):
+        use_a = field(True)
+        a = field(1)
+        b = field(2)
+
+        def picked(self):
+            return self.a.value if self.use_a.value else self.b.value
+
+        pick = derived(lambda self: self.picked())
+
+    m = M()
+    assert m.pick.value == 1
+    m.use_a.value = False
+    assert m.pick.value == 2
+    m.b.value = 5              # read only since the branch changed
+    assert m.pick.value == 5
+
+
 def test_derived_descriptor_deps():
     """2026-09-03 followups task 10: derived() accepts class-level field
     descriptors as deps (not just string names) — `a`/`b` below are the

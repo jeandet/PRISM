@@ -3,7 +3,7 @@
 Demonstrates:
   - prism.list_field() push/erase + observe_insert/observe_remove
   - a selectable list: a click or the arrow keys select; items.selected reads it
-  - prism.derived() recomputing from descriptor deps
+  - prism.derived() recomputing from the fields it reads
   - prism.transaction() batching a list push with a field write
 
 Run:
@@ -18,8 +18,8 @@ class TodoApp(prism.Model):
     filter_text = prism.field("")
     counter = prism.field(0)
     items = prism.list_field(["buy milk", "write docs"])
-    summary = prism.derived(lambda self: f"{self.counter.value} items", counter)
-    filter_len = prism.derived(lambda self: len(self.filter_text.value), filter_text)
+    summary = prism.derived(lambda self: f"{self.counter.value} items")
+    filter_len = prism.derived(lambda self: len(self.filter_text.value))
 
     def view(self, vb):
         vb.vstack(self.new_item, self.filter_text, self.counter)

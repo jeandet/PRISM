@@ -854,7 +854,7 @@ class Mixer(prism.Model):
     mute = prism.checkbox(False, label="Mute")
     count = prism.field(42)
     volume_slider = prism.slider(0.75, min=0.0, max=1.0)
-    total = prism.derived(lambda self: self.count.value * 2, "count")
+    total = prism.derived(lambda self: self.count.value * 2)   # follows what it reads
 
     def view(self, vb):                         # optional, else fields are stacked
         vb.hstack(self.volume_slider, self.mute)
@@ -910,7 +910,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.settings_dir(org, app)` | `backends::settings_dir` | save the app's settings there (json, tomllib) |
 | `prism.shared(default)` | `Shared<T>` | latest value, cross-thread |
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
-| `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |
+| `prism.derived(fn)` | `Derived<T>` | follows what `fn` reads; `prism.derived(fn, *deps)` lists them |
 | `prism.list_field([...])` | `List<T>` | `push` / `erase` / `observe_*` |
 | `prism.transaction()` | `prism::transaction([]{...})` | coalesced publish |
 | `prism.run(model)` | `app::run(model, {.title})` | |

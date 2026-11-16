@@ -579,7 +579,13 @@ void bind_scalar(nb::module_& m, const char* suffix) {
         .def_prop_ro("value", &BoundDerived<T>::get).def("get", &BoundDerived<T>::get)
         .def("observe", [](nb::object self, nb::callable cb) {
             return keep_connection(self, nb::cast<BoundDerived<T>&>(self).observe(cb), cb);
-        }, nb::arg("callback"), kObserveDoc);
+        }, nb::arg("callback"), kObserveDoc)
+        // Recomputes when `dep` changes too: a derived with no dep list adds what it read
+        // (prism.derived). The owner is the SlotDerived itself (add_derived_slot_vec).
+        .def("_follow", [](BoundDerived<T>& self, nb::object dep) {
+            if (!self.derived || !self.owner) return;
+            derived_attach_dep(std::static_pointer_cast<SlotDerived<T>>(self.owner), std::move(dep));
+        }, nb::arg("dep"));
 }
 
 // List<bool>/BoundList<bool> are deliberately never instantiated — vector<bool> proxy is
