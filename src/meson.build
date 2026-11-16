@@ -168,6 +168,22 @@ if host_machine.system() != 'emscripten' and get_option('http').allowed()
   endif
 endif
 
+# Markdown (text/markdown.hpp): GitHub's CommonMark parser, cmark-gfm, into a text::Document.
+# Static, like libunibreak: a wheel needs no extra shared library. Its own warnings are not ours.
+prism_markdown_dep = dependency('', required : false)
+if get_option('markdown').allowed()
+  cmark_dep = dependency('libcmark-gfm', required : get_option('markdown'),
+                         fallback : ['cmark-gfm', 'cmark_gfm_dep'],
+                         default_options : ['default_library=static', 'werror=false', 'warning_level=0'])
+  if cmark_dep.found()
+    prism_markdown_lib = library('prism-markdown', 'text/markdown.cpp',
+      dependencies : [prism_core_dep, cmark_dep.as_system('system')],
+      install : true,
+    )
+    prism_markdown_dep = declare_dependency(link_with : prism_markdown_lib, dependencies : [prism_core_dep])
+  endif
+endif
+
 # Byte streams (io/streams.hpp): TCP and serial ports through standalone Asio (header-only) behind
 # prism-io. No sockets in the browser, so never built there.
 prism_io_dep = dependency('', required : false)

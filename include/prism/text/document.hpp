@@ -49,7 +49,7 @@ struct Block {
     std::vector<Span> spans{};
     BlockKind kind = BlockKind::paragraph;
     int level = 0;               // a heading's level (1-6), a list item's depth
-    std::string info{};          // a code block's language
+    std::string info{};          // a code block's language; a list item's marker ("•", "3.", "☑")
     std::uint64_t version = 0;   // new at each change: what a layout cache keys on
 };
 

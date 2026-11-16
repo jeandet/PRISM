@@ -210,6 +210,12 @@ if prism_io_dep.found()
   test('lab_bench_link', test_lab_bench_link)
 endif
 
+# text::markdown: GitHub-flavoured Markdown into a document.
+if prism_markdown_dep.found()
+  test('markdown', executable('test_markdown', files('test_markdown.cpp'),
+    dependencies : [prism_markdown_dep, doctest_dep]))
+endif
+
 # net::send / net::Client against an in-process cpp-httplib server on localhost.
 if prism_net_dep.found()
   test_http = executable('test_http', files('test_http.cpp'),

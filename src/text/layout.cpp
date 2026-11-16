@@ -157,7 +157,7 @@ void frame(BlockLayout& out, const Block& b, const LayoutStyle& st, float& above
     switch (b.kind) {
     case BlockKind::heading: above = 0.6f * em; below = 0.3f * em; break;
     case BlockKind::quote: out.indent = 1.2f * em; out.quote_bar = true; break;
-    case BlockKind::bullet: out.indent = 1.5f * em * static_cast<float>(b.level + 1); out.marker = "\xE2\x80\xA2"; break;
+    case BlockKind::bullet:
     case BlockKind::ordered: out.indent = 1.5f * em * static_cast<float>(b.level + 1); out.marker = b.info; break;
     case BlockKind::code: out.background = t.code_bg; out.indent = 0.6f * em; break;
     case BlockKind::rule: out.rule = true; above = below = 0.5f * em; break;
