@@ -109,19 +109,31 @@ The view consumes diffs incrementally. This is a Phase 4+ optimisation.
 
 All state mutation happens on the app thread. The view lambda runs on the app thread. `.on_X()` handlers run on the app thread. The only cross-thread data is the immutable `SceneSnapshot`.
 
-## Derived Source List, Checked in Debug Builds
+## Derived Follows What It Reads
 
-`core::Derived<T>` recomputes only when one of the sources it was given changes, so a source left
-out of the list is invisible to the compiler and to a test: the value simply goes stale (the synth
-stayed silent once because the power button was missing from the list). Debug builds close that
-hole with a small thread-local read log (`core/read_log.hpp`): `Field`/`State`, `Shared` and
-`Derived` record the address of the object `get()` was called on, a `Derived` arms the log around
-its first compute, and any address read that is not one of its sources is reported once on stderr as
-`prism: a Derived<T> reads a value it does not list as a source`. The log is saved and restored
-around a `Derived` constructed inside another one's compute. Only the first compute is watched, so a
-read behind a branch it did not take is still missed and a list longer than the log's fixed capacity
-stops being recorded; checking every recompute in debug is the upgrade path. A release build has
-no log, no `thread_local`, and the `get()` functions compile to what they were.
+`core::Derived<T>` used to recompute only from a source list written after its function. A source
+left out was invisible to the compiler and to a test: the value went stale (the synth stayed
+silent once because the power button was missing from the list). Now the list is optional.
+
+Without one, the `Derived` records what its function reads (`core/read_log.hpp`): `Field`/`State`,
+`Shared` and `Derived` note every `get()` into a thread-local log while a compute runs. Each new
+value read is connected at the moment of the read, while it is surely alive; a value followed by
+the previous compute hands its connection over instead of connecting again, and one no longer
+read is disconnected. Reads are recorded at every recompute, so the `Derived` follows the branch
+its function took, not the one it did not. `core::untracked(fn)` reads without following. A
+`Derived` built inside another one's compute saves and restores the log, so its reads stay its
+own.
+
+Costs: every `get()` asks libprism's thread-local "is a compute recording?" in release builds too
+(a function call: an inline variable would have one copy per shared object, see AGENTS.md). Release
+benchmarks did not move (50k widgets, unchanged publish: 1.34 ms). A value read some other way
+than `get()` (a raw pointer, a copy taken earlier) is not seen.
+
+With a list (`{fn, a, b}`), it follows exactly those, as before, and a debug build warns once when
+the first compute reads a value the list does not cover.
+
+Not solved, as before: a diamond (C reads A and B, B reads A) may recompute C with a stale B, then
+again. Ordering recomputes by depth would fix it.
 
 ## Open Questions
 

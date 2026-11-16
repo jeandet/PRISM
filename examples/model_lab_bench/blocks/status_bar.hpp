@@ -25,8 +25,7 @@ struct StatusBar {
             if (!t.scope_samples.empty() && t.measured_vpp == 0.0) return std::string{"output off"};
             return fmt::format("{:.2f}V  {:.2f}A  {:.1f}W  {:.0f}C", t.voltage_sense, t.current_sense,
                                t.power_watts, t.temperature_c);
-        },
-        frame};
+        }};
     core::Field<ui::Label<>> device{{"simulated USB-TMC | /dev/usbtmc0"}};
     core::Field<ui::Label<>> age{{"frame age 0.0 s"}};
 

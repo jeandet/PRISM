@@ -40,16 +40,12 @@ struct SynthApp {
     synth::blocks::Effects effects{};
     synth::blocks::Output output{feed.frame};
 
-    // One value crosses to the audio thread: the whole settings snapshot, rebuilt whenever any
-    // control moves. Every control is listed below -- leaving one out (power, once) left the
-    // synth silent, because a Derived only recomputes from the sources it was given.
+    // One value crosses to the audio thread: the whole settings snapshot, rebuilt whenever a
+    // control it reads moves. In a struct of its own: it is plumbing, not a widget to place.
     struct Link {
         core::Derived<synth::SynthSettings> settings;
     };
-    Link link{{[this] { return gather_settings(); },
-               arp.power, arp.tempo, arp.chord, arp.pattern, arp.octaves, gates.port.mask,
-               voice.waveform, voice.cutoff, voice.resonance, voice.attack, voice.release,
-               effects.time, effects.feedback, effects.mix, output.volume}};
+    Link link{{[this] { return gather_settings(); }}};
 
     synth::blocks::Analyzer analyzer{feed.frame, link.settings};
 
@@ -61,8 +57,7 @@ struct SynthApp {
             if (!arp.powered()) return std::string("idle");
             return fmt::format("step {:2} · {:>3} · {:5.1f} dBFS", shot.step + 1,
                                synth::note_name(shot.note), shot.peak_db);
-        },
-        feed.frame, arp.power};
+        }};
     core::Derived<std::string> status_budget{
         [this] {
             const synth::AnalyzerFrame& shot = feed.frame.get();
@@ -73,8 +68,7 @@ struct SynthApp {
                                      : 0.f;
             return fmt::format("callback {:.3f} ms mean of {:.2f} ms", shot.callback_mean_ms,
                                budget);
-        },
-        feed.frame};
+        }};
 
     core::Field<ui::Label<>> status_audio{{.value = "engine off — press Power to start"}};
 

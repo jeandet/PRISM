@@ -29,8 +29,7 @@ struct Voice {
                                ui::enum_label<Waveform>(ui::enum_index(waveform.get())),
                                cutoff.get().value, resonance.get().value, attack.get().value,
                                release.get().value);
-        },
-        waveform, cutoff, resonance, attack, release};
+        }};
 
     VoiceSettings settings() const {
         return {.waveform = waveform.get(),

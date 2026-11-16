@@ -30,8 +30,8 @@ struct StatusBar {
     core::Field<Status> state{};
     core::Field<std::uint32_t> loaded_rows{0};
 
-    core::Derived<std::string> text{[this] { return status_line(state.get()); }, state};
-    core::Derived<ui::ProgressBar> bar{[this] { return status_bar_detail::progress_bar(state.get()); }, state};
+    core::Derived<std::string> text{[this] { return status_line(state.get()); }};
+    core::Derived<ui::ProgressBar> bar{[this] { return status_bar_detail::progress_bar(state.get()); }};
 
     core::Field<std::uint32_t>& rows() { return loaded_rows; }
     std::size_t loaded() const { return loaded_rows.get(); }

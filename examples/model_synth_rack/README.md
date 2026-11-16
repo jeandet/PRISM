@@ -105,14 +105,12 @@ dragged and tabbed; their arrangement is part of `settings`, so it comes back ne
 
 ### One value to the audio thread
 
-The six blocks' slices are pasted together in one `Derived`. It lists every control it depends
-on, so it recomputes when any of them moves:
+The six blocks' slices are pasted together in one `Derived`. It notes every control
+`gather_settings()` reads, so it recomputes when any of them moves; there is no list to keep in
+step with the blocks:
 
 ```cpp
-Link link{{[this] { return gather_settings(); },
-           arp.power, arp.tempo, arp.chord, arp.pattern, arp.octaves, gates.port.mask,
-           voice.waveform, voice.cutoff, voice.resonance, voice.attack, voice.release,
-           effects.time, effects.feedback, effects.mix, output.volume}};
+Link link{{[this] { return gather_settings(); }}};
 ```
 
 `SynthSettings` is trivially copyable. The audio callback reads it from a `core::Latest<T>`, a

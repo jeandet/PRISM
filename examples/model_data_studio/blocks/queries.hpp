@@ -29,8 +29,7 @@ struct Queries {
             auto text = index && *index < kSavedQueries.size() ? std::string{kSavedQueries[*index].note}
                                                               : std::string{};
             return ui::Label<>{.value = std::move(text), .wrap = true};
-        },
-        selected};
+        }};
 
     void select(std::size_t index) { selected.set(index); }
 

@@ -114,15 +114,6 @@ TEST_CASE("a Derived that reads another Derived without listing it says so") {
     CHECK(said.find(kWarning) != std::string::npos);
 }
 
-TEST_CASE("a Derived with no sources says so when it reads a Field") {
-    Field<int> input{5};
-    const std::string said = said_while([&] {
-        Derived<int> copied{[&] { return input.get(); }};
-        CHECK(copied.get() == 5);
-    });
-    CHECK(said.find(kWarning) != std::string::npos);
-}
-
 TEST_CASE("a Derived built inside another one's compute keeps its own reads") {
     Field<int> outer_listed{1};
     Field<int> inner_only{2};

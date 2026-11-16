@@ -39,8 +39,7 @@ struct Output {
             if (shot.callback_max_ms <= 0.f) return std::string("callback: no audio yet");
             return fmt::format("callback {:.3f} ms mean · {:.3f} ms max", shot.callback_mean_ms,
                                shot.callback_max_ms);
-        },
-        frame};
+        }};
     core::Derived<std::string> engine_caption{
         [this] {
             const AnalyzerFrame& shot = frame.get();
@@ -49,8 +48,7 @@ struct Output {
                                             : fmt::format("{} updates", shot.parameter_updates);
             return fmt::format("of {:.2f} ms · {} Hz · {} frames · {}", block_ms(shot),
                                static_cast<int>(shot.sample_rate), shot.buffer_frames, updates);
-        },
-        frame};
+        }};
 
     double volume_db() const { return volume.get().value; }
 

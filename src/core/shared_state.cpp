@@ -14,14 +14,12 @@ std::mutex error_handler_mutex;
 ErrorHandler error_handler;
 } // namespace prism::core::error_hub_detail
 
-#ifndef NDEBUG
 namespace prism::core::read_log_detail {
 Log*& watching() {
     thread_local Log* log = nullptr;
     return log;
 }
 } // namespace prism::core::read_log_detail
-#endif
 
 namespace prism::app {
 bool& detail_is_logic_thread() {

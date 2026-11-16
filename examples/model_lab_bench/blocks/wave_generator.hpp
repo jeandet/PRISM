@@ -24,8 +24,7 @@ struct WaveGenerator {
         [this] {
             return fmt::format("Period  {:.3f} ms   {:.1f} cycles on screen", 1e3 / frequency.get().value,
                                frequency.get().value * kScopeWindowSeconds);
-        },
-        frequency};
+        }};
 
     void apply_to(DaqSettings& settings) const {
         settings.wave_type = wave_type.get();

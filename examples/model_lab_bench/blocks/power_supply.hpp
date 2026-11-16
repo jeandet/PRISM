@@ -34,8 +34,7 @@ struct PowerSupply {
     core::Derived<std::string> power_caption{
         [this] {
             return fmt::format("Max power {:>5.1f} W", target_voltage.get().value * current_limit.get().value);
-        },
-        target_voltage, current_limit};
+        }};
     core::Derived<std::string> mode_caption{
         [this] {
             const DaqTelemetry& t = frame.get();
@@ -43,8 +42,7 @@ struct PowerSupply {
             if (!(t.current_sense > 0.0)) return std::string{"Mode  output off"};
             return fmt::format("Mode  {}   load {:.2f} ohm", t.constant_current ? "CC" : "CV",
                                t.voltage_sense / t.current_sense);
-        },
-        frame};
+        }};
 
     void apply_to(DaqSettings& settings) const {
         settings.target_voltage = target_voltage.get().value;

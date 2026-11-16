@@ -32,8 +32,7 @@ struct Arpeggiator {
                                ui::enum_label<ArpPattern>(ui::enum_index(pattern.get())),
                                tempo.get().value, octave_span(),
                                arp_sequence(chord.get(), octave_span()).count);
-        },
-        tempo, chord, pattern, octaves};
+        }};
 
     bool powered() const { return power.get().checked.value_or(false); }
 

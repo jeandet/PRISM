@@ -93,8 +93,7 @@ itself:
 core::Derived<std::string> power_caption{
     [this] {
         return fmt::format("Max power {:>5.1f} W", target_voltage.get().value * current_limit.get().value);
-    },
-    target_voltage, current_limit};
+    }};
 ```
 
 The caption recomputes when either slider moves, on the logic thread, with no frame involved. This

@@ -35,10 +35,10 @@ Next: `examples/model_lab_bench/` builds a whole instrument out of structs like 
 
 ## 02. Derived values
 
-A `core::Derived` is a value computed from other fields: it recomputes from the sources it was
-given, and nothing else. Here the area follows the two spin boxes, and `vb.widget` shows it as a
-read-only label like any other value. There is no callback to remember to call. Leave a source out
-of the list and a debug build says so on stderr when the `Derived` is built.
+A `core::Derived` is a value computed from other fields. It notes which fields its function
+reads and recomputes when one of them changes: there is no list to write and no callback to
+remember to call. Here the area follows the two spin boxes, and `vb.widget` shows it as a
+read-only label like any other value.
 
 ```cpp
     core::Field<ui::SpinBox<int>> width{{.value = 2, .min = 1, .max = 99}};
@@ -47,7 +47,7 @@ of the list and a debug build says so on stderr when the `Derived` is built.
     // Recomputes whenever either side changes; nothing has to call it, and a widget can show it.
     core::Derived<std::string> area{[this] {
         return "area: " + std::to_string(width.get().value * height.get().value);
-    }, width, height};
+    }};
 ```
 
 Next: `examples/model_synth_rack/model_synth_rack.cpp` — its `Link` is one `Derived` over six blocks.

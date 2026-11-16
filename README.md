@@ -515,7 +515,7 @@ placed inside it without adding a container. A checkbox works as the flag too ("
 options" enabling the group below it):
 
 ```cpp
-core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }, name};
+core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }};
 vb.widget(save).enabled(has_name);                        // one widget
 vb.enabled_if(unlocked, [&] { vb.vstack(volume, quality); });   // a group
 ```
@@ -727,7 +727,7 @@ captioned "volts" that writes a plain `double`.
 | `Channel<T>` | every value, in order | no | **any thread** | event streams where nothing may be lost |
 
 ```cpp
-core::Derived<double> total{[&]{ return price.get() * quantity.get(); }, price, quantity};
+core::Derived<double> total{[&]{ return price.get() * quantity.get(); }};
 
 auto conn = price.on_change().connect([](const double& p) { /* ... */ });   // RAII handle
 
@@ -748,6 +748,9 @@ A few rules worth knowing:
   members the widget tree shows (`vb.widget(shared)`) are wired on their own.
 - An exception in a callback goes to `core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
+- A `Derived` follows the observables its function reads through `get()`, again at every
+  recompute: a branch not taken is not followed until it is. `core::untracked(fn)` reads without
+  following. A list after the function (`{fn, price, quantity}`) follows exactly those instead.
 
 ### Connecting blocks
 

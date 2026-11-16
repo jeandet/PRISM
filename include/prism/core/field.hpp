@@ -19,11 +19,11 @@ struct ObservableValue {
     ObservableValue(T init) : value(std::move(init)) {}
 
     const T& get() const {
-        read_log_detail::note_read(static_cast<const void*>(static_cast<const Derived*>(this)));
+        read_log_detail::note_read(static_cast<const Derived*>(this));
         return value;
     }
     operator const T&() const {
-        read_log_detail::note_read(static_cast<const void*>(static_cast<const Derived*>(this)));
+        read_log_detail::note_read(static_cast<const Derived*>(this));
         return value;
     }
 
