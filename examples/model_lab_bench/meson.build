@@ -1,5 +1,7 @@
+# With prism-io (not in the browser): --serve-instrument and --instrument, the bench over TCP.
 model_lab_bench_exe = executable('model_lab_bench', 'model_lab_bench.cpp',
-  dependencies : [prism_dep, fmt_dep],
+  dependencies : [prism_dep, fmt_dep, prism_io_dep],
+  cpp_args : prism_io_dep.found() ? ['-DPRISM_LAB_BENCH_LINK=1'] : [],
   name_suffix : example_suffix,
   link_args : example_link_args,
   link_depends : example_shell,

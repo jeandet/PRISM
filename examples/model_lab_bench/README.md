@@ -28,6 +28,12 @@ The same window with each block outlined and named: every panel is one small str
 - **To save one frame:** pass a path —
   `builddir/examples/model_lab_bench/model_lab_bench bench.svg`. That run seeds a single frame and
   stops: no window and no threads.
+- **Over a real link (desktop):** the same instrument can sit behind a TCP port and speak SCPI,
+  the text protocol bench instruments use. In one terminal run
+  `model_lab_bench --serve-instrument 5025`, in another `model_lab_bench --instrument
+  127.0.0.1:5025`. The window is the same; its frames now come over the wire, and the event log
+  says when the link connects or drops. Any SCPI client can talk to the server too: send
+  `*IDN?`, `VOLT 5`, `MEAS?` or `WAV?`, one per line.
 
 ## How it fits together
 
@@ -193,26 +199,26 @@ offsets, which keeps a 1 px graticule crisp when the backend scales the frame.
 
 ### main()
 
+The hardware thread runs one loop whatever it reads: each period it takes the newest setpoints,
+asks a read function for a frame, and publishes it. The read function is the local simulator, or,
+with `--instrument host:port`, a SCPI client on a TCP link (`scpi_link.hpp`):
+
 ```cpp
-int main(int argc, char* argv[]) {
-    LabBenchApp app;
-
-    if (argc >= 2) {
-        app.seed_demo_data();
-        return showcase(argc, argv, app, 960, 680);
-    }
-
-    std::jthread worker;
-
-    app::run(app, {.title = "PRISM Lab Bench & DAQ Console", .width = 960, .height = 680,
-                   .settings = &app.settings, .organization = "prism", .name = "lab-bench"},
-             [&](app::AppContext& ctx) {
-        ...
-    });
-
-    return 0;
+void run_hardware_thread(LabBenchApp& app, const std::stop_token& stop, ReadInstrument read) {
+    ...
+        if (auto reading = read(requested, time_sec, stop)) {
+            app.bus.telemetry_ingest.set(*reading);
+            lab::report_transitions(app.bus.event_ingest, previous, *reading);
+            previous = *reading;
+        }
+        std::this_thread::sleep_for(lab::kPollPeriod);
+    ...
 }
 ```
+
+The remote read connects on first use and again after the link drops, and writes both to the
+event log through the same `Channel` the fault messages use. The model cannot tell the two
+sources apart: a frame is a `DaqTelemetry` either way.
 
 `app::run` opens the window, loads `settings` and saves it on every change, so the panels come back
 where they were left. With a path argument the app instead seeds one frame and renders a single
@@ -243,7 +249,11 @@ SVG: that is the screenshot above.
 | `hardware_thread.hpp` | Poll period, the stall, and what the worker reports back. |
 | `daq/model.hpp` | The instrument's data: settings, one frame, one event. |
 | `daq/instrument.hpp` | The instrument's behaviour: waveforms, load line, autoscale, measurements. |
+| `daq/scpi.hpp` | The instrument as SCPI text, both ways: commands, `MEAS?`, `WAV?`, and its replies. |
+| `scpi_link.hpp` | The instrument served on a TCP port, and the client the hardware thread reads it with (`io::TcpStream`, `io::LineStream`). |
 | `diagrams/threads.svg` | The picture above. |
 
-`tests/test_lab_bench.cpp` tests `daq/` directly: no window, no thread, no backend. The Python
+`tests/test_lab_bench.cpp` tests `daq/` directly: no window, no thread, no backend.
+`tests/test_lab_bench_link.cpp` serves the instrument on localhost and checks that a frame read
+over TCP is the frame the simulator computes. The Python
 counterpart is [`python/examples/16_lab_instrument.py`](../../python/examples/16_lab_instrument.py).

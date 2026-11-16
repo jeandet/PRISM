@@ -99,6 +99,7 @@ headless_tests = {
   'knob' : files('test_knob.cpp'),
   'placed' : files('test_placed.cpp'),
   'latest' : files('test_latest.cpp'),
+  'byte_stream' : files('test_byte_stream.cpp'),
   'block_outline' : files('test_block_outline.cpp'),
   'color_picker' : files('test_color_picker.cpp'),
   'date_picker' : files('test_date_picker.cpp'),
@@ -187,6 +188,20 @@ test_software_backend_request_window = executable('test_software_backend_request
   dependencies : [prism_software_backend_dep, sdl3_dep, sdl3_ttf_dep, doctest_dep],
 )
 test('software_backend_request_window', test_software_backend_request_window)
+
+# io::TcpStream / TcpListener on localhost, io::SerialPort on a pseudo-terminal (openpty: libutil
+# before glibc 2.34).
+if prism_io_dep.found()
+  test_io_streams = executable('test_io_streams', files('test_io_streams.cpp'),
+    dependencies : [prism_io_dep, doctest_dep, meson.get_compiler('cpp').find_library('util', required : false)],
+  )
+  test('io_streams', test_io_streams)
+  # The lab bench's SCPI link over loopback TCP (examples/model_lab_bench/scpi_link.hpp).
+  test_lab_bench_link = executable('test_lab_bench_link', files('test_lab_bench_link.cpp'),
+    dependencies : [prism_io_dep, doctest_dep],
+  )
+  test('lab_bench_link', test_lab_bench_link)
+endif
 
 # net::send / net::Client against an in-process cpp-httplib server on localhost.
 if prism_net_dep.found()

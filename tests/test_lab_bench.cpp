@@ -3,10 +3,12 @@
 
 #include "../examples/model_lab_bench/daq/instrument.hpp"
 #include "../examples/model_lab_bench/daq/model.hpp"
+#include "../examples/model_lab_bench/daq/scpi.hpp"
 
 #include <cmath>
 
 using namespace prism::lab;
+namespace lab = prism::lab;
 
 TEST_CASE("normalized waveform sampling bounds") {
     // Sine should stay in [-1, 1]
@@ -151,4 +153,45 @@ TEST_CASE("telemetry synthesis on fault") {
     CHECK(t.voltage_sense == 0.0);
     CHECK(t.power_watts == 0.0);
     CHECK(t.temperature_c >= 60.0);
+}
+
+// --- SCPI (daq/scpi.hpp): the instrument as text, both ways --------------------------------------
+
+TEST_CASE("the front panel survives being sent as SCPI commands") {
+    lab::DaqSettings sent{.target_voltage = 7.25, .current_limit = 0.3, .output_enabled = false,
+                          .wave_type = lab::WaveformType::Triangle, .frequency_hz = 1234.5,
+                          .amplitude_vpp = 3.3, .offset_v = -0.1, .simulate_fault = true};
+    lab::DaqSettings received{};
+    for (const auto& command : lab::scpi::settings_commands(sent))
+        CHECK(lab::scpi::apply_command(received, command));
+    CHECK(received == sent);
+    CHECK_FALSE(lab::scpi::apply_command(received, "VOLT twelve"));
+    CHECK_FALSE(lab::scpi::apply_command(received, "FUNC WOBBLE"));
+    CHECK(received == sent);   // a bad command changes nothing
+}
+
+TEST_CASE("MEAS? and WAV? carry a frame exactly, bit for bit") {
+    const auto frame = lab::synthesize_telemetry({.wave_type = lab::WaveformType::Noise}, 0.42);
+    lab::DaqTelemetry read{};
+    REQUIRE(lab::scpi::read_measurement(lab::scpi::measurement_reply(frame), read));
+    auto samples = lab::scpi::read_waveform(lab::scpi::waveform_reply(frame.scope_samples));
+    REQUIRE(samples);
+    read.scope_samples = *samples;
+    CHECK(read == frame);
+    CHECK_FALSE(lab::scpi::read_measurement("1,2,3", read));
+    CHECK_FALSE(lab::scpi::read_waveform("0.5,oops"));
+}
+
+TEST_CASE("the instrument answers queries, and its commands are silent") {
+    lab::scpi::InstrumentState state;
+    CHECK(lab::scpi::respond(state, "*IDN?", 0.0) == std::string(lab::scpi::kIdentity));
+    CHECK_FALSE(lab::scpi::respond(state, "VOLT 5", 0.0));
+    CHECK(state.settings.target_voltage == 5.0);
+    const auto meas = lab::scpi::respond(state, "MEAS?", 0.42);
+    REQUIRE(meas);
+    CHECK(*meas == lab::scpi::measurement_reply(lab::synthesize_telemetry(state.settings, 0.42)));
+    CHECK(lab::scpi::respond(state, "WAV?", 0.0) == lab::scpi::waveform_reply(state.frame.scope_samples));
+    CHECK(lab::scpi::respond(state, "BOGUS?", 0.0) == "ERR");
+    CHECK_FALSE(lab::scpi::respond(state, "SYST:STALL", 0.0));
+    CHECK(state.stall_next);
 }

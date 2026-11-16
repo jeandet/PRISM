@@ -777,6 +777,21 @@ app::Task refresh() {
 Off the logic thread, `net::get(url)` and `net::post(url, body)` just block. The Python SDK has
 no binding: Python has `requests` and `httpx`.
 
+### Byte streams: TCP and serial (opt-in)
+
+`io/byte_stream.hpp` is PRISM's `QIODevice`: the `ByteStream` concept (`write`, `read_some`,
+`close`) that a TCP connection, a serial port and a test double share, and `LineStream` on top for
+the line protocols instruments speak. `io/streams.hpp` (prism-io, standalone Asio, `-Dio=auto`)
+ships `TcpStream`, `TcpListener` and `SerialPort`, blocking with timeouts, for a worker thread:
+
+```cpp
+auto port = io::SerialPort::open("/dev/ttyUSB0", {.baud = 9600});
+io::LineStream lines{*port};
+auto reply = lines.query("*IDN?");   // a std::expected: the line, or why not (timed_out, ...)
+```
+
+The lab bench example drives its instrument this way over TCP (`--instrument host:port`).
+
 ## Python SDK
 
 The same MVB model from Python, and any thread may mutate it:

@@ -306,6 +306,23 @@ move into the adapter, so the example drops roughly 150 lines and one SDL includ
 
 ## Pilot 2: the lab bench over a real link
 
+**Done 2026-11-16**, close to the plan below with three changes:
+
+- No ADL customization point yet: `ByteStream` is a plain concept, and the shipped streams are
+  concrete classes (`io/streams.hpp`) with Asio kept in `src/io/streams.cpp`. A third-party
+  stream that has `write`, `read_some` and `close` already fits.
+- Every read and accept has a timeout and fails with `std::errc::timed_out`, so a silent peer
+  frees the thread. Asio's own pattern: start the operation, run the context for the timeout,
+  cancel what is left.
+- The SCPI dialect is small and real-looking (`VOLT 5`, `FUNC SQU`, `MEAS?`, `WAV?`); numbers
+  travel in their shortest exact form. The stall button becomes `SYST:STALL`, so the link's
+  timeout and the stall meet in the same code.
+
+→ skipped: serial port enumeration, an async (callback) form, a stream that reconnects on its own
+(the lab bench does it in its read function); add when a second app needs them.
+
+The plan as first written:
+
 Chosen over MQTT because the example's fake link is exactly the shape of a blocking
 request/response exchange, and a real instrument over TCP is the shortest path from the demo to
 something a user can point at hardware.

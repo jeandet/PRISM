@@ -151,6 +151,20 @@ if host_machine.system() != 'emscripten' and get_option('http').allowed()
   endif
 endif
 
+# Byte streams (io/streams.hpp): TCP and serial ports through standalone Asio (header-only) behind
+# prism-io. No sockets in the browser, so never built there.
+prism_io_dep = dependency('', required : false)
+if host_machine.system() != 'emscripten' and get_option('io').allowed()
+  asio_dep = dependency('asio', required : get_option('io'), fallback : ['asio', 'asio_dep'])
+  if asio_dep.found()
+    prism_io_lib = library('prism-io', 'io/streams.cpp',
+      dependencies : [prism_headers_dep, asio_dep],
+      install : true,
+    )
+    prism_io_dep = declare_dependency(link_with : prism_io_lib, dependencies : [prism_headers_dep])
+  endif
+endif
+
 # OFL: the licence texts travel with the fonts. Own install tag, so wheels (tags runtime,
 # python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
 # The script fonts are found beside the UI font (SdlFontSet::script_font_files).

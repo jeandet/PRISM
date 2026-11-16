@@ -11,3 +11,5 @@ option('webgpu', type : 'feature', value : 'disabled',
        description : 'Build the WebGPU renderer (prebuilt wgpu-native; see doc/design/second-backend.md)')
 option('http', type : 'feature', value : 'auto',
        description : 'Build prism-net, HTTP through cpp-httplib (never in the browser: no sockets)')
+option('io', type : 'feature', value : 'auto',
+       description : 'Build prism-io: TCP and serial byte streams through Asio (never in the browser)')
