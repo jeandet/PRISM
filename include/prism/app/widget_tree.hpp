@@ -64,6 +64,7 @@ public:
         propagate_theme(root_);
         connect_dirty(node_tree, root_);
         build_index(root_);
+        for (auto& c : root_.children) adopt(root_, c);
         clear_dirty();
     }
 

@@ -37,8 +37,10 @@ inline DY reveal_row_offset(DY row_top, Height row_h, DY offset, Height viewport
     return offset;
 }
 
+// The walks below skip a subtree whose mark says nothing in it changed (ui/widget_node.hpp).
 inline bool check_dirty(const WidgetNode& node) {
     if (node.dirty) return true;
+    if (!node.mark->below) return false;
     for (auto& c : node.children)
         if (check_dirty(c)) return true;
     return false;
@@ -46,13 +48,21 @@ inline bool check_dirty(const WidgetNode& node) {
 
 inline std::size_t count_dirty(const WidgetNode& node) {
     std::size_t n = node.dirty ? 1 : 0;
+    if (!node.mark->below) return n;
     for (auto& c : node.children) n += count_dirty(c);
     return n;
 }
 
-inline void clear_dirty_impl(WidgetNode& node) {
+// Returns whether the node must still be visited next time: a widget re-recorded after this
+// layout is measured again by the next one.
+inline bool clear_dirty_impl(WidgetNode& node) {
     node.dirty = false;
-    for (auto& c : node.children) clear_dirty_impl(c);
+    if (node.mark->below) {
+        bool still = false;
+        for (auto& c : node.children) still |= clear_dirty_impl(c);
+        node.mark->below = still;
+    }
+    return node.relayout || node.mark->below;
 }
 
 inline void mark_all_dirty_impl(WidgetNode& node) {
@@ -100,11 +110,24 @@ void for_each_node(WidgetNode& node, Fn&& fn) {
 }
 
 inline void refresh_dirty(WidgetNode& node) {
+    if (!node.dirty && !node.mark->below) return;
     if (node.dirty) node.intrinsic_width_cache.reset();
     if (node.dirty && node.record)
         node.record(node);
     for (auto& c : node.children)
         refresh_dirty(c);
+}
+
+// Debug builds: whether every node is linked to its parent and every change below a node is
+// flagged on it. A node put in the tree without adopt() would have its changes skipped.
+inline bool marks_consistent(const WidgetNode& node) {
+    for (auto& c : node.children) {
+        if (c.mark->up != node.mark.get()) return false;
+        if ((c.dirty || c.relayout || c.mark->below) && !node.mark->below) return false;
+        if ((c.mark->builds || builds_children(c)) && !node.mark->builds) return false;
+        if (!marks_consistent(c)) return false;
+    }
+    return true;
 }
 
 } // namespace prism::app::widget_detail

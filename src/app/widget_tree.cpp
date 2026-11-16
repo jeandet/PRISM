@@ -403,6 +403,7 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
     // Counted before refresh_dirty() runs record() -- record() never touches the
     // dirty flag itself (only clear_dirty(), called by the caller after publish,
     // does), so this reflects exactly what changed since the last publish.
+    assert(widget_detail::marks_consistent(root_) && "a widget node was put in the tree without adopt()");
     std::size_t dirty_widgets = count_dirty(root_);
     refresh_dirty(root_);
     materialize_all_virtual_lists(root_);
@@ -818,6 +819,7 @@ void WidgetTree::unindex_node(WidgetId id) {
 void WidgetTree::park_kept(WidgetNode& node) {
     if (!node.keep_key.empty()) {
         unindex_ids(node);
+        node.mark->up = nullptr;   // parked: its changes flag nothing until it is put back
         auto key = node.keep_key;
         parked_.insert_or_assign(std::move(key), std::move(node));
         return;
@@ -854,6 +856,7 @@ void WidgetTree::open_popup_content(WidgetNode& node) {
     connect_dirty(content, wn);
     parent_map_[wn.id] = node.id;
     node.children.push_back(std::move(wn));
+    adopt(node, node.children.back());
     build_index(node.children.back());
     widget_detail::refresh_dirty(node.children.back());
     node.focus_before_popup = focused_id_;
@@ -906,8 +909,10 @@ void WidgetTree::materialize_tabs(WidgetNode& node) {
             content_wn.children.push_back(std::move(child_wn));
         }
 
-        for (auto& c : content_wn.children)
+        for (auto& c : content_wn.children) {
+            adopt(content_wn, c);
             build_index(c);
+        }
     }
     content_wn.dirty = true;
 }
@@ -966,6 +971,7 @@ void WidgetTree::materialize_virtual_list(WidgetNode& node) {
             c.wire(c);
             c.wire = nullptr;
         }
+        adopt(node, c);
         index_[c.id] = &c;
     }
 
@@ -1030,6 +1036,7 @@ void WidgetTree::materialize_table(WidgetNode& node) {
         // row was inserted last, so it's deliberately skipped here.
         node.children.push_back(paint_table_row(*ts, i, edges, theme_));
     }
+    for (auto& c : node.children) adopt(node, c);
 
     ts->visible_start = new_start;
     ts->visible_end = new_end;
@@ -1056,11 +1063,15 @@ void WidgetTree::materialize_content(WidgetNode& node) {
         parent_map_[child_wn.id] = node.id;
         node.children.push_back(std::move(child_wn));
     }
-    for (auto& c : node.children) build_index(c);
+    for (auto& c : node.children) {
+        adopt(node, c);
+        build_index(c);
+    }
     node.dirty = true;
 }
 
 void WidgetTree::materialize_all_virtual_lists(WidgetNode& node) {
+    if (!node.mark->builds && !builds_children(node)) return;   // nothing below builds children
     if (node.build_content) materialize_content(node);
     if (node.popup_builder) materialize_popup(node);
     if (node.layout_kind == LayoutKind::VirtualList)

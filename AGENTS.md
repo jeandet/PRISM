@@ -154,7 +154,10 @@ function returning a reference to it there, since a Windows DLL cannot export a 
   pattern that looks like either.
 - `Field<T>` holds only a value, never a label — labels come from reflection (the member name) or
   UI-layer wrapping, not from the field itself.
-- Widgets are persistent and dirty-repainted, never rebuilt from scratch every frame.
+- Widgets are persistent and dirty-repainted, never rebuilt from scratch every frame. A widget node
+  added to the tree goes through `adopt(parent, child)` (`ui/widget_node.hpp`): the publish walks
+  skip subtrees whose mark says nothing below changed, and a node not adopted would have its
+  changes skipped. Debug builds assert this on every publish (`marks_consistent`).
 - `Shared<T>` is cross-thread latest-value state (coalescing — intermediate `set()`s are dropped);
   `Channel<T>` is a cross-thread ordered/lossless event stream (every `send()` is delivered, in
   order). Reach for the one whose semantics you actually need, not whichever is more familiar.

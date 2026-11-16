@@ -8,6 +8,7 @@
 #include <any>
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace prism::app::widget_detail {
 using namespace prism::core;
@@ -114,7 +115,7 @@ struct LayoutCacheCursor {
 // Links `node` and its subtree to their layout nodes from the last publish and marks which can
 // be kept as they are. Returns whether all of it can.
 inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
-    node.layout_reusable = false;
+    bool kept_last_time = std::exchange(node.layout_reusable, false);
     if (passes_through(node)) {
         node.cached_layout = nullptr;
         bool all = true;
@@ -123,6 +124,15 @@ inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
     }
     LayoutNode* cached = siblings.take(node);
     node.cached_layout = cached;
+    // Kept whole last time, and nothing below it changed since (its mark): kept whole again,
+    // without walking it. Its own conditions below held then and only change with a redraw.
+    if (kept_last_time && cached && cached->id == node.id && !node.dirty && !node.relayout
+        && !node.mark->below) {
+        node.layout_reusable = true;
+        if (siblings.kept) *siblings.kept += node.kept_nodes;
+        return true;
+    }
+    std::size_t kept_before = siblings.kept ? *siblings.kept : 0;
     bool children_kept = true;
     bool split = splits(node);
     if (node.is_container) {
@@ -136,6 +146,7 @@ inline bool link_layout_cache(WidgetNode& node, LayoutCacheCursor& siblings) {
         && !node.relayout && node.overlay_draws.empty() && cached->overlay_draws.empty()
         && cached->measured_axis.has_value() && !keeps_state(node) && !holds_what_passes_look_for(node);
     if (node.layout_reusable && siblings.kept) ++*siblings.kept;
+    node.kept_nodes = siblings.kept ? *siblings.kept - kept_before : 0;
     return node.layout_reusable;
 }
 

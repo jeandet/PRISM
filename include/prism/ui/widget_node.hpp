@@ -28,8 +28,55 @@ using namespace prism::input;
 
 struct LayoutNode;
 
+// "Something below this node changed since the last publish": lets the walks over the tree
+// (redraw, clear, layout reuse) skip a subtree with nothing changed instead of visiting it.
+// On the heap so it stays put when its node moves (into a list's pool, a parent's vector).
+struct SubtreeMark {
+    bool below = false;          // a descendant is dirty, or must be measured again
+    SubtreeMark* up = nullptr;   // the parent's mark; null at the root and while detached
+    // This node or one below builds children at publish time (builds_children). Set when it
+    // joins the tree, never cleared: a subtree removed since only costs a needless visit.
+    bool builds = false;
+};
+
+// Flags `m` and its ancestors, up to the first already flagged: it and everything above it
+// already are, since a mark is cleared only once nothing below it is flagged.
+inline void flag_up(SubtreeMark* m) {
+    for (; m && !m->below; m = m->up) m->below = true;
+}
+
+// A widget's "draw me again" flag, read and written as a bool; setting it also flags the
+// ancestors (flag_up), so every node.dirty = true in the delegates reaches them.
+class DirtyFlag {
+public:
+    explicit DirtyFlag(SubtreeMark* own) : own_(own) {}
+    DirtyFlag& operator=(bool v) {
+        self_ = v;
+        if (v && own_) flag_up(own_->up);
+        return *this;
+    }
+    operator bool() const { return self_; }
+
+private:
+    bool self_ = false;
+    SubtreeMark* own_;   // this node's mark, which moves with it
+};
+
 struct WidgetNode {
     WidgetId id = 0;
+    // Read for every node on every publish: kept together, at the front. A WidgetNode spans
+    // dozens of cache lines; spread out, these cost a miss each (bench_widget_scale).
+    std::unique_ptr<SubtreeMark> mark = std::make_unique<SubtreeMark>();
+    DirtyFlag dirty{mark.get()};   // after `mark`, which it points to
+    bool is_container = false;
+    LayoutKind layout_kind = LayoutKind::Default;
+    // Layout kept between publishes (app/widget_tree_layout.hpp, link_layout_cache): this
+    // node's layout node from the last publish, and whether it still holds as it is. `relayout`
+    // marks a widget re-recorded after layout (its size changed), which must be measured again.
+    bool layout_reusable = false;
+    bool relayout = false;
+    LayoutNode* cached_layout = nullptr;
+    std::size_t kept_nodes = 0;   // layout nodes this subtree kept the last time it was walked
     std::string name;                     // accessible name: the field's member name, if known
     std::string tooltip;                  // empty: none (see ui/tooltip.hpp)
     std::optional<Framing> frame;           // a Row/Column's look around its content (ui/frame.hpp)
@@ -83,14 +130,6 @@ struct WidgetNode {
     std::string debug_name;
 #endif
     std::optional<std::string> block;   // see Node::block
-    bool dirty = false;
-    // Layout kept between publishes (app/widget_tree_layout.hpp, link_layout_cache): this
-    // node's layout node from the last publish, and whether it still holds as it is. `relayout`
-    // marks a widget re-recorded after layout (its size changed), which must be measured again.
-    LayoutNode* cached_layout = nullptr;
-    bool layout_reusable = false;
-    bool relayout = false;
-    bool is_container = false;
     FocusPolicy focus_policy = FocusPolicy::none;
     WidgetVisualState visual_state;
     EditState edit_state;
@@ -123,7 +162,6 @@ struct WidgetNode {
     std::vector<Connection> connections;
     std::function<void(WidgetNode&)> wire;
     std::function<void(WidgetNode&)> record;
-    LayoutKind layout_kind = LayoutKind::Default;
     float spacer_size = 0.f;   // see Node::spacer_size
     Rect canvas_bounds{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}};
     Size arranged_extent{Width{0}, Height{0}};  // last-arranged main-axis extent, populated for every node kind
@@ -149,6 +187,30 @@ struct WidgetNode {
     X absolute_x{0};
     Y absolute_y{0};
 };
+
+// A node whose children are made at publish time (WidgetTree::materialize_all_virtual_lists).
+inline bool builds_children(const WidgetNode& n) {
+    return n.layout_kind == LayoutKind::VirtualList || n.layout_kind == LayoutKind::Table
+        || n.layout_kind == LayoutKind::Tabs || n.build_content || n.popup_builder;
+}
+
+// Puts `child` under `parent`, and the nodes below it under theirs: their changes now flag the
+// parent's subtree, and whatever they bring flags it now. Every node put in a tree passes here.
+inline void adopt(WidgetNode& parent, WidgetNode& child) {
+    child.mark->up = parent.mark.get();
+    if (child.dirty || child.relayout) flag_up(parent.mark.get());
+    if (child.mark->builds || builds_children(child)) {
+        child.mark->builds = true;
+        for (auto* m = child.mark->up; m && !m->builds; m = m->up) m->builds = true;
+    }
+    for (auto& c : child.children) adopt(child, c);
+}
+
+// A widget re-recorded after layout: its layout node must be built and measured again.
+inline void mark_relayout(WidgetNode& node) {
+    node.relayout = true;
+    flag_up(node.mark->up);
+}
 
 struct VirtualListState {
     ItemCount item_count{0};

@@ -171,7 +171,7 @@ inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport, DY scro
             };
             float height_before = wn->draws.bounding_box().extent.h.raw();
             wn->record(*wn);
-            wn->relayout = true;   // its draws changed: measure it again next time
+            mark_relayout(*wn);   // its draws changed: measure it again next time
             layout_node.overlay_draws = wn->overlay_draws;
             return wn->draws.bounding_box().extent.h.raw() != height_before;
         }
