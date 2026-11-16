@@ -7,6 +7,7 @@
 //   ./builddir-release/benchmarks/bench_text_scale 50000      # one N
 #include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
+#include <prism/text/document.hpp>
 
 #include <fmt/format.h>
 
@@ -96,6 +97,37 @@ void run(std::size_t lines) {
                first, nothing.publish, type.input, type.publish, down.input, down.publish, wheel.input,
                wheel.publish);
 }
+// The same text in a text::Document shown by vb.text_view: typing is an edit of one block.
+struct DocPage {
+    text::Document doc;
+    explicit DocPage(std::size_t lines) : doc{lines_of_code(lines)} {}
+    void view(WidgetTree::ViewBuilder& vb) { vb.text_view(doc, {.family = render::FontRole::Mono}); }
+};
+
+void run_view(std::size_t lines) {
+    DocPage page(lines);
+    WidgetTree tree{page};
+    uint64_t version = 0;
+    auto t0 = std::chrono::steady_clock::now();
+    auto snap = tree.build_snapshot(win_w, win_h, ++version);
+    tree.clear_dirty();
+    const double first = ms_since(t0);
+    constexpr int reps = 15;
+    std::vector<double> type_in, type_pub;
+    for (int i = 0; i < reps; ++i) {
+        auto s = std::chrono::steady_clock::now();
+        page.doc.insert({3, 4}, "x");
+        type_in.push_back(ms_since(s));
+        s = std::chrono::steady_clock::now();
+        auto n = tree.build_snapshot(win_w, win_h, ++version);
+        tree.clear_dirty();
+        type_pub.push_back(ms_since(s));
+    }
+    const core::Point inside{core::X{200}, core::Y{100}};
+    const Cost wheel = median_cost(tree, version, reps, input::MouseScroll{inside, core::DX{0}, core::DY{-3}});
+    fmt::print("{:>7} {:>8.1f} {:>8} {:>8.2f}+{:<8.2f} {:>17} {:>8.2f}+{:<8.2f}\n", lines, first, "", median(type_in),
+               median(type_pub), "", wheel.input, wheel.publish);
+}
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -105,4 +137,6 @@ int main(int argc, char* argv[]) {
     fmt::print("{:>7} {:>8} {:>8} {:>17} {:>17} {:>17}\n", "lines", "first", "nothing", "type a key",
                "arrow down", "wheel");
     for (auto n : sizes) run(n);
+    fmt::print("text::Document in vb.text_view, same text (type: an insert in one block):\n");
+    for (auto n : sizes) run_view(n);
 }

@@ -202,6 +202,17 @@ Each step ends with something visible, tested, and shown in the gallery and the 
    Every event is O(whole text), scrolling included: the delegate copies and re-wraps the whole
    string, and the publish lays all of it out again. Past a few thousand lines it cannot keep up
    with typing. An unchanged publish costs nothing (the tree skips it).
+
+   The same text in a `text::Document` shown by `vb.text_view` (2026-11-17, same benchmark):
+
+   | lines | first publish | type (edit + publish) | wheel |
+   |---|---|---|---|
+   | 1,000 | 0.1 | 0.00 + 0.01 | 0.00 + 0.02 |
+   | 10,000 | 0.5 | 0.00 + 0.01 | 0.00 + 0.02 |
+   | 100,000 | 6.9 | 0.00 + 0.01 | 0.00 + 0.02 |
+
+   Typing and scrolling no longer depend on the document's length; the first publish is the
+   height map's estimates, O(n) and cheap.
 2. **Fonts**: `FontStyle`, bold and italic faces on desktop and web, the theme's style table.
 3. **Document + layout + `TextView`**, with Markdown into a document. Read-only first: it proves
    the document, styled runs, caching and visible-only layout without any editing. Visible
