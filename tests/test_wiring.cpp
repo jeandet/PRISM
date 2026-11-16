@@ -70,3 +70,39 @@ TEST_CASE("keep() holds a connection made elsewhere; clear() drops everything no
     f.set(2);
     CHECK(calls == 1);
 }
+
+TEST_CASE("link() copies the source's value now and after each change") {
+    Field<float> level{0.5f};
+    Field<float> gain{0.f};
+    Wiring wire;
+    wire.link(level, gain);
+    CHECK(gain.get() == 0.5f);
+    level.set(0.8f);
+    CHECK(gain.get() == 0.8f);
+    wire.clear();
+    level.set(0.1f);
+    CHECK(gain.get() == 0.8f);
+}
+
+TEST_CASE("link() with a function converts on the way, even between types") {
+    Field<int> percent{50};
+    Field<std::string> label{""};
+    Wiring wire;
+    wire.link(percent, label, [](int p) { return std::to_string(p) + " %"; });
+    CHECK(label.get() == "50 %");
+    percent.set(75);
+    CHECK(label.get() == "75 %");
+}
+
+TEST_CASE("two links in opposite directions settle: an unchanged value stops the echo") {
+    Field<int> a{1};
+    Field<int> b{2};
+    int b_changes = 0;
+    b.observe([&](const int&) { ++b_changes; });
+    Wiring wire;
+    wire.link(a, b);
+    wire.link(b, a);
+    a.set(7);
+    CHECK(b.get() == 7);
+    CHECK(b_changes == 2);   // 2 -> 1 at the first link, then 1 -> 7
+}

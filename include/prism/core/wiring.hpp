@@ -13,6 +13,7 @@
 //   core::Wiring wire;                                // dies with the block: so do its connections
 //   wire.on(app.theme, [this](const Theme& t) { restyle(t); });
 //   wire.on_any([this] { update(); }, name, fruit, copies);
+//   wire.link(mixer.level, gain);                     // gain follows mixer.level
 //
 // A block reacting to its own fields can use field.observe(fn) instead: both die together. The
 // other way round is safe too -- a field that dies first leaves its connections inert.
@@ -45,6 +46,24 @@ public:
     void on_any(F&& fn, Sources&... sources) {
         auto shared = std::make_shared<std::decay_t<F>>(std::forward<F>(fn));
         (on(sources, [shared](const auto&...) { (*shared)(); }), ...);
+    }
+
+    // target takes source's value now and after each change: one block's output feeds another's
+    // input. Two links in opposite directions settle, since setting an equal value emits nothing.
+    // The target must outlive this Wiring: keep the Wiring in the target's block.
+    template <typename Source, typename Target>
+    void link(Source& source, Target& target) {
+        link(source, target, [](const auto& v) { return v; });
+    }
+
+    // The same through convert(value), which may change the type.
+    template <typename Source, typename Target, typename F>
+        requires requires(Source& s, Target& t, F& f) { t.set(f(s.get())); }
+    void link(Source& source, Target& target, F&& convert) {
+        target.set(convert(source.get()));
+        on(source, [&target, convert = std::forward<F>(convert)](const auto& v) {
+            target.set(convert(v));
+        });
     }
 
     // A connection made some other way (hub | core::then(...), a helper that returns one).

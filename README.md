@@ -767,6 +767,10 @@ struct Summary {
 };
 ```
 
+One block's output can feed another's input: `wire.link(mixer.level, gain)` copies the value now
+and after each change, and `wire.link(percent, label, fn)` converts it on the way. Two links in
+opposite directions settle, because setting an equal value emits nothing.
+
 A block reacting to its own fields can call `field.observe(fn)`: both die together. A value
 computed from other fields wants a `Derived`, which needs no wiring at all.
 
