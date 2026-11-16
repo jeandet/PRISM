@@ -56,6 +56,17 @@ struct Theme {
     Color text_selection  = Color::rgba(60, 100, 180, 140);
     Color text_match      = Color::rgba(230, 170, 50, 90);   // highlighted ranges (search hits)
 
+    // Documents (text/look.hpp): links, code, and the syntax colors a highlighter's spans take.
+    Color link            = Color::rgba(110, 170, 255);
+    Color code_bg         = Color::rgba(36, 36, 46);
+    Color syntax_keyword  = Color::rgba(198, 120, 221);
+    Color syntax_type     = Color::rgba(229, 192, 123);
+    Color syntax_string   = Color::rgba(152, 195, 121);
+    Color syntax_number   = Color::rgba(209, 154, 102);
+    Color syntax_comment  = Color::rgba(140, 146, 158);
+    Color syntax_preprocessor = Color::rgba(224, 108, 117);
+    Color syntax_function = Color::rgba(97, 175, 239);
+
     // Dropdown popup
     Color popup_bg        = Color::rgba(50, 50, 62);
     Color popup_border    = Color::rgba(80, 80, 95);
@@ -107,6 +118,10 @@ inline Theme light_theme() {
     Theme t;
     auto c = [](std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a = 255) { return Color::rgba(r, g, b, a); };
     t.surface = c(236, 237, 242);         t.surface_hover = c(226, 228, 235);   t.surface_active = c(214, 217, 226);
+    t.link = c(0, 88, 190);               t.code_bg = c(224, 226, 233);
+    t.syntax_keyword = c(150, 30, 150);   t.syntax_type = c(140, 90, 0);       t.syntax_string = c(40, 110, 40);
+    t.syntax_number = c(160, 70, 0);      t.syntax_comment = c(95, 100, 110);  t.syntax_preprocessor = c(190, 20, 60);
+    t.syntax_function = c(0, 90, 190);
     t.primary = c(30, 100, 190);          t.primary_hover = c(40, 112, 205);    t.primary_active = c(22, 86, 168);
     t.primary_outline = c(60, 130, 220);
     t.accent = c(0, 120, 190);            t.accent_hover = c(0, 135, 210);      t.accent_active = c(0, 105, 170);
