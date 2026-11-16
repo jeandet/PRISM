@@ -9,7 +9,7 @@ namespace gallery {
 ControlsTab::ControlsTab(prism::core::Field<Theme>& theme_pref) : theme(theme_pref) {
     wire.on_any([this] { update(); }, name, fruit, copies, scale, notify, quality, theme);
     wire.on(volume, [this](const prism::ui::Slider<>& v) {
-        progress.set({.value = v.value, .label = fmt::format("{:.0f}%", v.value * 100), .busy = busy.get().checked});
+        progress.set({.value = v.value, .label = fmt::format("{:.0f}%", v.value * 100), .busy = value(busy)});
         update();
     });
     wire.on(busy, [this](const prism::ui::Checkbox& b) {
@@ -72,12 +72,12 @@ void ControlsTab::settings(prism::app::WidgetTree::ViewBuilder& vb) {
 
 void ControlsTab::update() {
     summary.set({fmt::format("{} · {} · {} × {:.2f} · {} · notifications {}",
-                             name.get().value.empty() ? "nobody" : name.get().value,
-                             fruit.get().value.empty() ? "no fruit" : fruit.get().value,
-                             copies.get().value, scale.get().value,
-                             quality.get().value == Quality::Draft  ? "draft"
-                             : quality.get().value == Quality::Best ? "best" : "normal",
-                             notify.get().checked ? "on" : "off")});
+                             value(name).empty() ? "nobody" : value(name),
+                             value(fruit).empty() ? "no fruit" : value(fruit),
+                             value(copies), value(scale),
+                             value(quality) == Quality::Draft  ? "draft"
+                             : value(quality) == Quality::Best ? "best" : "normal",
+                             value(notify) ? "on" : "off")});
 }
 
 void ControlsTab::clear() {

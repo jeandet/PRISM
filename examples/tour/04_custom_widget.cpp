@@ -15,7 +15,7 @@ struct Widget<Level> {
     static void record(DrawList& dl, const Field<Level>& f, WidgetNode& node) {
         const Width w{std::max(200.f, node_allocated(node).w.raw())};
         dl.filled_rect({Point{X{0}, Y{0}}, Size{w, Height{8.f}}}, node_theme(node).track);
-        dl.filled_rect({Point{X{0}, Y{0}}, Size{Width{w.raw() * f.get().value}, Height{8.f}}}, node_theme(node).accent);
+        dl.filled_rect({Point{X{0}, Y{0}}, Size{Width{w.raw() * value(f)}, Height{8.f}}}, node_theme(node).accent);
     }
     static void handle_input(Field<Level>& f, const InputEvent& ev, WidgetNode& node) {
         const auto* kp = std::get_if<KeyPress>(&ev);

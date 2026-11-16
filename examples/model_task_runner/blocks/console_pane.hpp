@@ -161,7 +161,7 @@ private:
     }
 
     LineFilter filter_now() const {
-        return {.needle = filter.get().value, .errors_only = errors_only.get().checked};
+        return {.needle = value(filter), .errors_only = value(errors_only)};
     }
 
     std::vector<core::Connection> reactions_{};

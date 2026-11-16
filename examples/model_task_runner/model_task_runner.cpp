@@ -57,7 +57,7 @@ struct TaskRunnerApp {
     // --- starting and stopping runs -------------------------------------------------------
 
     std::string command_for(std::size_t task) const {
-        if (task == runner::kCustomTask) return tasks.custom_command.get().value;
+        if (task == runner::kCustomTask) return value(tasks.custom_command);
         return std::string{runner::kTasks[task].command};
     }
 

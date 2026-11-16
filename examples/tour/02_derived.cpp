@@ -12,7 +12,7 @@ struct Rectangle {
 
     // Recomputes whenever either side changes; nothing has to call it, and a widget can show it.
     core::Derived<std::string> area{[this] {
-        return "area: " + std::to_string(width.get().value * height.get().value);
+        return "area: " + std::to_string(value(width) * value(height));
     }};
 
     void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(width, height, area); }

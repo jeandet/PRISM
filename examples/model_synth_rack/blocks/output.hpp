@@ -50,7 +50,7 @@ struct Output {
                                static_cast<int>(shot.sample_rate), shot.buffer_frames, updates);
         }};
 
-    double volume_db() const { return volume.get().value; }
+    double volume_db() const { return value(volume); }
 
     void view(app::WidgetTree::ViewBuilder& vb) {
         vb.hstack([&] {

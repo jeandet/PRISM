@@ -151,10 +151,10 @@ private:
         if (notches == 0) return false;
         return assign(f, gallery::knob_detail::nudged(f.get(), notches));
     }
-    static bool assign(Field<gallery::Knob>& f, double value) {
-        if (value == f.get().value) return false;
+    static bool assign(Field<gallery::Knob>& f, double turned_to) {
+        if (turned_to == value(f)) return false;
         auto k = f.get();
-        k.value = value;
+        k.value = turned_to;
         f.set(std::move(k));
         return true;
     }

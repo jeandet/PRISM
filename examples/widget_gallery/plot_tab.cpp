@@ -27,7 +27,7 @@ void PlotTab::canvas(prism::render::DrawList& dl, prism::core::Rect bounds, cons
     std::vector<Point> pts;
     for (int i = 0; i <= 600; ++i) {
         double s = 2 * std::numbers::pi * i / 600;
-        pts.push_back({X{cx + r * static_cast<float>(std::sin(ratio.get().value * s + 0.5))},
+        pts.push_back({X{cx + r * static_cast<float>(std::sin(value(ratio) * s + 0.5))},
                        Y{cy + r * static_cast<float>(std::sin(2 * s))}});
     }
     dl.polyline(pts, t.accent, 2.f);
@@ -60,7 +60,7 @@ void PlotTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
 
 void PlotTab::update() {
     constexpr int n = 500;
-    double f = frequency.get().value, a = amplitude.get().value;
+    double f = value(frequency), a = value(amplitude);
     std::vector<double> xs(n), sin_ys(n), cos_ys(n);
     for (int i = 0; i < n; ++i) {
         xs[i] = static_cast<double>(i) / (n - 1) * 4.0 * std::numbers::pi;
@@ -70,7 +70,7 @@ void PlotTab::update() {
     auto colors = prism::plot::default_series_colors(prism::ui::default_theme());
     plot.clear_series();
     plot.add_series(prism::plot::XYData{xs, sin_ys}, prism::plot::SeriesStyle{colors[0], 2.f});
-    if (show_cos.get().checked)
+    if (value(show_cos))
         plot.add_series(prism::plot::XYData{std::move(xs), std::move(cos_ys)}, prism::plot::SeriesStyle{colors[2], 2.f});
     plot.notify();
 }

@@ -17,8 +17,8 @@ void ChannelStrip::view(app::WidgetTree::ViewBuilder& vb) {
 
 void ChannelStrip::canvas(render::DrawList& dl, const core::Rect& bounds, const ui::WidgetNode& node) {
     const auto& t = ui::node_theme(node);
-    const bool silent = mute.get().checked;
-    const double level = std::clamp((gain.get().value + 60.0) / 66.0, 0.0, 1.0);
+    const bool silent = value(mute);
+    const double level = std::clamp((value(gain) + 60.0) / 66.0, 0.0, 1.0);
     const core::Width lit{bounds.extent.w.raw() * static_cast<float>(silent ? 0.0 : level)};
     dl.filled_rect(bounds, t.track);
     dl.filled_rect({bounds.origin, {lit, bounds.extent.h}}, t.accent);

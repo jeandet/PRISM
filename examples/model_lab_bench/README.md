@@ -92,7 +92,7 @@ itself:
 ```cpp
 core::Derived<std::string> power_caption{
     [this] {
-        return fmt::format("Max power {:>5.1f} W", target_voltage.get().value * current_limit.get().value);
+        return fmt::format("Max power {:>5.1f} W", value(target_voltage) * value(current_limit));
     }};
 ```
 

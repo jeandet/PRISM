@@ -13,7 +13,7 @@ struct Waveform {
         float w = bounds.extent.w.raw();
         float h = bounds.extent.h.raw();
         float cy = h * 0.5f;
-        float freq = static_cast<float>(frequency.get().value);
+        float freq = static_cast<float>(value(frequency));
 
         dl.rounded_rect(bounds, t.surface, 6.f);
         dl.line({core::X{0}, core::Y{cy}}, {core::X{w}, core::Y{cy}}, t.track, 1.f);

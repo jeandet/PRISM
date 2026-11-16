@@ -9,6 +9,7 @@
 #include <prism/core/transaction.hpp>
 #include <prism/core/state.hpp>
 #include <prism/core/derived.hpp>
+#include <prism/core/value.hpp>
 #include <prism/core/shared.hpp>
 #include <prism/core/channel.hpp>
 #include <prism/core/latest.hpp>

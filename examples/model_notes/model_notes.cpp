@@ -28,7 +28,7 @@ struct NotesStats {
     core::Derived<std::string> summary;
     explicit NotesStats(core::Field<ui::TextArea<>>& body)
         : summary([&body] {
-              auto s = notes::stats(body.get().value);
+              auto s = notes::stats(value(body));
               return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
           }, body) {}
     void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
@@ -182,7 +182,7 @@ struct NotesApp {
     }
 
     void rename_current() {
-        const auto& name = new_name.get().value;
+        const auto& name = value(new_name);
         if (current.empty() || name.empty() || name == current.filename().string()) return;
         auto to = current.parent_path() / name;
         std::error_code ec;
@@ -197,18 +197,18 @@ struct NotesApp {
 
     // Writes to `path` and makes it the current file -- only if the write succeeded.
     void save_as(const fs::path& path) {
-        if (auto ok = notes::save_text(path, body.get().value); !ok) {
+        if (auto ok = notes::save_text(path, value(body)); !ok) {
             error = "save failed: " + ok.error();
         } else {
             current = path;
-            saved = body.get().value;
+            saved = value(body);
             error.clear();
         }
         refresh_status();
     }
 
     void confirm_reload() {
-        if (body.get().value == saved) return open(current);
+        if (value(body) == saved) return open(current);
         pending_reload = current;
         auto d = discard.get();
         d.open = true;
@@ -218,8 +218,8 @@ struct NotesApp {
 
     void write() {
         if (current.empty()) return;
-        if (auto ok = notes::save_text(current, body.get().value); !ok) error = "save failed: " + ok.error();
-        else { saved = body.get().value; error.clear(); }
+        if (auto ok = notes::save_text(current, value(body)); !ok) error = "save failed: " + ok.error();
+        else { saved = value(body); error.clear(); }
         refresh_status();
     }
 
@@ -227,9 +227,9 @@ struct NotesApp {
     // TextArea draws them), then refreshes the status line. Setting the value notifies again;
     // the second pass finds identical highlights and stops.
     void update_matches() {
-        const auto& query = search.get().value;
+        const auto& query = value(search);
         std::vector<ui::TextRange> hits;
-        for (auto pos : notes::find_all(body.get().value, query)) hits.push_back({pos, pos + query.size()});
+        for (auto pos : notes::find_all(value(body), query)) hits.push_back({pos, pos + query.size()});
         if (hits != body.get().highlights) {
             auto b = body.get();
             b.highlights = std::move(hits);
@@ -239,8 +239,8 @@ struct NotesApp {
     }
 
     void refresh_status() {
-        const auto& text = body.get().value;
-        auto query = search.get().value;
+        const auto& text = value(body);
+        auto query = value(search);
         std::optional<std::size_t> matches;
         if (!query.empty()) matches = notes::find_all(text, query).size();
         auto line = notes::status_line(current.filename().string(), notes::stats(text), text != saved, matches);

@@ -30,15 +30,15 @@ struct Arpeggiator {
             return fmt::format("{} · {} · {:.0f} BPM · {} oct · {} notes",
                                ui::enum_label<Chord>(ui::enum_index(chord.get())),
                                ui::enum_label<ArpPattern>(ui::enum_index(pattern.get())),
-                               tempo.get().value, octave_span(),
+                               value(tempo), octave_span(),
                                arp_sequence(chord.get(), octave_span()).count);
         }};
 
-    bool powered() const { return power.get().checked.value_or(false); }
+    bool powered() const { return value(power); }
 
     ArpSettings settings(std::uint16_t step_mask) const {
         return {.powered = powered(),
-                .tempo_bpm = tempo.get().value,
+                .tempo_bpm = value(tempo),
                 .chord = chord.get(),
                 .pattern = pattern.get(),
                 .octaves = octave_span(),
@@ -61,7 +61,7 @@ struct Arpeggiator {
     }
 
 private:
-    int octave_span() const { return static_cast<int>(std::lround(octaves.get().value)); }
+    int octave_span() const { return static_cast<int>(std::lround(value(octaves))); }
 };
 
 } // namespace prism::synth::blocks

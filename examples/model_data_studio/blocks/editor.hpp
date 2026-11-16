@@ -27,7 +27,7 @@ struct Editor {
         reactions_.push_back(text.on_change().connect([this](const auto&) { typed(); }));
     }
 
-    std::string sql() const { return text.get().value; }
+    std::string sql() const { return value(text); }
 
     void open(std::string sql) {
         auto area = text.get();

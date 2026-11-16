@@ -21,8 +21,8 @@ PopupsTab::PopupsTab() {
         if (!d.open) say(d.chosen == 0 ? "Deleted (pretend)" : "Delete cancelled");
     });
     wire.on(rename_dialog, [this](const prism::ui::Dialog& d) {
-        if (!d.open) say(d.chosen == 0 ? fmt::format("Renamed to {}{}", new_name.get().value,
-                                                     backup.get().checked ? " (backup kept)" : "")
+        if (!d.open) say(d.chosen == 0 ? fmt::format("Renamed to {}{}", value(new_name),
+                                                     value(backup) ? " (backup kept)" : "")
                                        : "Rename cancelled");
     });
     wire.on(edit_menu, [this](const prism::ui::ContextMenu& m) {

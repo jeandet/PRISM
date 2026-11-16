@@ -33,7 +33,7 @@ struct PowerSupply {
     // frame the supply just made.
     core::Derived<std::string> power_caption{
         [this] {
-            return fmt::format("Max power {:>5.1f} W", target_voltage.get().value * current_limit.get().value);
+            return fmt::format("Max power {:>5.1f} W", value(target_voltage) * value(current_limit));
         }};
     core::Derived<std::string> mode_caption{
         [this] {
@@ -45,9 +45,9 @@ struct PowerSupply {
         }};
 
     void apply_to(DaqSettings& settings) const {
-        settings.target_voltage = target_voltage.get().value;
-        settings.current_limit = current_limit.get().value;
-        settings.output_enabled = output_toggle.get().checked.value_or(false);
+        settings.target_voltage = value(target_voltage);
+        settings.current_limit = value(current_limit);
+        settings.output_enabled = value(output_toggle);
     }
 
     void view(app::WidgetTree::ViewBuilder& vb) {

@@ -515,7 +515,7 @@ placed inside it without adding a container. A checkbox works as the flag too ("
 options" enabling the group below it):
 
 ```cpp
-core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }};
+core::Derived<bool> has_name{[this] { return !value(name).empty(); }};
 vb.widget(save).enabled(has_name);                        // one widget
 vb.enabled_if(unlocked, [&] { vb.vstack(volume, quality); });   // a group
 ```
@@ -740,6 +740,10 @@ prism::transaction([&] {   // one notification at the end, not one per set()
 A few rules worth knowing:
 
 - `set()` with an equal value does not notify.
+- `value(x)` reads what a field holds, unwrapped from its widget: a slider's number, a text
+  field's text, a checkbox's tick, a toggle button's on/off, or the plain value of a `Field<int>`.
+  It reads through `get()`, so a `Derived` follows it. A local named `value` hides it: name
+  parameters something else.
 - `Field<T>` holds only a value, never a label. The label comes from the member name.
 - One logic thread owns the widget tree and every `Field<T>`. They are not thread-safe.
 - Other threads talk to it through `Shared<T>::set()`, `Channel<T>::send()` or a posted closure.

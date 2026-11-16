@@ -27,16 +27,16 @@ struct Voice {
         [this] {
             return fmt::format("{} · cutoff {:.0f} Hz · Q {:.1f} · A {:.0f} / R {:.0f} ms",
                                ui::enum_label<Waveform>(ui::enum_index(waveform.get())),
-                               cutoff.get().value, resonance.get().value, attack.get().value,
-                               release.get().value);
+                               value(cutoff), value(resonance), value(attack),
+                               value(release));
         }};
 
     VoiceSettings settings() const {
         return {.waveform = waveform.get(),
-                .cutoff_hz = cutoff.get().value,
-                .resonance = resonance.get().value,
-                .attack_ms = attack.get().value,
-                .release_ms = release.get().value};
+                .cutoff_hz = value(cutoff),
+                .resonance = value(resonance),
+                .attack_ms = value(attack),
+                .release_ms = value(release)};
     }
 
     void view(app::WidgetTree::ViewBuilder& vb) {

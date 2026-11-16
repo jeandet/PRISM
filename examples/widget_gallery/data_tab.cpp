@@ -11,8 +11,8 @@ DataTab::DataTab() {
                    "Drag these rows to reorder them"})
         todo.push_back(s);
     wire.on(add, [this](const auto&) {
-        if (new_item.get().value.empty()) return;
-        todo.push_back(new_item.get().value);
+        if (value(new_item).empty()) return;
+        todo.push_back(value(new_item));
         new_item.set({.placeholder = new_item.get().placeholder});
     });
     wire.on(remove, [this](const auto&) {

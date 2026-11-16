@@ -3,6 +3,7 @@
 #include <prism/core/connection.hpp>
 #include <prism/core/logic_thread.hpp>
 #include <prism/core/read_log.hpp>
+#include <prism/core/value.hpp>
 #include <prism/core/transaction.hpp>
 
 #include <cassert>

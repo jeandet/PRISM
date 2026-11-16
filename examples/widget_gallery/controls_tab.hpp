@@ -44,8 +44,8 @@ struct ControlsTab {
     prism::core::Field<prism::ui::Label<>> summary{{""}};
     prism::core::Field<prism::ui::Checkbox> lock{{.checked = false, .label = "Lock the settings"}};
     // Flags that grey widgets out (vb.widget(f).enabled, vb.enabled_if); they follow the fields.
-    prism::core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }};
-    prism::core::Derived<bool> unlocked{[this] { return !lock.get().checked; }};
+    prism::core::Derived<bool> has_name{[this] { return !value(name).empty(); }};
+    prism::core::Derived<bool> unlocked{[this] { return !value(lock); }};
     prism::core::Wiring wire;   // captures `this`: the tab never moves
 
     explicit ControlsTab(prism::core::Field<Theme>& theme_pref);

@@ -61,9 +61,9 @@ struct Effects {
     core::Field<gallery::Knob> mix{{.value = 0.22, .min = 0.0, .max = 1.0, .step = 0.01, .label = "Mix"}};
 
     EffectsSettings settings() const {
-        return {.delay_ms = time.get().value,
-                .delay_feedback = feedback.get().value,
-                .delay_mix = mix.get().value};
+        return {.delay_ms = value(time),
+                .delay_feedback = value(feedback),
+                .delay_mix = value(mix)};
     }
 
     void view(app::WidgetTree::ViewBuilder& vb) {

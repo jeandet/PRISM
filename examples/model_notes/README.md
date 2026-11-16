@@ -56,9 +56,9 @@ The search highlights are part of that value, not a second model:
 
 ```cpp
 void update_matches() {
-    const auto& query = search.get().value;
+    const auto& query = value(search);
     std::vector<ui::TextRange> hits;
-    for (auto pos : notes::find_all(body.get().value, query)) hits.push_back({pos, pos + query.size()});
+    for (auto pos : notes::find_all(value(body), query)) hits.push_back({pos, pos + query.size()});
     if (hits != body.get().highlights) {
         auto b = body.get();
         b.highlights = std::move(hits);
@@ -116,7 +116,7 @@ struct NotesStats {
     core::Derived<std::string> summary;
     explicit NotesStats(core::Field<ui::TextArea<>>& body)
         : summary([&body] {
-              auto s = notes::stats(body.get().value);
+              auto s = notes::stats(value(body));
               return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
           }, body) {}
     void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
