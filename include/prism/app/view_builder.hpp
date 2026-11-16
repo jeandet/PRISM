@@ -52,6 +52,10 @@ std::string_view block_name() {
 #endif
 }
 
+inline bool is_bar(const Node& n) {
+    return n.frame && (n.frame->look == FrameLook::Toolbar || n.frame->look == FrameLook::StatusBar);
+}
+
 // Shared by list(), tree() and table(List<T>&): adapt a List<T>'s three signals
 // into the Node's vlist_on_* connector slots (identical shape at every call site).
 template <typename T>
@@ -485,8 +489,13 @@ public:
 
     template <typename C>
     void block(C& comp) {
-        current_parent().children.push_back(tree_.build_node_tree(comp));
-        current_parent().children.back().block = std::string(view_builder_detail::block_name<C>());
+        auto& parent = current_parent();
+        parent.children.push_back(tree_.build_node_tree(comp));
+        auto& root = parent.children.back();
+        root.block = std::string(view_builder_detail::block_name<C>());
+        // In a toolbar or status bar the block's widgets are the bar's items: they run along
+        // the bar's row, and a spacer among them stretches across it, not down the window.
+        if (view_builder_detail::is_bar(parent)) root.layout_kind = parent.layout_kind;
     }
 
     void vstack(auto&... args) { (item(args), ...); }
@@ -539,16 +548,16 @@ private:
     void probe_placed(const std::function<void(ViewBuilder&)>& build);
 
     WidgetId framed(LayoutKind kind, Framing frame, std::invocable auto&& fn) {
-        auto& node = push_container(kind, fn);
-        node.frame = std::move(frame);
-        return node.id;
+        return push_container(kind, fn, std::move(frame)).id;
     }
 
-    Node& push_container(LayoutKind kind, std::invocable auto&& fn) {
+    // The frame is set before `fn` builds the content: a block placed in a bar reads it.
+    Node& push_container(LayoutKind kind, std::invocable auto&& fn, std::optional<Framing> frame = {}) {
         Node container;
         container.id = tree_.next_id_++;
         container.is_leaf = false;
         container.layout_kind = kind;
+        container.frame = std::move(frame);
         auto& parent = current_parent();
         parent.children.push_back(std::move(container));
         auto& ref = parent.children.back();

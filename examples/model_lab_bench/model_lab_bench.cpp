@@ -88,7 +88,7 @@ struct LabBenchApp {
                 {"diagnostics", "Stress & Fault Injection",
                  [&](app::WidgetTree::ViewBuilder& p) { p.block(diagnostics); }},
             });
-            vb.status_bar([&] { status.view(vb); });
+            vb.status_bar([&] { vb.block(status); });
         });
     }
 };

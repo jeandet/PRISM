@@ -98,3 +98,40 @@ TEST_CASE("frames take the colours of the theme in use") {
     float strip_h = bold.origin.y.raw() * 2 + bold.extent.h.raw();
     CHECK(has_fill(*snap, light_theme().chrome_bg, Rect{Point{X{0}, Y{0}}, Size{Width{win_w}, Height{strip_h}}}));
 }
+
+namespace {
+// A status bar's content as a block of its own: left text, a spacer, right text.
+struct Status {
+    Field<Label<>> left{{"Ready"}};
+    Field<Label<>> right{{"Ln 1"}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.widget(left);
+        vb.spacer();
+        vb.widget(right);
+    }
+};
+struct WithStatusBlock {
+    Field<TextArea<>> body{{}};
+    Status status;
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.widget(body);
+            vb.status_bar([&] { vb.block(status); });
+        });
+    }
+};
+}
+
+TEST_CASE("a block in a status bar lays out as the bar's row: its spacer pushes the right text right") {
+    WithStatusBlock w;
+    WidgetTree tree{w};
+    auto snap = tree.build_snapshot(win_w, win_h, 1);
+    auto ids = tree.leaf_ids();   // body, left, right
+    Rect left = rect_of(*snap, ids[1]);
+    Rect right = rect_of(*snap, ids[2]);
+    CHECK(left.origin.y.raw() == doctest::Approx(right.origin.y.raw()));   // one row
+    CHECK(left.origin.x.raw() <= 8.f);
+    float right_gap = win_w - (right.origin.x.raw() + right.extent.w.raw());
+    CHECK(right_gap >= 0.f);
+    CHECK(right_gap <= 8.f);
+}

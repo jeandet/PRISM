@@ -127,7 +127,7 @@ struct DataStudioApp {
                 {"editor", "Query", [&](app::WidgetTree::ViewBuilder& p) { p.block(editor); }},
                 {"results", "Results", [&](app::WidgetTree::ViewBuilder& p) { p.block(results); }},
             });
-            vb.status_bar([&] { status.view(vb); });
+            vb.status_bar([&] { vb.block(status); });
         });
     }
 

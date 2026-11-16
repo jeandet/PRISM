@@ -169,6 +169,16 @@ struct HexEditor : prism::Block {
 
 A `TextEdit` delegate (atomic widget) can be used inside a `TextEditor` block that adds line numbers, syntax highlighting, file I/O, and a search toolbar. Delegates handle atomic rendering; Blocks handle orchestration.
 
+### A block as a bar's content
+
+A block placed in `vb.toolbar` or `vb.status_bar` lays its widgets out along the bar's row, so
+a `vb.spacer()` in its `view()` pushes what follows to the bar's far end. Anywhere else a block
+is a column of its own, placed as one unit.
+
+```cpp
+vb.status_bar([&] { vb.block(status); });   // status.view(): label, spacer, label
+```
+
 ### Top-level app as Block
 
 `model_app` just becomes "run this Block as a window." If the model is a plain struct, current behavior is preserved (setup lambda still works):

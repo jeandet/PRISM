@@ -110,7 +110,7 @@ struct TaskRunnerApp {
                 {"tasks", "Tasks", [&](app::WidgetTree::ViewBuilder& p) { p.block(tasks); }},
                 {"console", "Console", [&](app::WidgetTree::ViewBuilder& p) { p.block(consoles); }},
             });
-            vb.status_bar([&] { status.view(vb); });
+            vb.status_bar([&] { vb.block(status); });
         });
     }
 
