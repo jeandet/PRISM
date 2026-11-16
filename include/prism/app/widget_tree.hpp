@@ -577,6 +577,7 @@ private:
                 // too (a value it owns and hands to a block to draw).
                 placed_anywhere_.insert(built.placed().begin(), built.placed().end());
                 check_unplaced_fields(model, placed_anywhere_);
+                drain_unplaced_pipes(model);
 #endif
                 built.finalize();
             }(vb);
@@ -635,6 +636,26 @@ private:
     }
 
 #if __cpp_impl_reflection
+    // The Shared and Channel members view() did not show: a worker feeds them and the model
+    // observes them. Drained and woken like the shown ones, so the model needs no drain().
+    template <typename Model>
+    void drain_unplaced_pipes(Model& model) {
+        static constexpr auto members = std::define_static_array(
+            std::meta::nonstatic_data_members_of(^^Model, std::meta::access_context::unchecked()));
+        template for (constexpr auto m : members) {
+            if constexpr (!std::meta::is_reference_type(std::meta::type_of(m))) {
+                auto& member = model.[:m:];
+                using M = std::remove_cvref_t<decltype(member)>;
+                if constexpr (is_shared_v<M> || is_channel_v<M>) {
+                    if (placed_anywhere_.contains(&member)) continue;
+                    drain_callbacks_.push_back([&member] { member.drain_notifications(); });
+                    waker_binders_.push_back(
+                        [&member](std::function<void()> w) { member.set_waker(std::move(w)); });
+                }
+            }
+        }
+    }
+
     // A model's Field member as a widget: its value type's, or a slider for a number with a
     // [[=core::range<min, max, step>]] annotation.
     template <std::meta::info Member, typename T>

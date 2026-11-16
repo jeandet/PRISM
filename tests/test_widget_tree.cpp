@@ -690,6 +690,34 @@ TEST_CASE("Channel<T> member of a reflection-only model is auto-drained by drain
     tree.drain_shared();
     CHECK(received == 7);
 }
+
+namespace {
+// A model with its own view() whose cross-thread inputs are not widgets: a worker feeds them,
+// and the model copies what arrives into the field it shows.
+struct FedByWorker {
+    prism::core::Field<int> shown{0};
+    prism::core::Shared<int> latest{0};
+    prism::core::Channel<int> events;
+    void view(prism::app::ViewBuilder& vb) { vb.widget(shown); }
+};
+}
+
+TEST_CASE("a view() model's unplaced Shared and Channel are drained and woken too") {
+    FedByWorker model;
+    prism::WidgetTree tree(model);
+    int woken = 0;
+    tree.bind_waker([&] { ++woken; });
+    int sent = -1;
+    auto c1 = model.latest.on_change().connect([&](const int& v) { model.shown.set(v); });
+    auto c2 = model.events.on_receive().connect([&](const int& v) { sent = v; });
+
+    model.latest.set(4);
+    model.events.send(9);
+    CHECK(woken == 2);
+    tree.drain_shared();
+    CHECK(model.shown.get() == 4);
+    CHECK(sent == 9);
+}
 #endif
 
 // --- KeyRelease routing ---
