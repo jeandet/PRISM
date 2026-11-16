@@ -1,0 +1,75 @@
+#pragma once
+
+#include <prism/core/connection.hpp>
+#include <prism/core/sum_tree.hpp>
+#include <prism/core/types.hpp>
+#include <prism/render/draw_list.hpp>
+#include <prism/text/document.hpp>
+#include <prism/text/layout.hpp>
+#include <prism/ui/context.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <unordered_map>
+
+// A document drawn into a rectangle (doc/design/text-stack.md): only the blocks in sight are laid
+// out, each once per version, and a height map (a SumTree of block heights, estimated until a block
+// is laid out) finds the block at any scroll offset in O(log n). What `vb.text_view(doc)` shows.
+namespace prism::text {
+
+struct ViewOptions {
+    float size = 14.f;
+    render::FontRole family = render::FontRole::Ui;   // Ui: prose with spaced paragraphs. Mono: code
+    bool wrap = true;
+    float padding = 8.f;
+};
+
+class View {
+public:
+    explicit View(Document& doc, ViewOptions options = {});
+    View(const View&) = delete;
+    View& operator=(const View&) = delete;
+
+    // Draws what is in sight at the scroll offset into a `size` rectangle at (0, 0).
+    void draw(render::DrawList& dl, core::Size size, const ui::Theme& theme);
+
+    // The scroll state, in the shape the widget tree scrolls by (app/widget_tree_layout.hpp).
+    core::DY scroll{0};
+    core::Height viewport_h{0};
+    core::Height content_h{0};
+    std::uint8_t show_ticks = 0;
+
+    [[nodiscard]] Document& document() { return doc_; }
+    [[nodiscard]] const ViewOptions& options() const { return options_; }
+    [[nodiscard]] std::size_t first_drawn() const { return first_drawn_; }
+    [[nodiscard]] std::size_t laid_out() const { return cache_.size(); }      // blocks in the cache
+    [[nodiscard]] std::uint64_t layouts_made() const { return layouts_made_; }  // ever, for tests
+
+private:
+    struct Heights {
+        std::size_t count = 0;
+        float height = 0.f;
+        friend Heights operator+(Heights a, Heights b) { return {a.count + b.count, a.height + b.height}; }
+    };
+    struct HeightOf {
+        Heights operator()(float h) const { return {1, h}; }
+    };
+
+    Document& doc_;
+    ViewOptions options_;
+    LayoutStyle style_{};        // what the cache and the estimates were made with
+    core::SumTree<float, Heights, HeightOf> heights_;
+    std::unordered_map<std::uint64_t, BlockLayout> cache_;   // by block version
+    std::size_t first_drawn_ = 0;
+    std::uint64_t layouts_made_ = 0;
+    core::Connection follow_;
+
+    float estimate(const Block& b) const;
+    void reset_heights();
+    void follow(const Change& c);
+    const BlockLayout& layout(std::size_t i);
+    void draw_block(render::DrawList& dl, const Block& b, const BlockLayout& l, float top, float width,
+                    const ui::Theme& theme) const;
+};
+
+} // namespace prism::text

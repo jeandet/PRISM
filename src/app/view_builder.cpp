@@ -327,4 +327,42 @@ void ViewBuilder::finalize() {
     }
 }
 
+
+namespace {
+// A text view as a leaf: drawn like a canvas (it fills its space), its View kept in the node's
+// edit state, where the tree's wheel, Page Up/Down and scrollbar find it (get_scroll_view).
+Node text_view_node(text::Document& doc, text::ViewOptions options, WidgetId& next_id) {
+    Node n;
+    n.id = next_id++;
+    n.is_leaf = true;
+    n.layout_kind = LayoutKind::Canvas;
+    n.on_change = [&doc](std::function<void()> dirty) {
+        return doc.on_change().connect([dirty = std::move(dirty)](const text::Change&) { dirty(); });
+    };
+    auto view = std::make_shared<text::View>(doc, options);
+    n.build_widget = [view](WidgetNode& wn) {
+        wn.edit_state = view;
+        wn.focus_policy = FocusPolicy::tab_and_click;
+        wn.record = [view](WidgetNode& node) {
+            static const Theme fallback{};
+            node.draws.clear();
+            view->draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
+            const float pad = view->options().padding;
+            const Rect viewport{Point{X{pad}, Y{pad}},
+                                Size{Width{node.canvas_bounds.extent.w.raw() - 2.f * pad}, view->viewport_h}};
+            if (view->content_h.raw() > view->viewport_h.raw())
+                node.inner_scroll = WidgetNode::InnerScroll{viewport, view->content_h, view->scroll};
+            else
+                node.inner_scroll.reset();
+        };
+        wn.record(wn);
+    };
+    return n;
+}
+} // namespace
+
+ViewBuilder::LeafHandle ViewBuilder::text_view(text::Document& doc, text::ViewOptions options) {
+    current_parent().children.push_back(text_view_node(doc, options, tree_.next_id_));
+    return {current_parent().children.back(), placed_};
+}
 } // namespace prism::app

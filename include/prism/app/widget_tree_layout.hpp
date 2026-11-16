@@ -4,6 +4,7 @@
 #include <prism/ui/widget_node.hpp>
 #include <prism/ui/table.hpp>
 #include <prism/ui/delegate.hpp>
+#include <prism/text/view.hpp>
 
 #include <any>
 #include <memory>
@@ -53,6 +54,9 @@ inline std::optional<ScrollView> get_scroll_view(WidgetNode& node) {
         Height ch{static_cast<float>(ts->row_count()) * ts->row_height.raw()};
         return ScrollView{ts->scroll_y, ts->viewport_h, ch, ts->show_ticks, ts->event_policy};
     }
+    if (auto* tv = std::any_cast<std::shared_ptr<text::View>>(&node.edit_state))
+        return ScrollView{(*tv)->scroll, (*tv)->viewport_h, (*tv)->content_h, (*tv)->show_ticks,
+                          ScrollEventPolicy::BubbleAtBounds};
     if (auto* ta = std::any_cast<TextAreaEditState>(&node.edit_state))
         return ScrollView{ta->scroll_y, ta->viewport_h, ta->content_h, ta->show_ticks,
                           ScrollEventPolicy::BubbleAtBounds};

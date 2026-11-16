@@ -11,6 +11,7 @@
 #include <prism/delegates/text_delegates.hpp>
 #include <prism/core/list.hpp>
 #include <prism/core/traits.hpp>
+#include <prism/text/view.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/ui/table.hpp>
 #include <prism/ui/dock.hpp>
@@ -611,6 +612,10 @@ public:
         };
         scroll_node.on_change = view_builder_detail::adapt_on_change(field);
     }
+
+    // A document, shown: only the blocks in sight are laid out, so a long one scrolls as fast as a
+    // short one (text/view.hpp). It redraws when the document changes.
+    LeafHandle text_view(text::Document& doc, text::ViewOptions options = {});
 
     template <typename T>
         requires requires(T& t, DrawList& dl, Rect r, const WidgetNode& n) {
