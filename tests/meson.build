@@ -70,6 +70,7 @@ headless_tests = {
   'derived_tracking' : files('test_derived_tracking.cpp'),
   'value' : files('test_value.cpp'),
   'sum_tree' : files('test_sum_tree.cpp'),
+  'text_document' : files('test_text_document.cpp'),
   'shared' : files('test_shared.cpp'),
   'utf8' : files('test_utf8.cpp'),
   'text_metrics' : files('test_text_metrics.cpp'),
