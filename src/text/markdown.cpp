@@ -126,7 +126,8 @@ struct Walker {
             inner.depth = place.depth + 1;
             inner.item_kind = ordered ? BlockKind::ordered : BlockKind::bullet;
             if (type_name(item) == "tasklist")
-                inner.marker = cmark_gfm_extensions_get_tasklist_item_checked(item) ? "\xE2\x98\x91" : "\xE2\x98\x90";
+                // ■ and □: the bundled mono font has them (☑ and ☐ are in neither bundled font)
+                inner.marker = cmark_gfm_extensions_get_tasklist_item_checked(item) ? "\xE2\x96\xA0" : "\xE2\x96\xA1";
             else
                 inner.marker = ordered ? std::to_string(number) + "." : bullet(inner.depth);
             children(item, inner);

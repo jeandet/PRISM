@@ -1,10 +1,10 @@
 # Widget Gallery
 
-Every PRISM widget in one window: eight tabs under a menu bar, from text fields and a date picker to
+Every PRISM widget in one window: nine tabs under a menu bar, from text fields and a date picker to
 a 10 000-row table and a dockable layout. Each tab is a plain struct of fields, and this app only
 arranges them. It is where you try a widget, then read the line of C++ that makes it.
 
-<p align="center"><img src="../../doc/screenshots/widget_gallery.svg" alt="A gallery window with a menu bar and toolbar above eight tabs; the Catalog tab shows a tree of widget names on the left and the selected widget's documentation, code and a live sample on the right" width="700"/></p>
+<p align="center"><img src="../../doc/screenshots/widget_gallery.svg" alt="A gallery window with a menu bar and toolbar above nine tabs; the Catalog tab shows a tree of widget names on the left and the selected widget's documentation, code and a live sample on the right" width="700"/></p>
 
 It shows three things:
 
@@ -46,7 +46,7 @@ Two mechanisms, one file each, and a tab's knobs tying them together:
 
 Read the files in this order. The PRISM part is `knob.hpp` (163 lines) and
 `build_your_own_tab.hpp` + `.cpp` (118 and 64), with `main.cpp` (124 lines) arranging the rest. The
-eight tabs are a header and a `.cpp` each, about 1 250 lines together: one tab's `view()` compiles in
+nine tabs are a header and a `.cpp` each, about 1 250 lines together: one tab's `view()` compiles in
 its own file, so editing a tab recompiles one file.
 
 ### A value type with no drawing in it
@@ -139,7 +139,7 @@ Those fields are the tab; `main.cpp` gives it a page and places it:
 ```
 
 `vb.tab` records a name and the content builder, and runs that builder each time the page is shown,
-after clearing the previous page's widgets: eight tabs cost one tab's widgets. `vb.block(tab)` hands
+after clearing the previous page's widgets: nine tabs cost one tab's widgets. `vb.block(tab)` hands
 the struct to the tree, which calls its `view()` — the same call any hand-written widget code makes,
 one level up the tree.
 
@@ -200,6 +200,7 @@ The tabs, in the order they appear:
 | Controls | Every input widget, live: type, pick, drag, tick. The Lock toggle greys the group below it, and the Save button waits for a name. |
 | Catalog | Pick a widget on the left; its documentation, its code line and a live sample are on the right. |
 | Text | Selection, clipboard, undo across a code sample and prose; Hebrew and Arabic run right to left, and combining marks stay attached. |
+| Document | Type Markdown on the left; the right side renders it as you type: headings, lists, quotes, code, tables. The rendering is a `text::Document` in `vb.text_view`, which lays out only what is in sight. |
 | Data | 10 000 rows, seven columns, sorted by clicking a header; drag a header to move that column, drag its edge to resize it, right-click the header to hide columns. |
 | Plot | Two sliders and a checkbox refill the plot's two series; beside them a hand-drawn Lissajous canvas reads the ratio field. |
 | Popups | Dialogs, a popover, a context menu and the platform's file dialogs, each opened by a button. |
@@ -212,7 +213,7 @@ Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.
 
 | File | What it is |
 | --- | --- |
-| `main.cpp` | The window: menus, toolbar, the eight tabs, settings, `main()`. |
+| `main.cpp` | The window: menus, toolbar, the nine tabs, settings, `main()`. |
 | `knob.hpp` | The rotary control: a `Knob` value type, its geometry, one `Widget<Knob>`. |
 | `build_your_own_tab.*` | The tab that shows the knob file, then eight `ChannelStrip` blocks. |
 | `catalog_tab.*` | The catalog: one `Entry` per widget, and the page built from it. |

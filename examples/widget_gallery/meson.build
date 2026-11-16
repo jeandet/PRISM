@@ -16,12 +16,18 @@ widget_gallery_sources = files(
   'plot_tab.cpp',
   'popups_tab.cpp',
   'docking_tab.cpp',
+  'document_tab.cpp',
   'build_your_own_tab.cpp'
 )
 
+gallery_cpp_args = ['-DGALLERY_ICON_DIR="' + gallery_icon_dir + '"']
+if prism_markdown_dep.found()
+  gallery_cpp_args += ['-DGALLERY_MARKDOWN']
+endif
+
 widget_gallery_exe = executable('widget_gallery', widget_gallery_sources,
-  dependencies : [prism_dep, fmt_dep],
-  cpp_args : ['-DGALLERY_ICON_DIR="' + gallery_icon_dir + '"'],
+  dependencies : [prism_dep, fmt_dep, prism_markdown_dep],
+  cpp_args : gallery_cpp_args,
   name_suffix : example_suffix,
   link_args : example_link_args + gallery_args,
   link_depends : example_shell,

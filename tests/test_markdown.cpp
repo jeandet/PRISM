@@ -61,8 +61,8 @@ TEST_CASE("lists: bullets, numbers, nesting, and task boxes") {
     CHECK(doc[3].info == "1.");
     CHECK(doc[4].info == "2.");
     CHECK(doc[5].text == "done");
-    CHECK(doc[5].info == "\xE2\x98\x91");   // checked box
-    CHECK(doc[6].info == "\xE2\x98\x90");   // empty box
+    CHECK(doc[5].info == "\xE2\x96\xA0");   // checked box: a filled square
+    CHECK(doc[6].info == "\xE2\x96\xA1");   // empty box
 }
 
 TEST_CASE("a fenced code block is one block per line, with its language") {

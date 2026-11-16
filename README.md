@@ -698,7 +698,7 @@ captioned "volts" that writes a plain `double`.
 
 - [`tour`](examples/tour/): **start here** — five programs of 20 to 40 lines, one idea each, from a
   struct that becomes a window to a block, each pointing at the big example that uses it.
-- [`widget_gallery`](examples/widget_gallery/): every widget, in eight tabs, docking, drag and drop,
+- [`widget_gallery`](examples/widget_gallery/): every widget, in nine tabs, docking, drag and drop,
   and a custom widget built in the open. Come here to pick a widget and copy its line.
 - [`model_notes`](examples/model_notes/): a small editor with a file tree, search, menus and undo.
 - [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a

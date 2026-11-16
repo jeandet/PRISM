@@ -1,0 +1,32 @@
+#include "document_tab.hpp"
+
+#ifdef GALLERY_MARKDOWN
+#include <prism/text/markdown.hpp>
+#endif
+
+namespace gallery {
+
+namespace {
+// Without prism-markdown (-Dmarkdown=disabled) the source is shown as it is.
+prism::text::Document render(const std::string& source) {
+#ifdef GALLERY_MARKDOWN
+    return prism::text::markdown(source);
+#else
+    return prism::text::Document{source};
+#endif
+}
+} // namespace
+
+DocumentTab::DocumentTab() : rendered{render(sample_markdown)} {
+    wire.on(source, [this](const prism::ui::TextArea<>& s) { rendered.assign(render(s.value)); });
+}
+
+void DocumentTab::view(prism::app::ViewBuilder& vb) {
+    vb.hstack([&] {
+        vb.widget(source);
+        vb.handle();
+        vb.text_view(rendered);
+    });
+}
+
+} // namespace gallery

@@ -193,6 +193,12 @@ void Document::set_kind(std::size_t block, BlockKind kind, int level) {
     splice(block, 1, std::move(blocks));
 }
 
+void Document::assign(Document other) {
+    break_undo_group();
+    splice(0, size(), other.take(0, other.size()));
+    break_undo_group();
+}
+
 std::vector<Block> Document::take(std::size_t first, std::size_t count) const {
     std::vector<Block> out;
     out.reserve(count);

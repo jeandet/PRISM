@@ -167,3 +167,16 @@ TEST_CASE("thousands of random edits agree with a string, and undo all the way b
     while (doc.undo()) {}
     CHECK(doc.text() == original);
 }
+
+TEST_CASE("assign replaces everything as one edit: watchers hear it, and undo brings the old back") {
+    Document doc{"old\ntext"};
+    std::vector<Change> seen;
+    auto c = doc.on_change().connect([&](const Change& ch) { seen.push_back(ch); });
+    doc.assign(Document{std::vector<Block>{{.text = "Title", .kind = BlockKind::heading, .level = 1}, {.text = "body"}}});
+    CHECK(doc.text() == "Title\nbody");
+    CHECK(doc[0].kind == BlockKind::heading);
+    REQUIRE(seen.size() == 1);
+    CHECK(seen[0] == Change{0, 2, 2});
+    CHECK(doc.undo());
+    CHECK(doc.text() == "old\ntext");
+}

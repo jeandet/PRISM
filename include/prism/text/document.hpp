@@ -91,6 +91,9 @@ public:
     void style(Range r, Style s, std::string target = {});
     void unstyle(Range r, Style s);
     void set_kind(std::size_t block, BlockKind kind, int level = 0);
+    // Everything replaced by `other`'s blocks, as one edit: a view showing this document follows
+    // (assigning a new Document over it would leave the view on the old one). Undoable.
+    void assign(Document other);
 
     // Edits between two breaks undo as one step: an editor breaks on a pause, a caret jump, a
     // new word. Undo and redo restore text, spans and kinds alike.

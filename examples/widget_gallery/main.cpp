@@ -1,10 +1,11 @@
-// Widget Gallery: every PRISM widget in one window, in eight tabs, under a menu bar with Alt
+// Widget Gallery: every PRISM widget in one window, in nine tabs, under a menu bar with Alt
 // shortcuts. The tabs are plain model structs (controls_tab.hpp, ...); this file arranges them.
 #include "build_your_own_tab.hpp"
 #include "catalog_tab.hpp"
 #include "controls_tab.hpp"
 #include "data_tab.hpp"
 #include "docking_tab.hpp"
+#include "document_tab.hpp"
 #include "plot_tab.hpp"
 #include "popups_tab.hpp"
 #include "text_tab.hpp"
@@ -19,14 +20,14 @@
 using namespace prism;
 
 struct Gallery {
-    static constexpr std::array<const char*, 8> tab_names{
-        "Controls", "Catalog", "Text", "Data", "Plot", "Popups", "Docking", "Build your own"};
+    static constexpr std::array<const char*, 9> tab_names{
+        "Controls", "Catalog", "Text", "Document", "Data", "Plot", "Popups", "Docking", "Build your own"};
 
     core::Field<ui::Menu> file_menu{{.title = "&File", .items = {
         {.text = "&Open…", .shortcut = {ui::keys::o, ui::mods::ctrl}, .icon = gallery::icon("folder.svg")},
         {.text = "&Save as…", .shortcut = {ui::keys::s, ui::mods::ctrl | ui::mods::shift}, .icon = gallery::icon("save.svg")},
     }}};
-    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"&Data"}, {"&Plot"}, {"P&opups"}, {"Doc&king"}, {"&Build your own"}}}};
+    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"Doc&ument"}, {"&Data"}, {"&Plot"}, {"P&opups"}, {"Doc&king"}, {"&Build your own"}}}};
     core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {{"&About PRISM"}}}};
     core::Field<ui::Dialog> about{{.title = "PRISM Widget Gallery",
                                    .message = "A C++26 GUI framework: model structs, persistent widgets, "
@@ -42,6 +43,7 @@ struct Gallery {
     gallery::ControlsTab controls{prefs.theme};
     gallery::CatalogTab catalog;
     gallery::TextTab text;
+    gallery::DocumentTab document;
     gallery::DataTab data;
     gallery::PlotTab plot;
     gallery::PopupsTab popups;
@@ -84,11 +86,12 @@ struct Gallery {
             vb.tab(tab_names[0], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(controls); }); });
             vb.tab(tab_names[1], [&](app::ViewBuilder& t) { t.block(catalog); });
             vb.tab(tab_names[2], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(text); }); });
-            vb.tab(tab_names[3], [&](app::ViewBuilder& t) { t.block(data); });
-            vb.tab(tab_names[4], [&](app::ViewBuilder& t) { t.block(plot); });
-            vb.tab(tab_names[5], [&](app::ViewBuilder& t) { t.block(popups); });
-            vb.tab(tab_names[6], [&](app::ViewBuilder& t) { t.block(docking); });
-            vb.tab(tab_names[7], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(build_your_own); }); });
+            vb.tab(tab_names[3], [&](app::ViewBuilder& t) { t.block(document); });
+            vb.tab(tab_names[4], [&](app::ViewBuilder& t) { t.block(data); });
+            vb.tab(tab_names[5], [&](app::ViewBuilder& t) { t.block(plot); });
+            vb.tab(tab_names[6], [&](app::ViewBuilder& t) { t.block(popups); });
+            vb.tab(tab_names[7], [&](app::ViewBuilder& t) { t.block(docking); });
+            vb.tab(tab_names[8], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(build_your_own); }); });
         });
         vb.status_bar([&] { vb.widget(status); vb.spacer(); });
         vb.dialog(about);
