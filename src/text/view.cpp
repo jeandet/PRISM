@@ -216,6 +216,7 @@ Range View::visual_line(Position p) {
 }
 
 void View::reveal(Position p) {
+    if (viewport_h.raw() <= 0.f) return;   // not drawn yet: no window to bring it into
     const BlockLayout& l = layout(p.block);
     const Line& line = l.lines[line_of(l, p.byte)];
     const float top = block_top(p.block) + line.y;

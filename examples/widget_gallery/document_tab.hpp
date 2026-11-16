@@ -1,5 +1,6 @@
-// Document: Markdown on the left, rendered on the right as you type. The rendering is a
-// text::Document shown by vb.text_view, which lays out only what is in sight.
+// Document: Markdown on the left, rendered on the right as you type. Both sides are a
+// text::Document: the source in vb.text_editor, its rendering in vb.text_view. Each lays out only
+// what is in sight, so a long document types and scrolls as fast as this one.
 #pragma once
 
 #include <prism/prism.hpp>
@@ -41,7 +42,7 @@ The view keeps a height map of its blocks, so a long document scrolls as fast as
 )";
 
 struct DocumentTab {
-    prism::core::Field<prism::ui::TextArea<>> source{{.value = sample_markdown, .rows = 30}};
+    prism::text::Document source{sample_markdown};
     prism::text::Document rendered;
     prism::core::Wiring wire;   // captures `this`: the tab never moves
 

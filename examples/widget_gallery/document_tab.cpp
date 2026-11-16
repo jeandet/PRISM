@@ -18,12 +18,13 @@ prism::text::Document render(const std::string& source) {
 } // namespace
 
 DocumentTab::DocumentTab() : rendered{render(sample_markdown)} {
-    wire.on(source, [this](const prism::ui::TextArea<>& s) { rendered.assign(render(s.value)); });
+    wire.on(source, [this](const prism::text::Change&) { rendered.assign(render(source.text())); });
 }
 
 void DocumentTab::view(prism::app::ViewBuilder& vb) {
     vb.hstack([&] {
-        vb.widget(source);
+        vb.text_editor(source, {.view = {.family = prism::render::FontRole::Mono}, .tab_inserts = true,
+                                .auto_indent = true});
         vb.handle();
         vb.text_view(rendered);
     });

@@ -178,6 +178,12 @@ TEST_CASE("moving the caret below the view scrolls it into sight") {
     CHECK(r.ed.view.scroll.raw() + 105.f >= 9 * 21.f);
 }
 
+TEST_CASE("a new editor on a long document starts at the top, its first line in sight") {
+    Rig r{"1\n2\n3\n4\n5\n6\n7\n8\n9\n10"};
+    CHECK(r.ed.view.scroll.raw() == 0.f);
+    CHECK(r.ed.view.first_drawn() == 0);
+}
+
 TEST_CASE("read-only: no typing, but selecting and copying still work") {
     Rig r{"fixed text", {.view = {.family = render::FontRole::Mono, .padding = 0}, .read_only = true}};
     r.type("x");
