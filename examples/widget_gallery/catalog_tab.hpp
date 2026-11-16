@@ -104,7 +104,7 @@ struct Samples {
     Chores chores;
     prism::ui::TreeController chore_tree;
     prism::plot::PlotModel plot;
-    std::vector<prism::core::Connection> wiring;
+    prism::core::Wiring wire;
 
     Samples();
 };
@@ -170,7 +170,7 @@ struct CatalogTab {
     CatalogTree storage{&entries};
     prism::ui::TreeController tree;
     prism::core::Field<prism::ui::TabBar<>> page;
-    std::vector<prism::core::Connection> wiring;
+    prism::core::Wiring wire;
 
     CatalogTab();
     void view(Vb& vb);   // catalog_tab.cpp

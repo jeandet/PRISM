@@ -4,6 +4,7 @@
 #include <prism/core/types.hpp>
 #include <prism/core/traits.hpp>
 #include <prism/core/connection.hpp>
+#include <prism/core/wiring.hpp>
 #include <prism/core/field.hpp>
 #include <prism/core/transaction.hpp>
 #include <prism/core/state.hpp>

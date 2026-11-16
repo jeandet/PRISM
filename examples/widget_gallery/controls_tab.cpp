@@ -7,25 +7,18 @@
 namespace gallery {
 
 ControlsTab::ControlsTab(prism::core::Field<Theme>& theme_pref) : theme(theme_pref) {
-    auto refresh = [this](const auto&) { update(); };
-    wiring.push_back(name.on_change().connect(refresh));
-    wiring.push_back(fruit.on_change().connect(refresh));
-    wiring.push_back(copies.on_change().connect(refresh));
-    wiring.push_back(scale.on_change().connect(refresh));
-    wiring.push_back(notify.on_change().connect(refresh));
-    wiring.push_back(quality.on_change().connect(refresh));
-    wiring.push_back(theme.on_change().connect(refresh));
-    wiring.push_back(volume.on_change().connect([this](const prism::ui::Slider<>& v) {
+    wire.on_any([this] { update(); }, name, fruit, copies, scale, notify, quality, theme);
+    wire.on(volume, [this](const prism::ui::Slider<>& v) {
         progress.set({.value = v.value, .label = fmt::format("{:.0f}%", v.value * 100), .busy = busy.get().checked});
         update();
-    }));
-    wiring.push_back(busy.on_change().connect([this](const prism::ui::Checkbox& b) {
+    });
+    wire.on(busy, [this](const prism::ui::Checkbox& b) {
         auto p = progress.get();
         p.busy = b.checked;
         progress.set(p);
-    }));
-    wiring.push_back(reset.on_change().connect([this](const auto&) { clear(); }));
-    wiring.push_back(trash.on_change().connect([this](const auto&) { name.set({.placeholder = "Your name"}); }));
+    });
+    wire.on(reset, [this](const auto&) { clear(); });
+    wire.on(trash, [this](const auto&) { name.set({.placeholder = "Your name"}); });
     update();
 }
 

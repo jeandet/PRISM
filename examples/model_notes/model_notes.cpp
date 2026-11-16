@@ -69,34 +69,34 @@ struct NotesApp {
     fs::path pending_reload;   // the file the "Unsaved changes" dialog is about
     std::string saved;   // the file as last loaded or saved: tells whether `body` was modified
     std::string error;   // last load/save problem, shown in the status line
-    std::vector<core::Connection> wiring;   // captures `this`: NotesApp is never moved
+    core::Wiring wire;   // captures `this`: NotesApp is never moved
 
     explicit NotesApp(fs::path root) : source(std::move(root)) {
-        wiring.push_back(files.selected.on_change().connect([this](const auto& id) {
+        wire.on(files.selected, [this](const auto& id) {
             std::error_code ec;
             if (id && fs::is_regular_file(source.path_of(*id), ec)) open(source.path_of(*id));
-        }));
-        wiring.push_back(body.on_change().connect([this](const auto&) { update_matches(); }));
-        wiring.push_back(search.on_change().connect([this](const auto&) { update_matches(); }));
-        wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
+        });
+        wire.on(body, [this](const auto&) { update_matches(); });
+        wire.on(search, [this](const auto&) { update_matches(); });
+        wire.on(save, [this](const auto&) { write(); });
         auto run_from = [this](auto& menu) {
             return ui::on_choice(menu, [this, &menu](std::size_t i) { run(ui::menu_text(menu.get().items[i])); });
         };
-        wiring.push_back(run_from(file_menu));
-        wiring.push_back(run_from(search_menu));
-        wiring.push_back(run_from(view_menu));
-        wiring.push_back(run_from(editor_menu));
-        wiring.push_back(modified.on_change().connect([this](bool on) {
+        wire.keep(run_from(file_menu));
+        wire.keep(run_from(search_menu));
+        wire.keep(run_from(view_menu));
+        wire.keep(run_from(editor_menu));
+        wire.on(modified, [this](bool on) {
             enable_item(file_menu, "Save", on);
             enable_item(editor_menu, "Save", on);
-        }));
-        wiring.push_back(reload.on_change().connect([this](const auto&) { run("Reload"); }));
-        wiring.push_back(rename_dialog.on_change().connect([this](const ui::Dialog& d) {
+        });
+        wire.on(reload, [this](const auto&) { run("Reload"); });
+        wire.on(rename_dialog, [this](const ui::Dialog& d) {
             if (!d.open && d.chosen == 0) rename_current();
-        }));
-        wiring.push_back(discard.on_change().connect([this](const ui::Dialog& d) {
+        });
+        wire.on(discard, [this](const ui::Dialog& d) {
             if (!d.open && d.chosen == 0 && !pending_reload.empty()) open(pending_reload);
-        }));
+        });
     }
 
     app::AppContext* ctx = nullptr;   // for the platform's file dialogs; set by main()

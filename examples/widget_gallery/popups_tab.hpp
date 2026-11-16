@@ -37,7 +37,7 @@ struct PopupsTab {
     prism::core::Field<prism::ui::ContextMenu> edit_menu{{.items = {{"Cut"}, {"Copy"}, {"Paste"}}}};
 
     prism::app::AppContext* ctx = nullptr;   // set while the app runs: file dialogs, message boxes
-    std::vector<prism::core::Connection> wiring;   // captures `this`: the tab never moves
+    prism::core::Wiring wire;   // captures `this`: the tab never moves
 
     PopupsTab();
     void choose(prism::app::FileDialogKind kind);

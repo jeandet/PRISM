@@ -48,27 +48,27 @@ struct Gallery {
     gallery::PopupsTab popups;
     gallery::DockingTab docking{prefs.layout};
     gallery::BuildYourOwnTab build_your_own;
-    std::vector<core::Connection> wiring;   // captures `this`: the gallery never moves
+    core::Wiring wire;   // captures `this`: the gallery never moves
 
     Gallery() {
-        wiring.push_back(file_menu.on_change().connect([this](const ui::Menu& m) {
+        wire.on(file_menu, [this](const ui::Menu& m) {
             if (m.chosen) popups.choose(*m.chosen == 0 ? app::FileDialogKind::Open : app::FileDialogKind::Save);
-        }));
-        wiring.push_back(open_tool.on_change().connect([this](const ui::Button&) { popups.choose(app::FileDialogKind::Open); }));
-        wiring.push_back(save_tool.on_change().connect([this](const ui::Button&) { popups.choose(app::FileDialogKind::Save); }));
-        wiring.push_back(tabs.on_change().connect([this](const ui::TabBar<>& t) {
+        });
+        wire.on(open_tool, [this](const ui::Button&) { popups.choose(app::FileDialogKind::Open); });
+        wire.on(save_tool, [this](const ui::Button&) { popups.choose(app::FileDialogKind::Save); });
+        wire.on(tabs, [this](const ui::TabBar<>& t) {
             status.set({tab_names[std::min(t.selected, tab_names.size() - 1)]});
-        }));
-        wiring.push_back(view_menu.on_change().connect([this](const ui::Menu& m) {
+        });
+        wire.on(view_menu, [this](const ui::Menu& m) {
             if (m.chosen) tabs.set({.selected = *m.chosen});
-        }));
-        wiring.push_back(help_menu.on_change().connect([this](const ui::Menu& m) {
+        });
+        wire.on(help_menu, [this](const ui::Menu& m) {
             if (!m.chosen) return;
             auto dialog = about.get();
             dialog.open = true;
             dialog.chosen.reset();
             about.set(std::move(dialog));
-        }));
+        });
     }
 
     void view(app::WidgetTree::ViewBuilder& vb) {

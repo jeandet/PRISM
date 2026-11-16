@@ -43,11 +43,11 @@ struct DataStudioApp {
     std::unique_ptr<QueryRunner> runner{};
     std::uint64_t generation_ = 0;
     bool auto_ran_ = false;
-    std::vector<core::Connection> wiring{};
+    core::Wiring wire;
 
     DataStudioApp() {
-        wiring.push_back(editor.run.on_change().connect([this](const auto&) { submit(editor.sql()); }));
-        wiring.push_back(editor.cancel.on_change().connect([this](const auto&) { cancel(); }));
+        wire.on(editor.run, [this](const auto&) { submit(editor.sql()); });
+        wire.on(editor.cancel, [this](const auto&) { cancel(); });
     }
 
     // Generates the dataset and starts the worker that loads it. ctx.receive() binds the waker,

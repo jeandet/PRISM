@@ -78,7 +78,7 @@ struct SynthApp {
 
     core::Field<ui::Label<>> status_audio{{.value = "engine off — press Power to start"}};
 
-    std::vector<core::Connection> wiring{};
+    core::Wiring wire;
     std::jthread analysis{};   // declared after `audio`, so it stops before what it reads goes
 
     // Set once a window exists. A capture run has neither a window nor an audio thread, so the
@@ -87,10 +87,10 @@ struct SynthApp {
     bool offline = false;   // a capture run: rendered once, no threads
 
     SynthApp() {
-        wiring.push_back(
-            arp.power.on_change().connect([this](const ui::Button& button) {
+        wire.on(
+            arp.power, [this](const ui::Button& button) {
                 set_power(button.checked.value_or(false));
-            }));
+            });
     }
 
     // The running app's wiring, on the logic thread before the first frame: settings out to the

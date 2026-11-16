@@ -8,26 +8,26 @@
 namespace gallery {
 
 PopupsTab::PopupsTab() {
-    wiring.push_back(ask.on_change().connect([this](const auto&) { open(confirm); }));
-    wiring.push_back(rename.on_change().connect([this](const auto&) { open(rename_dialog); }));
-    wiring.push_back(options.on_change().connect([this](const auto&) { options_popup.set({.open = true, .modal = false}); }));
-    wiring.push_back(open_file.on_change().connect([this](const auto&) { choose(prism::app::FileDialogKind::Open); }));
-    wiring.push_back(save_file.on_change().connect([this](const auto&) { choose(prism::app::FileDialogKind::Save); }));
-    wiring.push_back(message.on_change().connect([this](const auto&) {
+    wire.on(ask, [this](const auto&) { open(confirm); });
+    wire.on(rename, [this](const auto&) { open(rename_dialog); });
+    wire.on(options, [this](const auto&) { options_popup.set({.open = true, .modal = false}); });
+    wire.on(open_file, [this](const auto&) { choose(prism::app::FileDialogKind::Open); });
+    wire.on(save_file, [this](const auto&) { choose(prism::app::FileDialogKind::Save); });
+    wire.on(message, [this](const auto&) {
         if (ctx) ctx->show_message(prism::app::MessageKind::Info, "PRISM", "A message box from the platform.");
         say("Message box asked for");
-    }));
-    wiring.push_back(confirm.on_change().connect([this](const prism::ui::Dialog& d) {
+    });
+    wire.on(confirm, [this](const prism::ui::Dialog& d) {
         if (!d.open) say(d.chosen == 0 ? "Deleted (pretend)" : "Delete cancelled");
-    }));
-    wiring.push_back(rename_dialog.on_change().connect([this](const prism::ui::Dialog& d) {
+    });
+    wire.on(rename_dialog, [this](const prism::ui::Dialog& d) {
         if (!d.open) say(d.chosen == 0 ? fmt::format("Renamed to {}{}", new_name.get().value,
                                                      backup.get().checked ? " (backup kept)" : "")
                                        : "Rename cancelled");
-    }));
-    wiring.push_back(edit_menu.on_change().connect([this](const prism::ui::ContextMenu& m) {
+    });
+    wire.on(edit_menu, [this](const prism::ui::ContextMenu& m) {
         if (m.chosen) say("Context menu: " + m.items[*m.chosen].text);
-    }));
+    });
 }
 
 void PopupsTab::choose(prism::app::FileDialogKind kind) {

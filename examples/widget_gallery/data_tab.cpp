@@ -10,19 +10,19 @@ DataTab::DataTab() {
     for (auto s : {"Try sorting the table", "Drag the handle between the panes", "Add an item here",
                    "Drag these rows to reorder them"})
         todo.push_back(s);
-    wiring.push_back(add.on_change().connect([this](const auto&) {
+    wire.on(add, [this](const auto&) {
         if (new_item.get().value.empty()) return;
         todo.push_back(new_item.get().value);
         new_item.set({.placeholder = new_item.get().placeholder});
-    }));
-    wiring.push_back(remove.on_change().connect([this](const auto&) {
+    });
+    wire.on(remove, [this](const auto&) {
         if (todo.size() > 0) todo.erase(todo.size() - 1);
-    }));
-    wiring.push_back(column_menu.on_change().connect([this](const prism::ui::ContextMenu& m) {
+    });
+    wire.on(column_menu, [this](const prism::ui::ContextMenu& m) {
         if (m.activations == menu_seen) return;
         menu_seen = m.activations;
         show_ticked(m);
-    }));
+    });
 }
 
 void DataTab::view(prism::app::WidgetTree::ViewBuilder& vb) {

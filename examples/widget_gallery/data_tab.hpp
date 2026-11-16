@@ -85,7 +85,7 @@ struct DataTab {
     prism::core::Field<prism::ui::TextField<>> new_item{{.placeholder = "New item, then Add"}};
     prism::core::Field<prism::ui::Button> add{{"Add"}};
     prism::core::Field<prism::ui::Button> remove{{.text = "Remove last", .primary = false}};
-    std::vector<prism::core::Connection> wiring;
+    prism::core::Wiring wire;
 
     DataTab();
     void view(prism::app::WidgetTree::ViewBuilder& vb);   // data_tab.cpp

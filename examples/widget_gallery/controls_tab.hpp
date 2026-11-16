@@ -46,7 +46,7 @@ struct ControlsTab {
     // Flags that grey widgets out (vb.widget(f).enabled, vb.enabled_if); they follow the fields.
     prism::core::Derived<bool> has_name{[this] { return !name.get().value.empty(); }, name};
     prism::core::Derived<bool> unlocked{[this] { return !lock.get().checked; }, lock};
-    std::vector<prism::core::Connection> wiring;   // captures `this`: the tab never moves
+    prism::core::Wiring wire;   // captures `this`: the tab never moves
 
     explicit ControlsTab(prism::core::Field<Theme>& theme_pref);
     void view(prism::app::WidgetTree::ViewBuilder& vb);   // controls_tab.cpp

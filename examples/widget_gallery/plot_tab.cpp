@@ -12,9 +12,9 @@ PlotTab::PlotTab() {
     plot.x_label.set("Time (rad)");
     plot.y_label.set("Amplitude");
     auto refresh = [this](const auto&) { update(); };
-    wiring.push_back(frequency.on_change().connect(refresh));
-    wiring.push_back(amplitude.on_change().connect(refresh));
-    wiring.push_back(show_cos.on_change().connect(refresh));
+    wire.on(frequency, refresh);
+    wire.on(amplitude, refresh);
+    wire.on(show_cos, refresh);
     update();
 }
 

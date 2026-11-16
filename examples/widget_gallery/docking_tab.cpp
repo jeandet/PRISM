@@ -6,12 +6,12 @@ namespace gallery {
 
 DockingTab::DockingTab(prism::core::Field<prism::ui::DockLayout>& arrangement) : layout(arrangement) {
     for (auto item : {"Notes", "Table", "Plot"}) items.push_back(item);
-    wiring.push_back(wrap.on_change().connect([this](const prism::ui::Checkbox& b) {
+    wire.on(wrap, [this](const prism::ui::Checkbox& b) {
         log.set({b.checked ? "Wrap is on." : "Wrap is off."});
-    }));
-    wiring.push_back(copies.on_change().connect([this](const prism::ui::SpinBox<int>& s) {
+    });
+    wire.on(copies, [this](const prism::ui::SpinBox<int>& s) {
         log.set({fmt::format("{} copies.", s.value)});
-    }));
+    });
 }
 
 void DockingTab::view(prism::app::WidgetTree::ViewBuilder& vb) {

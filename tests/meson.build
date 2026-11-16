@@ -32,6 +32,7 @@ headless_tests = {
   'layout' : files('test_layout.cpp'),
   'hit_test' : files('test_hit_test.cpp'),
   'connection' : files('test_connection.cpp'),
+  'wiring' : files('test_wiring.cpp'),
   'connection_thread_safety' : files('test_connection_thread_safety.cpp'),
   'field' : files('test_field.cpp'),
   'state' : files('test_state.cpp'),

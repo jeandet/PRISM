@@ -90,20 +90,20 @@ megabyte and files with a NUL byte, and says which in the status line.
 
 ### Every consequence is a connection
 
-The constructor is the whole wiring; the lambdas capture `this`, which is why `NotesApp` is never
-moved and `wiring` keeps the `Connection`s alive:
+The constructor is the whole wiring. `wire` (a `core::Wiring`) keeps the connections for as long as
+`NotesApp` lives; the lambdas capture `this`, which is why `NotesApp` is never moved:
 
 ```cpp
-wiring.push_back(files.selected.on_change().connect([this](const auto& id) {
+wire.on(files.selected, [this](const auto& id) {
     std::error_code ec;
     if (id && fs::is_regular_file(source.path_of(*id), ec)) open(source.path_of(*id));
-}));
-wiring.push_back(body.on_change().connect([this](const auto&) { update_matches(); }));
-wiring.push_back(save.on_change().connect([this](const auto&) { write(); }));
-wiring.push_back(modified.on_change().connect([this](bool on) {
+});
+wire.on(body, [this](const auto&) { update_matches(); });
+wire.on(save, [this](const auto&) { write(); });
+wire.on(modified, [this](bool on) {
     enable_item(file_menu, "Save", on);
     enable_item(editor_menu, "Save", on);
-}));
+});
 ```
 
 The last one is the interesting shape: a `Field<bool>` that only exists to enable menu items, set

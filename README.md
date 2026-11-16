@@ -743,6 +743,27 @@ A few rules worth knowing:
 - An exception in a callback goes to `core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
 
+### Connecting blocks
+
+Like Qt's `connect(sender, signal, context, lambda)`, a connection lasts as long as the block that
+reacts, with no base class: a `core::Wiring` member holds it. Either side may die first: when the
+watched field goes, its connections go quiet.
+
+```cpp
+struct Summary {
+    core::Field<ui::Label<>> text{};
+    core::Wiring wire;   // its connections die with the block
+
+    explicit Summary(Order& order) {
+        wire.on(order.customer, [this](const auto& c) { greet(c); });
+        wire.on_any([this] { recompute(); }, order.price, order.quantity, order.discount);
+    }
+};
+```
+
+A block reacting to its own fields can call `field.observe(fn)`: both die together. A value
+computed from other fields wants a `Derived`, which needs no wiring at all.
+
 ### HTTP (opt-in)
 
 `net/http.hpp` makes requests in the style of Python's `requests`. It is built when meson finds

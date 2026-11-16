@@ -20,12 +20,12 @@ Samples::Samples() : chore_tree{prism::ui::wrap_tree_storage(chores)} {
     }
     plot.add_series(prism::plot::XYData{std::move(xs), std::move(ys)},
                     prism::plot::SeriesStyle{prism::plot::default_series_colors(prism::ui::default_theme())[0], 2.f});
-    wiring.push_back(open_dialog.on_change().connect([this](const auto&) {
+    wire.on(open_dialog, [this](const auto&) {
         auto d = dialog.get();
         d.open = true;
         dialog.set(d);
-    }));
-    wiring.push_back(open_popup.on_change().connect([this](const auto&) { popup.set({.open = true, .modal = false}); }));
+    });
+    wire.on(open_popup, [this](const auto&) { popup.set({.open = true, .modal = false}); });
 }
 
 std::vector<Entry> catalog_entries(Samples& s) {
@@ -143,9 +143,9 @@ CatalogTab::CatalogTab() : tree{prism::ui::wrap_tree_storage(storage)} {
     for (std::size_t i = 0; i < tree.rows.size(); ++i)   // open every category
         if (tree.rows[i].has_children) tree.on_row_clicked(i, tree.rows[i]);
     tree.on_row_clicked(1, tree.rows[1]);   // and show the first widget
-    wiring.push_back(tree.selected.on_change().connect([this](const auto& id) {
+    wire.on(tree.selected, [this](const auto& id) {
         if (id) page.set({.selected = static_cast<std::size_t>(*id)});
-    }));
+    });
     page.set({.selected = static_cast<std::size_t>(tree.selected.get().value_or(0))});
 }
 

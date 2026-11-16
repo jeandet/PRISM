@@ -26,7 +26,7 @@ struct DockingTab {
     prism::core::Field<prism::ui::SpinBox<int>> copies{{.value = 2, .min = 1, .max = 9, .step = 1}};
     prism::core::Field<prism::ui::Label<>> log{{"Waiting for a click."}};
     prism::core::Field<prism::ui::DockLayout>& layout;   // the gallery's preference, arranged here
-    std::vector<prism::core::Connection> wiring;         // captures `this`: the tab never moves
+    prism::core::Wiring wire;         // captures `this`: the tab never moves
 
     explicit DockingTab(prism::core::Field<prism::ui::DockLayout>& arrangement);
     void view(prism::app::WidgetTree::ViewBuilder& vb);   // docking_tab.cpp

@@ -44,14 +44,14 @@ struct TaskRunnerApp {
     runner::blocks::ConsolePanel consoles{};
     runner::blocks::StatusBar status{};
 
-    std::vector<core::Connection> wiring{};
+    core::Wiring wire;
 
     TaskRunnerApp() {
-        wiring.push_back(tasks.run.on_change().connect([this](const auto&) { run_selected(); }));
-        wiring.push_back(tasks.selected.on_change().connect([this](const auto&) { open_selected(); }));
-        wiring.push_back(consoles.tabs.on_change().connect([this](const ui::TabBar<>& bar) {
+        wire.on(tasks.run, [this](const auto&) { run_selected(); });
+        wire.on(tasks.selected, [this](const auto&) { open_selected(); });
+        wire.on(consoles.tabs, [this](const ui::TabBar<>& bar) {
             if (const auto task = consoles.task_of_tab(bar.selected)) tasks.select_task(*task);
-        }));
+        });
     }
 
     // --- starting and stopping runs -------------------------------------------------------

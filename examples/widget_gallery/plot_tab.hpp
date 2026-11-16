@@ -16,7 +16,7 @@ struct PlotTab {
     prism::core::Field<prism::ui::Checkbox> show_cos{{.checked = true, .label = "Show cosine"}};
     prism::core::Field<prism::ui::SpinBox<int>> ratio{{.value = 3, .min = 1, .max = 9, .step = 1}};
     prism::plot::PlotModel plot;
-    std::vector<prism::core::Connection> wiring;
+    prism::core::Wiring wire;
 
     PlotTab();
     // The canvas: a Lissajous figure with the spin box's frequency ratio.
