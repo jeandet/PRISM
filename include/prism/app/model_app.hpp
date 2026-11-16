@@ -170,6 +170,12 @@ public:
         return [gate = wake_gate_] { gate->wake(); };
     }
 
+    // The same for work: any thread may call it to run `fn` on the logic thread (then publish),
+    // and it may outlive the app -- after close_waker() it drops `fn`.
+    std::function<void(std::function<void()>)> poster() const {
+        return [gate = wake_gate_](std::function<void()> fn) { gate->post(std::move(fn)); };
+    }
+
     // What another thread sets or sends on `source` (a Shared<T> or a Channel<T>) reaches
     // `on_value` on the logic thread: its waker posts a drain of `source`, so it needs neither a
     // set_waker() nor a drain() listing it. One post per wake, so a Shared still coalesces.

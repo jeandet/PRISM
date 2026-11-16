@@ -188,6 +188,14 @@ test_software_backend_request_window = executable('test_software_backend_request
 )
 test('software_backend_request_window', test_software_backend_request_window)
 
+# net::send / net::Client against an in-process cpp-httplib server on localhost.
+if prism_net_dep.found()
+  test_http = executable('test_http', files('test_http.cpp'),
+    dependencies : [prism_net_dep, httplib_dep, doctest_dep],
+  )
+  test('http', test_http)
+endif
+
 # audio::Output on SDL's dummy audio driver, and on its timer when no driver opens.
 test_audio_output = executable('test_audio_output', files('test_audio_output.cpp'),
   dependencies : [prism_software_backend_dep, doctest_dep],

@@ -135,6 +135,22 @@ prism_software_backend_lib = library('prism-software-backend',
   install : true,
 )
 
+# HTTP (net/http.hpp): cpp-httplib behind prism-net. Header-only upstream; TLS when OpenSSL is
+# found. No sockets in the browser, so never built there.
+prism_net_dep = dependency('', required : false)
+httplib_dep = dependency('', required : false)
+if host_machine.system() != 'emscripten' and get_option('http').allowed()
+  httplib_dep = dependency('cpp-httplib', required : get_option('http'), fallback : ['cpp-httplib', 'cpp_httplib_dep'],
+                           default_options : ['zlib=disabled', 'brotli=disabled', 'zstd=disabled'])
+  if httplib_dep.found()
+    prism_net_lib = library('prism-net', 'net/http.cpp',
+      dependencies : [prism_core_dep, httplib_dep],
+      install : true,
+    )
+    prism_net_dep = declare_dependency(link_with : prism_net_lib, dependencies : [prism_core_dep])
+  endif
+endif
+
 # OFL: the licence texts travel with the fonts. Own install tag, so wheels (tags runtime,
 # python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
 # The script fonts are found beside the UI font (SdlFontSet::script_font_files).

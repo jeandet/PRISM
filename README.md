@@ -743,6 +743,40 @@ A few rules worth knowing:
 - An exception in a callback goes to `core::set_unhandled_error_handler` and never stops the loop.
 - `transaction()` coalesces notifications. It does not roll back on exception.
 
+### HTTP (opt-in)
+
+`net/http.hpp` makes requests in the style of Python's `requests`. It is built when meson finds
+cpp-httplib (`-Dhttp=auto`, never in the browser) and linked with `prism_net_dep`. A `net::Client`
+sends on a thread of its own and hands each reply back on the logic thread, so the reply may set
+fields:
+
+```cpp
+struct Weather {
+    core::Field<ui::Label<>> status{{"..."}};
+    net::Client http;
+
+    void attach(app::AppContext& ctx) {
+        http.attach(ctx);
+        http.get("http://example.org/now", [this](net::Response r) {
+            status.set({r.ok() ? std::string(r.text()) : r.error});
+        });
+    }
+};
+```
+
+With `prism/app/task.hpp` the same reads as a coroutine, each `co_await` resuming on the logic
+thread. `net::json<T>(response)` (`net/json.hpp`) reads a JSON body into a struct.
+
+```cpp
+app::Task refresh() {
+    auto r = co_await http.get("http://example.org/now");
+    status.set({std::string(r.text())});
+}
+```
+
+Off the logic thread, `net::get(url)` and `net::post(url, body)` just block. The Python SDK has
+no binding: Python has `requests` and `httpx`.
+
 ## Python SDK
 
 The same MVB model from Python, and any thread may mutate it:

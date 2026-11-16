@@ -130,12 +130,13 @@ meson test -C builddir
 
 ## Module layout (`include/prism/`)
 
-Nine namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`List`/
+Ten namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`List`/
 `Connection`/reflection), `render` (`DrawList`), `input` (`InputEvent`/hit testing), `ui`
 (`Widget<T>` delegates, layout, `Node`), `delegates` (built-in widget implementations), `app`
 (`WidgetTree`, `ViewBuilder`, `model_app`, event routing), `widgets` (`Tree`/`Table`/`Plot`/debug
 inspector), `backends` (SDL3, headless software/null backends used by tests), `audio` (`Output`:
-sound out through a render function; SDL code in `src/backends/sdl_audio.cpp`).
+sound out through a render function; SDL code in `src/backends/sdl_audio.cpp`), `net` (HTTP, opt-in:
+`prism-net` over cpp-httplib, `-Dhttp`).
 
 Non-template code goes in `src/<module>/<header>.cpp` (libprism), not in the header: headers keep
 templates, reflection code and short getters, so each file that includes them parses less. Never

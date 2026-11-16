@@ -521,6 +521,26 @@ TEST_CASE("waker outliving the app is a harmless no-op") {
     CHECK(model.reading.get() == 1);
 }
 
+TEST_CASE("ctx.poster() runs work from any thread on the logic thread, and drops it after close") {
+    IdleModel model;
+    std::atomic<bool> ready{false};
+    std::function<void(std::function<void()>)> post;
+    std::atomic<bool> ran_on_logic{false};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [&] { post([&] { model.value.set(5); ran_on_logic = prism::detail_is_logic_thread(); }); },
+        [&] { return ran_on_logic.load(); }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
+        post = ctx.poster();
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(ran_on_logic.load());
+    CHECK(model.value.get() == 5);
+    bool ran_after_close = false;
+    post([&] { ran_after_close = true; });   // the app is gone: dropped, not run
+    CHECK_FALSE(ran_after_close);
+}
+
 // ctx.receive(): one call instead of set_waker + observe + a drain() listing the value.
 struct ReceiveModel {
     prism::Field<int> label{0};

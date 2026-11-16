@@ -242,6 +242,14 @@ reply crosses into the model like any other. Candidates named: cpp-httplib (belo
 (https://github.com/sjanel/aeronet, not yet checked). Under it, the byte stream is PRISM's
 `QIODevice`: one `ByteStream` shape for TCP, serial, files, pipes, a buffer and a test double.
 
+**HTTP, built 2026-11-16:** `include/prism/net/http.hpp` (prism-net, cpp-httplib, `-Dhttp=auto`).
+Blocking `net::send/get/post`; `net::Client` with one worker thread, replies delivered through
+`ctx.poster()`; `co_await` via `app::Task` (`app/task.hpp`), opt-in. aeronet, checked the same
+day: MIT, C++23, HTTP/1.1, HTTP/2 and WebSocket, client and server, coroutines, but 47 stars, no
+release yet, CMake only, 64-bit only. cpp-httplib's README lists MinGW as unsupported; the
+Windows CI lane is MinGW, so it is the first to watch. → skipped: a request pool, cancellation,
+streaming bodies, the browser (Emscripten's fetch API); add when an app needs them.
+
 **HTTP, first assessment: no default; cpp-httplib when an app asks for it, Beast when WebSocket matters.** HTTP is a
 protocol on top of a socket, not a separate I/O domain, so it does not get its own dependency by
 default. cpp-httplib is the cheapest way to make one request from app code and runs on its own
