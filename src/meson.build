@@ -140,8 +140,15 @@ prism_software_backend_lib = library('prism-software-backend',
 prism_net_dep = dependency('', required : false)
 httplib_dep = dependency('', required : false)
 if host_machine.system() != 'emscripten' and get_option('http').allowed()
+  # Its async name lookup calls GetAddrInfoExCancel, which MinGW's headers do not declare.
+  httplib_options = ['zlib=disabled', 'brotli=disabled', 'zstd=disabled']
+  if host_machine.system() == 'windows'
+    httplib_options += 'non_blocking_getaddrinfo=disabled'
+  endif
   httplib_dep = dependency('cpp-httplib', required : get_option('http'), fallback : ['cpp-httplib', 'cpp_httplib_dep'],
-                           default_options : ['zlib=disabled', 'brotli=disabled', 'zstd=disabled'])
+                           default_options : httplib_options)
+  # A system header: its own warnings (OpenSSL 4.1 deprecations, ...) are not ours to fail on.
+  httplib_dep = httplib_dep.as_system('system')
   if httplib_dep.found()
     prism_net_lib = library('prism-net', 'net/http.cpp',
       dependencies : [prism_core_dep, httplib_dep],
@@ -155,7 +162,7 @@ endif
 # prism-io. No sockets in the browser, so never built there.
 prism_io_dep = dependency('', required : false)
 if host_machine.system() != 'emscripten' and get_option('io').allowed()
-  asio_dep = dependency('asio', required : get_option('io'), fallback : ['asio', 'asio_dep'])
+  asio_dep = dependency('asio', required : get_option('io'), fallback : ['asio', 'asio_dep']).as_system('system')
   if asio_dep.found()
     prism_io_lib = library('prism-io', 'io/streams.cpp',
       dependencies : [prism_headers_dep, asio_dep],
