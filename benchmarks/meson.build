@@ -12,3 +12,7 @@ executable('bench_widget_scale', 'widget_scale.cpp',
 executable('bench_table_sort', 'table_sort.cpp',
   dependencies : [prism_core_dep, fmt_dep],
 )
+
+executable('bench_text_scale', 'text_scale.cpp',
+  dependencies : [prism_core_dep, fmt_dep],
+)

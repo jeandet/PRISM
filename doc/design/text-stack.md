@@ -189,7 +189,19 @@ block when such a file is measured to matter.
 Each step ends with something visible, tested, and shown in the gallery and the browser.
 
 1. **Measure** `TextArea` on 1k, 10k and 100k lines (typing, scrolling, publish cost). This says
-   how urgent the document is, and gives the numbers to beat.
+   how urgent the document is, and gives the numbers to beat. Done (2026-11-16,
+   `benchmarks/text_scale.cpp`, release, no-font estimate so real fonts cost more). Median ms,
+   input handling + publish:
+
+   | lines | type a key | arrow down | wheel |
+   |---|---|---|---|
+   | 1,000 | 5.8 + 3.7 | 5.8 + 3.7 | 3.5 + 3.7 |
+   | 10,000 | 61 + 38 | 61 + 38 | 36 + 38 |
+   | 100,000 | 634 + 392 | 633 + 389 | 372 + 384 |
+
+   Every event is O(whole text), scrolling included: the delegate copies and re-wraps the whole
+   string, and the publish lays all of it out again. Past a few thousand lines it cannot keep up
+   with typing. An unchanged publish costs nothing (the tree skips it).
 2. **Fonts**: `FontStyle`, bold and italic faces on desktop and web, the theme's style table.
 3. **Document + layout + `TextView`**, with Markdown into a document. Read-only first: it proves
    the document, styled runs, caching and visible-only layout without any editing. Visible
