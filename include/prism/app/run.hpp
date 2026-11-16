@@ -1,7 +1,6 @@
 #pragma once
 
 #include <prism/app/model_app.hpp>
-#include <prism/app/settings.hpp>
 #include <prism/app/window_geometry.hpp>
 #include <prism/backends/settings_dir.hpp>
 
@@ -20,11 +19,17 @@ namespace prism::app {
 // settings.toml whenever one changes, and loaded back at the next start. Give it with
 // `.settings = &my_settings`. If the struct has a `WindowGeometry window` member, the window
 // opens at the size (and place) it was left at.
+// Declared only: the TOML code behind it is heavy, and an app without settings never needs it.
+template <typename S>
+class SettingsFile;
+
 struct SavedSettings {
     SavedSettings() = default;
     template <typename S>
     SavedSettings(S* settings)   // implicit, so `.settings = &my_settings` reads as it says
         : open{[settings](std::filesystem::path file) -> std::shared_ptr<void> {
+              static_assert(requires { sizeof(SettingsFile<S>); },
+                            "passing .settings needs #include <prism/app/settings.hpp>");
               return std::make_shared<SettingsFile<S>>(*settings, std::move(file));
           }},
           window{window_of(settings)} {}

@@ -533,6 +533,8 @@ at start and saved shortly after each change, as TOML in the user's settings fol
 enum is written by name, and a nested struct becomes a `[table]`:
 
 ```cpp
+#include <prism/app/settings.hpp>   // the TOML code: only an app with settings pays for it
+
 struct Settings {
     core::Field<ui::Slider<>> volume{{.value = 0.6}};
     core::Field<Theme> theme{Theme::System};

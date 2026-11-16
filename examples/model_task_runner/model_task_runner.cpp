@@ -1,5 +1,6 @@
 #include <prism/prism.hpp>
 #include <prism/app/run.hpp>
+#include <prism/app/settings.hpp>
 #include <prism/ui/dock.hpp>
 #include "blocks/console_panel.hpp"
 #include "blocks/status_bar.hpp"

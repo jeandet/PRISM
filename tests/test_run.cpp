@@ -4,6 +4,7 @@
 #include <doctest.h>
 
 #include <prism/app/run.hpp>
+#include <prism/app/settings.hpp>
 
 #include <chrono>
 #include <filesystem>
