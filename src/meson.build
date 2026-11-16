@@ -149,9 +149,16 @@ if host_machine.system() != 'emscripten' and get_option('http').allowed()
                            default_options : httplib_options)
   # A system header: its own warnings (OpenSSL 4.1 deprecations, ...) are not ours to fail on.
   httplib_dep = httplib_dep.as_system('system')
+  # httplib.h asks for winsock and the certificate store with #pragma comment(lib), which only
+  # MSVC reads: MinGW must be told.
+  net_platform_deps = []
+  if host_machine.system() == 'windows'
+    net_platform_deps = [meson.get_compiler('cpp').find_library('ws2_32'),
+                         meson.get_compiler('cpp').find_library('crypt32')]
+  endif
   if httplib_dep.found()
     prism_net_lib = library('prism-net', 'net/http.cpp',
-      dependencies : [prism_core_dep, httplib_dep],
+      dependencies : [prism_core_dep, httplib_dep] + net_platform_deps,
       install : true,
     )
     prism_net_dep = declare_dependency(link_with : prism_net_lib, dependencies : [prism_core_dep])
