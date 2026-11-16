@@ -105,14 +105,12 @@ struct NotesApp {
         if (command == "Open…") ask_for_file(app::FileDialogKind::Open);
         else if (command == "Save As…") ask_for_file(app::FileDialogKind::Save);
         else if (command == "Rename…" && !current.empty()) {
-            new_name.set({.value = current.filename().string(), .placeholder = new_name.get().placeholder});
-            auto d = rename_dialog.get();
-            d.open = true;
-            rename_dialog.set(d);
+            set_value(new_name, current.filename().string());
+            show(rename_dialog);
         }
         else if (command == "Save") write();
         else if (command == "Reload" && !current.empty()) confirm_reload();
-        else if (command == "Clear search") search.set({.placeholder = search.get().placeholder});
+        else if (command == "Clear search") set_value(search, "");
         else if (command == "Statistics window" && ctx && !ctx->window_open(stats_window))
             stats_window = ctx->open_window(stats, {.title = "Statistics", .width = 320, .height = 80});
     }
@@ -155,7 +153,7 @@ struct NotesApp {
         saved = *text;
         error.clear();
         prefs.last_file.set(fs::absolute(path).string());
-        body.set({.value = *text, .placeholder = body.get().placeholder, .rows = body.get().rows});
+        set_value(body, *text);
         refresh_status();
     }
 
@@ -209,10 +207,7 @@ struct NotesApp {
     void confirm_reload() {
         if (value(body) == saved) return open(current);
         pending_reload = current;
-        auto d = discard.get();
-        d.open = true;
-        d.chosen.reset();
-        discard.set(d);
+        show(discard);
     }
 
     void write() {
@@ -229,11 +224,7 @@ struct NotesApp {
         const auto& query = value(search);
         std::vector<ui::TextRange> hits;
         for (auto pos : notes::find_all(value(body), query)) hits.push_back({pos, pos + query.size()});
-        if (hits != body.get().highlights) {
-            auto b = body.get();
-            b.highlights = std::move(hits);
-            body.set(b);
-        }
+        body.update([&](auto& b) { b.highlights = std::move(hits); });   // no change, no notice
         refresh_status();
     }
 
@@ -249,10 +240,10 @@ struct NotesApp {
 
     template <typename M>
     static void enable_item(core::Field<M>& menu, std::string_view text, bool on) {
-        auto m = menu.get();
-        for (auto& item : m.items)
-            if (ui::menu_text(item) == text) item.enabled = on;
-        menu.set(m);
+        menu.update([&](M& m) {
+            for (auto& item : m.items)
+                if (ui::menu_text(item) == text) item.enabled = on;
+        });
     }
 };
 

@@ -7,6 +7,7 @@
 #include <prism/core/transaction.hpp>
 
 #include <cassert>
+#include <concepts>
 #include <functional>
 #include <vector>
 
@@ -34,6 +35,17 @@ struct ObservableValue {
         if (value == new_value) return;
         value = std::move(new_value);
         emit_or_defer(static_cast<void*>(&changed_), [this] { changed_.emit(value); });
+    }
+
+    // Changes some members in place, one notification for all of them (none if nothing changed):
+    //   progress.update([](auto& p) { p.value = 0.5; p.busy = false; });
+    // set({...}) builds a new value instead: every member it does not name is reset.
+    template <typename F>
+        requires std::invocable<F&, T&>
+    void update(F&& change) {
+        T next = value;
+        std::forward<F>(change)(next);
+        set(std::move(next));
     }
 
     void observe(std::function<void(const T&)> cb) {

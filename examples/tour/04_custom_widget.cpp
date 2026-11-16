@@ -19,9 +19,7 @@ struct Widget<Level> {
     static void handle_input(Field<Level>& f, const InputEvent& ev, WidgetNode& node) {
         const auto* kp = std::get_if<KeyPress>(&ev);
         if (!kp || (kp->key != keys::left && kp->key != keys::right)) return;
-        auto level = f.get();
-        level.value = std::clamp(level.value + (kp->key == keys::right ? 0.1f : -0.1f), 0.f, 1.f);
-        f.set(level);
+        set_value(f, std::clamp(value(f) + (kp->key == keys::right ? 0.1f : -0.1f), 0.f, 1.f));
         node.dirty = true;
     }
 };

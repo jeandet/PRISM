@@ -153,9 +153,7 @@ private:
     }
     static bool assign(Field<gallery::Knob>& f, double turned_to) {
         if (turned_to == value(f)) return false;
-        auto k = f.get();
-        k.value = turned_to;
-        f.set(std::move(k));
+        set_value(f, turned_to);
         return true;
     }
 };

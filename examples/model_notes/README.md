@@ -63,17 +63,14 @@ void update_matches() {
     const auto& query = value(search);
     std::vector<ui::TextRange> hits;
     for (auto pos : notes::find_all(value(body), query)) hits.push_back({pos, pos + query.size()});
-    if (hits != body.get().highlights) {
-        auto b = body.get();
-        b.highlights = std::move(hits);
-        body.set(b);
-    }
+    body.update([&](auto& b) { b.highlights = std::move(hits); });   // no change, no notice
     refresh_status();
 }
 ```
 
-Notice the guard: `body.set()` notifies `on_change()` again, so the search runs a second time on the
-new value, finds the same highlights, and stops there.
+`update()` changes the highlights and keeps the text. It notifies `on_change()` again, so the
+search runs a second time on the new value, finds the same highlights, and stops there: a value
+set to what it already was notifies nobody.
 
 ### Logic with no window in it
 

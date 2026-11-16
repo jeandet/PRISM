@@ -63,10 +63,7 @@ struct Gallery {
         });
         wire.on(help_menu, [this](const ui::Menu& m) {
             if (!m.chosen) return;
-            auto dialog = about.get();
-            dialog.open = true;
-            dialog.chosen.reset();
-            about.set(std::move(dialog));
+            show(about);
         });
     }
 

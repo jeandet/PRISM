@@ -30,25 +30,14 @@ struct Editor {
     std::string sql() const { return value(text); }
 
     void open(std::string sql) {
-        auto area = text.get();
-        area.value = std::move(sql);
-        area.highlights.clear();
-        apply(std::move(area));
+        edit([&](auto& area) { area.value = std::move(sql); area.highlights.clear(); });
     }
 
     void mark(std::optional<ByteRange> range) {
-        if (!range) return;
-        auto area = text.get();
-        area.highlights = {ui::TextRange{range->begin, range->end}};
-        apply(std::move(area));
+        if (range) edit([&](auto& area) { area.highlights = {ui::TextRange{range->begin, range->end}}; });
     }
 
-    void clear_mark() {
-        auto area = text.get();
-        if (area.highlights.empty()) return;
-        area.highlights.clear();
-        apply(std::move(area));
-    }
+    void clear_mark() { edit([](auto& area) { area.highlights.clear(); }); }
 
     void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
@@ -64,9 +53,10 @@ struct Editor {
 
 private:
     // Setting the text from here is not the user typing: the mark has to survive it.
-    void apply(ui::TextArea<> area) {
+    template <typename F>
+    void edit(F&& change) {
         marking_ = true;
-        text.set(std::move(area));
+        text.update(std::forward<F>(change));
         marking_ = false;
     }
 

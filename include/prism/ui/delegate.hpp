@@ -336,6 +336,15 @@ struct Popup {
     bool operator==(const Popup&) const = default;
 };
 
+// show(dialog): opens it with no answer yet, keeping its title, message and buttons. show(popup):
+// opens it, keeping whether it is modal. Escape or a button closes them.
+inline void show(Field<Dialog>& dialog) {
+    dialog.update([](Dialog& d) { d.open = true; d.chosen.reset(); });
+}
+inline void show(Field<Popup>& popup) {
+    popup.update([](Popup& p) { p.open = true; });
+}
+
 
 template <ScopedEnum T>
 struct Dropdown {

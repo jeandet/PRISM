@@ -46,7 +46,6 @@ struct PopupsTab {
 
 private:
     void say(std::string text);
-    static void open(prism::core::Field<prism::ui::Dialog>& d);
 };
 
 } // namespace gallery

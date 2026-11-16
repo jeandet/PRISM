@@ -8,9 +8,9 @@
 namespace gallery {
 
 PopupsTab::PopupsTab() {
-    wire.on(ask, [this](const auto&) { open(confirm); });
-    wire.on(rename, [this](const auto&) { open(rename_dialog); });
-    wire.on(options, [this](const auto&) { options_popup.set({.open = true, .modal = false}); });
+    wire.on(ask, [this](const auto&) { show(confirm); });
+    wire.on(rename, [this](const auto&) { show(rename_dialog); });
+    wire.on(options, [this](const auto&) { show(options_popup); });
     wire.on(open_file, [this](const auto&) { choose(prism::app::FileDialogKind::Open); });
     wire.on(save_file, [this](const auto&) { choose(prism::app::FileDialogKind::Save); });
     wire.on(message, [this](const auto&) {
@@ -81,12 +81,5 @@ void PopupsTab::view(prism::app::ViewBuilder& vb) {
 }
 
 void PopupsTab::say(std::string text) { result.set({std::move(text)}); }
-
-void PopupsTab::open(prism::core::Field<prism::ui::Dialog>& d) {
-    auto v = d.get();
-    v.open = true;
-    v.chosen.reset();
-    d.set(v);
-}
 
 } // namespace gallery

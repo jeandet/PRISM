@@ -9,16 +9,12 @@ namespace gallery {
 ControlsTab::ControlsTab(prism::core::Field<Theme>& theme_pref) : theme(theme_pref) {
     wire.on_any([this] { update(); }, name, fruit, copies, scale, notify, quality, theme);
     wire.on(volume, [this](const prism::ui::Slider<>& v) {
-        progress.set({.value = v.value, .label = fmt::format("{:.0f}%", v.value * 100), .busy = value(busy)});
+        progress.update([&](auto& p) { p.value = v.value; p.label = fmt::format("{:.0f}%", v.value * 100); });
         update();
     });
-    wire.on(busy, [this](const prism::ui::Checkbox& b) {
-        auto p = progress.get();
-        p.busy = b.checked;
-        progress.set(p);
-    });
+    wire.on(busy, [this](const prism::ui::Checkbox& b) { progress.update([&](auto& p) { p.busy = b.checked; }); });
     wire.on(reset, [this](const auto&) { clear(); });
-    wire.on(trash, [this](const auto&) { name.set({.placeholder = "Your name"}); });
+    wire.on(trash, [this](const auto&) { set_value(name, ""); });
     update();
 }
 
@@ -81,11 +77,11 @@ void ControlsTab::update() {
 }
 
 void ControlsTab::clear() {
-    name.set({.placeholder = "Your name"});
-    fruit.set({.placeholder = "Pick or type a fruit", .options = fruit.get().options});
-    copies.set({.value = 2, .min = 1, .max = 20, .step = 1});
-    volume.set({.value = 0.6, .min = 0.0, .max = 1.0});
-    notify.set({.checked = true, .label = "Send notifications"});
+    set_value(name, "");
+    set_value(fruit, "");
+    set_value(copies, 2);
+    set_value(volume, 0.6);
+    set_value(notify, true);
 }
 
 } // namespace gallery

@@ -26,7 +26,7 @@ void ChannelStrip::canvas(render::DrawList& dl, const core::Rect& bounds, const 
 
 BuildYourOwnTab::BuildYourOwnTab() {
     for (std::size_t i = 0; i < strips.size(); ++i)
-        strips[i].name.set({.value = std::string{strip_names[i]}});
+        set_value(strips[i].name, std::string{strip_names[i]});
 }
 
 void BuildYourOwnTab::view(Vb& vb) {

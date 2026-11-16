@@ -478,7 +478,7 @@ core::Field<ui::Dialog> ask{{.title = "Unsaved changes",
                              .message = "Reloading discards your edits.",
                              .buttons = {"Discard", "Cancel"}}};
 // in view(): vb.context_menu(actions); vb.dialog(ask);
-// to ask:    auto d = ask.get(); d.open = true; ask.set(d);
+// to ask:    show(ask);   // opens it with no answer yet
 // the answer arrives through ask.on_change(): d.chosen is the button, or empty on Escape.
 ```
 
@@ -497,7 +497,7 @@ declared and closes on a click outside:
 ```cpp
 core::Field<ui::Popup> options{{.open = false, .modal = false}};
 // in view(), next to its button: vb.popup(options, [&](auto& p) { p.vstack(grid, snap); });
-// to open:   options.set({.open = true, .modal = false});
+// to open:   show(options);   // stays non-modal
 ```
 
 <p align="center"><img src="doc/screenshots/dialog.svg" alt="Modal dialog" width="420"/></p>
@@ -747,6 +747,11 @@ A few rules worth knowing:
   field's text, a checkbox's tick, a toggle button's on/off, or the plain value of a `Field<int>`.
   It reads through `get()`, so a `Derived` follows it. A local named `value` hides it: name
   parameters something else.
+- `set_value(x, v)` changes that same member and keeps the others: a slider keeps its range and
+  label, a text field its placeholder. `x.update([](auto& w) { ... })` changes several members in
+  one notification. `x.set({...})` builds a whole new widget: every member it does not name goes
+  back to its default. A `Derived` has neither, and `set_value(name, 65)` does not compile.
+- `show(dialog)` opens a dialog with no answer yet; `show(popup)` opens a popup as it was made.
 - `Field<T>` holds only a value, never a label. The label comes from the member name.
 - One logic thread owns the widget tree and every `Field<T>`. They are not thread-safe.
 - Other threads talk to it through `Shared<T>::set()`, `Channel<T>::send()` or a posted closure.

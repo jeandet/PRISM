@@ -1,6 +1,8 @@
 #pragma once
 
+#include <concepts>
 #include <type_traits>
+#include <utility>
 
 // value(x): what a Field, Derived, State or Shared holds, unwrapped from its widget.
 //
@@ -35,8 +37,36 @@ decltype(auto) value(const O& observable) {
             widget_value(observable.get()));
 }
 
+// The member value() reads, writable: what set_value() assigns.
+template <typename W>
+auto& widget_value_ref(W& w) {
+    if constexpr (requires { w.value; }) return w.value;
+    else if constexpr (requires { w.checked; }) return w.checked;
+    else return w;
+}
+
+// set_value(x, v): changes what value(x) reads and keeps the widget's other members (a slider
+// keeps its range and label, a text field its placeholder). Only on what can be set: a Derived
+// is computed, and does not compile here.
+// The member set_value() writes, for an observable of type O.
+template <typename O>
+using value_member_t = std::remove_cvref_t<decltype(widget_value_ref(
+    std::declval<std::remove_cvref_t<decltype(std::declval<O&>().get())>&>()))>;
+
+// Converts, not merely assigns: a std::string takes an int as one character, which is never meant.
+template <typename O, typename V>
+concept SettableTo = requires(O& o) { o.update([](auto&) {}); }
+                     && std::convertible_to<V, value_member_t<O>>;
+
+template <typename O, typename V>
+    requires SettableTo<O, V>
+void set_value(O& observable, V&& new_value) {
+    observable.update([&](auto& w) { widget_value_ref(w) = std::forward<V>(new_value); });
+}
+
 } // namespace prism::core
 
 namespace prism {
+using core::set_value;
 using core::value;
 } // namespace prism

@@ -20,12 +20,8 @@ Samples::Samples() : chore_tree{prism::ui::wrap_tree_storage(chores)} {
     }
     plot.add_series(prism::plot::XYData{std::move(xs), std::move(ys)},
                     prism::plot::SeriesStyle{prism::plot::default_series_colors(prism::ui::default_theme())[0], 2.f});
-    wire.on(open_dialog, [this](const auto&) {
-        auto d = dialog.get();
-        d.open = true;
-        dialog.set(d);
-    });
-    wire.on(open_popup, [this](const auto&) { popup.set({.open = true, .modal = false}); });
+    wire.on(open_dialog, [this](const auto&) { show(dialog); });
+    wire.on(open_popup, [this](const auto&) { show(popup); });
 }
 
 std::vector<Entry> catalog_entries(Samples& s) {
