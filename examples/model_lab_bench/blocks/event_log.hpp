@@ -21,7 +21,7 @@ struct EventLog {
         if (lines.size() > kMaxLines) lines.erase(0);
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.list(lines); }
+    void view(app::ViewBuilder& vb) { vb.list(lines); }
 
 private:
     static constexpr std::size_t kMaxLines = 150;

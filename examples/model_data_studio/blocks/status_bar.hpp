@@ -56,7 +56,7 @@ struct StatusBar {
     // Plain widgets only, and called inside the bar rather than placed as a block: a canvas takes
     // whatever it is given (the whole bar), and block() would wrap these in a container the spacer
     // could not spread. The bar stays in the tree and reports itself idle, so the layout never jumps.
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.widget(text);
         vb.spacer();
         vb.widget(bar);

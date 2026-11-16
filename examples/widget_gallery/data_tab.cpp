@@ -25,7 +25,7 @@ DataTab::DataTab() {
     });
 }
 
-void DataTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
+void DataTab::view(prism::app::ViewBuilder& vb) {
     vb.widget(title);
     vb.hstack([&] {
         vb.vstack([&] {

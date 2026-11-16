@@ -5,7 +5,7 @@
 
 namespace gallery {
 
-void ChannelStrip::view(app::WidgetTree::ViewBuilder& vb) {
+void ChannelStrip::view(app::ViewBuilder& vb) {
     vb.vstack([&] {
         vb.widget(name);
         vb.widget(gain);

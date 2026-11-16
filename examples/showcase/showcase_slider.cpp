@@ -7,7 +7,7 @@ struct AudioMixer {
     core::Field<ui::Slider<int>> quality{{.value = 3, .min = 1, .max = 5, .step = 1}};
     core::Field<ui::Checkbox> mute{{.checked = false, .label = "Mute"}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack(volume, quality, mute);
     }
 };

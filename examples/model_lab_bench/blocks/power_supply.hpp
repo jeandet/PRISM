@@ -50,7 +50,7 @@ struct PowerSupply {
         settings.output_enabled = value(output_toggle);
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.widget(output_toggle).tooltip("Enable or disable the DC output");
             vb.widget(target_voltage);

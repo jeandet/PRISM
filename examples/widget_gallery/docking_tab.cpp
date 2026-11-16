@@ -14,7 +14,7 @@ DockingTab::DockingTab(prism::core::Field<prism::ui::DockLayout>& arrangement) :
     });
 }
 
-void DockingTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
+void DockingTab::view(prism::app::ViewBuilder& vb) {
     vb.widget(title);
     vb.widget(hint);
     vb.dock(layout, {

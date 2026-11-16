@@ -19,7 +19,7 @@ struct TableShowcase {
         readings.push_back(Reading{.sensor = {"temp"}, .value = {41.2}});
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.table(readings).headers({"Sensor", "Value"}).sort(1, /*descending=*/true);
     }
 };

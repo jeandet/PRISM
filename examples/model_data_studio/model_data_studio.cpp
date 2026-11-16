@@ -1,5 +1,4 @@
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 
 #include "../showcase/showcase_common.hpp"
@@ -119,13 +118,13 @@ struct DataStudioApp {
         }
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.dock(settings.layout, {
-                {"schema", "Schema", [&](app::WidgetTree::ViewBuilder& p) { p.block(schema); }},
-                {"queries", "Saved queries", [&](app::WidgetTree::ViewBuilder& p) { p.block(queries); }},
-                {"editor", "Query", [&](app::WidgetTree::ViewBuilder& p) { p.block(editor); }},
-                {"results", "Results", [&](app::WidgetTree::ViewBuilder& p) { p.block(results); }},
+                {"schema", "Schema", [&](app::ViewBuilder& p) { p.block(schema); }},
+                {"queries", "Saved queries", [&](app::ViewBuilder& p) { p.block(queries); }},
+                {"editor", "Query", [&](app::ViewBuilder& p) { p.block(editor); }},
+                {"results", "Results", [&](app::ViewBuilder& p) { p.block(results); }},
             });
             vb.status_bar([&] { vb.block(status); });
         });

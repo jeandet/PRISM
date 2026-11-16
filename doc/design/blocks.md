@@ -138,7 +138,7 @@ struct PlotView {
     void handle_canvas_input(const InputEvent& ev, WidgetNode& node, Rect bounds) {
         // mouse drag for pan, scroll for zoom
     }
-    void view(WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.canvas(*this).depends_on(data);
     }
 };

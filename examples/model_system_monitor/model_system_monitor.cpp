@@ -1,5 +1,4 @@
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 #include <prism/app/settings.hpp>
 #include <prism/ui/dock.hpp>
 #include <prism/widgets/plot.hpp>
@@ -155,18 +154,18 @@ struct SystemMonitor {
             t.accent_hover, size * 0.5f);
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         // The panels are a dock (doc/design/drag-and-docking.md): their arrangement is
         // settings.layout, saved so they come back where the user left them. The heartbeat
         // stays below the dock.
         vb.vstack([&] {
             vb.dock(settings.layout, {
-                {"plots", "Plots", [&](app::WidgetTree::ViewBuilder& p) { plot_group.view(p); }},
-                {"table", "Table", [&](app::WidgetTree::ViewBuilder& p) {
+                {"plots", "Plots", [&](app::ViewBuilder& p) { plot_group.view(p); }},
+                {"table", "Table", [&](app::ViewBuilder& p) {
                      p.table(process_table).sort(2, /*descending=*/true).depends_on(process_revision);   // CPU %
                  }},
-                {"tree", "Tree", [&](app::WidgetTree::ViewBuilder& p) { p.tree(tree_ctrl); }},
-                {"events", "Events", [&](app::WidgetTree::ViewBuilder& p) { p.list(event_log); }},
+                {"tree", "Tree", [&](app::ViewBuilder& p) { p.tree(tree_ctrl); }},
+                {"events", "Events", [&](app::ViewBuilder& p) { p.list(event_log); }},
             });
             vb.status_bar([&] {
                 vb.canvas(*this).depends_on(heartbeat_phase).min_size(core::Width{24});

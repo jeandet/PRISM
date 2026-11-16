@@ -56,11 +56,11 @@ struct ConsolePanel {
         return count;
     }
 
-    void view(app::WidgetTree::ViewBuilder& p) {
+    void view(app::ViewBuilder& p) {
         p.tabs(tabs, [&] {
             for (std::size_t task : tab_tasks)
                 p.tab(std::string{kTasks[task].name},
-                      [this, task](app::WidgetTree::ViewBuilder& q) { q.block(panes[task]); });
+                      [this, task](app::ViewBuilder& q) { q.block(panes[task]); });
         });
     }
 };

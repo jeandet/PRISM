@@ -64,7 +64,7 @@ struct TasksPanel {
         for (std::size_t task : task_ids) set_state(task, state_of(task));
     }
 
-    void view(app::WidgetTree::ViewBuilder& p) {
+    void view(app::ViewBuilder& p) {
         p.vstack([&] {
             std::move(p.list(rows)).selection(selected);
             p.widget(custom_command).tooltip("What the Custom task runs, when it is the selected one");

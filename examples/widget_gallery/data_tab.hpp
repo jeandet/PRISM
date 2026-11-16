@@ -88,7 +88,7 @@ struct DataTab {
     prism::core::Wiring wire;
 
     DataTab();
-    void view(prism::app::WidgetTree::ViewBuilder& vb);   // data_tab.cpp
+    void view(prism::app::ViewBuilder& vb);   // data_tab.cpp
 
 private:
     static std::vector<prism::ui::MenuItem> column_items(const Readings& r) {

@@ -22,7 +22,7 @@ ControlsTab::ControlsTab(prism::core::Field<Theme>& theme_pref) : theme(theme_pr
     update();
 }
 
-void ControlsTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
+void ControlsTab::view(prism::app::ViewBuilder& vb) {
     vb.widget(title);
     vb.hstack([&] {
         vb.widget(name).tooltip("A text field: selection, clipboard, undo, input methods");
@@ -52,7 +52,7 @@ void ControlsTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
     vb.widget(summary);
 }
 
-void ControlsTab::settings(prism::app::WidgetTree::ViewBuilder& vb) {
+void ControlsTab::settings(prism::app::ViewBuilder& vb) {
     vb.hstack([&] {
         vb.widget(copies).tooltip("Whole numbers: arrows, the wheel, or type a value");
         vb.gap(8.f);

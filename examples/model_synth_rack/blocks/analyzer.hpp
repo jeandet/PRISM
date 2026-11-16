@@ -17,7 +17,7 @@ struct Analyzer {
     core::Derived<SynthSettings>& settings;
     std::vector<core::Point> trace{};
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame, settings); }
+    void view(app::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame, settings); }
 
     void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         analyzer_canvas::draw(dl, bounds, node, frame.get(), settings.get(), trace);

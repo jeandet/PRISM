@@ -61,4 +61,5 @@
 #include <prism/app/app.hpp>
 #include <prism/app/ui.hpp>
 #include <prism/app/model_app.hpp>
+#include <prism/app/run.hpp>
 #include <prism/app/widget_tree.hpp>

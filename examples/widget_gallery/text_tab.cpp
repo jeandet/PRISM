@@ -2,7 +2,7 @@
 
 namespace gallery {
 
-void TextTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
+void TextTab::view(prism::app::ViewBuilder& vb) {
     vb.widget(title);
     vb.widget(code_label);
     vb.widget(code).tooltip("Monospace, with a scrollbar when it grows");

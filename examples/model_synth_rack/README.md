@@ -66,7 +66,7 @@ struct Effects {
                 .delay_mix = value(mix)};
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.widget(time);
             vb.gap(6.f);
@@ -143,7 +143,7 @@ repaint when it changes.
 when either changes:
 
 ```cpp
-void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame, settings); }
+void view(app::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame, settings); }
 ```
 
 The drawing itself is `blocks/analyzer_canvas.hpp`: log-frequency bands, a dB ruler, a scope

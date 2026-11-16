@@ -15,7 +15,7 @@
 
 namespace gallery {
 
-using Vb = prism::app::WidgetTree::ViewBuilder;
+using Vb = prism::app::ViewBuilder;
 
 enum class Shape { Circle, Square, Triangle };
 

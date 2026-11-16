@@ -42,7 +42,7 @@ struct StatusBar {
 
     // Called inside the bar rather than placed as a block: block() would wrap these four in one
     // container, and the spacer would stretch that container instead of spreading the bar.
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.widget(device);
         vb.spacer();
         vb.widget(scalars);

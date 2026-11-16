@@ -94,7 +94,7 @@ struct PerfLab {
         plot.notify();
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack([&] {
                 vb.table(table);

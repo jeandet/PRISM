@@ -49,10 +49,10 @@ struct ControlsTab {
     prism::core::Wiring wire;   // captures `this`: the tab never moves
 
     explicit ControlsTab(prism::core::Field<Theme>& theme_pref);
-    void view(prism::app::WidgetTree::ViewBuilder& vb);   // controls_tab.cpp
+    void view(prism::app::ViewBuilder& vb);   // controls_tab.cpp
 
 private:
-    void settings(prism::app::WidgetTree::ViewBuilder& vb);
+    void settings(prism::app::ViewBuilder& vb);
     void update();
     void clear();
 };

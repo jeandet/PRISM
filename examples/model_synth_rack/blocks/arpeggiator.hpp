@@ -45,7 +45,7 @@ struct Arpeggiator {
                 .step_mask = step_mask};
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.scroll([&] {
             vb.widget(power).tooltip("Open the audio device and start the engine");
             vb.hstack([&] {

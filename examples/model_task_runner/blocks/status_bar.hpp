@@ -42,7 +42,7 @@ struct StatusBar {
         held.set({fmt::format("{} lines held", grouped(lines))});
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.widget(runs);
         vb.spacer();
         vb.widget(throughput);

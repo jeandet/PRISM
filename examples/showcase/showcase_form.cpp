@@ -13,7 +13,7 @@ struct FormShowcase {
     core::Field<ui::ComboBox> format{{.value = "PNG", .placeholder = "Format",
                                      .options = {"PNG", "SVG", "PDF", "JPEG"}}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack(quality, units);
             vb.hstack(copies, scale);

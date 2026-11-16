@@ -111,7 +111,7 @@ struct ConsolePane {
         sync_stats();
     }
 
-    void view(app::WidgetTree::ViewBuilder& p) {
+    void view(app::ViewBuilder& p) {
         p.vstack([&] {
             p.hstack([&] {
                 p.widget(filter).tooltip("Show only the lines that contain this text");

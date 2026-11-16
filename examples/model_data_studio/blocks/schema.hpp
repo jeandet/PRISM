@@ -23,7 +23,7 @@ struct Schema {
 
     core::Field<std::uint32_t>& rows;
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(rows); }
+    void view(app::ViewBuilder& vb) { vb.canvas(*this).depends_on(rows); }
 
     void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         const auto& theme = ui::node_theme(node);

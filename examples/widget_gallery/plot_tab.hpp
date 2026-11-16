@@ -21,7 +21,7 @@ struct PlotTab {
     PlotTab();
     // The canvas: a Lissajous figure with the spin box's frequency ratio.
     void canvas(prism::render::DrawList& dl, prism::core::Rect bounds, const prism::ui::WidgetNode& node);
-    void view(prism::app::WidgetTree::ViewBuilder& vb);   // plot_tab.cpp
+    void view(prism::app::ViewBuilder& vb);   // plot_tab.cpp
 
 private:
     void update();

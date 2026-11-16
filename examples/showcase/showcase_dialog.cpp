@@ -10,7 +10,7 @@ struct DialogShowcase {
                                      .buttons = {"Discard", "Cancel"},
                                      .open = true}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.widget(file);
             vb.widget(text);

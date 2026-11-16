@@ -119,7 +119,7 @@ actually changes, and returning `true` from `turn()` is what marks the widget di
 
 ```cpp
 struct BuildYourOwnTab {
-    using Vb = app::WidgetTree::ViewBuilder;
+    using Vb = app::ViewBuilder;
     ...
     core::Field<Knob> cutoff{{.value = 2400.0, .min = 100.0, .max = 12000.0, .step = 10.0,
                               .label = "Cutoff", .unit = "Hz"}};
@@ -132,9 +132,9 @@ Those fields are the tab; `main.cpp` gives it a page and places it:
 
 ```cpp
         vb.tabs(tabs, [&] {
-            vb.tab(tab_names[0], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.block(controls); }); });
+            vb.tab(tab_names[0], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(controls); }); });
             ...
-            vb.tab(tab_names[7], [&](app::WidgetTree::ViewBuilder& t) { t.scroll([&] { t.block(build_your_own); }); });
+            vb.tab(tab_names[7], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(build_your_own); }); });
         });
 ```
 

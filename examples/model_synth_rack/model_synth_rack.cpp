@@ -1,5 +1,4 @@
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 
 #include <exception>
@@ -138,25 +137,25 @@ struct SynthApp {
         feed.frame.set(audio.render_offline(8));
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.dock(settings.layout,
                     {
                         {"analyzer", "Analyzer",
-                         [&](app::WidgetTree::ViewBuilder& p) { p.block(analyzer); }},
+                         [&](app::ViewBuilder& p) { p.block(analyzer); }},
                         {"steps", "Step Gates — 16th notes",
-                         [&](app::WidgetTree::ViewBuilder& p) { p.block(gates); }},
+                         [&](app::ViewBuilder& p) { p.block(gates); }},
                         {"arp", "Arpeggiator",
-                         [&](app::WidgetTree::ViewBuilder& p) { p.scroll([&] { p.block(arp); }); }},
+                         [&](app::ViewBuilder& p) { p.scroll([&] { p.block(arp); }); }},
                         {"voice", "Voice",
-                         [&](app::WidgetTree::ViewBuilder& p) {
+                         [&](app::ViewBuilder& p) {
                              p.scroll([&] {
                                  p.block(voice);
                                  p.block(effects);
                              });
                          }},
                         {"engine", "Output & Callback Budget",
-                         [&](app::WidgetTree::ViewBuilder& p) { p.scroll([&] { p.block(output); }); }},
+                         [&](app::ViewBuilder& p) { p.scroll([&] { p.block(output); }); }},
                     });
             vb.status_bar([&] {
                 vb.widget(status_audio);

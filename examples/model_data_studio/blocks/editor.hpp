@@ -50,7 +50,7 @@ struct Editor {
         apply(std::move(area));
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.toolbar([&] {
                 vb.widget(run);

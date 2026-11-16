@@ -1,6 +1,5 @@
 // Tour 1: a struct of core::Field's is a window. With reflection, this is the whole program.
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 
 using namespace prism;
 
@@ -11,7 +10,7 @@ struct Settings {
 
 #if !__cpp_impl_reflection
     // Without reflection (the web build) the fields are placed by hand; the widgets are the same.
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(name, volume, mute); }
+    void view(app::ViewBuilder& vb) { vb.vstack(name, volume, mute); }
 #endif
 };
 

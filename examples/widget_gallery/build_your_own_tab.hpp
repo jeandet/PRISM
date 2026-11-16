@@ -44,7 +44,7 @@ struct ChannelStrip {
     core::Field<Knob> pan{{.min = -1.0, .max = 1.0, .step = 0.05, .label = "Pan"}};
     core::Field<ui::Checkbox> mute{{.label = "Mute"}};
 
-    void view(app::WidgetTree::ViewBuilder& vb);
+    void view(app::ViewBuilder& vb);
     // The level meter: the gain as a bar, dead when the channel is muted.
     void canvas(render::DrawList& dl, const core::Rect& bounds, const ui::WidgetNode& node);
 };
@@ -56,7 +56,7 @@ inline constexpr std::string_view strip_source = R"(struct ChannelStrip {
     core::Field<Knob> pan{{.min = -1.0, .max = 1.0, .step = 0.05, .label = "Pan"}};
     core::Field<ui::Checkbox> mute{{.label = "Mute"}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.widget(name);
             vb.widget(gain);
@@ -78,7 +78,7 @@ inline constexpr std::string_view strip_source = R"(struct ChannelStrip {
 )";
 
 struct BuildYourOwnTab {
-    using Vb = app::WidgetTree::ViewBuilder;
+    using Vb = app::ViewBuilder;
 
     static constexpr std::array<std::string_view, 8> strip_names{
         "Drums", "Bass", "Keys", "Pad", "Arp", "Lead", "Vox", "Fx"};

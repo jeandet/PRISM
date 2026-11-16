@@ -1,6 +1,5 @@
 // Tour 2: a core::Derived is a value computed from fields, kept up to date for you.
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 
 #include <string>
 
@@ -15,7 +14,7 @@ struct Rectangle {
         return "area: " + std::to_string(value(width) * value(height));
     }};
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(width, height, area); }
+    void view(app::ViewBuilder& vb) { vb.vstack(width, height, area); }
 };
 
 int main() {

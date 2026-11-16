@@ -26,7 +26,7 @@ struct PlotShowcase {
         plot.notify();
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.canvas(plot)
             .depends_on(plot.x_range)
             .depends_on(plot.y_range)

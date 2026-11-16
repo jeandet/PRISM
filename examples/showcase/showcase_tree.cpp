@@ -25,7 +25,7 @@ struct TreeShowcase {
         ctrl.on_row_clicked(1, ctrl.rows[1]); // expand "sensors"
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
+    void view(app::ViewBuilder& vb) { vb.tree(ctrl); }
 };
 
 int main(int argc, char* argv[]) {

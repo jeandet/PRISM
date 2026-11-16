@@ -52,7 +52,7 @@ struct Diagnostics {
          "renderer and model thread looks like.",
          /*heading=*/false, /*wrap=*/true}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.scroll([&] {
             vb.widget(lag).tooltip("The hardware thread waits; the window does not");
             vb.widget(block).tooltip("The logic thread waits: the window stops responding");

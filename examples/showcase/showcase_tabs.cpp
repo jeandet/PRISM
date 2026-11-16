@@ -8,12 +8,12 @@ struct TabsShowcase {
     core::Field<ui::Slider<>> volume{{.value = 0.6}};
     core::Field<ui::TabBar<>> tabs;
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.tabs(tabs, [&] {
-            vb.tab("Account", [&](app::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Account", [&](app::ViewBuilder& tvb) {
                 tvb.vstack(username, dark_mode);
             });
-            vb.tab("Audio", [&](app::WidgetTree::ViewBuilder& tvb) {
+            vb.tab("Audio", [&](app::ViewBuilder& tvb) {
                 tvb.widget(volume);
             });
         });

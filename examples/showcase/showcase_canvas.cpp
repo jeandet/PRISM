@@ -29,7 +29,7 @@ struct Waveform {
         dl.polyline(pts, t.accent, 2.f);
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.canvas(*this).depends_on(frequency);
         vb.widget(frequency);
     }

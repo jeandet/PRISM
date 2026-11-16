@@ -33,7 +33,7 @@ void PlotTab::canvas(prism::render::DrawList& dl, prism::core::Rect bounds, cons
     dl.polyline(pts, t.accent, 2.f);
 }
 
-void PlotTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
+void PlotTab::view(prism::app::ViewBuilder& vb) {
     vb.widget(title);
     vb.hstack([&] {
         vb.canvas(plot)

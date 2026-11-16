@@ -36,7 +36,7 @@ struct StepGates {
 
     std::uint16_t mask() const { return port.mask.get(); }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.hstack([&] {
             for (std::size_t step = 0; step < kSteps; ++step)
                 vb.widget(boxes[step]).tooltip(fmt::format("Gate for step {}", step + 1));

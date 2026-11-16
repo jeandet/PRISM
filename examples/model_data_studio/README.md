@@ -69,12 +69,12 @@ void show(ResultSet result) {
     update_chart();
 }
 
-void view(app::WidgetTree::ViewBuilder& vb) {
+void view(app::ViewBuilder& vb) {
     vb.tabs(tabs, [&] {
-        vb.tab("Table", [&](app::WidgetTree::ViewBuilder& page) {
+        vb.tab("Table", [&](app::ViewBuilder& page) {
             page.table(source.set).depends_on(source.revision);
         });
-        vb.tab("Chart", [&](app::WidgetTree::ViewBuilder& page) {
+        vb.tab("Chart", [&](app::ViewBuilder& page) {
             page.canvas(chart)
                 .depends_on(chart.x_range, chart.y_range, chart.view, chart.cursor, chart.revision);
         });

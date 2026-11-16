@@ -33,7 +33,7 @@ struct WaveGenerator {
         settings.offset_v = value(offset);
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.widget(wave_type).tooltip("Signal generator waveform shape");
             vb.widget(frequency);

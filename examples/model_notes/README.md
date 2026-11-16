@@ -119,7 +119,7 @@ struct NotesStats {
               auto s = notes::stats(value(body));
               return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
           }, body) {}
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
+    void view(app::ViewBuilder& vb) { vb.widget(summary); }
 };
 ```
 

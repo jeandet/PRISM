@@ -33,7 +33,7 @@ struct Queries {
 
     void select(std::size_t index) { selected.set(index); }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.list<std::string>(names, [this](std::size_t index, const std::string&) { open_(index); })
                 .selection(selected);

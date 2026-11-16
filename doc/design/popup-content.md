@@ -26,8 +26,8 @@ struct Settings {
     Field<ui::TextField<>> name{{}};
     Field<ui::Checkbox> dark{{.checked = false, .label = "Dark theme"}};
     Field<ui::Button> ok{{"OK"}};
-    void view(app::WidgetTree::ViewBuilder& vb) {
-        vb.popup(prefs, [&](app::WidgetTree::ViewBuilder& p) { p.vstack(name, dark, ok); });
+    void view(app::ViewBuilder& vb) {
+        vb.popup(prefs, [&](app::ViewBuilder& p) { p.vstack(name, dark, ok); });
     }
 };
 ```

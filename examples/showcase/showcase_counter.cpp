@@ -6,7 +6,7 @@ struct Counter {
     core::Field<int> count{42};
     core::Field<std::string> label{"Hello, PRISM!"};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack(count, label);
     }
 };

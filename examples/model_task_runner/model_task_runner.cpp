@@ -1,5 +1,4 @@
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 #include <prism/app/settings.hpp>
 #include <prism/ui/dock.hpp>
 #include "blocks/console_panel.hpp"
@@ -104,11 +103,11 @@ struct TaskRunnerApp {
 
     // --- the view -------------------------------------------------------------------------
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.dock(settings.layout, {
-                {"tasks", "Tasks", [&](app::WidgetTree::ViewBuilder& p) { p.block(tasks); }},
-                {"console", "Console", [&](app::WidgetTree::ViewBuilder& p) { p.block(consoles); }},
+                {"tasks", "Tasks", [&](app::ViewBuilder& p) { p.block(tasks); }},
+                {"console", "Console", [&](app::ViewBuilder& p) { p.block(consoles); }},
             });
             vb.status_bar([&] { vb.block(status); });
         });

@@ -31,7 +31,7 @@ struct NotesStats {
               auto s = notes::stats(value(body));
               return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
           }, body) {}
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
+    void view(app::ViewBuilder& vb) { vb.widget(summary); }
 };
 
 struct NotesApp {
@@ -118,7 +118,7 @@ struct NotesApp {
             stats_window = ctx->open_window(stats, {.title = "Statistics", .width = 320, .height = 80});
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.remember_split(prefs.sidebar);
             vb.tree(files);
@@ -140,7 +140,7 @@ struct NotesApp {
                 vb.status_bar([&] { vb.widget(status); vb.spacer(); });
                 vb.context_menu(editor_menu);
                 vb.dialog(discard);
-                vb.dialog(rename_dialog, [&](app::WidgetTree::ViewBuilder& d) { d.widget(new_name).focus_on_open(); });
+                vb.dialog(rename_dialog, [&](app::ViewBuilder& d) { d.widget(new_name).focus_on_open(); });
             });
         });
     }

@@ -1,6 +1,5 @@
 // Tour 4: a value type with its own Widget<T>: record draws it, handle_input changes it.
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 #include <algorithm>
 
 using namespace prism;
@@ -30,7 +29,7 @@ struct Widget<Level> {
 
 struct Meter {
     core::Field<Level> level{};
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(level); }
+    void view(app::ViewBuilder& vb) { vb.widget(level); }
 };
 int main() {
     Meter meter;

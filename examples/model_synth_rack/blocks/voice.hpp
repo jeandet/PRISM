@@ -39,7 +39,7 @@ struct Voice {
                 .release_ms = value(release)};
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.widget(waveform);
         vb.hstack([&] {
             vb.widget(cutoff);

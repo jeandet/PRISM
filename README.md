@@ -113,7 +113,7 @@ headlessly and exported as SVG (`scripts/update_screenshots.sh`).
 On C++23, or on Clang and WebAssembly, add a `view()` method. Same result:
 
 ```cpp
-void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(count, label); }
+void view(app::ViewBuilder& vb) { vb.vstack(count, label); }
 ```
 
 ### The field type picks the widget
@@ -194,7 +194,7 @@ struct Dashboard {
     core::Field<ui::Slider<>> brightness{{.value = 0.6, .min = 0.0, .max = 1.0}};
     core::Field<ui::Button> apply{{"Apply"}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {   // optional: only for a custom layout
+    void view(app::ViewBuilder& vb) {   // optional: only for a custom layout
         vb.vstack([&] {
             vb.block(settings);
             vb.hstack(brightness, apply);
@@ -220,12 +220,12 @@ struct ChannelStrip {                       // a mixer channel
     core::Field<ui::Label<>> name;
     core::Field<Knob> gain{{.min = -60, .max = 6, .label = "Gain", .unit = "dB"}};
     core::Field<ui::Checkbox> mute{{.label = "Mute"}};
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.vstack(name, gain, mute); }
+    void view(app::ViewBuilder& vb) { vb.vstack(name, gain, mute); }
 };
 
 struct Mixer {
     std::array<ChannelStrip, 8> strips;     // eight working channels, each with its own state
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.hstack([&] { for (auto& s : strips) vb.block(s); });
     }
 };
@@ -244,7 +244,7 @@ It runs once, on the logic thread, before the app's setup:
 struct Meter {
     core::Field<ui::Label<>> level;
     core::Shared<double> reading;     // a worker thread sets it
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(level); }
+    void view(app::ViewBuilder& vb) { vb.widget(level); }
     void attach(app::AppContext& ctx) {
         ctx.receive(reading, [this](double v) { level.set({fmt::format("{:.1f} dB", v)}); });
     }
@@ -280,7 +280,7 @@ struct Waveform {
         // polylines, shapes, theme colors...
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.canvas(*this).depends_on(frequency);   // repaint only when frequency changes
         vb.widget(frequency);
     }
@@ -299,7 +299,7 @@ Scientific plots with zoom, pan, crosshair, stacking and decimation for large se
 struct PlotShowcase {
     plot::PlotModel plot;   // add XYData series to it
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.canvas(plot)
             .depends_on(plot.x_range).depends_on(plot.y_range)
             .depends_on(plot.view).depends_on(plot.cursor)
@@ -325,7 +325,7 @@ struct Reading {
 struct TableShowcase {
     core::List<Reading> readings;
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.table(readings).headers({"Sensor", "Value"}).sort(1, /*descending=*/true);
     }
 };
@@ -346,7 +346,7 @@ struct TreeShowcase {
     Device device;
     ui::TreeController ctrl{ui::wrap_struct_tree(device)};
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.tree(ctrl); }
+    void view(app::ViewBuilder& vb) { vb.tree(ctrl); }
 };
 ```
 
@@ -357,7 +357,7 @@ struct TreeShowcase {
 <td>
 
 ```cpp
-void view(app::WidgetTree::ViewBuilder& vb) {
+void view(app::ViewBuilder& vb) {
     vb.tabs(tabs, [&] {
         vb.tab("Account", [&](auto& tvb) {
             tvb.vstack(username, dark_mode);
@@ -438,7 +438,7 @@ struct Editor {
     core::Field<ui::TextField<>> find{{.placeholder = "Find..."}};
     core::Field<ui::TextArea<>> body{{.rows = 20}};
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack(file, find);
             vb.widget(body);
@@ -627,7 +627,7 @@ step with them:
 ```cpp
 struct Stats {
     core::Derived<std::string> summary;   // from the editor's text, in the main model
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(summary); }
+    void view(app::ViewBuilder& vb) { vb.widget(summary); }
 };
 // on the logic thread (a menu choice, setup):
 auto id = ctx.open_window(stats, {.title = "Statistics", .width = 320, .height = 80});

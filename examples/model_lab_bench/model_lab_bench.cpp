@@ -1,5 +1,4 @@
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 #include <prism/ui/dock.hpp>
 
 #include <atomic>
@@ -85,17 +84,17 @@ struct LabBenchApp {
 
     void seed_demo_data() { ingest_telemetry(lab::synthesize_telemetry(bus.setpoints.get(), 0.42)); }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.dock(settings.layout, {
-                {"scope", "Oscilloscope - CH1", [&](app::WidgetTree::ViewBuilder& p) { p.block(scope); }},
+                {"scope", "Oscilloscope - CH1", [&](app::ViewBuilder& p) { p.block(scope); }},
                 {"power_supply", "DC Power Supply",
-                 [&](app::WidgetTree::ViewBuilder& p) { p.block(supply); }},
+                 [&](app::ViewBuilder& p) { p.block(supply); }},
                 {"wave_gen", "Waveform Generator",
-                 [&](app::WidgetTree::ViewBuilder& p) { p.block(wave_gen); }},
-                {"event_log", "Event Log", [&](app::WidgetTree::ViewBuilder& p) { p.block(events); }},
+                 [&](app::ViewBuilder& p) { p.block(wave_gen); }},
+                {"event_log", "Event Log", [&](app::ViewBuilder& p) { p.block(events); }},
                 {"diagnostics", "Stress & Fault Injection",
-                 [&](app::WidgetTree::ViewBuilder& p) { p.block(diagnostics); }},
+                 [&](app::ViewBuilder& p) { p.block(diagnostics); }},
             });
             vb.status_bar([&] { vb.block(status); });
         });

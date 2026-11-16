@@ -52,7 +52,7 @@ struct Output {
 
     double volume_db() const { return value(volume); }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.widget(volume);
             vb.spacer();

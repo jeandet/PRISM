@@ -22,7 +22,7 @@ struct Effects {
                 .delay_mix = value(mix)};
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) {
+    void view(app::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.widget(time);
             vb.gap(6.f);

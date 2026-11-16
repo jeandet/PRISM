@@ -17,7 +17,7 @@ struct Scope {
     core::Field<DaqTelemetry>& frame;
     std::vector<core::Point> trace{};
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame); }
+    void view(app::ViewBuilder& vb) { vb.canvas(*this).depends_on(frame); }
 
     void canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
         scope_canvas::draw(dl, bounds, node, frame.get(), trace);

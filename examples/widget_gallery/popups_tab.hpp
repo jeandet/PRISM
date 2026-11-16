@@ -42,7 +42,7 @@ struct PopupsTab {
     PopupsTab();
     void choose(prism::app::FileDialogKind kind);
     void dropped(const prism::input::FileDrop& drop);
-    void view(prism::app::WidgetTree::ViewBuilder& vb);   // popups_tab.cpp
+    void view(prism::app::ViewBuilder& vb);   // popups_tab.cpp
 
 private:
     void say(std::string text);

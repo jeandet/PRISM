@@ -29,7 +29,7 @@ struct DockingTab {
     prism::core::Wiring wire;         // captures `this`: the tab never moves
 
     explicit DockingTab(prism::core::Field<prism::ui::DockLayout>& arrangement);
-    void view(prism::app::WidgetTree::ViewBuilder& vb);   // docking_tab.cpp
+    void view(prism::app::ViewBuilder& vb);   // docking_tab.cpp
 };
 
 } // namespace gallery

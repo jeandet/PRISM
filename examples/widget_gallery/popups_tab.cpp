@@ -45,7 +45,7 @@ void PopupsTab::dropped(const prism::input::FileDrop& drop) {
     say(fmt::format("Dropped {} file(s): {}", drop.paths.size(), drop.paths.front()));
 }
 
-void PopupsTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
+void PopupsTab::view(prism::app::ViewBuilder& vb) {
     vb.widget(title);
     vb.widget(hint);
     vb.gap(8.f);
@@ -56,7 +56,7 @@ void PopupsTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
         vb.gap(8.f);
         vb.widget(options).tooltip("A popover: a click outside closes it");
         // Declared here, it opens here: a non-modal popup is placed at its declaration.
-        vb.popup(options_popup, [&](prism::app::WidgetTree::ViewBuilder& p) { p.vstack(grid, snap); });
+        vb.popup(options_popup, [&](prism::app::ViewBuilder& p) { p.vstack(grid, snap); });
         vb.spacer();
     });
     vb.gap(8.f);
@@ -73,7 +73,7 @@ void PopupsTab::view(prism::app::WidgetTree::ViewBuilder& vb) {
     vb.spacer();   // the page fills the tab, so a right-click anywhere on it is inside
     vb.context_menu(edit_menu);
     vb.dialog(confirm);
-    vb.dialog(rename_dialog, [&](prism::app::WidgetTree::ViewBuilder& d) {
+    vb.dialog(rename_dialog, [&](prism::app::ViewBuilder& d) {
         d.widget(new_name).focus_on_open();
         d.widget(file_type).tooltip("A dropdown inside a dialog: its list opens over the dialog");
         d.widget(backup);

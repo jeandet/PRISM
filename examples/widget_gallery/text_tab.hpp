@@ -37,7 +37,7 @@ struct TextTab {
         .value = "Read-only: select and copy this text, but you cannot change it.",
         .rows = 1, .read_only = true, .font = prism::render::FontRole::Ui}};
 
-    void view(prism::app::WidgetTree::ViewBuilder& vb);   // text_tab.cpp
+    void view(prism::app::ViewBuilder& vb);   // text_tab.cpp
 };
 
 } // namespace gallery

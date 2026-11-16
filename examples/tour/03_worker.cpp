@@ -1,6 +1,5 @@
 // Tour 3: a worker thread sets a core::Shared<T>; the logic thread receives it and updates the UI.
 #include <prism/prism.hpp>
-#include <prism/app/run.hpp>
 
 #include <chrono>
 #include <string>
@@ -26,7 +25,7 @@ struct Ticker {
         ctx.receive(ticks, [this](int n) { reading.set({"tick " + std::to_string(n)}); });
     }
 
-    void view(app::WidgetTree::ViewBuilder& vb) { vb.widget(reading); }
+    void view(app::ViewBuilder& vb) { vb.widget(reading); }
 };
 
 int main() {
