@@ -33,6 +33,12 @@ project('prism', 'cpp',
 
 cpp = meson.get_compiler('cpp')
 
+# GCC before 15 reports false "maybe uninitialized" errors on std::optional members compared
+# after inlining (GCC bug 80635); with -Werror each one fails the build in a new place.
+if cpp.get_id() == 'gcc' and cpp.version().version_compare('<15')
+  add_project_arguments('-Wno-maybe-uninitialized', language : 'cpp')
+endif
+
 # Meson passes the optimization level to em++ when compiling only. Emscripten needs it when
 # linking too: that is where it runs wasm-opt over the whole binary (ports included) and
 # minifies the JS glue. Without it every link is effectively -O0.
