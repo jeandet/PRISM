@@ -59,7 +59,10 @@ std::optional<std::string_view> Response::header(std::string_view name) const {
     return std::nullopt;
 }
 
-Response send(const Request& request) {
+namespace {
+// The request on a connection of its own; `opened` sees that connection before anything is sent
+// (a Client keeps a way to abort it) and may refuse to go on.
+Response send_via(const Request& request, const std::function<bool(httplib::Client&)>& opened) {
     const auto parts = split_url(request.url);
     if (!parts) return {.error = "not a URL: " + request.url};
     httplib::Client client{parts->origin};
@@ -68,13 +71,27 @@ Response send(const Request& request) {
     client.set_read_timeout(request.timeout);
     client.set_write_timeout(request.timeout);
     client.set_follow_location(true);
+    if (!opened(client)) return {.error = "cancelled"};
     Response r = from_httplib(perform(client, request, parts->target));
     if (r.status == 0 && r.error.empty()) r.error = "unsupported method: " + request.method;
     return r;
 }
+} // namespace
 
+Response send(const Request& request) {
+    return send_via(request, [](httplib::Client&) { return true; });
+}
+
+// Aborts the request in flight rather than wait out its timeout: quitting must not hang on a
+// server that does not answer. Stop is requested first, under the same mutex the worker takes to
+// register its connection, so a request either is aborted here or never starts.
 Client::~Client() {
-    worker_ = std::jthread{};   // stop, then join: the request in flight finishes first
+    worker_.request_stop();
+    {
+        std::lock_guard lock{mutex_};
+        if (abort_) abort_();
+    }
+    worker_ = std::jthread{};   // joins
 }
 
 void Client::attach(app::AppContext& ctx) { deliver_ = ctx.poster(); }
@@ -99,7 +116,17 @@ void Client::run(const std::stop_token& stop) {
             job = std::move(jobs_.front());
             jobs_.pop_front();
         }
-        auto deliver_reply = [reply = net::send(job.request), on_reply = std::move(job.on_reply)]() mutable {
+        Response reply = send_via(job.request, [&](httplib::Client& connection) {
+            std::lock_guard lock{mutex_};
+            if (stop.stop_requested()) return false;
+            abort_ = [&connection] { connection.stop(); };
+            return true;
+        });
+        {
+            std::lock_guard lock{mutex_};
+            abort_ = nullptr;
+        }
+        auto deliver_reply = [reply = std::move(reply), on_reply = std::move(job.on_reply)]() mutable {
             on_reply(std::move(reply));
         };
         if (stop.stop_requested()) return;

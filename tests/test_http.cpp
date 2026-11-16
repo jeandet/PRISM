@@ -31,6 +31,10 @@ struct TestServer {
         server.Get("/point", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(R"({"x": 1.5, "y": -2, "extra": true})", "application/json");
         });
+        server.Get("/slow", [](const httplib::Request&, httplib::Response& res) {
+            std::this_thread::sleep_for(3s);   // an unresponsive server
+            res.set_content("late", "text/plain");
+        });
         server.Post("/echo", [](const httplib::Request& req, httplib::Response& res) {
             res.set_content(req.body, req.get_header_value("Content-Type"));
         });
@@ -55,9 +59,9 @@ struct FakeLogicThread {
             queue.push_back(std::move(fn));
         };
     }
-    // Runs what was delivered until `done` holds, or gives up after 5 s.
-    void run_until(const std::function<bool()>& done) {
-        for (auto waited = 0ms; !done() && waited < 5000ms; waited += 2ms) {
+    // Runs what was delivered until `done` holds, or gives up after `limit`.
+    void run_until(const std::function<bool()>& done, std::chrono::milliseconds limit = 5000ms) {
+        for (auto waited = 0ms; !done() && waited < limit; waited += 2ms) {
             std::deque<std::function<void()>> batch;
             {
                 std::lock_guard lock{mutex};
@@ -154,4 +158,18 @@ TEST_CASE("a coroutine awaits Client replies in order and resumes where they are
     logic.run_until([&] { return !out.empty(); });
     CHECK(out == "hello again");
     CHECK(resumed_on == std::this_thread::get_id());
+}
+
+TEST_CASE("a Client with a request in flight is destroyed at once: the request is aborted, not waited for") {
+    TestServer server;
+    FakeLogicThread logic;
+    bool replied = false;
+    std::optional<net::Client> http{std::in_place, logic.deliver()};
+    http->get(server.url("/slow"), [&](net::Response) { replied = true; });
+    std::this_thread::sleep_for(100ms);   // the request is on the wire now
+    const auto began = std::chrono::steady_clock::now();
+    http.reset();
+    CHECK(std::chrono::steady_clock::now() - began < 1s);
+    logic.run_until([] { return false; }, 200ms);   // and nothing is delivered for it
+    CHECK_FALSE(replied);
 }

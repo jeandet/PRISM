@@ -66,7 +66,7 @@ public:
 
     Client() = default;
     explicit Client(Deliver deliver) : deliver_(std::move(deliver)) {}
-    ~Client();   // waits for the request in flight; replies not yet delivered are dropped
+    ~Client();   // aborts the request in flight; replies not yet delivered are dropped
 
     Client(const Client&) = delete;
     Client& operator=(const Client&) = delete;
@@ -119,6 +119,7 @@ private:
     std::mutex mutex_;
     std::condition_variable_any wake_;
     std::deque<Job> jobs_;
+    std::function<void()> abort_;   // set while a request is on the wire: aborts it
     std::jthread worker_;   // last: stopped and joined before the queue it reads is destroyed
 };
 
