@@ -17,7 +17,7 @@ order. Each one ends by pointing at the app below that does the same thing at sc
 <td><img src="../doc/screenshots/widget_gallery.svg" width="180"/></td>
 <td>Every widget, in eight tabs: controls with tooltips, text in several scripts (right to left
 too), a table, tree and list, a plot and a canvas, menus, dialogs (one holding a form), a popover,
-file dialogs, drag and drop, and a dock whose panels the user rearranges. Start here.</td>
+file dialogs, drag and drop, and a dock whose panels the user rearranges. Pick a widget here.</td>
 </tr>
 <tr>
 <td><a href="model_notes/">model_notes</a></td>

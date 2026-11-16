@@ -157,8 +157,7 @@ path.
     auto cfg = perf_lab::parse_lab_args({argv + 1, argv + argc});
     PerfLab app(cfg->rows, cfg->points);
     ...
-    app::model_app({.title = "PRISM Perf Lab", .width = 1280, .height = 800}, app,
-                     [&](app::AppContext& ctx) {
+    app::run(app, {.title = "PRISM Perf Lab", .width = 1280, .height = 800}, [&](app::AppContext& ctx) {
         ctx.receive(app.telemetry, [&app](const double& v) { app.ingest(v); });
         ctx.clock().add([&app, &ctx](ui::AnimationClock::time_point now) {
             app.update_stats(ctx, now);

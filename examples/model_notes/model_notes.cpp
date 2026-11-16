@@ -3,7 +3,6 @@
 // way a dashboard never does. Logic lives in notes_logic.hpp (tested); this file only wires it.
 #include <prism/prism.hpp>
 #include <prism/app/settings.hpp>
-#include <prism/backends/settings_dir.hpp>
 #include "file_tree_source.hpp"
 #include "../showcase/showcase_common.hpp"
 #include "notes_logic.hpp"
@@ -266,16 +265,14 @@ int main(int argc, char* argv[]) {
         return showcase(argc, argv, app, 1000, 640);
     }
     NotesApp app{argc >= 2 ? fs::path(argv[1]) : fs::current_path()};
-    // Loads the last session's preferences, and saves them as they change.
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "notes") / "settings.toml"};
-    if (std::error_code ec; fs::is_regular_file(app.prefs.last_file.get(), ec)) app.open(app.prefs.last_file.get());
-    auto backend = app::Backend::software(app::RenderConfig{});
-    auto& window = backend.create_window(app.prefs.window.applied_to(
-        {.title = "PRISM Notes", .width = 1000, .height = 640, .decoration = app::DecorationMode::Custom}));
-    app::model_app(backend, window, app, [&app](app::AppContext& ctx) {
+    // .settings: the preferences come back at the next start, window size and last file included.
+    app::run(app, {.title = "PRISM Notes", .width = 1000, .height = 640,
+                   .settings = &app.prefs, .organization = "prism", .name = "notes"},
+             [&app](app::AppContext& ctx) {
         app.ctx = &ctx;
-        ctx.remember_window_size(app.prefs.window);
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.open(drop.paths.front()); });
+        const std::string last = value(app.prefs.last_file);   // a copy: open() rewrites it
+        if (std::error_code ec; fs::is_regular_file(last, ec)) app.open(last);
     });
-    app.ctx = nullptr;   // the context ended with model_app
+    app.ctx = nullptr;   // the context ended with run()
 }

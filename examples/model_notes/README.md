@@ -30,6 +30,10 @@ It shows three things:
 
 <p align="center"><img src="diagrams/flow.svg" alt="One thread: a key, a click or a menu item changes a field, whose on_change connections set status and modified (which repaint the status bar and the Save entries), and a Derived in the Statistics window recomputes from the same body field." width="900"/></p>
 
+The PRISM part is `model_notes.cpp`, 281 lines. `notes_logic.hpp` (77 lines) loads, saves,
+searches and counts with no widget in it, and `file_tree_source.hpp` (92 lines) shows a directory
+to the tree widget.
+
 One thread, and one pass from a change to a repaint:
 
 1. A key, a click in the tree, a menu item or a dropped file changes a field: `body`, the editor's
@@ -147,23 +151,22 @@ some detail text.
 
 ```cpp
     ...
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "notes") / "settings.toml"};
-    if (std::error_code ec; fs::is_regular_file(app.prefs.last_file.get(), ec)) app.open(app.prefs.last_file.get());
-    auto backend = app::Backend::software(app::RenderConfig{});
-    auto& window = backend.create_window(app.prefs.window.applied_to(
-        {.title = "PRISM Notes", .width = 1000, .height = 640, .decoration = app::DecorationMode::Custom}));
-    app::model_app(backend, window, app, [&app](app::AppContext& ctx) {
+    // .settings: the preferences come back at the next start, window size and last file included.
+    app::run(app, {.title = "PRISM Notes", .width = 1000, .height = 640,
+                   .settings = &app.prefs, .organization = "prism", .name = "notes"},
+             [&app](app::AppContext& ctx) {
         app.ctx = &ctx;
-        ctx.remember_window_size(app.prefs.window);
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.open(drop.paths.front()); });
+        const std::string last = value(app.prefs.last_file);   // a copy: open() rewrites it
+        if (std::error_code ec; fs::is_regular_file(last, ec)) app.open(last);
     });
-    app.ctx = nullptr;   // the context ended with model_app
+    app.ctx = nullptr;   // the context ended with run()
 ```
 
 The `...` above is the capture: with an argument, the app renders one frame and returns through
-`showcase` before any of this. `SettingsFile` writes `settings.toml` whenever the preferences change,
-so the last file, the tree width and the window size come back next run. `app::model_app` runs the
-loop until the window closes and then returns, which is why `ctx` is reset to `nullptr` after it.
+`showcase` before any of this. With `.settings`, `app::run` writes `settings.toml` whenever the
+preferences change, so the last file, the tree width and the window size come back next run. It runs
+the loop until the window closes and then returns, which is why `ctx` is reset to `nullptr` after it.
 
 ## Try this
 

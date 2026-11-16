@@ -179,8 +179,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::jthread producer;
-    app::model_app({.title = "PRISM Perf Lab", .width = 1280, .height = 800}, app,
-                     [&](app::AppContext& ctx) {
+    app::run(app, {.title = "PRISM Perf Lab", .width = 1280, .height = 800}, [&](app::AppContext& ctx) {
         ctx.receive(app.telemetry, [&app](const double& v) { app.ingest(v); });
         ctx.clock().add([&app, &ctx](ui::AnimationClock::time_point now) {
             app.update_stats(ctx, now);

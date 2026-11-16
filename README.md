@@ -21,15 +21,17 @@
 
 ```cpp
 #include <prism/prism.hpp>
-using namespace prism;   // the snippets below assume it: names read core::Field, ui::Slider, app::model_app
+using namespace prism;   // the snippets below assume it: names read core::Field, ui::Slider, app::run
 
 struct Counter {
     core::Field<int> count{42};
     core::Field<std::string> label{"Hello, PRISM!"};
 };
 
-Counter counter;
-app::model_app("My App", counter);   // C++26 reflection builds the UI
+int main() {
+    Counter counter;
+    return app::run(counter, {.title = "My App"});   // C++26 reflection builds the UI
+}
 ```
 
 <p align="center"><img src="doc/screenshots/counter.svg" alt="Counter app" width="400"/></p>
@@ -643,7 +645,7 @@ AA contrast. A `Theme` is a plain struct of colors, so an app can start from eit
 a few. Switching repaints every widget at once:
 
 ```cpp
-app::model_app(backend, window, model, [](app::AppContext& ctx) {
+app::run(model, {.title = "My App"}, [](app::AppContext& ctx) {
     ctx.follow_system_theme();              // light or dark as the OS is set, and when it changes
     // ctx.set_theme(ui::light_theme());    // or a fixed one
 });
@@ -667,7 +669,7 @@ struct DeviceState {
 
 core::Shared<DeviceState> device_state{DeviceState{}};   // updated by some other thread
 inspector::Inspector<DeviceState> inspector(device_state);
-app::model_app("Device Control", inspector);            // or embed it with vb.block()
+app::run(inspector, {.title = "Device Control"});      // or embed it with vb.block()
 ```
 
 <p align="center"><img src="doc/screenshots/inspector.svg" alt="Inspector" width="300"/></p>
@@ -694,9 +696,10 @@ captioned "volts" that writes a plain `double`.
 [`examples/`](examples/README.md) holds eight complete apps, all of which also run in the
 [browser](https://jeandet.github.io/PRISM/):
 
-- [`widget_gallery`](examples/widget_gallery/): every widget, in eight tabs, docking, drag and drop, and a custom widget built in the open. Start here.
-- [`tour`](examples/tour/): start here — five programs of 20 to 40 lines, one idea each, from a
+- [`tour`](examples/tour/): **start here** — five programs of 20 to 40 lines, one idea each, from a
   struct that becomes a window to a block, each pointing at the big example that uses it.
+- [`widget_gallery`](examples/widget_gallery/): every widget, in eight tabs, docking, drag and drop,
+  and a custom widget built in the open. Come here to pick a widget and copy its line.
 - [`model_notes`](examples/model_notes/): a small editor with a file tree, search, menus and undo.
 - [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a
   sortable process table and tree (Linux `/proc`, or a simulated machine elsewhere).
@@ -905,7 +908,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.derived(fn, *deps)` | `Derived<T>` | recomputed when a dep changes |
 | `prism.list_field([...])` | `List<T>` | `push` / `erase` / `observe_*` |
 | `prism.transaction()` | `prism::transaction([]{...})` | coalesced publish |
-| `prism.run(model)` | `model_app(title, model)` | |
+| `prism.run(model)` | `app::run(model, {.title})` | |
 
 Also: `prism.headless()` and `prism.run(m, headless_seconds=..., until=...)` for tests and CI,
 `field.add(n)` for atomic increments, `prism.choose_files(on_done, kind="open")`,
@@ -957,19 +960,20 @@ meson test -C builddir
 
 </details>
 
-### Three ways in
+### Four ways in
 
 | Entry point | You get | Example |
 |---|---|---|
-| `app::model_app(title, model)` | UI from your model structs (the main API) | most of [`examples/`](examples/) |
+| `app::run(model, {.title, .width, .height})` | UI from your model structs (the main API) | every app in [`examples/`](examples/) |
+| `app::model_app(backend, window, model)` | the same, on a backend and window you made | the WebGPU renderer below |
 | `app<State>(title, state, view, update)` | manual `row()` / `column()` layout | `tests/test_ui.cpp` |
 | `app::App` + `Frame` | a raw `DrawList`, nothing else | |
 
-All three take a `WindowConfig`. Its `decoration` picks the window chrome:
+Each takes the window's title and size. `decoration` picks the window chrome:
 
 ```cpp
-app::model_app({.title = "My App", .width = 900, .height = 600,
-                  .decoration = app::DecorationMode::Custom}, dashboard);
+app::run(dashboard, {.title = "My App", .width = 900, .height = 600,
+                     .decoration = app::DecorationMode::Custom});
 ```
 
 - `Custom` (default): PRISM draws the title bar and resize edges. Looks the same everywhere, including Wayland.

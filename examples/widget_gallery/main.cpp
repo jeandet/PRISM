@@ -11,7 +11,6 @@
 #include "../showcase/showcase_common.hpp"
 
 #include <prism/app/settings.hpp>
-#include <prism/backends/settings_dir.hpp>
 
 #include <array>
 #include <string>
@@ -105,21 +104,18 @@ int main(int argc, char* argv[]) {
         if (argc >= 3) app.tabs.set({.selected = std::stoul(argv[2])});
         return showcase(argc, argv, app, 900, 640);
     }
-    auto backend = app::Backend::software(app::RenderConfig{});
-    auto& window = backend.create_window(app.prefs.window.applied_to(
-        {.title = "PRISM Widget Gallery", .width = 1000, .height = 700, .decoration = app::DecorationMode::Custom}));
-    // Loads the last session's preferences, and saves them as they change.
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "widget-gallery") / "settings.toml"};
-    core::Connection theme_link;   // follows the Theme dropdown; ends with model_app
-    app::model_app(backend, window, app, [&app, &theme_link](app::AppContext& ctx) {
+    // .settings: the preferences come back at the next start, window size included.
+    core::Connection theme_link;   // follows the Theme dropdown; ends with run()
+    app::run(app, {.title = "PRISM Widget Gallery", .width = 1000, .height = 700,
+                   .settings = &app.prefs, .organization = "prism", .name = "widget-gallery"},
+             [&app, &theme_link](app::AppContext& ctx) {
         app.popups.ctx = &ctx;
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.popups.dropped(drop); });
         auto apply = [&ctx](gallery::Theme t) {
             if (t == gallery::Theme::System) ctx.follow_system_theme();
             else ctx.set_theme(t == gallery::Theme::Light ? ui::light_theme() : ui::dark_theme());
         };
-        apply(app.prefs.theme.get());
-        ctx.remember_window_size(app.prefs.window);
+        apply(value(app.prefs.theme));
         theme_link = app.prefs.theme.on_change().connect(apply);
     });
     theme_link.disconnect();

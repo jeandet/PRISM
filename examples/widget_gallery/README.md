@@ -173,13 +173,11 @@ Adding a widget to the catalog is adding one `Entry` — no list of pages to kee
 ### main()
 
 ```cpp
-    auto backend = app::Backend::software(app::RenderConfig{});
-    auto& window = backend.create_window(app.prefs.window.applied_to(
-        {.title = "PRISM Widget Gallery", .width = 1000, .height = 700, .decoration = app::DecorationMode::Custom}));
-    // Loads the last session's preferences, and saves them as they change.
-    app::SettingsFile settings{app.prefs, backends::settings_dir("prism", "widget-gallery") / "settings.toml"};
-    core::Connection theme_link;   // follows the Theme dropdown; ends with model_app
-    app::model_app(backend, window, app, [&app, &theme_link](app::AppContext& ctx) {
+    // .settings: the preferences come back at the next start, window size included.
+    core::Connection theme_link;   // follows the Theme dropdown; ends with run()
+    app::run(app, {.title = "PRISM Widget Gallery", .width = 1000, .height = 700,
+                   .settings = &app.prefs, .organization = "prism", .name = "widget-gallery"},
+             [&app, &theme_link](app::AppContext& ctx) {
         app.popups.ctx = &ctx;
         ctx.on_file_drop([&app](const input::FileDrop& drop) { app.popups.dropped(drop); });
         auto apply = [&ctx](gallery::Theme t) {
@@ -190,7 +188,7 @@ Adding a widget to the catalog is adding one `Entry` — no list of pages to kee
 ```
 
 The Setup callback is where a model learns about the platform: the file dialogs' context, the
-drop target, the theme. The theme connection is kept outside so it can be closed after `model_app`
+drop target, the theme. The theme connection is kept outside so it can be closed after `run`
 returns — the callback's `ctx` does not outlive it, and neither may the connection.
 
 ## Try this
