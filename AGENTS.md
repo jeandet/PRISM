@@ -112,7 +112,10 @@ meson test -C builddir
   build dir have visibly degraded the host machine before.
 - `meson wrap update` periodically bumps wrapdb-tracked dependencies (routine hygiene, e.g.
   before a PR) — rebuild and rerun the full suite afterward. `subprojects/sdl3.wrap` carries
-  `diff_files = sdl3-headless-drivers.patch` (enables SDL's offscreen and dummy video drivers and its dummy audio driver);
+  `diff_files = sdl3-headless-drivers.patch` (enables SDL's offscreen and dummy video drivers and its dummy audio driver, and sets two flags
+  the WrapDB port forgot: `HAVE_GCC_ATOMICS`, without which SDL emulates its atomics with a racy
+  spinlock, and on Linux `SDL_THREAD_PTHREAD_RECURSIVE_MUTEX`, without which TSAN sees its mutexes
+  race);
   check the line survives an update, or the SDL tests lose their display-free driver.
   `subprojects/sdl3_image.wrap` uses our own build file (`subprojects/packagefiles/sdl3_image/`,
   `patch_directory`) instead of WrapDB's, whose port compiles every format as a stub: an update

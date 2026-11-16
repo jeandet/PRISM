@@ -164,8 +164,10 @@ prism_io_dep = dependency('', required : false)
 if host_machine.system() != 'emscripten' and get_option('io').allowed()
   asio_dep = dependency('asio', required : get_option('io'), fallback : ['asio', 'asio_dep']).as_system('system')
   if asio_dep.found()
+    # Asio's accept uses AcceptEx from mswsock; WrapDB's asio links only ws2_32.
+    io_platform_deps = host_machine.system() == 'windows' ? [meson.get_compiler('cpp').find_library('mswsock')] : []
     prism_io_lib = library('prism-io', 'io/streams.cpp',
-      dependencies : [prism_headers_dep, asio_dep],
+      dependencies : [prism_headers_dep, asio_dep] + io_platform_deps,
       install : true,
     )
     prism_io_dep = declare_dependency(link_with : prism_io_lib, dependencies : [prism_headers_dep])
