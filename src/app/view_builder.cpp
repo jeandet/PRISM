@@ -329,6 +329,8 @@ void ViewBuilder::finalize() {
 
 
 namespace {
+void publish_inner_scroll(WidgetNode& node, const text::View& view);
+
 // A text view as a leaf: drawn like a canvas (it fills its space), its View kept in the node's
 // edit state, where the tree's wheel, Page Up/Down and scrollbar find it (get_scroll_view).
 Node text_view_node(text::Document& doc, text::ViewOptions options, WidgetId& next_id) {
@@ -347,19 +349,70 @@ Node text_view_node(text::Document& doc, text::ViewOptions options, WidgetId& ne
             static const Theme fallback{};
             node.draws.clear();
             view->draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
-            const float pad = view->options().padding;
-            const Rect viewport{Point{X{pad}, Y{pad}},
-                                Size{Width{node.canvas_bounds.extent.w.raw() - 2.f * pad}, view->viewport_h}};
-            if (view->content_h.raw() > view->viewport_h.raw())
-                node.inner_scroll = WidgetNode::InnerScroll{viewport, view->content_h, view->scroll};
-            else
-                node.inner_scroll.reset();
+            publish_inner_scroll(node, *view);
         };
         wn.record(wn);
     };
     return n;
 }
+
+// The view's scrollbar: a leaf that scrolls its own content shows it like a scroll container's.
+void publish_inner_scroll(WidgetNode& node, const text::View& view) {
+    const float pad = view.options().padding;
+    const Rect viewport{Point{X{pad}, Y{pad}}, Size{Width{node.canvas_bounds.extent.w.raw() - 2.f * pad}, view.viewport_h}};
+    if (view.content_h.raw() > view.viewport_h.raw())
+        node.inner_scroll = WidgetNode::InnerScroll{viewport, view.content_h, view.scroll};
+    else
+        node.inner_scroll.reset();
+}
+
+// An editor as a leaf: its view where the tree scrolls it (an aliasing pointer into the editor),
+// a text-input role so typed text and editing shortcuts reach it, the caret shown when focused.
+Node text_editor_node(text::Document& doc, text::EditorOptions options, WidgetId& next_id) {
+    Node n;
+    n.id = next_id++;
+    n.is_leaf = true;
+    n.layout_kind = LayoutKind::Canvas;
+    n.on_change = [&doc](std::function<void()> dirty) {
+        return doc.on_change().connect([dirty = std::move(dirty)](const text::Change&) { dirty(); });
+    };
+    auto editor = std::make_shared<text::Editor>(doc, std::move(options));
+    n.build_widget = [editor](WidgetNode& wn) {
+        wn.edit_state = std::shared_ptr<text::View>(editor, &editor->view);
+        wn.focus_policy = FocusPolicy::tab_and_click;
+        wn.visual_state.cursor = CursorShape::Text;
+        wn.access = [editor] {
+            AccessInfo a;
+            a.role = Role::MultilineTextInput;
+            return a;
+        };
+        if (editor->options().tab_inserts)
+            wn.keeps_keys = [](const KeyPress& k) { return k.key == keys::tab; };
+        wn.record = [editor](WidgetNode& node) {
+            static const Theme fallback{};
+            node.draws.clear();
+            auto marks = editor->view.marks;
+            if (!node.visual_state.focused) editor->view.marks.reset();   // no caret or selection unfocused
+            editor->view.draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
+            editor->view.marks = marks;
+            publish_inner_scroll(node, editor->view);
+        };
+        wn.record(wn);
+        wn.wire = [editor](WidgetNode& node) {
+            node.connections.push_back(node.on_input.connect([editor, &node](const InputEvent& ev) {
+                if (editor->handle(ev, node.theme ? node.theme->clipboard : nullptr)) node.dirty = true;
+            }));
+        };
+    };
+    return n;
+}
+
 } // namespace
+
+ViewBuilder::LeafHandle ViewBuilder::text_editor(text::Document& doc, text::EditorOptions options) {
+    current_parent().children.push_back(text_editor_node(doc, std::move(options), tree_.next_id_));
+    return {current_parent().children.back(), placed_};
+}
 
 ViewBuilder::LeafHandle ViewBuilder::text_view(text::Document& doc, text::ViewOptions options) {
     current_parent().children.push_back(text_view_node(doc, options, tree_.next_id_));

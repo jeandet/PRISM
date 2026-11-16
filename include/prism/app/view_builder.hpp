@@ -11,6 +11,7 @@
 #include <prism/delegates/text_delegates.hpp>
 #include <prism/core/list.hpp>
 #include <prism/core/traits.hpp>
+#include <prism/text/editor.hpp>
 #include <prism/text/view.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/ui/table.hpp>
@@ -616,6 +617,9 @@ public:
     // A document, shown: only the blocks in sight are laid out, so a long one scrolls as fast as a
     // short one (text/view.hpp). It redraws when the document changes.
     LeafHandle text_view(text::Document& doc, text::ViewOptions options = {});
+    // The same, edited: a caret, a selection, the keys and the mouse of a text editor
+    // (text/editor.hpp). Undo is the document's. Focused by a click or Tab.
+    LeafHandle text_editor(text::Document& doc, text::EditorOptions options = {});
 
     template <typename T>
         requires requires(T& t, DrawList& dl, Rect r, const WidgetNode& n) {

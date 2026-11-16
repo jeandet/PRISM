@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 
 // A document drawn into a rectangle (doc/design/text-stack.md): only the blocks in sight are laid
@@ -38,6 +39,21 @@ public:
     core::Height viewport_h{0};
     core::Height content_h{0};
     std::uint8_t show_ticks = 0;
+
+    // What an editor shows over the text: the caret, and the selection between it and the anchor.
+    struct Marks {
+        Position caret;
+        Position anchor;
+    };
+    std::optional<Marks> marks;
+
+    // Geometry, in the view's coordinates ((0, 0) is its corner). Each lays out what it needs.
+    [[nodiscard]] Position hit(core::Point p);                      // the position nearest a point
+    [[nodiscard]] core::Rect caret_rect(Position p);
+    [[nodiscard]] Position step_lines(Position from, int lines, float x);   // up or down, at x
+    [[nodiscard]] float caret_x(Position p);                        // from the text's left edge
+    [[nodiscard]] Range visual_line(Position p);                    // the wrapped line holding p
+    void reveal(Position p);                                        // scrolls p into sight
 
     [[nodiscard]] Document& document() { return doc_; }
     [[nodiscard]] const ViewOptions& options() const { return options_; }
@@ -68,8 +84,12 @@ private:
     void reset_heights();
     void follow(const Change& c);
     const BlockLayout& layout(std::size_t i);
-    void draw_block(render::DrawList& dl, const Block& b, const BlockLayout& l, float top, float width,
+    float block_top(std::size_t i) const { return heights_.prefix(i).height; }   // in content coordinates
+    static std::size_t line_of(const BlockLayout& l, std::size_t byte);
+    void draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, float width,
                     const ui::Theme& theme) const;
+    void draw_selection(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top,
+                        const ui::Theme& theme) const;
 };
 
 } // namespace prism::text
