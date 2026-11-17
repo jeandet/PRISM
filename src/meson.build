@@ -34,6 +34,7 @@ prism_headers_dep = declare_dependency(
 prism_lib = library('prism',
   'app/backend.cpp',
   'app/model_app.cpp',
+  'app/node_board.cpp',
   'app/view_builder.cpp',
   'app/widget_tree.cpp',
   'core/shared_state.cpp',

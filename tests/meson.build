@@ -68,6 +68,7 @@ headless_tests = {
   'table_ops' : files('test_table_ops.cpp'),
   'node_ports' : files('test_node_ports.cpp'),
   'node_graph' : files('test_node_graph.cpp'),
+  'node_board' : files('test_node_board.cpp'),
   'wire_geometry' : files('test_wire_geometry.cpp'),
   'derived' : files('test_derived.cpp'),
   'derived_sources' : files('test_derived_sources.cpp'),

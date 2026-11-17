@@ -34,8 +34,11 @@
 #include <type_traits>
 #include <vector>
 
+namespace prism::nodes { class Graph; class Port; }
+
 namespace prism::app {
 class WidgetTree;
+struct NodeBoardParts;
 
 using namespace prism::core;
 using namespace prism::ui;
@@ -253,6 +256,7 @@ class ViewBuilder {
     std::vector<Node*> stack_;
     std::set<const void*> placed_;
     TabsState* current_tabs_state_ = nullptr;
+    NodeBoardParts* board_ = nullptr;   // set while a node_board builds its cards: vb.port records there
 
     Node& current_parent() {
         return stack_.empty() ? target_ : *stack_.back();
@@ -612,6 +616,14 @@ public:
         n.layer_places = std::move(places);
         return n.id;
     }
+    // A node editor (prism/nodes/graph.hpp): each node a card at its position (a header with its
+    // title and family, then its view()), the wires drawn between the cards' port rows. Built
+    // again when a node comes or goes; moving one or adding a wire rebuilds no widget.
+    WidgetId node_board(nodes::Graph& graph);
+    // A port's row in a node's view: its name, on the left for an input, on the right for an
+    // output; the port's wires end at the card's edge level with it. Only inside a node_board.
+    LeafHandle port(nodes::Port& p);
+
     // A raised surface on its own background, outlined: what lies over other widgets (a card
     // in vb.layers).
     WidgetId card(std::invocable auto&& fn) { return framed(LayoutKind::Column, {FrameLook::Card}, fn); }
