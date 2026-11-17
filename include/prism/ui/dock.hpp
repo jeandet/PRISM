@@ -24,10 +24,20 @@ struct DockNode {
     bool operator==(const DockNode&) const = default;
 };
 
+// Where a floating panel's card sits over the dock, where no window can open (the browser): in
+// the dock's coordinates.
+struct PanelPlace {
+    std::string name;
+    float x = 0.f, y = 0.f;
+    float width = 320.f, height = 240.f;
+    bool operator==(const PanelPlace&) const = default;
+};
+
 struct DockLayout {
     DockNode root{};
-    std::vector<std::string> floating{};   // panels in windows of their own (desktop)
+    std::vector<std::string> floating{};   // panels in windows of their own (cards in the browser)
     std::vector<std::string> closed{};     // panels the user closed: shown again with show_panel
+    std::vector<PanelPlace> places{};      // floating panels' cards, once moved
     bool operator==(const DockLayout&) const = default;
 };
 
@@ -99,6 +109,7 @@ inline DockLayout fitted(DockLayout layout, const std::vector<std::string>& name
     if (!dock_detail::prune(layout.root, names, seen)) layout.root = DockNode{};
     layout.floating = dock_detail::known(layout.floating, names, seen);
     layout.closed = dock_detail::known(layout.closed, names, seen);
+    std::erase_if(layout.places, [&](const PanelPlace& p) { return !std::ranges::contains(layout.floating, p.name); });
     auto& first = dock_detail::first_group(layout.root);
     for (const auto& name : names)
         if (!std::ranges::contains(seen, name)) first.panels.push_back(name);
@@ -291,6 +302,24 @@ inline DockLayout show_panel(DockLayout layout, const std::string& name) {
     auto& group = dock_detail::first_group(layout.root);
     group.panels.push_back(name);
     group.active = group.panels.size() - 1;
+    return layout;
+}
+
+// Where floating panel `name`'s card sits: where it was moved, else stepped down from the
+// dock's corner by its place among the floating panels, so cards do not hide one another.
+inline PanelPlace card_place(const DockLayout& layout, const std::string& name) {
+    if (auto it = std::ranges::find(layout.places, name, &PanelPlace::name); it != layout.places.end()) return *it;
+    const auto i = static_cast<float>(std::ranges::find(layout.floating, name) - layout.floating.begin());
+    return {.name = name, .x = 40.f + 28.f * i, .y = 40.f + 28.f * i};
+}
+
+// The layout with `name`'s card moved to (x, y).
+inline DockLayout place_card(DockLayout layout, const std::string& name, float x, float y) {
+    auto place = card_place(layout, name);
+    place.x = x;
+    place.y = y;
+    std::erase_if(layout.places, [&](const PanelPlace& p) { return p.name == name; });
+    layout.places.push_back(std::move(place));
     return layout;
 }
 

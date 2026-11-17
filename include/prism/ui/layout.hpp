@@ -93,7 +93,8 @@ struct LayoutNode {
     DrawList draws;
     DrawList overlay_draws;
     std::vector<LayoutNode> children;
-    enum class Kind { Leaf, Row, Column, Spacer, Canvas, Scroll, VirtualList, Table, Tabs, Handle } kind = Kind::Leaf;
+    enum class Kind { Leaf, Row, Column, Spacer, Canvas, Scroll, VirtualList, Table, Tabs, Handle, Layers } kind = Kind::Leaf;
+    std::vector<Rect> layer_rects;   // Kind::Layers: where children after the first lie, in its coordinates
     DY scroll_offset{0};        // only for Kind::Scroll and VirtualList
     Height scroll_content_h{0}; // total content height, for scrollbar rendering
     size_t vlist_visible_start = 0;  // first materialized item index (VirtualList only)
@@ -242,6 +243,16 @@ inline void arrange_uniform_rows(LayoutNode& node, Rect available, Height item_h
 
 namespace layout_detail {
 inline void measure_node(LayoutNode& node, LayoutAxis parent_axis);
+inline Rect layer_rect(const LayoutNode& node, std::size_t i, Rect area);
+}
+
+// A layer's rect in the window: its place, kept inside the area (cut down if bigger).
+inline Rect layout_detail::layer_rect(const LayoutNode& node, std::size_t i, Rect area) {
+    const Rect r = i < node.layer_rects.size() ? node.layer_rects[i] : Rect{Point{X{0}, Y{0}}, Size{Width{320}, Height{240}}};
+    const float w = std::min(r.extent.w.raw(), area.extent.w.raw()), h = std::min(r.extent.h.raw(), area.extent.h.raw());
+    const float x = std::clamp(r.origin.x.raw(), 0.f, area.extent.w.raw() - w);
+    const float y = std::clamp(r.origin.y.raw(), 0.f, area.extent.h.raw() - h);
+    return {Point{area.origin.x + DX{x}, area.origin.y + DY{y}}, Size{Width{w}, Height{h}}};
 }
 
 inline void layout_measure(LayoutNode& node, LayoutAxis parent_axis) {
@@ -301,6 +312,11 @@ inline void layout_detail::measure_node(LayoutNode& node, LayoutAxis parent_axis
     case LayoutNode::Kind::Table:
         layout_detail::measure_scrollable(node);
         return;
+    case LayoutNode::Kind::Layers:   // as big as what it lies over; the cards take what they say
+        for (std::size_t i = 0; i < node.children.size(); ++i)
+            layout_measure(node.children[i], i == 0 ? parent_axis : LayoutAxis::Vertical);
+        node.hint = node.children.empty() ? SizeHint{.expand = true} : node.children[0].hint;
+        return;
     case LayoutNode::Kind::Tabs: {
         if (node.children.size() >= 1)
             layout_measure(node.children[0], LayoutAxis::Horizontal);
@@ -347,6 +363,12 @@ inline void layout_arrange(LayoutNode& node, Rect available) {
             offset += DY{main_size.raw()};
         }
         node.scroll_content_h = Height{offset.raw()};
+        return;
+    }
+
+    if (node.kind == LayoutNode::Kind::Layers) {
+        for (std::size_t i = 0; i < node.children.size(); ++i)
+            layout_arrange(node.children[i], i == 0 ? available : layout_detail::layer_rect(node, i - 1, available));
         return;
     }
 

@@ -46,6 +46,19 @@ inline const DockPanel& panel(const std::vector<DockPanel>& panels, const std::s
     return *std::ranges::find(panels, name, &DockPanel::name);
 }
 
+// What dragging a floating card's title bar carries: which dock, which panel, and where in the
+// card it was pressed (so it lands where the pointer lets it go).
+struct CardDrag {
+    const void* dock;
+    std::string name;
+    Point grab;
+};
+
+// The key a panel's built widgets are kept under: in a group, in a card, wherever it moves.
+inline std::string panel_key(const void* dock_id, const std::string& name) {
+    return std::to_string(reinterpret_cast<std::uintptr_t>(dock_id)) + "/" + name;
+}
+
 // Where the dock's parts write the user's changes (a shown tab, split sizes): the layout's node at
 // `path`, the layout fitted first so that paths agree with what was built.
 struct Place {
@@ -113,12 +126,12 @@ inline void place_group(ViewBuilder& vb, const Place& where, const DockNode& nod
         vb.tabs(bar, [&] {
             for (auto& name : node.panels) {
                 auto& p = panel(where.panels, name);
-                auto key = std::to_string(reinterpret_cast<std::uintptr_t>(dock_id)) + "/" + name;
+                auto key = panel_key(dock_id, name);
                 vb.tab(p.title, [build = p.build, key](ViewBuilder& inner) {
                     inner.keep_as(key, [&] { inner.vstack([&] { build(inner); }); });
                 });
             }
-        }, {.source = [dock_id, names](std::size_t i) {
+        }, {.source = [dock_id, names](std::size_t i, Point) {
                 return i < names.size() ? std::any(PanelDrag{dock_id, names[i]}) : std::any{};
             },
             .outside = [&state = where.state, &layout = where.layout, &tree = where.tree](const std::any& v) {
@@ -140,15 +153,72 @@ inline void place_group(ViewBuilder& vb, const Place& where, const DockNode& nod
             .close = [names, &state = where.state, &layout = where.layout](std::size_t i) {
                 if (i < names.size()) layout.set(close_panel(fitted(layout.get(), state.names), names[i]));
             },
-            .detach = where.tree.can_open_windows()
-                ? std::function<void(std::size_t)>{[names, &state = where.state, &layout = where.layout](std::size_t i) {
-                      if (i < names.size()) layout.set(float_panel(fitted(layout.get(), state.names), names[i]));
-                  }}
-                : nullptr});
+            .detach = [names, &state = where.state, &layout = where.layout](std::size_t i) {
+                if (i < names.size()) layout.set(float_panel(fitted(layout.get(), state.names), names[i]));
+            }});
     });
 }
 
 inline void place_part(ViewBuilder& vb, const Place& where, const DockNode& node);
+
+// Where no window can open (the browser): a card's title bar dropped anywhere on the dock moves
+// the card there.
+inline DragRole card_move_role(DockState& state, Field<DockLayout>& layout) {
+    const void* dock_id = &state;
+    return {.accepts = [dock_id](const std::any& v) {
+                auto* c = std::any_cast<CardDrag>(&v);
+                return c && c->dock == dock_id;
+            },
+            .drop = [&state, &layout](const std::any& v, DropPlace at) {
+                auto& c = std::any_cast<const CardDrag&>(v);
+                layout.set(place_card(fitted(layout.get(), state.names), c.name, at.at.x.raw() - c.grab.x.raw(),
+                                      at.at.y.raw() - c.grab.y.raw()));
+            }};
+}
+
+// A floating panel as a card over the dock: its title on a tab bar to drag it by, with the
+// button docking it back (and a close button, if it closes), over the panel itself, kept under
+// the same key as in a group.
+inline void place_card_of(ViewBuilder& vb, const Place& where, const std::string& name) {
+    auto& p = panel(where.panels, name);
+    auto& bar = where.state.tabs.emplace_back(TabBar<>{});
+    const void* dock_id = &where.state;
+    const auto inset = frame_insets(Framing{FrameLook::Card});
+    auto again = [&state = where.state, &layout = where.layout, name](auto change) {
+        return [&state, &layout, name, change](std::size_t) { layout.set(change(fitted(layout.get(), state.names), name)); };
+    };
+    vb.card([&] {
+        vb.tabs(bar, [&] {
+            vb.tab(p.title, [build = p.build, key = panel_key(dock_id, name)](ViewBuilder& inner) {
+                inner.keep_as(key, [&] { inner.vstack([&] { build(inner); }); });
+            });
+        }, {.source = [dock_id, name, inset](std::size_t, Point at) {
+                return std::any(CardDrag{dock_id, name, Point{at.x + DX{inset.left}, at.y + DY{inset.top}}});
+            },
+            .closable = [closable = p.closable](std::size_t) { return closable; },
+            .close = again([](DockLayout l, const std::string& n) { return close_panel(std::move(l), n); }),
+            .detach = again([](DockLayout l, const std::string& n) { return dock_panel(std::move(l), n); })});
+    });
+}
+
+// The dock with its floating panels as cards over it, each where its place says.
+inline void place_with_cards(ViewBuilder& vb, const Place& where, const DockNode& root,
+                             const std::vector<std::string>& floating) {
+    vb.with_drag(card_move_role(where.state, where.layout), [&] {
+        vb.layers([&layout = where.layout, floating] {
+            std::vector<Rect> out;
+            const auto& l = layout.get();
+            for (auto& name : floating) {
+                auto p = card_place(l, name);
+                out.push_back(Rect{Point{X{p.x}, Y{p.y}}, Size{Width{p.width}, Height{p.height}}});
+            }
+            return out;
+        }, [&] {
+            place_part(vb, where, root);
+            for (auto& name : floating) place_card_of(vb, where, name);
+        });
+    });
+}
 
 // A split: its parts side by side or above one another, with handles between them, the sizes
 // the user drags written back.
@@ -239,8 +309,12 @@ inline void ViewBuilder::dock(Field<DockLayout>& layout, std::vector<DockPanel> 
         state->built = fit.root;
         state->floating = fit.floating;
         ViewBuilder vb{tree, target};
-        dock_builder::place_part(vb, {*state, *shared_panels, layout, tree, {}}, state->built);
-        dock_builder::float_windows(tree, state, *shared_panels, layout);
+        if (tree.can_open_windows()) {
+            dock_builder::place_part(vb, {*state, *shared_panels, layout, tree, {}}, state->built);
+            dock_builder::float_windows(tree, state, *shared_panels, layout);
+        } else {   // the browser: floating panels are cards over the dock
+            dock_builder::place_with_cards(vb, {*state, *shared_panels, layout, tree, {}}, state->built, state->floating);
+        }
     };
     c.drag = dock_builder::dock_outer_role(*state, layout);
     current_parent().children.push_back(std::move(c));

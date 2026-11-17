@@ -554,6 +554,7 @@ WidgetNode WidgetTree::build_widget_node(Node& node) {
     wn.row_drag = node.row_drag;
     wn.build_content = node.build_content;
     wn.content_stale = node.content_stale;
+    wn.layer_places = node.layer_places;
     wn.keep_key = node.keep_key;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     wn.debug_name = node.debug_name;

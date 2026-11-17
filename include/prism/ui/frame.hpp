@@ -10,7 +10,8 @@
 // from the theme in use when it is drawn, so a theme switch repaints it.
 namespace prism::ui {
 
-enum class FrameLook { Toolbar, StatusBar, Group };
+// Card: a raised surface on its own background (a floating panel over a dock).
+enum class FrameLook { Toolbar, StatusBar, Group, Card };
 
 struct Framing {
     FrameLook look = FrameLook::Group;
@@ -33,6 +34,7 @@ inline Insets frame_insets(const Framing& f) {
     case FrameLook::Toolbar: return {4, 4, 4, 4};
     case FrameLook::StatusBar: return {8, 2, 8, 2};
     case FrameLook::Group: return {9, f.title.empty() ? 9.f : frame_detail::title_h + 6.f, 9, 9};
+    case FrameLook::Card: return {1, 1, 1, 1};
     }
     return {};
 }
@@ -58,6 +60,11 @@ inline render::DrawList frame_draws(const Framing& f, Size size, const Theme& t)
         dl.rect_outline(Rect{Point{X{0.5f}, Y{top + 0.5f}}, Size{Width{w - 1}, Height{h - top - 1}}}, t.popup_border, 1.f);
         break;
     }
+    case FrameLook::Card:
+        dl.filled_rect(Rect{Point{X{2}, Y{3}}, size}, Color::rgba(0, 0, 0, 40));   // a soft shadow
+        dl.filled_rect(Rect{Point{X{0}, Y{0}}, size}, t.popup_bg);
+        dl.rect_outline(Rect{Point{X{0.5f}, Y{0.5f}}, Size{Width{w - 1}, Height{h - 1}}}, t.popup_border, 1.f);
+        break;
     }
     return dl;
 }

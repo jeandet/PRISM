@@ -580,6 +580,18 @@ public:
     void hstack(auto&... args) { push_container(LayoutKind::Row, [&] { (item(args), ...); }); }
     WidgetId vstack(std::invocable auto&& fn) { return push_container(LayoutKind::Column, fn).id; }
 
+    // Children over one another: the first fills the area; each later one lies where `places()`
+    // says (in the area's coordinates, kept inside it), drawn over the first and hit before it.
+    // `places` is read at every layout, so moving one needs no rebuild.
+    WidgetId layers(std::function<std::vector<Rect>()> places, std::invocable auto&& fn) {
+        auto& n = push_container(LayoutKind::Layers, fn);
+        n.layer_places = std::move(places);
+        return n.id;
+    }
+    // A raised surface on its own background, outlined: what lies over other widgets (a card
+    // in vb.layers).
+    WidgetId card(std::invocable auto&& fn) { return framed(LayoutKind::Column, {FrameLook::Card}, fn); }
+
     // A titled section the user folds and unfolds: `state`'s header, then the content `build`
     // places (as a tab's builder does), built only while the section is open -- folded-away
     // widgets take no focus and no clicks.
@@ -896,7 +908,7 @@ public:
     void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true, TabActions{}); }
     // What a tab bar's tabs do beyond picking a page: dragged, taking drops, closed.
     struct TabActions {
-        std::function<std::any(std::size_t)> source{};        // what dragging tab i carries
+        std::function<std::any(std::size_t, Point)> source{};   // what dragging tab i carries (pressed at, in the bar)
         std::function<void(const std::any&)> outside{};       // a dragged tab let go outside the window
         std::function<bool(const std::any&)> accepts{};       // the bar takes this value between its tabs?
         std::function<void(const std::any&, std::size_t)> drop{};   // ... dropped before tab i (count: after the last)
@@ -961,7 +973,7 @@ private:
     static TabActions list_tab_actions(List<T>& items, Field<TabBar<>>& selected, const ListTabsOptions& options) {
         TabActions a;
         if (options.reorderable) {
-            a.source = [&items](std::size_t i) { return std::any(view_builder_detail::ListTabDrag{&items, i}); };
+            a.source = [&items](std::size_t i, Point) { return std::any(view_builder_detail::ListTabDrag{&items, i}); };
             a.accepts = [&items](const std::any& v) {
                 auto* d = std::any_cast<view_builder_detail::ListTabDrag>(&v);
                 return d && d->list == &items;
@@ -1030,7 +1042,7 @@ private:
             {
                 bar.drag.source = [tab_drag = std::move(drag.source)](const WidgetNode& n, Point at) {
                     auto i = tabs_detail::tab_at(n, at.x);
-                    return i ? tab_drag(*i) : std::any{};
+                    return i ? tab_drag(*i, at) : std::any{};
                 };
                 bar.drag.outside = std::move(drag.outside);
                 bar.drag.ghost_area = [](const WidgetNode& n, Point at) -> std::optional<Rect> {   // that tab only

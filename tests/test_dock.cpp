@@ -708,34 +708,102 @@ TEST_CASE("the float button at the end of a tab bar floats the panel shown") {
     CHECK(model.layout.get().floating == std::vector<std::string>{"editor"});
 }
 
-TEST_CASE("with no window to open, no float button, and a double click floats nothing") {
+TEST_CASE("place_card keeps where a floating panel's card sits; fitted forgets places of docked panels") {
+    DockLayout l{dock_group({"editor", "search"})};
+    l = float_panel(l, "search");
+    CHECK(card_place(l, "search").name == "search");   // a default place, until moved
+    l = place_card(l, "search", 50.f, 60.f);
+    CHECK(card_place(l, "search").x == 50.f);
+    CHECK(card_place(l, "search").y == 60.f);
+    l = place_card(l, "search", 70.f, 80.f);
+    CHECK(l.places.size() == 1);
+    CHECK(card_place(l, "search").x == 70.f);
+    CHECK(fitted(dock_panel(l, "search"), {"editor", "search"}).places.empty());
+}
+
+namespace {
+// Floats `name` with a double click on its tab: in a card, with no window opener.
+void float_by_double_click(WidgetTree& tree, std::unique_ptr<SceneSnapshot>& snap, std::string_view name) {
+    auto tab = text_at(*snap, name);
+    REQUIRE(tab);
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, true, 0, 2});
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, false, 0, 2});
+}
+} // namespace
+
+TEST_CASE("with no window to open (the browser), a floating panel is a card over the dock") {
     Ide model;
     WidgetTree tree{model};
     auto snap = tree.build_snapshot(600, 400, 1);
-    CHECK_FALSE(float_button(*snap, "Editor"));
-    auto tab = text_at(*snap, "Search");
-    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, true, 0, 2});
-    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, false, 0, 2});
+    CHECK(float_button(*snap, "Editor"));   // floating works here too
+    float_by_double_click(tree, snap, "Search");
+    CHECK(model.layout.get().floating == std::vector<std::string>{"search"});
+    snap = tree.build_snapshot(600, 400, 2);
+    snap = tree.build_snapshot(600, 400, 3);
+    auto title = text_rect(*snap, "Search"), body = text_rect(*snap, "SEARCH");
+    REQUIRE(title);   // the card's title bar
+    REQUIRE(body);    // and the panel itself, shown
+    CHECK(body->origin.y.raw() > title->origin.y.raw());
+    CHECK(text_rect(*snap, "Editor"));   // the dock is still there, under it
+}
+
+TEST_CASE("a card lies over the dock: a click on it reaches its widgets") {
+    Ide model;
+    model.layout.set(place_card(float_panel(model.layout.get(), "editor"), "editor", 20.f, 20.f));
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    snap = tree.build_snapshot(600, 400, 2);
+    auto code = text_at(*snap, "code");   // the editor's text field, in the card over the files group
+    REQUIRE(code);
+    route_event(tree, snap.get(), MouseButton{*code, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{*code, buttons::left, false});
+    route_event(tree, snap.get(), KeyPress{keys::end, 0});
+    route_event(tree, snap.get(), TextInput{"!"});
+    CHECK(model.editor.get().value == "code!");
+}
+
+TEST_CASE("dragging a card's title bar moves the card there") {
+    Ide model;
+    model.layout.set(place_card(float_panel(model.layout.get(), "search"), "search", 40.f, 40.f));
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    snap = tree.build_snapshot(600, 400, 2);
+    auto title = text_at(*snap, "Search");
+    REQUIRE(title);
+    Point from{title->x + DX{4}, title->y + DY{4}}, to{from.x + DX{100}, from.y + DY{50}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{to});
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(card_place(model.layout.get(), "search").x == doctest::Approx(140.f));
+    CHECK(card_place(model.layout.get(), "search").y == doctest::Approx(90.f));
+    snap = tree.build_snapshot(600, 400, 3);
+    CHECK(text_at(*snap, "Search")->x.raw() == doctest::Approx(title->x.raw() + 100.f));
+}
+
+TEST_CASE("a card's dock button puts its panel back in the dock") {
+    Ide model;
+    model.layout.set(float_panel(model.layout.get(), "search"));
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    snap = tree.build_snapshot(600, 400, 2);
+    auto button = float_button(*snap, "Search");   // on a card: the same icon, docking it back
+    REQUIRE(button);
+    route_event(tree, snap.get(), MouseButton{*button, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{*button, buttons::left, false});
     CHECK(model.layout.get().floating.empty());
 }
 
-TEST_CASE("docking a floating panel from code closes its window; no opener keeps it docked") {
+TEST_CASE("docking a floating panel from code closes its window") {
     Ide model;
     model.layout.set(float_panel(model.layout.get(), "search"));
-    {
-        WidgetTree tree{model};
-        Windows windows;
-        windows.install(tree);
-        auto snap = tree.build_snapshot(600, 400, 1);
-        REQUIRE(windows.opened.size() == 1);
-        model.layout.set(dock_panel(model.layout.get(), "search"));
-        snap = tree.build_snapshot(600, 400, 2);
-        CHECK(windows.closed == std::vector<WidgetId>{101});
-    }
-    model.layout.set(float_panel(model.layout.get(), "search"));
-    WidgetTree plain{model};   // no window opener (a test, the browser)
-    auto snap = plain.build_snapshot(600, 400, 1);
-    snap = plain.build_snapshot(600, 400, 2);
-    CHECK(model.layout.get().floating.empty());   // it stays in the dock
+    WidgetTree tree{model};
+    Windows windows;
+    windows.install(tree);
+    auto snap = tree.build_snapshot(600, 400, 1);
+    REQUIRE(windows.opened.size() == 1);
+    model.layout.set(dock_panel(model.layout.get(), "search"));
+    snap = tree.build_snapshot(600, 400, 2);
+    CHECK(windows.closed == std::vector<WidgetId>{101});
     CHECK(text_at(*snap, "Search"));
 }

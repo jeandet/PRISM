@@ -33,6 +33,12 @@ void AppContext::close_window(WindowId id) {
 }
 
 void AppContext::serve_window_requests(WidgetTree& tree) {
+#ifdef __EMSCRIPTEN__
+    // The page is the one window: a second SDL window is a new canvas over the whole page. With
+    // no opener, what would open a window does without (a dock floats its panels as cards).
+    (void)tree;
+    return;
+#endif
     tree.set_window_opener(
         [this](WidgetTree::WindowRequest r) { post([this, r = std::move(r)] { open_requested(r); }); },
         [this](WindowId id) { post([this, id] { close_window(id); }); });

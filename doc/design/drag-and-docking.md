@@ -42,8 +42,14 @@ Tabs, 2026-11-17: a tab bar takes a dragged tab between its tabs (`DragRole::slo
 it back. `vb.tabs(selected, list, title, page)` makes tabs over a `core::List<T>`, rebuilt as the
 list changes; `.closable()` erases the item, `.reorderable()` moves it. `vb.tabs`' drag options
 are one `TabActions`. Floating stays an OS window on desktop; in the browser, where no window
-can open, a floating panel is to be a card inside the page (decided 2026-11-17: no in-window
-floating on desktop).
+can open, a floating panel is a card inside the page (decided 2026-11-17: no in-window floating
+on desktop). A double click on a tab, or the button at its bar's right end (`TabActions::detach`),
+floats a panel. Cards: `vb.layers(places, ...)` (`LayoutKind::Layers`: the first child fills it,
+the others lie over it at their places, read at every layout) and `vb.card` (`FrameLook::Card`);
+`DockLayout::places` keeps where each card was moved (`card_place`, `place_card`), a card's
+title bar dragged anywhere on the dock moves it (`CardDrag`), and its button docks it again. The
+web build installs no window opener: SDL's second window there is a canvas over the whole page.
+simplify: a card is not resized, and is docked by its button only (not by a drop on a group).
 
 ## Problem
 

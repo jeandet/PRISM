@@ -75,6 +75,8 @@ struct Node {
     // and again whenever content_stale() says so. Copied to WidgetNode.
     std::function<void(Node&)> build_content;
     std::function<bool()> content_stale;
+    // LayoutKind::Layers: where the children after the first lie, in its coordinates. Copied too.
+    std::function<std::vector<Rect>()> layer_places;
     // Kept when what holds it is rebuilt (a dock panel moved elsewhere): the built widgets are
     // parked under this key and put back where a node with the same key is built next.
     std::string keep_key;

@@ -18,7 +18,8 @@ struct DockingTab {
     prism::core::Field<prism::ui::Label<>> hint{
         {.value = "Drag a panel's tab onto another panel: the guide's buttons put it in that "
                   "panel's tabs, beside it, or along a whole side of the dock; along a tab bar to "
-                  "reorder; outside the window to float it. The List and Log tabs close.",
+                  "reorder; outside the window, or a double click, to float it. The List and Log "
+                  "tabs close.",
          .wrap = true}};
     prism::core::Field<prism::ui::TextArea<>> notes{{.value = "Type here: the text moves with its panel.", .rows = 4}};
     prism::core::List<std::string> items;
