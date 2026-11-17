@@ -53,6 +53,8 @@ public:
         Position caret;
         Position anchor;
         std::vector<Range> highlights{};   // drawn behind the text: matching brackets, search hits
+        std::string preedit{};             // an input method's composition, not yet text
+        std::size_t preedit_caret = 0;     // the input method's caret in it, in bytes
     };
     std::optional<Marks> marks;
     // Ranges the app highlights, shown focused or not: a SQL error's token, search matches.
@@ -118,6 +120,7 @@ private:
     static std::size_t line_of(const BlockLayout& l, std::size_t byte);
     void draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, float width,
                     const ui::Theme& theme) const;
+    void draw_preedit(render::DrawList& dl, const ui::Theme& theme);
     void draw_range(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, Range r,
                     render::Color color, bool with_newline) const;
 };

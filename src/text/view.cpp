@@ -138,7 +138,9 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
         draw_block(dl, i, l, pad + y - scroll.raw(), width, theme);
         y += l.height;
     }
-    if (marks && marks->caret.block < doc_.size()) {
+    if (marks && marks->caret.block < doc_.size() && !marks->preedit.empty()) {
+        draw_preedit(dl, theme);
+    } else if (marks && marks->caret.block < doc_.size()) {
         const Rect r = caret_rect(marks->caret);
         if (r.origin.y.raw() + r.extent.h.raw() > 0.f && r.origin.y.raw() < size.h.raw())
             dl.filled_rect(Rect{r.origin, Size{Width{2.f}, r.extent.h}}, theme.cursor);
@@ -211,6 +213,22 @@ void View::draw_range(render::DrawList& dl, std::size_t i, const BlockLayout& l,
         const float x0 = text::x_of(b, line, la, style_), x1 = text::x_of(b, line, lz, style_) + (last ? newline : 0.f);
         dl.filled_rect(Rect{Point{X{text_x + x0}, Y{top + line.y}}, Size{Width{x1 - x0}, Height{line.height}}}, color);
     }
+}
+
+// An input method's composition at the caret: underlined on the surface color, the caret inside it.
+// simplify: drawn over the text after the caret rather than pushing it along; push it when a
+// composition long enough to hide much shows the difference.
+void View::draw_preedit(render::DrawList& dl, const ui::Theme& theme) {
+    const Rect at = caret_rect(marks->caret);
+    const render::FontStyle font{options_.family};
+    const float w = ui::text_width(style_.measurer, marks->preedit, style_.size, font);
+    const float caret = ui::text_width(style_.measurer, std::string_view(marks->preedit).substr(0, marks->preedit_caret),
+                                       style_.size, font);
+    const float h = at.extent.h.raw();
+    dl.filled_rect(Rect{at.origin, Size{Width{w}, Height{h}}}, theme.surface);
+    dl.text(marks->preedit, at.origin, style_.size, theme.text, 0.f, render::TextAnchor::TopLeft, font);
+    dl.filled_rect(Rect{Point{at.origin.x, Y{at.origin.y.raw() + h - 2.f}}, Size{Width{w}, Height{1.f}}}, theme.text);
+    dl.filled_rect(Rect{Point{X{at.origin.x.raw() + caret}, at.origin.y}, Size{Width{2.f}, Height{h}}}, theme.cursor);
 }
 
 // The line holding `byte`: the last whose start is at or before it, so the caret at a wrap point

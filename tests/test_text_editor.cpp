@@ -211,6 +211,24 @@ TEST_CASE("a new editor on a long document starts at the top, its first line in 
     CHECK(r.ed.view.first_drawn() == 0);
 }
 
+TEST_CASE("an input method's composition is shown at the caret, underlined, until it is committed") {
+    Rig r{"ab"};
+    r.ed.set_caret({0, 1});
+    r.ed.handle(input::Composition{"\xE4\xBD\xA0\xE5\xA5\xBD", 3, 0}, &r.clip);   // 你好, caret after 你
+    render::DrawList dl;
+    r.ed.view.draw(dl, core::Size{core::Width{400}, core::Height{105}}, theme);
+    bool shown = false;
+    for (const auto& c : dl.commands)
+        if (auto* t = std::get_if<render::TextCmd>(&c); t && t->text == "\xE4\xBD\xA0\xE5\xA5\xBD") shown = true;
+    CHECK(shown);
+    CHECK(r.doc.text() == "ab");                     // not text yet
+    r.ed.handle(input::Composition{"", -1, -1}, &r.clip);
+    r.type("\xE4\xBD\xA0\xE5\xA5\xBD");
+    CHECK(r.doc.text() == "a\xE4\xBD\xA0\xE5\xA5\xBD" "b");
+    REQUIRE(r.ed.view.marks);
+    CHECK(r.ed.view.marks->preedit.empty());
+}
+
 TEST_CASE("read-only: no typing, but selecting and copying still work") {
     Rig r{"fixed text", {.view = {.family = render::FontRole::Mono, .padding = 0}, .read_only = true}};
     r.type("x");

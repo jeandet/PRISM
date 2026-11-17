@@ -18,8 +18,8 @@
 // Shift to select, Backspace/Delete (Ctrl: a word), Enter, Ctrl+A/C/X/Z/Y, Ctrl+Shift+Z; Tab and
 // Shift+Tab indent when tab_inserts. Mouse: click, Shift+click, drag, double click (a word), triple
 // click (a line).
-// simplify: an input method's composition is not shown until committed, and a bracket inside a
-// string or a comment still counts. Each when an editor needs it.
+// simplify: a bracket inside a string or a comment still counts; add when a language's rules
+// track them.
 namespace prism::text {
 
 struct EditorOptions {
@@ -61,6 +61,8 @@ private:
     Position caret_{}, anchor_{};
     float column_x_ = -1.f;    // where up and down aim; -1: the caret's own x
     bool dragging_ = false;
+    std::string preedit_;          // an input method's composition, shown at the caret
+    std::size_t preedit_caret_ = 0;
     core::Connection follow_;
 
     bool key(const input::KeyPress& k, const ui::Clipboard* clipboard);

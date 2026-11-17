@@ -1,5 +1,6 @@
 #include <prism/text/editor.hpp>
 
+#include <prism/core/utf8.hpp>
 #include <prism/ui/text_segmentation.hpp>
 
 #include <algorithm>
@@ -78,7 +79,8 @@ Range Editor::word_at(Position p) const {
 }
 
 void Editor::show() {
-    view.marks = View::Marks{caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{}};
+    view.marks = View::Marks{caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{},
+                             preedit_, preedit_caret_};
     view.reveal(caret_);
 }
 
@@ -329,7 +331,23 @@ bool Editor::mouse_button(const input::MouseButton& b) {
 
 bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard) {
     if (auto* k = std::get_if<input::KeyPress>(&ev)) return key(*k, clipboard);
-    if (auto* t = std::get_if<input::TextInput>(&ev)) { type(t->text); return !options_.read_only; }
+    if (auto* t = std::get_if<input::TextInput>(&ev)) {
+        preedit_.clear();
+        type(t->text);
+        show();
+        return !options_.read_only;
+    }
+    if (auto* c = std::get_if<input::Composition>(&ev)) {
+        if (options_.read_only) return false;
+        // The input method's caret, used only when it lands between characters (platforms count
+        // it in characters or in bytes); else after the composition, as TextArea does.
+        preedit_ = core::utf8::sanitize(c->text);
+        const auto start = static_cast<std::size_t>(c->start);
+        preedit_caret_ = c->start >= 0 && start <= preedit_.size() && core::utf8::snap(preedit_, start) == start
+                             ? start : preedit_.size();
+        show();
+        return true;
+    }
     if (auto* p = std::get_if<input::Paste>(&ev)) {
         doc_.break_undo_group();
         type(p->text);

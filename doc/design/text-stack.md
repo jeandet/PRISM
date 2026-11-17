@@ -238,8 +238,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
 - Left, each noted as `simplify:` where the cut is:
   - real bold and italic font files: SDL_ttf's synthetic slant reports a wider italic run than it
     draws, leaving a small gap after an italic word;
-  - horizontal scrolling without wrapping; an input method's composition shown before it is
-    committed; highlighting past the screen in idle time; table rows as their own kind of block;
+  - horizontal scrolling without wrapping; an input method's composition drawn over the text
+    after the caret rather than pushing it along; highlighting past the screen in idle time; table rows as their own kind of block;
     the layout cache trimmed least-recently-used.
 
 ## Open questions
