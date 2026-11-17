@@ -207,6 +207,40 @@ private:
     void add_button(Field<Dialog>& d);
 };
 
+// What dragging a tab of list-backed tabs carries: which list, which item.
+struct ListTabDrag {
+    const void* list;
+    std::size_t index;
+};
+
+// List-backed tabs follow their list: any change rebuilds them (`version` counts changes), and
+// the selected tab stays on its item -- the one after a closed selected tab, the one before when
+// that was the last.
+template <typename T>
+auto follow_list_tabs(List<T>& items, Field<TabBar<>>& selected, std::shared_ptr<std::uint64_t> version) {
+    return std::make_shared<std::array<Connection, 4>>(std::array{
+        items.on_insert().connect([version](std::size_t, const T&) { ++*version; }),
+        items.on_remove().connect([version, &items, &selected](std::size_t gone) {
+            ++*version;
+            const std::size_t s = selected.get().selected;
+            if (s > 0 && (s > gone || s >= items.size())) selected.set({.selected = s - 1});
+        }),
+        items.on_update().connect([version](std::size_t, const T&) { ++*version; }),
+        items.on_move().connect([version, &selected](std::size_t from, std::size_t to) {
+            ++*version;
+            selected.set({.selected = index_after_move(selected.get().selected, from, to)});
+        })});
+}
+
+// A change to the list marks the tabs' container for a rebuild.
+template <typename T>
+std::vector<std::function<Connection(std::function<void()>)>> list_changes(List<T>& items) {
+    return {[&items](std::function<void()> cb) { return items.on_insert().connect([cb](std::size_t, const T&) { cb(); }); },
+            [&items](std::function<void()> cb) { return items.on_remove().connect([cb](std::size_t) { cb(); }); },
+            [&items](std::function<void()> cb) { return items.on_update().connect([cb](std::size_t, const T&) { cb(); }); },
+            [&items](std::function<void()> cb) { return items.on_move().connect([cb](std::size_t, std::size_t) { cb(); }); }};
+}
+
 } // namespace view_builder_detail
 
 class ViewBuilder {
@@ -873,6 +907,80 @@ public:
         switched_pages(field, builder, true, std::move(drag));
     }
 
+    // Tabs over a list, one per item and kept in step with it: `title(item)` names a tab,
+    // `page(vb, item)` builds the shown one's page. .closable() and .reorderable() change the list.
+    struct ListTabsOptions {
+        std::function<bool(std::size_t)> closable{};
+        bool reorderable = false;
+    };
+    struct ListTabsHandle {
+        std::shared_ptr<ListTabsOptions> options;
+        // A close button on each tab (or on those `can_close(i)` allows), and a middle click: the
+        // item leaves the list.
+        ListTabsHandle&& closable(std::function<bool(std::size_t)> can_close = {}) && {
+            options->closable = can_close ? std::move(can_close) : [](std::size_t) { return true; };
+            return std::move(*this);
+        }
+        // A tab dragged along the bar moves its item there (List::move), and is shown.
+        ListTabsHandle&& reorderable() && {
+            options->reorderable = true;
+            return std::move(*this);
+        }
+    };
+    template <typename T>
+    ListTabsHandle tabs(Field<TabBar<>>& selected, List<T>& items,
+                        std::type_identity_t<std::function<std::string(const T&)>> title,
+                        std::type_identity_t<std::function<void(ViewBuilder&, const T&)>> page) {
+        placed_.insert(&selected);
+        for (const auto& item : items) probe_placed([&](ViewBuilder& p) { page(p, item); });
+        auto options = std::make_shared<ListTabsOptions>();
+        auto version = std::make_shared<std::uint64_t>(0);
+        auto built = std::make_shared<std::uint64_t>(0);
+        auto follow = view_builder_detail::follow_list_tabs(items, selected, version);
+        Node c;
+        c.id = tree_.next_id_++;
+        c.is_leaf = false;
+        c.layout_kind = LayoutKind::Column;
+        c.dependencies = view_builder_detail::list_changes(items);
+        c.content_stale = [version, built] { return *version != *built; };
+        c.build_content = [&tree = tree_, &selected, &items, title, page, options, version, built, follow](Node& target) {
+            *built = *version;
+            ViewBuilder vb{tree, target};
+            vb.tabs(selected, [&] {
+                for (std::size_t i = 0; i < items.size(); ++i)
+                    vb.tab(title(items[i]), [&items, i, page](ViewBuilder& p) { page(p, items[i]); });
+            }, list_tab_actions(items, selected, *options));
+        };
+        current_parent().children.push_back(std::move(c));
+        return {options};
+    }
+
+private:
+    template <typename T>
+    static TabActions list_tab_actions(List<T>& items, Field<TabBar<>>& selected, const ListTabsOptions& options) {
+        TabActions a;
+        if (options.reorderable) {
+            a.source = [&items](std::size_t i) { return std::any(view_builder_detail::ListTabDrag{&items, i}); };
+            a.accepts = [&items](const std::any& v) {
+                auto* d = std::any_cast<view_builder_detail::ListTabDrag>(&v);
+                return d && d->list == &items;
+            };
+            a.drop = [&items, &selected](const std::any& v, std::size_t before) {
+                const std::size_t from = std::any_cast<const view_builder_detail::ListTabDrag&>(v).index;
+                const std::size_t to = std::min(before > from ? before - 1 : before, items.size() - 1);
+                items.move(from, to);
+                selected.set({.selected = to});
+            };
+        }
+        if (options.closable) {
+            // The bar may be drawn once more before it follows a removal: never ask past the end.
+            a.closable = [&items, can = options.closable](std::size_t i) { return i < items.size() && can(i); };
+            a.close = [&items](std::size_t i) { if (i < items.size()) items.erase(i); };
+        }
+        return a;
+    }
+
+public:
     // Pages: tabs without the header, the app picks the page through `field.selected` (a
     // detail view that follows a selection, a wizard's steps). Pages are declared with tab().
     void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false, TabActions{}); }

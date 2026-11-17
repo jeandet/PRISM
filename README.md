@@ -657,8 +657,20 @@ Drag a panel's tab onto a group: its middle adds the panel to that group's tabs,
 it beside the group in a new one. The area it would take is shaded while dragging. Groups left
 empty disappear. A moved panel keeps its widgets: its scroll position, caret, selection and
 focus stay, as with Qt's dock widgets. Let a tab go outside the window and its panel floats in
-a window of its own (desktop); close that window and the panel docks again. The System Monitor
-is built this way.
+a window of its own (desktop); close that window and the panel docks again. Drag a tab along its
+bar to put it elsewhere among the tabs. A panel declared closable (`{"log", "Log", build, true}`)
+gets a close button; `ui::show_panel(layout, "log")` brings it back, from a View menu say. The
+System Monitor is built this way.
+
+Tabs can also stand for the items of a list, an editor's open files say. Closing a tab or
+dragging it along the bar changes the list:
+
+```cpp
+vb.tabs(shown, open_files, [](const File& f) { return f.name; },
+        [&](auto& p, const File& f) { editor_for(p, f); })
+    .closable()
+    .reorderable();
+```
 
 ### More windows
 

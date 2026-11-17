@@ -12,6 +12,10 @@ namespace gallery {
 
 Samples::Samples() : chore_tree{prism::ui::wrap_tree_storage(chores)} {
     for (auto s : {"Milk", "Eggs", "Flour", "Sugar"}) list.push_back(s);
+    for (auto f : {"main.cpp", "app.hpp", "README.md"}) {
+        files.push_back(f);
+        file_pages.emplace(f, prism::ui::Label<>{std::string("The page of ") + f});
+    }
     for (std::size_t i = chore_tree.rows.size(); i-- > 0;)   // open the rooms
         if (chore_tree.rows[i].has_children) chore_tree.on_row_clicked(i, chore_tree.rows[i]);
     chore_tree.selected.set(std::nullopt);
@@ -83,6 +87,14 @@ std::vector<Entry> catalog_entries(Samples& s) {
         E{"Section", "Layout", "A titled part the user folds and unfolds; its content exists only while open.",
           "vb.section(advanced, [&](auto& inner) { inner.widget(verbose); });",
           [&s](Vb& vb) { vb.section(s.advanced, [&s](Vb& inner) { inner.widget(s.verbose); }); }},
+        E{"Tabs", "Layout", "One page shown at a time. Over a core::List<T>, one tab per item: .closable() puts a close button on them (a middle click works too), .reorderable() lets them be dragged along the bar; both change the list.",
+          "vb.tabs(shown, files, title, page).closable().reorderable();",
+          [&s](Vb& vb) {
+              vb.tabs(s.shown_file, s.files, [](const std::string& f) { return f; },
+                      [&s](Vb& p, const std::string& f) { p.widget(s.file_pages.at(f)); })
+                  .closable()
+                  .reorderable();
+          }},
         E{"Popups", "", "Things drawn above the window: menus, dialogs, popovers, tooltips.", "", nullptr},
         E{"Menu", "Popups", "A menu title; several side by side are a menu bar. \"&File\" makes Alt+F open it. An item can have an icon, a shortcut (Ctrl+S works from anywhere), a check mark, or be greyed out; {.separator = true} draws a line, and .items opens a submenu.",
           "core::Field<ui::Menu> file{{.title = \"&File\", .items = {\n    {.text = \"&Save\", .shortcut = {keys::s, mods::ctrl}},\n    {.separator = true},\n    {.text = \"&Word wrap\", .checked = true}}}};",

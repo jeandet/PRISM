@@ -9,6 +9,7 @@
 
 #include <deque>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -98,6 +99,9 @@ struct Samples {
     prism::core::Field<prism::ui::Label<>> drop_zone{{"Drop a chip here"}};
     prism::core::List<std::string> list;
     prism::core::Field<std::optional<std::size_t>> list_selected{std::nullopt};
+    prism::core::List<std::string> files;   // open, one tab each
+    prism::core::Field<prism::ui::TabBar<>> shown_file{};
+    std::map<std::string, prism::core::Field<prism::ui::Label<>>> file_pages;
     prism::core::Field<prism::core::Color> ink{prism::core::Color::rgba(0x33, 0x66, 0xCC)};
     prism::core::Field<std::chrono::year_month_day> day{std::chrono::year{2026} / std::chrono::November / 14};
     prism::core::Field<prism::ui::TimeOfDay> alarm{{7, 30}};

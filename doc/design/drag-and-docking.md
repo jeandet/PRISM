@@ -35,6 +35,16 @@ again. Without an opener (tests, the browser) a panel stays docked. A floating p
 anew in its window (its widgets are in another tree). Step 6 (dragging between windows) waits
 for a use. Plan items P1 #6 and #7 in `doc/review-2026-11-12.md`.
 
+Tabs, 2026-11-17: a tab bar takes a dragged tab between its tabs (`DragRole::slot` and
+`slot_marker`: a line where it goes, the slot passed in `DropPlace`), so dock tabs reorder
+(`insert_panel`), within a group or from another. Panels marked closable get a close button
+(and a middle click); a closed panel goes to `DockLayout::closed`, saved, and `show_panel` brings
+it back. `vb.tabs(selected, list, title, page)` makes tabs over a `core::List<T>`, rebuilt as the
+list changes; `.closable()` erases the item, `.reorderable()` moves it. `vb.tabs`' drag options
+are one `TabActions`. Floating stays an OS window on desktop; in the browser, where no window
+can open, a floating panel is to be a card inside the page (decided 2026-11-17: no in-window
+floating on desktop).
+
 ## Problem
 
 Files and text can be dropped *on* the app from the OS (`FileDrop`, `TextDrop`). Nothing can be
