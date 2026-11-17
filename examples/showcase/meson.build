@@ -29,6 +29,7 @@ showcases = {
   'enabled': 'showcase_enabled.cpp',
   'theme_light': 'showcase_theme_light.cpp',
   'theme_dark': 'showcase_theme_dark.cpp',
+  'node_board': 'showcase_node_board.cpp',
 }
 
 foreach name, src : showcases
