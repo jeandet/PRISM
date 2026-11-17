@@ -134,7 +134,8 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
     gutter_ = 0.f;
     if (options_.line_numbers) {
         const float digit = ui::text_width(theme.measurer, "0", options_.size, render::FontRole::Mono);
-        gutter_ = (static_cast<float>(std::to_string(doc_.size()).size()) + 1.5f) * digit;
+        // the numbers, then three characters' room: before the divider, the divider, after it
+        gutter_ = (static_cast<float>(std::to_string(doc_.size()).size()) + 3.f) * digit;
     }
     const float map = options_.minimap ? minimap_width : 0.f;
     minimap_left_ = size.w.raw() - pad - map + minimap_margin;
@@ -156,6 +157,12 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
     clamp_scroll();
 
     dl.clip_push(Point{X{0}, Y{0}}, size);
+    if (options_.line_numbers) {   // the gutter: tinted, and a line between it and the text
+        const float digit = ui::text_width(theme.measurer, "0", options_.size, render::FontRole::Mono);
+        const float edge = pad + gutter_ - digit;
+        dl.filled_rect(Rect{Point{X{0}, Y{0}}, Size{Width{edge}, size.h}}, theme.gutter);
+        dl.filled_rect(Rect{Point{X{edge}, Y{0}}, Size{Width{1.f}, size.h}}, theme.divider);
+    }
     if (!options_.placeholder.empty() && doc_.size() == 1 && doc_[0].text.empty())
         dl.text(options_.placeholder, Point{X{pad + gutter_}, Y{pad}}, options_.size, theme.text_placeholder, 0.f,
                 render::TextAnchor::TopLeft, render::FontStyle{options_.family});
@@ -199,7 +206,7 @@ void View::draw_number(render::DrawList& dl, std::size_t i, const BlockLayout& l
     const float digit = ui::text_width(style_.measurer, "0", style_.size, render::FontRole::Mono);
     const float w = ui::text_width(style_.measurer, number, style_.size, render::FontRole::Mono);
     const bool caret_here = marks && marks->caret.block == i;
-    dl.text(number, Point{X{left - 0.75f * digit - w}, Y{top + l.lines.front().y}}, style_.size,
+    dl.text(number, Point{X{left - 1.75f * digit - w}, Y{top + l.lines.front().y}}, style_.size,
             caret_here ? theme.text : theme.text_muted, 0.f, render::TextAnchor::TopLeft,
             render::FontStyle{render::FontRole::Mono});
 }

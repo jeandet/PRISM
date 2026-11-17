@@ -363,3 +363,24 @@ TEST_CASE("on a file longer than the minimap, the band's travel spans the whole 
     ed.handle(input::MouseMove{core::Point{core::X{x}, core::Y{1000.f}}, input::buttons::left_mask}, nullptr);
     CHECK(ed.view.scroll.raw() == doctest::Approx(5001 * 21.f - 210.f));   // past the bottom: the end (5,001 blocks: a last empty one)
 }
+
+TEST_CASE("the gutter is tinted and divided from the text, with room on both sides of the divider") {
+    Document doc{"one\ntwo"};
+    View view{doc, {.family = render::FontRole::Mono, .padding = 0, .line_numbers = true}};
+    render::DrawList dl;
+    view.draw(dl, window, theme);
+    std::optional<render::FilledRect> tint, divider;
+    for (const auto& c : dl.commands)
+        if (auto* r = std::get_if<render::FilledRect>(&c)) {
+            if (r->color == theme.gutter) tint = *r;
+            if (r->color == theme.divider && r->rect.extent.w.raw() == 1.f) divider = *r;
+        }
+    REQUIRE(tint);
+    REQUIRE(divider);
+    CHECK(tint->rect.extent.h.raw() == doctest::Approx(window.h.raw()));
+    const float number_right = text_cmd(dl, "1")->origin.x.raw() + 10.f;
+    const float line_x = divider->rect.origin.x.raw();
+    const float text_x = text_cmd(dl, "one")->origin.x.raw();
+    CHECK(line_x - number_right >= 5.f);   // a gap before the divider
+    CHECK(text_x - line_x >= 5.f);         // and after it
+}
