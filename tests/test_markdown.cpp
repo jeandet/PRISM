@@ -83,12 +83,16 @@ TEST_CASE("quotes and rules") {
     CHECK(doc[2].text == "after");
 }
 
-TEST_CASE("a table is a row per block, the header in bold") {
-    auto doc = markdown("| a | b |\n|---|---|\n| 1 | 2 |");
+TEST_CASE("a table is a row per block, cells apart by tabs, the header row marked") {
+    auto doc = markdown("| a | **b** |\n|---|---|\n| 1 | 2 |");
     REQUIRE(doc.size() == 2);
-    CHECK(doc[0].text.find('a') != std::string::npos);
-    CHECK(span_of(doc[0], Style::strong) != nullptr);
-    CHECK(doc[1].text.find('2') != std::string::npos);
+    CHECK(doc[0].kind == BlockKind::table_row);
+    CHECK(doc[0].level == 1);              // the header
+    CHECK(doc[0].text == "a\tb");
+    CHECK(spanned(doc[0], Style::strong) == "b");
+    CHECK(doc[1].kind == BlockKind::table_row);
+    CHECK(doc[1].level == 0);
+    CHECK(doc[1].text == "1\t2");
 }
 
 TEST_CASE("empty input is one empty block") {

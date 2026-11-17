@@ -109,3 +109,16 @@ TEST_CASE("x of a byte, and the byte at an x, within a laid out line") {
     CHECK(byte_at(b, line, 63, prose(500)) == 6);
     CHECK(byte_at(b, line, 1000, prose(500)) == 9);
 }
+
+TEST_CASE("a table row puts its cells in equal columns") {
+    Block row{.text = "a\tbb\tccc", .kind = BlockKind::table_row};
+    auto out = layout_block(row, {}, prose(300));
+    REQUIRE(out.lines.size() == 1);
+    REQUIRE(out.lines[0].runs.size() == 3);
+    CHECK(out.lines[0].runs[0].x == doctest::Approx(0));
+    CHECK(out.lines[0].runs[1].x == doctest::Approx(100));
+    CHECK(out.lines[0].runs[2].x == doctest::Approx(200));
+    CHECK(out.columns.size() == 3);
+    CHECK(x_of(row, out.lines[0], 3, prose(300)) == doctest::Approx(100 + 10));   // inside "bb"
+    CHECK(byte_at(row, out.lines[0], 205, prose(300)) == 5);                      // start of "ccc"
+}

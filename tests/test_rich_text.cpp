@@ -175,3 +175,16 @@ TEST_CASE("review: text that looks like Markdown markup stays text through to_ma
     }
 #endif
 }
+
+TEST_CASE("table rows are written as a Markdown table, the header row underlined") {
+    Document doc{std::vector<Block>{{.text = "name\tsize", .kind = BlockKind::table_row, .level = 1},
+                                    {.text = "a|b\t3", .kind = BlockKind::table_row},
+                                    {.text = "after"}}};
+    CHECK(to_markdown(doc) == "| name | size |\n| --- | --- |\n| a\\|b | 3 |\n\nafter\n");
+#ifdef PRISM_HAS_MARKDOWN
+    auto back = markdown(to_markdown(doc));
+    REQUIRE(back.size() == 3);
+    CHECK(back[1].text == "a|b\t3");
+    CHECK(back[0].level == 1);
+#endif
+}

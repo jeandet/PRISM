@@ -31,6 +31,29 @@ std::string_view marker(Style s) {
 
 bool is_list(BlockKind k) { return k == BlockKind::bullet || k == BlockKind::ordered; }
 
+// Blocks written on consecutive lines, no blank line between: a list's items, a table's rows.
+bool runs_on(BlockKind a, BlockKind b) {
+    return (is_list(a) && is_list(b)) || (a == BlockKind::table_row && b == BlockKind::table_row);
+}
+
+// A table row: its cells between pipes (a pipe inside a cell escaped); the header row is
+// underlined with one --- per cell.
+std::string table_row(const Block& b, const std::string& cells) {
+    std::string line = "| ";
+    std::size_t count = 1;
+    for (char c : cells) {
+        if (c == '\t') { line += " | "; ++count; }
+        else if (c == '|') line += "\\|";
+        else line += c;
+    }
+    line += " |";
+    if (b.level == 1) {
+        line += "\n|";
+        for (std::size_t k = 0; k < count; ++k) line += " --- |";
+    }
+    return line;
+}
+
 // A span opening or closing at a byte.
 struct Edge {
     std::size_t at;
@@ -109,6 +132,7 @@ std::string line_of(const Block& b) {
     case BlockKind::ordered:
         return std::string(2 * static_cast<std::size_t>(b.level), ' ') + list_marker(b) + " " + inline_text(b);
     case BlockKind::rule: return "---";
+    case BlockKind::table_row: return table_row(b, inline_text(b));
     default: return escape_block_start(inline_text(b));
     }
 }
@@ -119,7 +143,7 @@ std::string to_markdown(const Document& doc) {
     std::string out;
     for (std::size_t i = 0; i < doc.size(); ++i) {
         const Block& b = doc[i];
-        if (i > 0) out += is_list(b.kind) && is_list(doc[i - 1].kind) ? "\n" : "\n\n";
+        if (i > 0) out += runs_on(doc[i - 1].kind, b.kind) ? "\n" : "\n\n";
         if (b.kind != BlockKind::code) {
             out += line_of(b);
             continue;

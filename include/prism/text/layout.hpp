@@ -56,6 +56,8 @@ struct BlockLayout {
     std::optional<render::Color> background;   // a code block's
     bool quote_bar = false;
     bool rule = false;                // a horizontal rule, drawn across the line
+    std::vector<float> columns{};     // a table row's cells: where each starts (after the indent)
+    bool header_rule = false;         // a table's header row: a rule under it
 };
 
 [[nodiscard]] BlockLayout layout_block(const Block& block, std::span<const Span> computed, const LayoutStyle& style);

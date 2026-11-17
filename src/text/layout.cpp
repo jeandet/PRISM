@@ -29,6 +29,7 @@ Look base_look(const Block& b, const LayoutStyle& st) {
     case BlockKind::heading: l.font.bold = true; l.size = st.size * heading_scale(b.level); break;
     case BlockKind::quote: l.color = t.text_muted; l.font.italic = true; break;
     case BlockKind::code: l.font.family = render::FontRole::Mono; break;
+    case BlockKind::table_row: l.font.bold = b.level == 1; break;
     default: break;
     }
     return l;
@@ -162,7 +163,40 @@ void frame(BlockLayout& out, const Block& b, const LayoutStyle& st, float& above
     case BlockKind::code: out.background = t.code_bg; out.indent = 0.6f * em; break;
     case BlockKind::rule: out.rule = true; above = below = 0.5f * em; break;
     case BlockKind::paragraph: if (prose(st)) below = 0.4f * em; break;
+    case BlockKind::table_row: above = below = 0.2f * em; out.header_rule = b.level == 1; break;
     }
+}
+
+// A table row: its cells (apart by tabs) in equal columns, one line, the tabs themselves in no run.
+// simplify: equal columns, and a cell longer than its column runs into the next one. Columns
+// sized from the whole table need the rows laid out together; add when tables hold more than
+// a few words a cell.
+void layout_row(BlockLayout& out, const Block& b, const std::vector<Piece>& pieces, const LayoutStyle& st) {
+    std::vector<std::pair<std::size_t, std::size_t>> cells;
+    for (std::size_t start = 0;;) {
+        const std::size_t tab = b.text.find('\t', start);
+        cells.push_back({start, tab == std::string::npos ? b.text.size() : tab});
+        if (tab == std::string::npos) break;
+        start = tab + 1;
+    }
+    const float avail = st.width - out.indent;
+    const float column = avail > 0.f ? avail / static_cast<float>(cells.size()) : 8.f * st.size;
+    Line line{.begin = 0, .end = b.text.size()};
+    for (std::size_t c = 0; c < cells.size(); ++c) {
+        const float cell_x = column * static_cast<float>(c);
+        out.columns.push_back(cell_x);
+        float x = cell_x;
+        for (const auto& p : pieces) {
+            const std::size_t a = std::max(cells[c].first, p.begin), z = std::min(cells[c].second, p.end);
+            if (a >= z) continue;
+            Run r{a, z, x, measure(b, p, a, z, st), p.look};
+            x += r.width;
+            line.height = std::max(line.height, line_height_of(p.look, st));
+            line.runs.push_back(r);
+        }
+    }
+    if (line.height == 0.f) line.height = line_height_of(pieces.front().look, st);
+    out.lines.push_back(std::move(line));
 }
 
 } // namespace
@@ -172,6 +206,12 @@ BlockLayout layout_block(const Block& block, std::span<const Span> computed, con
     float above = 0.f, below = 0.f;
     frame(out, block, st, above, below);
     const auto pieces = pieces_of(block, computed, st);
+    if (block.kind == BlockKind::table_row) {
+        layout_row(out, block, pieces, st);
+        out.lines.front().y = above;
+        out.height = above + out.lines.front().height + below;
+        return out;
+    }
     float y = above;
     for (auto [from, to] : wrap(block, pieces, st.width - out.indent, st)) {
         Line line = place(block, pieces, from, to, st);
@@ -183,9 +223,10 @@ BlockLayout layout_block(const Block& block, std::span<const Span> computed, con
     return out;
 }
 
+// A byte between runs (a table row's tab) sits at the end of the run before it.
 float x_of(const Block& block, const Line& line, std::size_t byte, const LayoutStyle& st) {
     for (const auto& r : line.runs)
-        if (byte < r.end || &r == &line.runs.back()) {
+        if (byte <= r.end || &r == &line.runs.back()) {
             const std::size_t at = std::clamp(byte, r.begin, r.end);
             return r.x + ui::text_width(st.measurer, std::string_view(block.text).substr(r.begin, at - r.begin),
                                         r.look.size, r.look.font);

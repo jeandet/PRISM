@@ -249,7 +249,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
     UI font's real Bold, Italic and Bold Italic are bundled since 2026-11-17);
   - a scrollbar for the sideways scroll (a swipe and the caret move it; nothing shows how far);
     an input method's composition drawn over the text
-    after the caret rather than pushing it along; highlighting past the screen in idle time; table rows as their own kind of block;
+    after the caret rather than pushing it along; highlighting past the screen in idle time; a table's columns sized from all its rows (they
+    are equal today);
     the layout cache trimmed least-recently-used;
   - stepping by character rescans the block (ui::next_grapheme), so a click or a wrap in one very
     long paragraph is quadratic in its length; per-block grapheme marks, cached with the layout,

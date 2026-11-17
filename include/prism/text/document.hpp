@@ -36,7 +36,8 @@ enum class Style : std::uint8_t {
 // link (typing after a link is not part of it). The rule of Peritext, the rich-text CRDT.
 constexpr bool grows_at_end(Style s) { return s != Style::link; }
 
-enum class BlockKind : std::uint8_t { paragraph, heading, quote, bullet, ordered, code, rule };
+// table_row: a table's row, its cells apart by tabs ('\t'); level 1 marks the header row.
+enum class BlockKind : std::uint8_t { paragraph, heading, quote, bullet, ordered, code, rule, table_row };
 
 struct Span {
     std::size_t begin = 0, end = 0;   // bytes in the block's text

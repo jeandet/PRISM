@@ -143,12 +143,11 @@ struct Walker {
 
     void table(cmark_node* n) {
         for (cmark_node* row = cmark_node_first_child(n); row; row = cmark_node_next(row)) {
-            Block b;
+            Block b{.kind = BlockKind::table_row, .level = cmark_gfm_extensions_get_table_row_is_header(row) ? 1 : 0};
             for (cmark_node* cell = cmark_node_first_child(row); cell; cell = cmark_node_next(cell)) {
-                if (cell != cmark_node_first_child(row)) b.text += "  \xE2\x94\x82  ";   // │
+                if (cell != cmark_node_first_child(row)) b.text += '\t';
                 inlines(cell, b);
             }
-            if (cmark_gfm_extensions_get_table_row_is_header(row)) mark(b, 0, Style::strong);
             out.push_back(std::move(b));
         }
     }

@@ -33,6 +33,11 @@ struct Settings {
 };
 ```
 
+| Widget | Lays out |
+|---|---|
+| TextArea | every line |
+| TextView | what is in sight |
+
 ---
 
 The view keeps a height map of its blocks, so a long document scrolls as fast as this one.

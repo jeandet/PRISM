@@ -190,6 +190,9 @@ void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l,
     if (l.background) dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{width}, Height{l.height}}}, *l.background);
     if (l.quote_bar) dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{3.f}, Height{l.height}}}, theme.divider);
     if (l.rule) dl.filled_rect(Rect{Point{X{left}, Y{top + l.height / 2.f}}, Size{Width{width}, Height{1.f}}}, theme.divider);
+    if (l.header_rule) dl.filled_rect(Rect{Point{X{left}, Y{top + l.height - 1.f}}, Size{Width{width}, Height{1.f}}}, theme.divider);
+    for (std::size_t c = 1; c < l.columns.size(); ++c)   // between a table's cells
+        dl.filled_rect(Rect{Point{X{text_x + l.columns[c] - 0.5f * style_.size}, Y{top}}, Size{Width{1.f}, Height{l.height}}}, theme.divider);
     if (!l.marker.empty()) {
         const float w = ui::text_width(style_.measurer, l.marker, style_.size, style_.family);
         dl.text(l.marker, Point{X{text_x - w - 0.4f * style_.size}, Y{top + l.lines.front().y}}, style_.size,

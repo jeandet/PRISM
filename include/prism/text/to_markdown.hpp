@@ -10,10 +10,8 @@
 //   save(path, text::to_markdown(doc));
 //
 // Headings, paragraphs, quotes, list items (nested, numbered, task boxes), code blocks (consecutive
-// code lines of one language become one fence), rules; strong, emphasis, code, strikethrough and
+// code lines of one language become one fence), rules, table rows; strong, emphasis, code, strikethrough and
 // links. Characters Markdown would read as markup are escaped outside code.
-// simplify: a table row (text::markdown reads one as a block of cells) is written as a paragraph;
-// keep tables as their own kind of block when a rich editor needs to edit them.
 namespace prism::text {
 
 [[nodiscard]] std::string to_markdown(const Document& doc);
