@@ -63,7 +63,7 @@
 <text xml:space="preserve" x="305" y="8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes</text>
 <text xml:space="preserve" x="305" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">type: directory</text>
 <text xml:space="preserve" x="305" y="44" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">entries: 7</text>
-<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-15 19:50:16</text>
+<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-16 21:56:40</text>
 </g>
 <clipPath id="clip-11"><rect x="497" y="0" width="6" height="608"/></clipPath>
 <g clip-path="url(#clip-11)">
@@ -110,64 +110,45 @@
 <text xml:space="preserve" x="627" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">include</text>
 </g>
 </g>
-<clipPath id="clip-20"><rect x="503" y="70" width="497" height="517.6"/></clipPath>
+<clipPath id="clip-20"><rect x="503" y="70" width="497" height="255"/></clipPath>
 <g clip-path="url(#clip-20)">
-<rect x="503" y="70" width="497" height="517.6" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-21"><rect x="507" y="74" width="489" height="509.6"/></clipPath>
+<clipPath id="clip-21"><rect x="503" y="70" width="497" height="255"/></clipPath>
 <g clip-path="url(#clip-21)">
-<rect x="515.4" y="211.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="250.4" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="270" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="289.6" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="309.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="328.8" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="348.4" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="368" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="387.6" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="407.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<rect x="515.4" y="426.8" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
-<text xml:space="preserve" x="507" y="76" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#pragma once</text>
-<text xml:space="preserve" x="507" y="115.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, </text>
-<text xml:space="preserve" x="507" y="134.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">statistics and search. Tested in</text>
-<text xml:space="preserve" x="507" y="154.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// tests/test_notes_logic.cpp; the app (model_notes.cpp) </text>
-<text xml:space="preserve" x="507" y="174" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">only wires these to widgets.</text>
-<text xml:space="preserve" x="507" y="213.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;prism/core/utf8.hpp&gt;</text>
-<text xml:space="preserve" x="507" y="252.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;algorithm&gt;</text>
-<text xml:space="preserve" x="507" y="272" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;cstddef&gt;</text>
-<text xml:space="preserve" x="507" y="291.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;expected&gt;</text>
-<text xml:space="preserve" x="507" y="311.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;filesystem&gt;</text>
-<text xml:space="preserve" x="507" y="330.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;fstream&gt;</text>
-<text xml:space="preserve" x="507" y="350.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;iterator&gt;</text>
-<text xml:space="preserve" x="507" y="370" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;optional&gt;</text>
-<text xml:space="preserve" x="507" y="389.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;string&gt;</text>
-<text xml:space="preserve" x="507" y="409.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;string_view&gt;</text>
-<text xml:space="preserve" x="507" y="428.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;vector&gt;</text>
-<text xml:space="preserve" x="507" y="468" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">namespace notes {</text>
-<text xml:space="preserve" x="507" y="507.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// `model_notes out.svg [dir] [file]` saves a screenshot; </text>
-<text xml:space="preserve" x="507" y="526.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">`model_notes [dir]` opens a folder. The</text>
-<text xml:space="preserve" x="507" y="546.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// first argument says which: a path ending in .svg is </text>
-<text xml:space="preserve" x="507" y="566" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">where a screenshot goes.</text>
-<text xml:space="preserve" x="507" y="585.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">inline bool is_capture_path(std::string_view arg) { return </text>
+<text xml:space="preserve" x="511" y="78" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#pragma once</text>
+<text xml:space="preserve" x="511" y="117.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, </text>
+<text xml:space="preserve" x="511" y="136.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">statistics and search. Tested in</text>
+<text xml:space="preserve" x="511" y="156.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// tests/test_notes_logic.cpp; the app (model_notes.cpp) </text>
+<text xml:space="preserve" x="511" y="176" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">only wires these to widgets.</text>
+<rect x="519.4" y="215.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<text xml:space="preserve" x="511" y="215.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;prism/core/utf8.hpp&gt;</text>
+<rect x="519.4" y="254.4" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<text xml:space="preserve" x="511" y="254.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;algorithm&gt;</text>
+<rect x="519.4" y="274" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<text xml:space="preserve" x="511" y="274" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;cstddef&gt;</text>
+<rect x="519.4" y="293.6" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<text xml:space="preserve" x="511" y="293.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;expected&gt;</text>
+<rect x="519.4" y="313.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
+<text xml:space="preserve" x="511" y="313.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#include &lt;filesystem&gt;</text>
 </g>
 </g>
-<clipPath id="clip-22"><rect x="503" y="587.6" width="497" height="28"/></clipPath>
+<clipPath id="clip-22"><rect x="503" y="580" width="497" height="28"/></clipPath>
 <g clip-path="url(#clip-22)">
-<rect x="503" y="587.6" width="497" height="28" fill="rgba(45,45,48,1)"/>
-<line x1="503" y1="588.1" x2="1000" y2="588.1" stroke="rgba(60,60,65,1)" stroke-width="1"/>
+<rect x="503" y="580" width="497" height="28" fill="rgba(45,45,48,1)"/>
+<line x1="503" y1="580.5" x2="1000" y2="580.5" stroke="rgba(60,60,65,1)" stroke-width="1"/>
 </g>
-<clipPath id="clip-23"><rect x="511" y="589.6" width="512" height="24"/></clipPath>
+<clipPath id="clip-23"><rect x="511" y="582" width="512" height="24"/></clipPath>
 <g clip-path="url(#clip-23)">
-<rect x="511" y="589.6" width="512" height="24" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="515" y="593.6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  77 lines, 3077 characters  |  11 matches</text>
+<rect x="511" y="582" width="512" height="24" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="515" y="586" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  77 lines, 3077 characters  |  11 matches</text>
 </g>
-<clipPath id="clip-24"><rect x="503" y="615.6" width="497" height="0"/></clipPath>
+<clipPath id="clip-24"><rect x="503" y="608" width="497" height="0"/></clipPath>
 <g clip-path="url(#clip-24)">
 </g>
-<clipPath id="clip-25"><rect x="503" y="615.6" width="497" height="0"/></clipPath>
+<clipPath id="clip-25"><rect x="503" y="608" width="497" height="0"/></clipPath>
 <g clip-path="url(#clip-25)">
 </g>
-<clipPath id="clip-26"><rect x="503" y="615.6" width="497" height="0"/></clipPath>
+<clipPath id="clip-26"><rect x="503" y="608" width="497" height="0"/></clipPath>
 <g clip-path="url(#clip-26)">
 </g>
-<rect x="988" y="74" width="6" height="127.4" fill="rgba(120,120,130,0.627451)"/>
+<rect x="984" y="78" width="6" height="28.2945" fill="rgba(120,120,130,0.627451)"/>
 </svg>

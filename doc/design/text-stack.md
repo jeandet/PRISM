@@ -231,13 +231,13 @@ Each step ends with something visible, tested, and shown in the gallery and the 
   (`text/editor.hpp`, `vb.text_editor`), `Highlighter` and the built-in languages
   (`text/highlight.hpp`), `vb.code_editor(doc, "cpp")`, `text::markdown` (`prism-markdown`),
   `text::to_markdown`, rich text editing (`EditorOptions::rich`), `FontStyle` (bold and italic in
-  every backend). The gallery's Document tab edits Markdown and rich text side by side; its Text
-  tab's code sample is a code editor.
+  every backend), `.rows(n)` and `.highlights(field)` on the handle `vb` returns. The gallery's
+  Document tab edits Markdown and rich text side by side; its Text tab's code sample is a code
+  editor; the data studio's query editor is `vb.code_editor(text, "sql")` with its error mark as
+  highlights; the notes app edits a `Document`, its search hits as highlights.
 - Left, each noted as `simplify:` where the cut is:
   - real bold and italic font files: SDL_ttf's synthetic slant reports a wider italic run than it
     draws, leaving a small gap after an italic word;
-  - a decoration source for editors built by `vb` (search matches, a SQL error's range), so the
-    data studio's SQL editor and the notes app can move from `TextArea`;
   - horizontal scrolling without wrapping; an input method's composition shown before it is
     committed; highlighting past the screen in idle time; table rows as their own kind of block;
     the caret put back at the change on undo; the layout cache trimmed least-recently-used.

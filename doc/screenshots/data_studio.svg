@@ -130,15 +130,37 @@
 <rect x="882.4" y="36" width="293.6" height="24" fill="rgba(45,45,55,1)"/>
 <text xml:space="preserve" x="886.4" y="40" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">Ctrl+Enter runs the editor's query</text>
 </g>
-<clipPath id="clip-20"><rect x="287.76" y="72" width="892.24" height="164.8"/></clipPath>
+<clipPath id="clip-20"><rect x="287.76" y="72" width="892.24" height="172.8"/></clipPath>
 <g clip-path="url(#clip-20)">
-<rect x="287.76" y="72" width="892.24" height="164.8" fill="rgba(45,45,55,1)"/>
-<clipPath id="clip-21"><rect x="291.76" y="76" width="884.24" height="156.8"/></clipPath>
+<clipPath id="clip-21"><rect x="287.76" y="72" width="892.24" height="172.8"/></clipPath>
 <g clip-path="url(#clip-21)">
-<text xml:space="preserve" x="291.76" y="78" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">SELECT strftime('%H:00', pickup) AS hour, COUNT(*) AS trips</text>
-<text xml:space="preserve" x="291.76" y="97.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">  FROM trips</text>
-<text xml:space="preserve" x="291.76" y="117.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> GROUP BY hour</text>
-<text xml:space="preserve" x="291.76" y="136.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> ORDER BY hour</text>
+<text xml:space="preserve" x="302.06" y="80" font-family="monospace" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">1</text>
+<text xml:space="preserve" x="316.76" y="80" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">SELECT</text>
+<text xml:space="preserve" x="367.16" y="80" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> strftime(</text>
+<text xml:space="preserve" x="451.16" y="80" font-family="monospace" font-size="14" fill="rgba(152,195,121,1)" dominant-baseline="hanging">'%H:00'</text>
+<text xml:space="preserve" x="509.96" y="80" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">, pickup) </text>
+<text xml:space="preserve" x="593.96" y="80" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">AS</text>
+<text xml:space="preserve" x="610.76" y="80" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> hour, </text>
+<text xml:space="preserve" x="669.56" y="80" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">COUNT</text>
+<text xml:space="preserve" x="711.56" y="80" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">(*) </text>
+<text xml:space="preserve" x="745.16" y="80" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">AS</text>
+<text xml:space="preserve" x="761.96" y="80" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> trips</text>
+<text xml:space="preserve" x="302.06" y="99.6" font-family="monospace" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">2</text>
+<text xml:space="preserve" x="316.76" y="99.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">  </text>
+<text xml:space="preserve" x="333.56" y="99.6" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">FROM</text>
+<text xml:space="preserve" x="367.16" y="99.6" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> trips</text>
+<text xml:space="preserve" x="302.06" y="119.2" font-family="monospace" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">3</text>
+<text xml:space="preserve" x="316.76" y="119.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> </text>
+<text xml:space="preserve" x="325.16" y="119.2" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">GROUP</text>
+<text xml:space="preserve" x="367.16" y="119.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> </text>
+<text xml:space="preserve" x="375.56" y="119.2" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">BY</text>
+<text xml:space="preserve" x="392.36" y="119.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> hour</text>
+<text xml:space="preserve" x="302.06" y="138.8" font-family="monospace" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">4</text>
+<text xml:space="preserve" x="316.76" y="138.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> </text>
+<text xml:space="preserve" x="325.16" y="138.8" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">ORDER</text>
+<text xml:space="preserve" x="367.16" y="138.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> </text>
+<text xml:space="preserve" x="375.56" y="138.8" font-family="monospace" font-size="14" fill="rgba(198,120,221,1)" dominant-baseline="hanging">BY</text>
+<text xml:space="preserve" x="392.36" y="138.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging"> hour</text>
 </g>
 </g>
 <clipPath id="clip-22"><rect x="287.76" y="316.48" width="892.24" height="6"/></clipPath>

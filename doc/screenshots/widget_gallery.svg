@@ -40,7 +40,7 @@
 </g>
 <clipPath id="clip-7"><rect x="0" y="70" width="900" height="32"/></clipPath>
 <g clip-path="url(#clip-7)">
-<rect x="0" y="70" width="709.6" height="32" fill="rgba(42,42,58,1)"/>
+<rect x="0" y="70" width="808.8" height="32" fill="rgba(42,42,58,1)"/>
 <rect x="0" y="70" width="99.2" height="32" fill="rgba(30,30,46,1)"/>
 <text xml:space="preserve" x="16" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,240,1)" dominant-baseline="hanging">Controls</text>
 <rect x="0" y="100" width="99.2" height="2" fill="rgba(124,111,255,1)"/>
@@ -48,16 +48,18 @@
 <text xml:space="preserve" x="115.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Catalog</text>
 <rect x="190" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
 <text xml:space="preserve" x="206" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Text</text>
-<rect x="255.6" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="271.6" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
-<rect x="321.2" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="337.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Plot</text>
-<rect x="386.8" y="70" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="402.8" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Popups</text>
-<rect x="469.2" y="70" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="485.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Docking</text>
-<rect x="560" y="70" width="149.6" height="32" fill="rgba(42,42,58,1)"/>
-<text xml:space="preserve" x="576" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Build your own</text>
+<rect x="255.6" y="70" width="99.2" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="271.6" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Document</text>
+<rect x="354.8" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="370.8" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Data</text>
+<rect x="420.4" y="70" width="65.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="436.4" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Plot</text>
+<rect x="486" y="70" width="82.4" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="502" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Popups</text>
+<rect x="568.4" y="70" width="90.8" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="584.4" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Docking</text>
+<rect x="659.2" y="70" width="149.6" height="32" fill="rgba(42,42,58,1)"/>
+<text xml:space="preserve" x="675.2" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(140,140,160,1)" dominant-baseline="hanging">Build your own</text>
 </g>
 <clipPath id="clip-8"><rect x="0" y="102" width="900" height="478"/></clipPath>
 <g clip-path="url(#clip-8)">
