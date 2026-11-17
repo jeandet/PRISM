@@ -3,7 +3,7 @@
 using namespace prism;
 
 struct Settings {
-    core::Field<std::string> username{"jeandet"};
+    core::Field<std::string> username{"ada"};
     core::Field<bool> dark_mode{true};
 
     void view(app::ViewBuilder& vb) {

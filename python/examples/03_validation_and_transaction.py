@@ -22,7 +22,7 @@ Pct = Annotated[int, PField(ge=0, le=100)]
 class Settings(prism.Model):
     volume: Vol = 0.75
     brightness: Pct = 60
-    username = prism.field("jeandet")
+    username = prism.field("ada")
 
 
 m = Settings()

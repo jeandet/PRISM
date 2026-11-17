@@ -3,7 +3,7 @@
 using namespace prism;
 
 struct TabsShowcase {
-    core::Field<ui::TextField<>> username{{.value = "jeandet"}};
+    core::Field<ui::TextField<>> username{{.value = "ada"}};
     core::Field<bool> dark_mode{true};
     core::Field<ui::Slider<>> volume{{.value = 0.6}};
     core::Field<ui::TabBar<>> tabs;

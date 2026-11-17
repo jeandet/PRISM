@@ -82,7 +82,7 @@ Models are plain structs. Nest them. No inheritance, no macros:
 
 ```cpp
 struct Settings {
-    core::Field<std::string> username{"jeandet"};
+    core::Field<std::string> username{"ada"};
     core::Field<bool> dark_mode{true};
 };
 

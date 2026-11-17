@@ -40,7 +40,7 @@ Two subscription APIs:
 
 ```cpp
 struct Dashboard {
-    Field<std::string> username{"jeandet"};   // → text input widget
+    Field<std::string> username{"ada"};   // → text input widget
     Field<bool>        dark_mode{true};        // → checkbox widget
     State<int>         request_count{0};       // → observable, no widget
     State<std::string> session_token{""};      // → observable, no widget
@@ -112,7 +112,7 @@ Usage in model structs:
 enum class Theme { Light, Dark, System };
 
 struct Settings {
-    Field<std::string>           username{"jeandet"};                        // → read-only string display
+    Field<std::string>           username{"ada"};                        // → read-only string display
     Field<TextField<>>           search{{.placeholder = "Search..."}};        // → editable text field
     Field<Label<>>               status{{"OK"}};                             // → read-only label
     Field<Password<>>            secret{{.placeholder = "API key"}};          // → masked text input
