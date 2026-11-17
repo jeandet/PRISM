@@ -72,8 +72,8 @@ void View::follow_states(const Change& c) {
 
 // The state block i's highlighting starts in. Brings the end states up to date from the first
 // one an edit made unknown; stops early once a block past the edit ends as it did before.
-// simplify: on the logic thread, all the way to i: opening a long file at its end highlights it
-// once there. VS Code does this part in idle time; add that when a file shows the wait.
+// Between frames highlight_ahead() moves the valid states on by batches, as VS Code's tokenizer
+// does in idle time, so this rarely has far to go.
 Highlighter::State View::state_before(std::size_t i) {
     if (!options_.highlighter || i == 0) return 0;
     std::vector<Span> scratch;
@@ -315,6 +315,12 @@ Range View::visual_line(Position p) {
     const std::string& text = doc_[p.block].text;
     if (k + 1 < l.lines.size() && end > line.begin && ui::is_wrap_space(text[end - 1])) --end;   // before the hanging space
     return {{p.block, line.begin}, {p.block, end}};
+}
+
+bool View::highlight_ahead(std::size_t lines) {
+    if (!options_.highlighter || valid_ >= ends_.size()) return false;
+    state_before(std::min(valid_ + lines, ends_.size()));
+    return valid_ < ends_.size();
 }
 
 void View::scroll_sideways(float dx) {

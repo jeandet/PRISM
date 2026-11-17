@@ -216,7 +216,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
 
    `vb.code_editor(doc, "cpp")` on the same text: the first Ctrl+End highlights every line above
    the end (states carry from line to line) once: 0.9 ms at 1,000 lines, 6.7 ms at 10,000, 71 ms
-   at 100,000. A key then costs 0.03 ms. Highlighting in idle time would hide the first jump.
+   at 100,000. A key then costs 0.03 ms. Since 2026-11-17 the view highlights ahead between
+   frames (4,000 lines a frame, about 3 ms), so after a moment the jump finds the work done.
 2. **Fonts**: `FontStyle`, bold and italic faces on desktop and web, the theme's style table.
 3. **Document + layout + `TextView`**, with Markdown into a document. Read-only first: it proves
    the document, styled runs, caching and visible-only layout without any editing. Visible
@@ -249,7 +250,7 @@ Each step ends with something visible, tested, and shown in the gallery and the 
     UI font's real Bold, Italic and Bold Italic are bundled since 2026-11-17);
   - a scrollbar for the sideways scroll (a swipe and the caret move it; nothing shows how far);
     an input method's composition drawn over the text
-    after the caret rather than pushing it along; highlighting past the screen in idle time; a table's columns sized from all its rows (they
+    after the caret rather than pushing it along; highlighting past a table's columns sized from all its rows (they
     are equal today);
     the layout cache trimmed least-recently-used;
   - stepping by character rescans the block (ui::next_grapheme), so a click or a wrap in one very

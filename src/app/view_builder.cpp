@@ -330,6 +330,7 @@ void ViewBuilder::finalize() {
 
 namespace {
 void publish_inner_scroll(WidgetNode& node, const text::View& view);
+void highlight_in_idle_time(WidgetNode& node, text::View& view);
 
 // A text view as a leaf: drawn like a canvas (it fills its space), its View kept in the node's
 // edit state, where the tree's wheel, Page Up/Down and scrollbar find it (get_scroll_view).
@@ -358,10 +359,19 @@ Node text_view_node(text::Document& doc, std::shared_ptr<text::View> view, Widge
             node.draws.clear();
             view->draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
             publish_inner_scroll(node, *view);
+            highlight_in_idle_time(node, *view);
         };
         wn.record(wn);
     };
     return n;
+}
+
+// A code view's highlighting moves on past the screen a batch a frame (~3 ms), the tree's tick
+// drawing it again until it is done.
+void highlight_in_idle_time(WidgetNode& node, text::View& view) {
+    constexpr std::size_t batch = 4000;
+    if (view.highlight_ahead(batch)) node.redraw_at = std::chrono::steady_clock::now() + std::chrono::milliseconds(16);
+    else node.redraw_at.reset();
 }
 
 // The view's scrollbar: a leaf that scrolls its own content shows it like a scroll container's.
@@ -403,6 +413,7 @@ Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor,
             editor->view.draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
             editor->view.marks = marks;
             publish_inner_scroll(node, editor->view);
+            highlight_in_idle_time(node, editor->view);
         };
         wn.record(wn);
         wn.wire = [editor](WidgetNode& node) {

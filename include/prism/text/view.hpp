@@ -52,6 +52,11 @@ public:
     core::DX scroll_x{0};
     void scroll_sideways(float dx);
 
+    // Brings up to `lines` more blocks' highlighting states up to date, past what is in sight:
+    // what a view does between frames, so a jump far down does not wait for every line above.
+    // Returns whether any are left.
+    bool highlight_ahead(std::size_t lines);
+
     // What an editor shows over the text: the caret, and the selection between it and the anchor.
     struct Marks {
         Position caret;

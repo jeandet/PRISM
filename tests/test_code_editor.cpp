@@ -235,3 +235,20 @@ TEST_CASE("the caret is kept in sight sideways, and a sideways swipe scrolls") {
     const float scrolled = ed.view.scroll_x.raw();
     CHECK(ed.view.hit(core::Point{core::X{20}, core::Y{5}}).byte == static_cast<std::size_t>((20.f + scrolled) / 10.f + 0.5f));
 }
+
+TEST_CASE("highlighting goes on ahead in idle time; a jump to the end then highlights only what is in sight") {
+    Counting counting;
+    Document doc{many_lines(20000)};
+    View view{doc, {.family = render::FontRole::Mono, .padding = 0, .highlighter = &counting}};
+    render::DrawList dl;
+    view.draw(dl, window, theme);
+    int batches = 0;
+    while (view.highlight_ahead(5000)) ++batches;
+    CHECK(batches == 3);                 // 20 000 lines, 5 000 a batch: the fourth finishes
+    CHECK_FALSE(view.highlight_ahead(5000));
+    counting.lines = 0;
+    view.scroll = core::DY{1e9f};
+    dl.clear();
+    view.draw(dl, window, theme);
+    CHECK(counting.lines < 40);
+}
