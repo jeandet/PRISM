@@ -28,6 +28,12 @@ struct Shared {
             waker_();
     }
 
+    // `latest = v` is set(v). No `+=`: a read-modify-write from two threads would lose updates.
+    Shared& operator=(T new_value) {
+        set(std::move(new_value));
+        return *this;
+    }
+
     // Called (from the setting thread) when a value becomes pending, so the draining thread
     // can be woken. Later set()s before the next drain coalesce and do not call it again.
     void set_waker(std::function<void()> fn) { waker_.set(std::move(fn)); }

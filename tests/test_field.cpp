@@ -110,3 +110,67 @@ TEST_CASE("Field with bool") {
     CHECK(toggled == true);
     CHECK(f.get() == true);
 }
+
+TEST_CASE("Field: = and the compound operators set the value and notify once") {
+    prism::Field<int> f{1};
+    int calls = 0;
+    auto conn = f.on_change().connect([&](const int&) { ++calls; });
+    f = 5;
+    CHECK(f.get() == 5);
+    f += 3;
+    CHECK(f.get() == 8);
+    f -= 2;
+    f *= 4;
+    f /= 3;
+    CHECK(f.get() == 8);
+    f %= 5;
+    CHECK(f.get() == 3);
+    f |= 4;
+    f &= 6;
+    f ^= 1;
+    CHECK(f.get() == 7);
+    CHECK(calls == 9);
+    f = 7;   // equal: no notification, as set() does
+    f += 0;
+    CHECK(calls == 9);
+}
+
+TEST_CASE("Field: ++ and --") {
+    prism::Field<int> f{1};
+    int calls = 0;
+    auto conn = f.on_change().connect([&](const int&) { ++calls; });
+    ++f;
+    CHECK(f.get() == 2);
+    CHECK(f++ == 2);
+    CHECK(f.get() == 3);
+    --f;
+    CHECK(f-- == 2);
+    CHECK(f.get() == 1);
+    CHECK(calls == 4);
+}
+
+TEST_CASE("Field<std::string>: += appends, == and < compare with a literal") {
+    prism::Field<std::string> name{"ada"};
+    name += " lovelace";
+    CHECK(name == "ada lovelace");
+    CHECK("ada lovelace" == name);
+    CHECK(name != "babbage");
+    CHECK(name < "b");
+    name = "grace";
+    CHECK(name.get() == "grace");
+}
+
+namespace {
+struct Progress {
+    double value = 0;
+    bool busy = false;
+    bool operator==(const Progress&) const = default;
+};
+} // namespace
+
+TEST_CASE("Field: = takes a designated initializer") {
+    prism::Field<Progress> p;
+    p = {.value = 0.5, .busy = true};
+    CHECK(p.get().value == 0.5);
+    CHECK(p.get().busy);
+}

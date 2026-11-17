@@ -121,3 +121,9 @@ TEST_CASE("Shared without a waker still sets and drains") {
     s.drain_notifications();
     CHECK(s.get() == 5);
 }
+
+TEST_CASE("Shared: = sets the value from any thread") {
+    prism::Shared<int> s{0};
+    std::thread([&] { s = 42; }).join();
+    CHECK(s.get() == 42);
+}

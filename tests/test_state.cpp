@@ -73,3 +73,11 @@ TEST_CASE("is_shared_v identifies Shared<T>") {
     CHECK_FALSE(prism::core::is_shared_v<prism::core::Field<float>>);
     CHECK_FALSE(prism::core::is_shared_v<int>);
 }
+
+TEST_CASE("State: = and += set the value") {
+    prism::State<int> s{1};
+    s = 4;
+    s += 2;
+    ++s;
+    CHECK(s.get() == 7);
+}
