@@ -29,7 +29,7 @@ container.
 | `widget(field)` | the field's widget; returns a handle (below) |
 | `widget(derived)`, `widget(shared)` | read-only text that follows the value |
 | `widget_readonly(field)` | the field's widget, drawn but deaf to input |
-| `vstack(a, b, ...)`, `hstack(a, b, ...)` | several values at once: fields, `Derived`s, `Shared`s, blocks. `hstack` opens a row; `vstack` places them in the **current** container |
+| `vstack(a, b, ...)`, `hstack(a, b, ...)` | several values at once: fields, `Derived`s, `Shared`s, blocks. `vstack` opens a column, `hstack` a row |
 | `block(s)` | a nested struct, with its own `view()`, or (with reflection) as a column of its fields |
 | `tooltip_for(value, text)` | the tooltip a value's widget gets wherever it is placed later |
 
@@ -119,8 +119,6 @@ The canvas redraws when one of them changes, and the forgotten-field check count
 
 ## Pitfalls
 
-- **`vstack(a, b)` does not open a column.** It places `a` and `b` in the current container: in a
-  row, they line up sideways. `vstack([&] { ... })` opens a column.
 - **Use a handle in the statement that made it.** The next placement may move the node it points to.
   The handles' calls only work on the temporary, so a stored handle does not compile.
 - **Lambdas capture by reference** (`[&]`): they run inside the call.

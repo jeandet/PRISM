@@ -52,11 +52,8 @@ struct Confirm {
 The function form nests to any depth.
 The window's content is a column, so fields placed at the top level stack up.
 
-:::{warning}
-`vb.vstack(a, b)` with fields does **not** open a column: it places them in the current
-container. Inside an `hstack`, they land in the row. Use `vb.vstack([&] { ... })` to open a
-column inside a row.
-:::
+`vb.vstack(a, b)` and `vb.hstack(a, b)` open a column and a row of their own, so a
+`vstack(a, b)` inside an `hstack` stays a column.
 
 ## Space between widgets
 

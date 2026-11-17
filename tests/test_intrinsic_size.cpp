@@ -54,3 +54,28 @@ TEST_CASE("without a measurer the estimate is used, with the same rules") {
     CHECK(w[ids[2]] == doctest::Approx(16.f + 6.f * 0.6f * 14.f));
     CHECK(w[ids[0]] > w[ids[2]]);
 }
+
+namespace {
+struct Panel {
+    prism::Field<prism::Button> a{{"A"}}, b{{"B"}}, c{{"C"}};
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.hstack([&] {
+            vb.vstack(a, b);   // a column of its own, as hstack(a, b) is a row of its own
+            vb.widget(c);
+        });
+    }
+};
+} // namespace
+
+TEST_CASE("vstack(a, b) opens a column, even inside a row") {
+    Panel panel;
+    prism::WidgetTree tree(panel);
+    auto snap = tree.build_snapshot(300.f, 200.f, 1);
+    std::vector<prism::Rect> leaves;
+    for (auto& [id, rect] : snap->geometry) leaves.push_back(rect);
+    REQUIRE(leaves.size() == 3);
+    std::ranges::sort(leaves, {}, [](const prism::Rect& r) { return std::pair{r.origin.x.raw(), r.origin.y.raw()}; });
+    CHECK(leaves[0].origin.x.raw() == leaves[1].origin.x.raw());   // a above b
+    CHECK(leaves[0].origin.y.raw() < leaves[1].origin.y.raw());
+    CHECK(leaves[2].origin.x.raw() > leaves[0].origin.x.raw());    // c beside them
+}

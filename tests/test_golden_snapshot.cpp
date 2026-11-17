@@ -113,12 +113,12 @@ TEST_CASE("golden: initial publish of a small multi-widget model") {
     prism::model_app(backend, window, model);
 
     REQUIRE(!raw->submitted().empty());
-    CHECK(golden_text(*raw->submitted().back()) == R"GOLDEN([widget 2] rect=(0.0,0.0,300.0,30.0)
+    CHECK(golden_text(*raw->submitted().back()) == R"GOLDEN([widget 3] rect=(0.0,0.0,300.0,30.0)
     ClipPush rect=(0.0,0.0,300.0,30.0)
     FilledRect rect=(0.0,0.0,300.0,30.0) color=#2d2d37ff
     Text "0" at=(4.0,4.0) size=14.0 color=#dcdcdcff
     ClipPop
-[widget 3] rect=(0.0,30.0,300.0,30.0)
+[widget 4] rect=(0.0,30.0,300.0,30.0)
     ClipPush rect=(0.0,30.0,300.0,30.0)
     FilledRect rect=(0.0,30.0,300.0,30.0) color=#2d2d37ff
     FilledRect rect=(8.0,37.0,16.0,16.0) color=#2d2d37ff
@@ -142,12 +142,12 @@ TEST_CASE("golden: clicking the checkbox flips its rendered state") {
     prism::model_app(backend, window, model);
 
     REQUIRE(!raw->submitted().empty());
-    CHECK(golden_text(*raw->submitted().back()) == R"GOLDEN([widget 2] rect=(0.0,0.0,300.0,30.0)
+    CHECK(golden_text(*raw->submitted().back()) == R"GOLDEN([widget 3] rect=(0.0,0.0,300.0,30.0)
     ClipPush rect=(0.0,0.0,300.0,30.0)
     FilledRect rect=(0.0,0.0,300.0,30.0) color=#2d2d37ff
     Text "0" at=(4.0,4.0) size=14.0 color=#dcdcdcff
     ClipPop
-[widget 3] rect=(0.0,30.0,300.0,30.0)
+[widget 4] rect=(0.0,30.0,300.0,30.0)
     ClipPush rect=(0.0,30.0,300.0,30.0)
     FilledRect rect=(0.0,30.0,300.0,30.0) color=#2d2d37ff
     FilledRect rect=(8.0,37.0,16.0,16.0) color=#008cc8ff

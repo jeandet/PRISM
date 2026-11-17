@@ -579,7 +579,7 @@ public:
         if (view_builder_detail::is_bar(parent)) root.layout_kind = parent.layout_kind;
     }
 
-    void vstack(auto&... args) { (item(args), ...); }
+    void vstack(auto&... args) { push_container(LayoutKind::Column, [&] { (item(args), ...); }); }
 
     WidgetId hstack(std::invocable auto&& fn) { return push_container(LayoutKind::Row, fn).id; }
     void hstack(auto&... args) { push_container(LayoutKind::Row, [&] { (item(args), ...); }); }
