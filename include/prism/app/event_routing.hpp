@@ -200,10 +200,22 @@ inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
     tree.move_popup(Rect{Point{local.origin.x + dx, local.origin.y + dy}, local.extent});
 }
 
+// While one button holds a widget (a drag), another button's press or release goes to that
+// widget and leaves the capture alone: a right click mid-drag must not end the drag.
+inline bool route_other_button(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev,
+                               const MouseButton& mb) {
+    const WidgetId cid = tree.captured_id();
+    if (cid == 0 || mb.button == tree.captured_button()) return false;
+    auto rect = find_widget_rect(snap, cid);
+    tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);
+    return true;
+}
+
 inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
                                const InputEvent& ev, const MouseButton& mb) {
     if (!mb.pressed && mb.button == buttons::left && route_drag_release(tree, snap, mb.position)) return;
     if (route_popup_mouse(tree, snap, ev, mb.position, mb.pressed)) return;
+    if (route_other_button(tree, snap, ev, mb)) return;
     if (open_context_menu(tree, snap, ev, mb)) return;
     if (!mb.pressed && tree.in_scrollbar_drag()) {
         tree.end_scrollbar_drag();
@@ -223,7 +235,7 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
         tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);   // still pressed: a click lands
         tree.set_pressed(cid, false);
     } else if (id) {
-        tree.set_pressed(*id, mb.pressed);
+        tree.set_pressed(*id, mb.pressed, mb.button);
         auto rect = find_widget_rect(snap, *id);
         if (mb.pressed) {
             if (*id != tree.focused_id())

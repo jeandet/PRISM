@@ -77,8 +77,7 @@ public:
     core::Point position(NodeId) const;
     // Shifts the whole board's view of the nodes; their positions stay as they are.
     void pan_by(core::DX, core::DY);
-
-    core::Point pan{};
+    core::Point pan() const { return pan_; }
 
     core::Field<std::uint64_t> structure{0};
     core::Field<std::uint64_t> layout{0};
@@ -105,6 +104,7 @@ private:
 
     std::map<NodeId, Entry> nodes_;
     std::map<EdgeId, std::unique_ptr<Edge>> edges_;
+    core::Point pan_{};
     NodeId next_node_ = 1;
     EdgeId next_edge_ = 1;
 };

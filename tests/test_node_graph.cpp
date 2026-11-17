@@ -148,6 +148,17 @@ TEST_CASE("structure changes on add, connect, disconnect and remove; layout on m
     CHECK(g.position(b) == Point{prism::core::X{3}, prism::core::Y{4}});
 }
 
+TEST_CASE("panning shifts the board and asks for a layout, unless it is no move") {
+    Graph g;
+    CHECK(g.pan() == Point{});
+    const auto l = g.layout.get();
+    g.pan_by(prism::core::DX{0}, prism::core::DY{0});
+    CHECK(g.layout.get() == l);
+    g.pan_by(prism::core::DX{5}, prism::core::DY{-7});
+    CHECK(g.layout.get() > l);
+    CHECK(g.pan() == Point{prism::core::X{5}, prism::core::Y{-7}});
+}
+
 TEST_CASE("disconnecting or removing something unknown changes nothing") {
     Graph g;
     const auto n = g.structure.get();

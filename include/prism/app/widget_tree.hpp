@@ -256,12 +256,15 @@ public:
     // Runs what is due at `now`: shows a tooltip, redraws animating widgets.
     void tick(TooltipState::clock::time_point now);
 
-    void set_pressed(WidgetId id, bool pressed) {
+    // `button`: the one pressing it, which alone lets go of the capture (see captured_button).
+    void set_pressed(WidgetId id, bool pressed, std::uint8_t button = input::buttons::left) {
         flip_visual_flag(id, &WidgetVisualState::pressed, pressed);
         captured_id_ = pressed && enabled(id) ? id : 0;
+        captured_button_ = button;
     }
 
     [[nodiscard]] WidgetId captured_id() const { return captured_id_; }
+    [[nodiscard]] std::uint8_t captured_button() const { return captured_button_; }
 
     [[nodiscard]] CursorShape desired_cursor() const;
 
@@ -467,6 +470,7 @@ private:
     WidgetId hovered_id_ = 0;
     WidgetId focused_id_ = 0;
     WidgetId captured_id_ = 0;
+    std::uint8_t captured_button_ = input::buttons::left;
     std::optional<DragState> drag_;
     std::vector<std::pair<WidgetId, Rect>> drop_areas_;   // containers that take drops, outermost first
     std::unordered_map<std::string, WidgetNode> parked_;   // kept subtrees, by keep_key (park_kept)

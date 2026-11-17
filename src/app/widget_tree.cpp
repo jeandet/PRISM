@@ -253,6 +253,7 @@ void WidgetTree::begin_scrollbar_drag(WidgetId id, Y mouse_y) {
         .thumb_h = scrollbar::thumb_height(sv->viewport_h, sv->content_h),
     };
     captured_id_ = id;
+    captured_button_ = input::buttons::left;
 }
 
 void WidgetTree::update_scrollbar_drag(Y mouse_y) {

@@ -222,7 +222,6 @@ TEST_CASE("a node without a view shows its ports and its wires") {
 }
 
 namespace {
-Point operator+(Point p, std::pair<float, float> d) { return P(p.x.raw() + d.first, p.y.raw() + d.second); }
 constexpr Point empty_spot{X{700}, Y{500}};   // on the board, under no card
 }
 
@@ -231,8 +230,8 @@ TEST_CASE("dragging a header by (30, 20) moves its node by (30, 20)") {
     auto ids = f.tree.leaf_ids();
     auto title = f.text_at("Source");
     REQUIRE(title);
-    const Point grab = *title + std::pair{4.f, 4.f};
-    f.drag(grab, grab + std::pair{30.f, 20.f});
+    const Point grab = *title + Offset{DX{4.f}, DY{4.f}};
+    f.drag(grab, grab + Offset{DX{30.f}, DY{20.f}});
     CHECK(f.m.graph.position(f.m.a) == P(50, 50));
     CHECK(f.m.graph.position(f.m.b) == P(300, 60));
     auto moved = f.text_at("Source");
@@ -246,31 +245,31 @@ TEST_CASE("the header's family label takes the drag too, and a second drag goes 
     Fixture f;
     auto family = f.text_at("source");
     REQUIRE(family);
-    const Point grab = *family + std::pair{4.f, 4.f};
-    f.drag(grab, grab + std::pair{10.f, 0.f});
+    const Point grab = *family + Offset{DX{4.f}, DY{4.f}};
+    f.drag(grab, grab + Offset{DX{10.f}, DY{0.f}});
     CHECK(f.m.graph.position(f.m.a) == P(30, 30));
-    const Point on_family = *f.text_at("source") + std::pair{4.f, 4.f};
-    f.drag(on_family, on_family + std::pair{0.f, 10.f});
+    const Point on_family = *f.text_at("source") + Offset{DX{4.f}, DY{4.f}};
+    f.drag(on_family, on_family + Offset{DX{0.f}, DY{10.f}});
     CHECK(f.m.graph.position(f.m.a) == P(30, 40));
 }
 
 TEST_CASE("moves read against a frame that shows the node where it was do not overshoot") {
     Fixture f;
-    const Point grab = *f.text_at("Source") + std::pair{4.f, 4.f};
+    const Point grab = *f.text_at("Source") + Offset{DX{4.f}, DY{4.f}};
     f.press(grab);
-    route_event(f.tree, f.snap.get(), MouseMove{grab + std::pair{10.f, 0.f}, 1});
-    route_event(f.tree, f.snap.get(), MouseMove{grab + std::pair{30.f, 20.f}, 1});   // same frame
+    route_event(f.tree, f.snap.get(), MouseMove{grab + Offset{DX{10.f}, DY{0.f}}, 1});
+    route_event(f.tree, f.snap.get(), MouseMove{grab + Offset{DX{30.f}, DY{20.f}}, 1});   // same frame
     f.frame();
     CHECK(f.m.graph.position(f.m.a) == P(50, 50));
-    f.move_to(grab + std::pair{40.f, 20.f});
+    f.move_to(grab + Offset{DX{40.f}, DY{20.f}});
     CHECK(f.m.graph.position(f.m.a) == P(60, 50));
-    f.release(grab + std::pair{40.f, 20.f});
+    f.release(grab + Offset{DX{40.f}, DY{20.f}});
 }
 
 TEST_CASE("a drag starting on a widget in a node's body does not move the node") {
     Fixture f;
-    const Point on_port = *f.text_at("out") + std::pair{4.f, 4.f};
-    f.drag(on_port, on_port + std::pair{30.f, 20.f});
+    const Point on_port = *f.text_at("out") + Offset{DX{4.f}, DY{4.f}};
+    f.drag(on_port, on_port + Offset{DX{30.f}, DY{20.f}});
     CHECK(f.m.graph.position(f.m.a) == P(20, 30));
 }
 
@@ -279,8 +278,8 @@ TEST_CASE("dragging the background pans all nodes") {
     auto ids = f.tree.leaf_ids();
     auto source = f.text_at("Source"), sink = f.text_at("Sink");
     REQUIRE((source && sink));
-    f.drag(empty_spot, empty_spot + std::pair{-50.f, -40.f});
-    CHECK(f.m.graph.pan == P(-50, -40));
+    f.drag(empty_spot, empty_spot + Offset{DX{-50.f}, DY{-40.f}});
+    CHECK(f.m.graph.pan() == P(-50, -40));
     CHECK(f.m.graph.position(f.m.a) == P(20, 30));   // the nodes stay where they are in the graph
     auto s = f.text_at("Source"), k = f.text_at("Sink");
     REQUIRE((s && k));
@@ -297,11 +296,11 @@ TEST_CASE("a node panned off the board and back is where it was") {
     auto card = f.card_of(f.m.source.out_label);
     auto before = f.allocated(card);
     REQUIRE(before);
-    f.drag(empty_spot, empty_spot + std::pair{-1500.f, 0.f});
+    f.drag(empty_spot, empty_spot + Offset{DX{-1500.f}, DY{0.f}});
     CHECK_FALSE(f.shows("Source"));
     CHECK_FALSE(f.shows("Sink"));
     f.drag(P(400, 300), P(1900, 300));
-    CHECK(f.m.graph.pan == P(0, 0));
+    CHECK(f.m.graph.pan() == P(0, 0));
     auto after = f.allocated(card);
     REQUIRE(after);
     CHECK(after->origin == before->origin);
@@ -313,4 +312,56 @@ TEST_CASE("Tab never stops on a header's grip or on the background") {
     Fixture f;   // labels only: nothing on the board takes the focus
     f.tree.focus_next();
     CHECK(f.tree.focused_id() == 0);
+}
+
+TEST_CASE("a right click in the middle of a drag does not make the node jump") {
+    Fixture f;
+    const Point grab = *f.text_at("Source") + Offset{DX{4.f}, DY{4.f}};
+    f.press(grab);
+    f.move_to(grab + Offset{DX{10.f}, DY{0.f}});
+    const Point here = grab + Offset{DX{10.f}, DY{0.f}};
+    route_event(f.tree, f.snap.get(), MouseButton{here, buttons::right, true});
+    route_event(f.tree, f.snap.get(), MouseButton{here, buttons::right, false});
+    f.frame();
+    f.move_to(grab + Offset{DX{30.f}, DY{20.f}});
+    CHECK(f.m.graph.position(f.m.a) == P(50, 50));
+    f.release(grab + Offset{DX{30.f}, DY{20.f}});
+}
+
+TEST_CASE("a right click in the middle of a pan does not make the board jump") {
+    Fixture f;
+    f.press(empty_spot);
+    f.move_to(empty_spot + Offset{DX{-10.f}, DY{0.f}});
+    const Point here = empty_spot + Offset{DX{-10.f}, DY{0.f}};
+    route_event(f.tree, f.snap.get(), MouseButton{here, buttons::right, true});
+    route_event(f.tree, f.snap.get(), MouseButton{here, buttons::right, false});
+    f.frame();
+    f.move_to(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
+    CHECK(f.m.graph.pan() == P(-30, -20));
+    f.release(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
+}
+
+TEST_CASE("a node off the board is still wired") {
+    Fixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.m.graph.pan_by(DX{-250}, DY{0});   // Source wholly off on the left, Sink still on
+    f.frame();
+    CHECK_FALSE(f.shows("Source"));
+    CHECK(f.shows("Sink"));
+    auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    CHECK(wires[0].points.front().x.raw() < 0.f);
+}
+
+TEST_CASE("a node can sit at a negative position") {
+    Fixture f;
+    auto before = f.text_at("Source");   // text, not the card's rect: that is cut to the board
+    REQUIRE(before);
+    f.m.graph.move(f.m.a, P(-40, -40));
+    f.frame();
+    CHECK(f.m.graph.position(f.m.a) == P(-40, -40));
+    auto after = f.text_at("Source");
+    REQUIRE(after);
+    CHECK(after->x.raw() == doctest::Approx(before->x.raw() - 60));
+    CHECK(after->y.raw() == doctest::Approx(before->y.raw() - 70));
 }

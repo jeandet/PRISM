@@ -15,9 +15,12 @@ void BoardBackground::canvas(render::DrawList& dl, core::Rect r, const ui::Widge
 namespace {
 
 // The press point of a left button press, none on its release; untouched by anything else.
-void track_press(std::optional<core::Point>& press, const input::InputEvent& ev) {
-    if (auto* mb = std::get_if<input::MouseButton>(&ev); mb && mb->button == input::buttons::left)
-        press = mb->pressed ? std::optional{mb->position} : std::nullopt;
+// True on a left press: a drag starts there.
+bool track_press(std::optional<core::Point>& press, const input::InputEvent& ev) {
+    auto* mb = std::get_if<input::MouseButton>(&ev);
+    if (!mb || mb->button != input::buttons::left) return false;
+    press = mb->pressed ? std::optional{mb->position} : std::nullopt;
+    return mb->pressed;
 }
 
 // How far the pointer is from where it was pressed, while it drags.
@@ -32,17 +35,15 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
 
 // The background never moves, so the pan is simply where it was at the press plus the drag.
 void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
-    track_press(press, ev);
-    if (std::holds_alternative<input::MouseButton>(ev)) pan_at_press = graph->pan;
+    if (track_press(press, ev)) pan_at_press = graph->pan();
     if (const auto d = dragged_by(press, ev, n)) {
         const core::Point to = pan_at_press + *d;
-        graph->pan_by(to.x - graph->pan.x, to.y - graph->pan.y);
+        graph->pan_by(to.x - graph->pan().x, to.y - graph->pan().y);
     }
 }
 
 void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
-    track_press(press, ev);
-    if (std::holds_alternative<input::MouseButton>(ev)) shown = {{0, graph->position(id)}};
+    if (track_press(press, ev)) shown = {{0, graph->position(id)}};
     const auto d = dragged_by(press, ev, n);
     if (!d) return;
     auto seen = shown.upper_bound(tree->input_frame());
@@ -160,7 +161,7 @@ void node_card(ViewBuilder& vb, NodeBoardParts& parts, nodes::Graph& graph, node
 std::vector<core::Point> places(const nodes::Graph& graph, const NodeBoardParts& parts) {
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
-    const core::Offset pan = graph.pan - core::Point{};
+    const core::Offset pan = graph.pan() - core::Point{};
     for (const auto id : parts.built) out.push_back(graph.position(id) + pan);
     return out;
 }

@@ -136,7 +136,8 @@ void Graph::move(NodeId id, core::Point at) {
 core::Point Graph::position(NodeId id) const { return nodes_.at(id).options.at; }
 
 void Graph::pan_by(core::DX dx, core::DY dy) {
-    pan = pan + core::Offset{dx, dy};
+    if (dx.raw() == 0.f && dy.raw() == 0.f) return;
+    pan_ = pan_ + core::Offset{dx, dy};
     layout.set(layout.get() + 1);
 }
 
