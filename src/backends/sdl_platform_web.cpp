@@ -11,4 +11,6 @@ app::WindowConfig platform_window_config(app::WindowConfig requested) {
 
 SDL_WindowFlags platform_window_flags() { return SDL_WINDOW_FILL_DOCUMENT; }
 
+bool platform_opens_windows() { return false; }
+
 } // namespace prism::backends

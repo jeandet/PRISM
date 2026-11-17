@@ -11,5 +11,7 @@ namespace prism::backends {
 // so app code stays the same everywhere.
 app::WindowConfig platform_window_config(app::WindowConfig requested);
 SDL_WindowFlags platform_window_flags();
+// Whether a second window can open: not in a browser, where SDL's would be a canvas over the page.
+bool platform_opens_windows();
 
 } // namespace prism::backends

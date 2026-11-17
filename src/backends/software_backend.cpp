@@ -1,4 +1,5 @@
 #include <prism/backends/software_backend.hpp>
+#include "sdl_platform.hpp"
 #include "sdl_webgpu.hpp"
 #include <prism/backends/font_lookup.hpp>
 #include <prism/core/utf8.hpp>
@@ -78,6 +79,8 @@ bool SoftwareBackend::wants_webgpu() const {
 void SoftwareBackend::prepare_window(SdlWindow& win) {
     if (wgpu_) win.use_webgpu(wgpu_);
 }
+
+bool SoftwareBackend::opens_windows() const { return platform_opens_windows(); }
 
 Window& SoftwareBackend::create_window(WindowConfig cfg) {
     // Pre-run only; after run() use request_window() (queued, thread-safe).

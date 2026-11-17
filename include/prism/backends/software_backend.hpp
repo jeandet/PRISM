@@ -52,6 +52,7 @@ public:
     const ui::Clipboard* clipboard() const override { return &clipboard_; }
     const ui::UrlOpener* url_opener() const override { return &url_opener_; }
     app::PlatformServices* platform_services() override { return &platform_; }
+    bool opens_windows() const override;
 
 private:
     RenderConfig render_config_;

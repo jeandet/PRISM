@@ -50,6 +50,9 @@ public:
     // File dialogs and message boxes, owned by the backend. Null = none (AppContext then
     // answers file requests with an error).
     virtual PlatformServices* platform_services() { return nullptr; }
+    // Whether windows past the first can open; false where the page is the only one (the
+    // browser): what would open one then does without (a dock floats its panels as cards).
+    virtual bool opens_windows() const { return true; }
 };
 
 class Backend {
@@ -74,6 +77,7 @@ public:
     const ui::Clipboard* clipboard() const { return impl_->clipboard(); }
     const ui::UrlOpener* url_opener() const { return impl_->url_opener(); }
     PlatformServices* platform_services() { return impl_->platform_services(); }
+    bool opens_windows() const { return impl_->opens_windows(); }
 
     Backend(Backend&&) noexcept = default;
     Backend& operator=(Backend&&) noexcept = default;

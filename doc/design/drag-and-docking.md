@@ -51,8 +51,9 @@ title bar dragged anywhere on the dock moves it (`CardDrag`), and its button doc
 card let go on a group's guide button, or the dock's edge button, docks there
 (`dock_floating`, `dock_floating_at_edge`): groups claim their buttons over a card lying on them
 (`claims`) and take a card nowhere else (`DragRole::takes_at`); the group under the pointer shows
-its guide while a card is dragged, a button lit only under the pointer. The
-web build installs no window opener: SDL's second window there is a canvas over the whole page.
+its guide while a card is dragged, a button lit only under the pointer. A
+backend that cannot open more windows says so (`BackendBase::opens_windows`; the SDL backend in a
+browser, where its second window is a canvas over the whole page), and no opener is installed.
 simplify: a card is not resized.
 
 ## Problem
