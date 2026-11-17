@@ -112,6 +112,13 @@ TEST_CASE("a document written as Markdown: blocks and spans") {
           "# Title\n\nsome **bold** and a [link](https://x.org)\n\n- item\n\n```cpp\nint x;\n```\n\n> said\n");
 }
 
+TEST_CASE("spans over the same words nest: the one opened last closes first") {
+    Document doc{std::vector<Block>{{.text = "see links here", .spans = {{4, 9, Style::link, "u"}, {4, 9, Style::strong}}}}};
+    CHECK(to_markdown(doc) == "see **[links](u)** here\n");
+    Document inner{std::vector<Block>{{.text = "abcd", .spans = {{0, 4, Style::emphasis}, {1, 3, Style::strong}}}}};
+    CHECK(to_markdown(inner) == "*a**bc**d*\n");
+}
+
 #ifdef PRISM_HAS_MARKDOWN
 #include <prism/text/markdown.hpp>
 TEST_CASE("Markdown read and written back reads the same") {

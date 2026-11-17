@@ -1,5 +1,6 @@
 #include "document_tab.hpp"
 
+#include <prism/text/to_markdown.hpp>
 #ifdef GALLERY_MARKDOWN
 #include <prism/text/markdown.hpp>
 #endif
@@ -18,7 +19,16 @@ prism::text::Document render(const std::string& source) {
 } // namespace
 
 DocumentTab::DocumentTab() : rendered{render(sample_markdown)} {
-    wire.on(source, [this](const prism::text::Change&) { rendered.assign(render(source.text())); });
+    auto from = [this](auto&& sync) {
+        if (syncing) return;
+        syncing = true;
+        sync();
+        syncing = false;
+    };
+    wire.on(source, [this, from](const prism::text::Change&) { from([this] { rendered.assign(render(source.text())); }); });
+    wire.on(rendered, [this, from](const prism::text::Change&) {
+        from([this] { source.assign(prism::text::Document{prism::text::to_markdown(rendered)}); });
+    });
 }
 
 void DocumentTab::view(prism::app::ViewBuilder& vb) {
@@ -26,7 +36,7 @@ void DocumentTab::view(prism::app::ViewBuilder& vb) {
         vb.text_editor(source, {.view = {.family = prism::render::FontRole::Mono}, .tab_inserts = true,
                                 .auto_indent = true});
         vb.handle();
-        vb.text_view(rendered);
+        vb.text_editor(rendered, {.rich = true});
     });
 }
 

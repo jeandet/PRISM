@@ -36,9 +36,14 @@ std::string inline_text(const Block& b) {
         edges.push_back({s.begin, true, &s});
         edges.push_back({s.end, false, &s});
     }
-    std::ranges::stable_sort(edges, [](const Edge& x, const Edge& y) {
+    // At one byte: closes before opens; the outer span opens first (it ends later) and closes last
+    // (it began earlier); spans over the same words close in the reverse of their opening order.
+    std::ranges::sort(edges, [](const Edge& x, const Edge& y) {
         if (x.at != y.at) return x.at < y.at;
-        return !x.opens && y.opens;   // closes first
+        if (x.opens != y.opens) return !x.opens;
+        const auto rank = [](const Edge& e) { return static_cast<int>(e.span->style); };
+        if (x.opens) return x.span->end != y.span->end ? x.span->end > y.span->end : rank(x) < rank(y);
+        return x.span->begin != y.span->begin ? x.span->begin > y.span->begin : rank(x) > rank(y);
     });
     std::string out;
     std::size_t next = 0;
