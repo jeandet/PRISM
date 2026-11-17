@@ -503,6 +503,9 @@ TEST_CASE("a node that is not removable stays on Delete") {
     CHECK(outlined(f.card_of(fixed.out_label)));   // a header click selects its node
     key(f, keys::delete_);
     CHECK(std::ranges::count(f.m.graph.nodes(), id) == 1);
+    f.m.graph.move(f.m.a, P(30, 30));   // the board is drawn again: the node is still selected
+    f.frame();
+    CHECK(outlined(f.card_of(fixed.out_label)));
 
     const Point sink = *f.text_at("Sink") + Offset{DX{4.f}, DY{4.f}};
     f.press(sink);

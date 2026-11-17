@@ -71,11 +71,15 @@ bool removes_selection(const input::InputEvent& ev) {
     return kp && (kp->key == input::keys::delete_ || kp->key == input::keys::backspace);
 }
 
+// A node that is not removable stays, and stays selected: its outline is still right.
 void remove_selected(NodeBoardParts& parts) {
     nodes::Graph& graph = *parts.graph;
-    const auto [wire, node] = std::exchange(parts.selected, {});
+    const auto [wire, node] = parts.selected;
+    const bool node_there = node && std::ranges::contains(graph.nodes(), *node);
+    if (node_there && !graph.options(*node).removable) return;
+    parts.selected = {};
     if (wire && graph.edge(*wire)) graph.disconnect(*wire);
-    if (node && std::ranges::contains(graph.nodes(), *node) && graph.options(*node).removable) graph.remove(*node);
+    if (node_there) graph.remove(*node);
 }
 
 } // namespace
