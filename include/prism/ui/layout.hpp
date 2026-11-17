@@ -698,6 +698,13 @@ inline void flatten_overlays(LayoutNode& node, SceneSnapshot& snap) {
         snap.overlay.commands.push_back(std::move(cmd));
 }
 
+// Hit testing ignores clips, so a card wholly outside is not flattened: its geometry would
+// take the clicks of whatever lies there.
+inline bool shows_in(Rect r, Rect visible) {
+    const Rect seen = r.intersect(visible);
+    return seen.extent.w.raw() > 0 && seen.extent.h.raw() > 0;
+}
+
 inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
     const Rect inside = narrow(clip, node.allocated);
     DrawList clip_dl;
@@ -705,7 +712,8 @@ inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<R
     push_entry(snap, node.id, node.allocated, std::move(clip_dl));
     if (!node.children.empty()) layout_flatten(node.children[0], snap, inside);
     flatten_board_draw(node, node.board_under, snap);
-    for (std::size_t i = 1; i < node.children.size(); ++i) layout_flatten(node.children[i], snap, inside);
+    for (std::size_t i = 1; i < node.children.size(); ++i)
+        if (shows_in(node.children[i].allocated, inside)) layout_flatten(node.children[i], snap, inside);
     flatten_board_draw(node, node.board_over, snap);
     DrawList pop_dl;
     pop_dl.clip_pop();

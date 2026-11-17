@@ -158,3 +158,12 @@ TEST_CASE("rect_of gives a card's descendant's rect in board coordinates") {
     CHECK(std::get<FilledRect>(*it).rect == R(120, 170, 80, 20));
     CHECK(geometry_of(snap, 7) == R(120, 170, 50, 20));
 }
+
+TEST_CASE("a card wholly off the board contributes no geometry") {
+    auto b = board({P(-500, -500), P(20, 40)}, {leaf(5, 60, 25), leaf(6, 60, 25)});
+    lay_out(b);
+    SceneSnapshot snap;
+    layout_flatten(b, snap);
+    CHECK_FALSE(geometry_of(snap, 5));
+    CHECK(geometry_of(snap, 6));
+}
