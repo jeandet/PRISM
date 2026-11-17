@@ -99,6 +99,7 @@ Each takes `tooltip="..."` as a keyword.
 | `choice(options, default=None, placeholder="")` | `Field<Choice>` | the chosen option, or `None` |
 | `combobox(default="", options=(), placeholder="", validator=None)` | `Field<ComboBox>` | the text, typed or picked |
 | `spinbox(default, min=0, max=100, step=1, validator=None)` | `Field<SpinBox<int64_t>>` or `<double>` | the number, kept in range |
+| `text_field(default="", placeholder="", password=False, max_length=0)` | `Field<TextField<>>`, or `Field<Password<>>` with `password=True` | the text |
 | `text_area(default="", rows=6, read_only=False, placeholder="")` | `Field<TextArea<>>` | the text |
 | `button(text, icon=None, *, shortcut="", checked=None)` | `Field<Button>` | the click count |
 | `link(text, url="")` | `Field<Link>` | the click count |
@@ -112,6 +113,8 @@ class Form(prism.Model):
     notify = prism.checkbox(True, label="Notify me")
     size = prism.radio("M", options=["S", "M", "L"])
     port = prism.choice(["COM1", "COM3"], placeholder="Port")
+    name = prism.text_field("ada", placeholder="Name")
+    secret = prism.text_field(placeholder="Password", password=True)
     city = prism.combobox("", options=["Paris", "Lyon"], placeholder="City")
     copies = prism.spinbox(1, min=1, max=99)
     notes = prism.text_area("", rows=4, placeholder="Notes")
@@ -370,6 +373,5 @@ These need a running app; call them from any thread.
 
 ## Pitfalls
 
-- There is no single-line text input: use `combobox` with no options, or `text_area(rows=1)`.
 - `m.f.value += 1` from a worker can lose an update. Use `m.f.add(1)`.
 - An observer ends when its handle and model are gone, even if you kept the `Connection`.

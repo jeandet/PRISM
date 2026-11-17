@@ -4657,6 +4657,25 @@ def test_a_label_and_text_areas():
     assert n.log.read_only is True
 
 
+def test_a_one_line_text_field_and_a_password():
+    class Login(prism.Model):
+        user = prism.text_field("ada", placeholder="Name")
+        secret = prism.text_field(placeholder="Password", password=True)
+
+        def view(self, vb):
+            vb.vstack(self.user, self.secret)
+
+    m = Login()
+    assert "ada" in prism._texts(m)
+    m.user.value = "grace"
+    assert m.user.value == "grace"
+    assert "grace" in prism._texts(m)
+    m.secret.value = "hunter2"
+    assert m.secret.value == "hunter2"
+    assert "hunter2" not in prism._texts(m)   # shown as bullets
+    assert m.user.placeholder == "Name"
+
+
 def test_tabs_show_the_selected_page():
     class Book(prism.Model):
         pages = prism.tabs()

@@ -202,7 +202,8 @@ Markdown notes app.
 ## Pitfalls
 
 - `prism.field("text")` shows the text; it is not an input. For text the user types, use
-  `prism.text_area` (several lines) or `prism.combobox` (one line, with suggestions).
+  `prism.text_field` (one line), `prism.text_area` (several) or `prism.combobox` (one line,
+  with suggestions).
 - An observer lives as long as the handle it was registered on, or its model. Keep the model
   alive; `conn.disconnect()` ends one early.
 - `wait_until` must not be called from an observer: it would wait for the thread it blocks.

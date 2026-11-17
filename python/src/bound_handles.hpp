@@ -232,6 +232,8 @@ using BoundMenu = BoundWidgetValue<Menu, std::int64_t>;               // .value:
 using BoundDockLayout = BoundWidgetValue<DockLayout, DockLayout>;    // Python sees it as nested dicts
 using BoundLabel = BoundWidgetValue<Label<std::string>, std::string>;
 using BoundTextArea = BoundWidgetValue<TextArea<std::string>, std::string>;
+using BoundTextField = BoundWidgetValue<TextField<std::string>, std::string>;
+using BoundPassword = BoundWidgetValue<Password<std::string>, std::string>;
 using BoundTabs = BoundWidgetValue<TabBar<>, std::int64_t>;          // .value: the selected tab
 using BoundDialog = BoundWidgetValue<Dialog, bool>;                  // .value: open
 

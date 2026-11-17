@@ -160,6 +160,8 @@ inline void py_widget_dispatch(ViewBuilder& vb, nb::object h) {
     else if (nb::isinstance<BoundMenu>(h)) vb.widget(*nb::cast<BoundMenu&>(h).field);
     else if (nb::isinstance<BoundLabel>(h)) vb.widget(*nb::cast<BoundLabel&>(h).field);
     else if (nb::isinstance<BoundTextArea>(h)) vb.widget(*nb::cast<BoundTextArea&>(h).field);
+    else if (nb::isinstance<BoundTextField>(h)) vb.widget(*nb::cast<BoundTextField&>(h).field);
+    else if (nb::isinstance<BoundPassword>(h)) vb.widget(*nb::cast<BoundPassword&>(h).field);
     else if (nb::isinstance<BoundDerived<int>>(h)) vb.widget_generic<int>(*nb::cast<BoundDerived<int>&>(h).derived);
     else if (nb::isinstance<BoundDerived<double>>(h)) vb.widget_generic<double>(*nb::cast<BoundDerived<double>&>(h).derived);
     else if (nb::isinstance<BoundDerived<std::string>>(h)) vb.widget_generic<std::string>(*nb::cast<BoundDerived<std::string>&>(h).derived);

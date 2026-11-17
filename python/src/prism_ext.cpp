@@ -188,6 +188,12 @@ static void bind_handles(nb::module_& m) {
         "Bound handle for a Model's text area: .value is its text.")
         .def_prop_ro("read_only", [](const BoundTextArea& h) { return h.state().read_only; })
         .def_prop_ro("rows", [](const BoundTextArea& h) { return h.state().rows; });
+    bind_widget_value<BoundTextField, std::string>(m, "BoundTextField",
+        "Bound handle for a Model's one-line text field: .value is its text.")
+        .def_prop_ro("placeholder", [](const BoundTextField& h) { return h.state().placeholder; });
+    bind_widget_value<BoundPassword, std::string>(m, "BoundPassword",
+        "Bound handle for a Model's password field: .value is its text, shown as bullets.")
+        .def_prop_ro("placeholder", [](const BoundPassword& h) { return h.state().placeholder; });
     bind_widget_value<BoundTabs, std::int64_t>(m, "BoundTabs",
         "Bound handle for a Model's tab bar (place it with vb.tabs(handle, pages)): .value is the "
         "selected tab's index.");
@@ -678,6 +684,18 @@ static void bind_model(nb::module_& m) {
                     .read_only = read_only, .font = read_only ? FontRole::Ui : FontRole::Mono});
                 return make_bound_text<BoundTextArea>(std::move(owner), p);
             }, nb::arg("text"), nb::arg("rows"), nb::arg("read_only"), nb::arg("placeholder"))
+        .def("_add_text_field_internal", [](PyModel& self, std::string text, std::string placeholder,
+                                            std::size_t max_length) {
+                auto [owner, p] = self.add_widget_slot(TextField<std::string>{
+                    .value = std::move(text), .placeholder = std::move(placeholder), .max_length = max_length});
+                return make_bound_text<BoundTextField>(std::move(owner), p);
+            }, nb::arg("text"), nb::arg("placeholder"), nb::arg("max_length"))
+        .def("_add_password_internal", [](PyModel& self, std::string text, std::string placeholder,
+                                          std::size_t max_length) {
+                auto [owner, p] = self.add_widget_slot(Password<std::string>{
+                    .value = std::move(text), .placeholder = std::move(placeholder), .max_length = max_length});
+                return make_bound_text<BoundPassword>(std::move(owner), p);
+            }, nb::arg("text"), nb::arg("placeholder"), nb::arg("max_length"))
         .def("_add_tabs_internal", [](PyModel& self, std::int64_t selected){
                 auto [owner, p] = self.add_widget_slot(TabBar<>{.selected = static_cast<std::size_t>(selected)});
                 BoundTabs h;

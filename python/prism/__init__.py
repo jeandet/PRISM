@@ -176,6 +176,7 @@ __all__ = [
     "table_field",
     "label",
     "text_area",
+    "text_field",
     "tabs",
     "dialog",
     "dock_group",
@@ -532,6 +533,10 @@ class _FieldDescriptor(_Descriptor):
             h = instance._add_popup_internal(self.meta["modal"])
         elif self.kind == "label":
             h = instance._add_label_internal(self.default, self.meta["heading"], self.meta["wrap"])
+        elif self.kind == "text_field":
+            m = self.meta
+            add = instance._add_password_internal if m["password"] else instance._add_text_field_internal
+            h = add(self.default, m["placeholder"], m["max_length"])
         elif self.kind == "text_area":
             m = self.meta
             h = instance._add_text_area_internal(self.default, m["rows"], m["read_only"], m["placeholder"])
@@ -788,6 +793,16 @@ def label(text="", heading=False, *, wrap=False, tooltip=None):
     into lines to fit its width. ``.value`` is the text."""
     return _tooltipped(_FieldDescriptor(str(text), kind="label",
                                         meta={"heading": bool(heading), "wrap": bool(wrap)}), tooltip)
+
+
+def text_field(default="", placeholder="", *, password=False, max_length=0, validator=None, tooltip=None):
+    """One line of text the user types (C++ ``TextField``; ``password`` shows it as bullets, C++
+    ``Password``). ``placeholder`` is shown greyed while it is empty; ``max_length`` > 0 caps
+    the number of characters. ``.value`` is the text."""
+    return _tooltipped(_FieldDescriptor(
+        str(default), validator=validator, kind="text_field",
+        meta={"placeholder": str(placeholder), "password": bool(password), "max_length": int(max_length)},
+    ), tooltip)
 
 
 def text_area(default="", rows=6, read_only=False, placeholder="", *, tooltip=None):
