@@ -98,5 +98,5 @@ Meson's `custom_target` doesn't track header dependencies, so if you change a he
 touching the `.cpp` that includes it, delete the stale `.svg` under `builddir/` before rebuilding
 or ninja won't notice it needs regenerating.
 
-For the browser build, see [In the browser](../README.md#in-the-browser) in the top-level README;
+For the browser build, see [In the browser](../doc/guide/building.md#in-the-browser) in the guide;
 `scripts/build_web_site.sh` assembles the demo page.

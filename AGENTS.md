@@ -9,8 +9,8 @@ from the operator's own instructions.
 PRISM (Persistent Rendering & Interactive Scene Model) is a C++26 Model-View-Behavior GUI
 framework — a from-scratch Qt-scale replacement, not a widget toolkit on top of one. Model =
 `Field<T>` structs, View = `Widget<T>` (synthesized automatically via P2996 reflection when
-available), Behavior = user `on_change`/`observe` chains. See `README.md` for the full pitch and
-quick-start examples, `doc/design/` for per-subsystem design rationale.
+available), Behavior = user `on_change`/`observe` chains. See `doc/guide/` for the user guide
+(the Read the Docs site, `doc/conf.py`), `doc/design/` for per-subsystem design rationale.
 
 ## Goal, not just architecture
 
@@ -172,7 +172,10 @@ function returning a reference to it there, since a Windows DLL cannot export a 
 
 ## Where to look first
 
-- `README.md` — architecture tour, quick-start examples, roadmap.
+- `doc/guide/` — the user guide, one page per topic (`doc/index.md` is the site's table of
+  contents; `README.md` is a short front page linking to it). A new feature's user docs go in
+  the guide page for its topic. Build the site with `sphinx-build doc <out>` and
+  `doc/requirements.txt` (no C++ is compiled).
 - `doc/design/` — per-subsystem design rationale (one file per major subsystem).
 - `doc/review-2026-11-13.md` — most recent review and the current plan. P0 (the scene
   pipeline), P1 (the main window: toolbar, status bar, toggles, sections) and P2 (data widgets:

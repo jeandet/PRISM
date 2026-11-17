@@ -1,0 +1,6 @@
+sphinx>=8,<10
+myst-parser>=4
+furo
+sphinx-design
+sphinx-copybutton
+sphinxcontrib-mermaid
