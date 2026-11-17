@@ -2,6 +2,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
+#include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/nodes/graph.hpp>
 
@@ -9,9 +10,11 @@
 
 using namespace prism;
 using namespace prism::core;
+using namespace prism::input;
 using namespace prism::render;
 using namespace prism::ui;
 using prism::app::WidgetTree;
+using prism::app::widget_detail::route_event;
 namespace nodes = prism::nodes;
 
 namespace {
@@ -72,6 +75,10 @@ struct Fixture {
                 if (auto* c = std::get_if<ClipPush>(&snap->draw_lists[i]->commands.front())) return c->rect;
         return std::nullopt;
     }
+    void press(Point at) { route_event(tree, snap.get(), MouseButton{at, buttons::left, true}); frame(); }
+    void move_to(Point at) { route_event(tree, snap.get(), MouseMove{at, 1}); frame(); }
+    void release(Point at) { route_event(tree, snap.get(), MouseButton{at, buttons::left, false}); frame(); }
+    void drag(Point from, Point to) { press(from); move_to(to); release(to); }
     WidgetId card_of(WidgetId label) const { return *tree.parent_of(*tree.parent_of(label)); }
     // A port's row draws nothing, so it has no entry of its own: its rect is the union of what
     // its widgets were given (a row gives each its full height).
@@ -212,4 +219,98 @@ TEST_CASE("a node without a view shows its ports and its wires") {
     CHECK(f.all<Polyline>().size() == 2);
     f.m.graph.remove(c);
     f.frame();
+}
+
+namespace {
+Point operator+(Point p, std::pair<float, float> d) { return P(p.x.raw() + d.first, p.y.raw() + d.second); }
+constexpr Point empty_spot{X{700}, Y{500}};   // on the board, under no card
+}
+
+TEST_CASE("dragging a header by (30, 20) moves its node by (30, 20)") {
+    Fixture f;
+    auto ids = f.tree.leaf_ids();
+    auto title = f.text_at("Source");
+    REQUIRE(title);
+    const Point grab = *title + std::pair{4.f, 4.f};
+    f.drag(grab, grab + std::pair{30.f, 20.f});
+    CHECK(f.m.graph.position(f.m.a) == P(50, 50));
+    CHECK(f.m.graph.position(f.m.b) == P(300, 60));
+    auto moved = f.text_at("Source");
+    REQUIRE(moved);
+    CHECK(moved->x.raw() == doctest::Approx(title->x.raw() + 30));
+    CHECK(moved->y.raw() == doctest::Approx(title->y.raw() + 20));
+    CHECK(f.tree.leaf_ids() == ids);
+}
+
+TEST_CASE("the header's family label takes the drag too, and a second drag goes on from there") {
+    Fixture f;
+    auto family = f.text_at("source");
+    REQUIRE(family);
+    const Point grab = *family + std::pair{4.f, 4.f};
+    f.drag(grab, grab + std::pair{10.f, 0.f});
+    CHECK(f.m.graph.position(f.m.a) == P(30, 30));
+    const Point on_family = *f.text_at("source") + std::pair{4.f, 4.f};
+    f.drag(on_family, on_family + std::pair{0.f, 10.f});
+    CHECK(f.m.graph.position(f.m.a) == P(30, 40));
+}
+
+TEST_CASE("moves read against a frame that shows the node where it was do not overshoot") {
+    Fixture f;
+    const Point grab = *f.text_at("Source") + std::pair{4.f, 4.f};
+    f.press(grab);
+    route_event(f.tree, f.snap.get(), MouseMove{grab + std::pair{10.f, 0.f}, 1});
+    route_event(f.tree, f.snap.get(), MouseMove{grab + std::pair{30.f, 20.f}, 1});   // same frame
+    f.frame();
+    CHECK(f.m.graph.position(f.m.a) == P(50, 50));
+    f.move_to(grab + std::pair{40.f, 20.f});
+    CHECK(f.m.graph.position(f.m.a) == P(60, 50));
+    f.release(grab + std::pair{40.f, 20.f});
+}
+
+TEST_CASE("a drag starting on a widget in a node's body does not move the node") {
+    Fixture f;
+    const Point on_port = *f.text_at("out") + std::pair{4.f, 4.f};
+    f.drag(on_port, on_port + std::pair{30.f, 20.f});
+    CHECK(f.m.graph.position(f.m.a) == P(20, 30));
+}
+
+TEST_CASE("dragging the background pans all nodes") {
+    Fixture f;
+    auto ids = f.tree.leaf_ids();
+    auto source = f.text_at("Source"), sink = f.text_at("Sink");
+    REQUIRE((source && sink));
+    f.drag(empty_spot, empty_spot + std::pair{-50.f, -40.f});
+    CHECK(f.m.graph.pan == P(-50, -40));
+    CHECK(f.m.graph.position(f.m.a) == P(20, 30));   // the nodes stay where they are in the graph
+    auto s = f.text_at("Source"), k = f.text_at("Sink");
+    REQUIRE((s && k));
+    CHECK(s->x.raw() == doctest::Approx(source->x.raw() - 50));
+    CHECK(s->y.raw() == doctest::Approx(source->y.raw() - 40));
+    CHECK(k->x.raw() == doctest::Approx(sink->x.raw() - 50));
+    CHECK(k->y.raw() == doctest::Approx(sink->y.raw() - 40));
+    CHECK(f.tree.leaf_ids() == ids);
+}
+
+TEST_CASE("a node panned off the board and back is where it was") {
+    Fixture f;
+    auto ids = f.tree.leaf_ids();
+    auto card = f.card_of(f.m.source.out_label);
+    auto before = f.allocated(card);
+    REQUIRE(before);
+    f.drag(empty_spot, empty_spot + std::pair{-1500.f, 0.f});
+    CHECK_FALSE(f.shows("Source"));
+    CHECK_FALSE(f.shows("Sink"));
+    f.drag(P(400, 300), P(1900, 300));
+    CHECK(f.m.graph.pan == P(0, 0));
+    auto after = f.allocated(card);
+    REQUIRE(after);
+    CHECK(after->origin == before->origin);
+    CHECK(after->extent == before->extent);
+    CHECK(f.tree.leaf_ids() == ids);
+}
+
+TEST_CASE("Tab never stops on a header's grip or on the background") {
+    Fixture f;   // labels only: nothing on the board takes the focus
+    f.tree.focus_next();
+    CHECK(f.tree.focused_id() == 0);
 }

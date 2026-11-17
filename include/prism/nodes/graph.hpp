@@ -75,6 +75,10 @@ public:
     const std::function<void(app::ViewBuilder&)>& view(NodeId) const;
     void move(NodeId, core::Point at);
     core::Point position(NodeId) const;
+    // Shifts the whole board's view of the nodes; their positions stay as they are.
+    void pan_by(core::DX, core::DY);
+
+    core::Point pan{};
 
     core::Field<std::uint64_t> structure{0};
     core::Field<std::uint64_t> layout{0};

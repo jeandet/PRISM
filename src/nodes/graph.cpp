@@ -135,4 +135,9 @@ void Graph::move(NodeId id, core::Point at) {
 
 core::Point Graph::position(NodeId id) const { return nodes_.at(id).options.at; }
 
+void Graph::pan_by(core::DX dx, core::DY dy) {
+    pan = pan + core::Offset{dx, dy};
+    layout.set(layout.get() + 1);
+}
+
 } // namespace prism::nodes

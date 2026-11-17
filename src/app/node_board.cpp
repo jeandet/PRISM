@@ -12,6 +12,47 @@ void BoardBackground::canvas(render::DrawList& dl, core::Rect r, const ui::Widge
     dl.filled_rect(r, n.theme->canvas_bg);
 }
 
+namespace {
+
+// The press point of a left button press, none on its release; untouched by anything else.
+void track_press(std::optional<core::Point>& press, const input::InputEvent& ev) {
+    if (auto* mb = std::get_if<input::MouseButton>(&ev); mb && mb->button == input::buttons::left)
+        press = mb->pressed ? std::optional{mb->position} : std::nullopt;
+}
+
+// How far the pointer is from where it was pressed, while it drags.
+std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, const input::InputEvent& ev,
+                                       const ui::WidgetNode& n) {
+    auto* mm = std::get_if<input::MouseMove>(&ev);
+    if (!mm || !press || !ui::node_vs(n).pressed) return std::nullopt;
+    return mm->position - *press;
+}
+
+} // namespace
+
+// The background never moves, so the pan is simply where it was at the press plus the drag.
+void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
+    track_press(press, ev);
+    if (std::holds_alternative<input::MouseButton>(ev)) pan_at_press = graph->pan;
+    if (const auto d = dragged_by(press, ev, n)) {
+        const core::Point to = pan_at_press + *d;
+        graph->pan_by(to.x - graph->pan.x, to.y - graph->pan.y);
+    }
+}
+
+void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
+    track_press(press, ev);
+    if (std::holds_alternative<input::MouseButton>(ev)) shown = {{0, graph->position(id)}};
+    const auto d = dragged_by(press, ev, n);
+    if (!d) return;
+    auto seen = shown.upper_bound(tree->input_frame());
+    if (seen != shown.begin()) --seen;
+    const core::Point to = seen->second + *d;
+    shown.erase(shown.begin(), seen);   // older frames are not shown any more
+    graph->move(id, to);
+    shown.insert_or_assign(tree->next_frame_version(), to);
+}
+
 std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Port* port,
                                     const ui::BoardRectOf& rect_of) {
     const auto it = parts.ports.find(port);
@@ -57,11 +98,33 @@ void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::Boar
         if (const auto at = wire_end(parts, port, rect_of)) dl.circle(*at, dot_radius, color);
 }
 
-void node_header(ViewBuilder& vb, NodeBoardParts& parts, const nodes::NodeOptions& opt) {
+// A canvas that only takes the mouse: Tab passes it by (node_canvas makes one taking input focusable).
+void takes_no_focus(ui::Node& canvas) {
+    canvas.build_widget = [inner = std::move(canvas.build_widget)](ui::WidgetNode& wn) {
+        inner(wn);
+        wn.focus_policy = ui::FocusPolicy::none;
+    };
+}
+
+// A label that drags its node too: its input also goes to the grip.
+void grabs(ui::Node& label, NodeGrip& grip) {
+    label.build_widget = [inner = std::move(label.build_widget), &grip](ui::WidgetNode& wn) {
+        inner(wn);
+        wn.wire = [wire = std::move(wn.wire), &grip](ui::WidgetNode& node) {
+            if (wire) wire(node);
+            node.connections.push_back(node.on_input.connect([&grip, &node](const input::InputEvent& ev) {
+                grip.handle_canvas_input(ev, node, {});
+            }));
+        };
+    };
+}
+
+// The title, then the grip stretching like a spacer, then the family.
+void node_header(ViewBuilder& vb, NodeBoardParts& parts, NodeGrip& grip, const nodes::NodeOptions& opt) {
     vb.hstack([&] {
-        vb.widget(parts.label(opt.title, true));
-        vb.spacer();
-        if (!opt.family.empty()) vb.widget(parts.label(opt.family));
+        grabs(vb.widget(parts.label(opt.title, true)).node_ref, grip);
+        takes_no_focus(vb.canvas(grip).node_ref);
+        if (!opt.family.empty()) grabs(vb.widget(parts.label(opt.family)).node_ref, grip);
     });
 }
 
@@ -72,10 +135,11 @@ void default_ports(ViewBuilder& vb, const nodes::Graph& graph, nodes::NodeId id)
             if (port->dir() == dir) vb.port(*port);
 }
 
-void node_card(ViewBuilder& vb, NodeBoardParts& parts, const nodes::Graph& graph, nodes::NodeId id) {
+void node_card(ViewBuilder& vb, NodeBoardParts& parts, nodes::Graph& graph, nodes::NodeId id, const WidgetTree& tree) {
     parts.card_ports.clear();
+    auto& grip = parts.grips.emplace_back(NodeGrip{.graph = &graph, .id = id, .tree = &tree, .press = {}, .shown = {}});
     const auto card = vb.card([&] {
-        node_header(vb, parts, graph.options(id));
+        node_header(vb, parts, grip, graph.options(id));
         if (const auto& view = graph.view(id)) view(vb);
         else default_ports(vb, graph, id);
     });
@@ -96,7 +160,8 @@ void node_card(ViewBuilder& vb, NodeBoardParts& parts, const nodes::Graph& graph
 std::vector<core::Point> places(const nodes::Graph& graph, const NodeBoardParts& parts) {
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
-    for (const auto id : parts.built) out.push_back(graph.position(id));
+    const core::Offset pan = graph.pan - core::Point{};
+    for (const auto id : parts.built) out.push_back(graph.position(id) + pan);
     return out;
 }
 
@@ -120,10 +185,12 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
         parts->built = graph.nodes();
         parts->ports.clear();
         parts->labels.clear();
+        parts->grips.clear();
+        parts->background.graph = &graph;
         ViewBuilder vb{tree, target};
         vb.board_ = parts.get();
-        vb.canvas(parts->background);
-        for (const auto id : parts->built) node_card(vb, *parts, graph, id);
+        takes_no_focus(vb.canvas(parts->background).node_ref);
+        for (const auto id : parts->built) node_card(vb, *parts, graph, id, tree);
         assert(every_port_placed(graph, *parts) && "a node's view must place each of its ports with vb.port");
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
