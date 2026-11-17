@@ -44,12 +44,29 @@ struct Editor {
     Sink sink;
     nodes::Graph graph;   // after the nodes: removed first
     nodes::NodeId a = graph.add(source, {.title = "Source", .family = "source", .at = P(20, 30)});
-    nodes::NodeId b = graph.add(sink, {.title = "Sink", .family = "math", .at = P(300, 60)});
+    nodes::NodeId b = graph.add(sink, {.title = "Sink", .family = "math", .at = P(300, 60), .removable = true});
     void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
 };
 
-struct Fixture {
-    Editor m;
+// The board away from the window's origin: a bar above it, a button to its left, one below.
+struct Framed : Editor {
+    Field<Label<>> bar{{"toolbar"}};
+    Field<Button> side{{"side"}};
+    Field<Button> after{{"after"}};
+    WidgetId board = 0, side_id = 0, after_id = 0;
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.widget(bar);
+        vb.hstack([&] {
+            side_id = vb.widget(side).node_ref.id;
+            board = vb.node_board(graph);
+        });
+        after_id = vb.widget(after).node_ref.id;
+    }
+};
+
+template <class Model>
+struct BasicFixture {
+    Model m;
     WidgetTree tree{m};
     std::unique_ptr<SceneSnapshot> snap = tree.build_snapshot(800, 600, 1);
     uint64_t v = 1;
@@ -99,6 +116,9 @@ struct Fixture {
         return out;
     }
 };
+
+using Fixture = BasicFixture<Editor>;
+using FramedFixture = BasicFixture<Framed>;
 
 float right(Rect r) { return r.origin.x.raw() + r.extent.w.raw(); }
 float middle_y(Rect r) { return r.origin.y.raw() + r.extent.h.raw() / 2.f; }
@@ -374,19 +394,22 @@ struct Counter {   // an input of another type than double
     void view(WidgetTree::ViewBuilder& vb) { count_label = vb.port(count).node_ref.id; }
 };
 
-Point centre(const Fixture& f, WidgetId id) {
+template <class F>
+Point centre(const F& f, WidgetId id) {
     auto r = find_widget_rect(*f.snap, id);
     REQUIRE(r);
     return Point{r->origin.x + DX{r->extent.w.raw() / 2}, r->origin.y + DY{r->extent.h.raw() / 2}};
 }
 
-void key(Fixture& f, std::int32_t k) {
+template <class F>
+void key(F& f, std::int32_t k) {
     route_event(f.tree, f.snap.get(), KeyPress{k, 0});
     f.frame();
 }
 
 // A port's whole row, its name and the space beside it.
-bool hinted(const Fixture& f, WidgetId label) {
+template <class F>
+bool hinted(const F& f, WidgetId label) {
     auto r = f.tree.laid_out_at(*f.tree.parent_of(label));
     return r && std::ranges::any_of(f.snap->overlay.commands, [&](const DrawCmd& c) {
         auto* x = std::get_if<FilledRect>(&c);
@@ -554,4 +577,145 @@ TEST_CASE("a wire starts and ends on the ports' dots, at the card's edge") {
     f.drag(in_dot, empty_spot);   // the input's dot picks its wire up
     CHECK(f.m.graph.edges().empty());
     CHECK(f.m.graph.pan() == P(0, 0));
+}
+
+TEST_CASE("a node is not removable unless its options say so") {
+    Fixture f;
+    Source plain;
+    auto id = f.m.graph.add(plain, {.title = "Plain", .family = "source", .at = P(20, 300)});
+    f.frame();
+    const Point header = *f.text_at("Plain") + Offset{DX{4.f}, DY{4.f}};
+    f.press(header);
+    f.release(header);
+    key(f, keys::delete_);
+    CHECK(std::ranges::count(f.m.graph.nodes(), id) == 1);
+    f.m.graph.remove(id);
+}
+
+namespace {
+Rect board_of(const FramedFixture& f) {
+    auto r = f.tree.laid_out_at(f.m.board);
+    REQUIRE(r);
+    return *r;
+}
+}
+
+TEST_CASE("a board away from the window's origin: wires, pans, moves and drops land where they should") {
+    FramedFixture f;
+    const Rect board = board_of(f);
+    REQUIRE(board.origin.x.raw() > 0.f);
+    REQUIRE(board.origin.y.raw() > 0.f);
+    const Point on_board_empty = P(right(board) - 50, board.origin.y.raw() + board.extent.h.raw() - 30);
+
+    f.drag(centre(f, f.m.source.out_label), centre(f, f.m.sink.in_label));
+    REQUIRE(f.m.graph.edge_into({f.m.b, 0}));
+    auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    auto out_card = f.allocated(f.card_of(f.m.source.out_label));
+    REQUIRE(out_card);
+    CHECK(wires[0].points.front().x.raw() == doctest::Approx(right(*out_card)));
+    CHECK(out_card->origin.x.raw() == doctest::Approx(board.origin.x.raw() + 20));   // the node's place on the board
+
+    auto title = f.text_at("Source");
+    REQUIRE(title);
+    f.drag(on_board_empty, on_board_empty + Offset{DX{-15.f}, DY{-10.f}});   // the title still on the board
+    CHECK(f.m.graph.pan() == P(-15, -10));
+    auto panned = f.text_at("Source");
+    REQUIRE(panned);
+    CHECK(panned->x.raw() == doctest::Approx(title->x.raw() - 15));
+    CHECK(panned->y.raw() == doctest::Approx(title->y.raw() - 10));
+
+    const Point grab = *panned + Offset{DX{4.f}, DY{4.f}};
+    f.drag(grab, grab + Offset{DX{30.f}, DY{20.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(50));   // window to widget: float rounding
+    CHECK(f.m.graph.position(f.m.a).y.raw() == doctest::Approx(50));
+
+    f.m.graph.disconnect(*f.m.graph.edge_into({f.m.b, 0}));
+    f.frame();
+    out_card = f.allocated(f.card_of(f.m.source.out_label));
+    auto in_card = f.allocated(f.card_of(f.m.sink.in_label));
+    auto out_row = f.row_of(f.m.source.out_label);
+    auto in_row = f.row_of(f.m.sink.in_label);
+    REQUIRE((out_card && in_card && out_row && in_row));
+    const Point out_dot = P(right(*out_card), middle_y(*out_row));
+    const Point in_dot = P(in_card->origin.x.raw(), middle_y(*in_row));
+    f.press(out_dot + Offset{DX{4.f}, DY{0.f}});
+    f.move_to(in_dot + Offset{DX{-6.f}, DY{3.f}});
+    // The bar marking the port taking the drop is on the input's card edge.
+    CHECK(std::ranges::any_of(f.snap->overlay.commands, [&](const DrawCmd& c) {
+        auto* x = std::get_if<FilledRect>(&c);
+        return x && x->rect.extent.w.raw() == doctest::Approx(3.f)
+            && x->rect.origin.x.raw() == doctest::Approx(in_dot.x.raw() - 1.5f)
+            && x->rect.origin.y.raw() == doctest::Approx(in_row->origin.y.raw());
+    }));
+    f.release(in_dot + Offset{DX{-6.f}, DY{3.f}});
+    CHECK(f.m.graph.pan() == P(-15, -10));
+    REQUIRE(f.m.graph.edge_into({f.m.b, 0}));
+}
+
+TEST_CASE("a card overhanging a widget beside the board takes neither its clicks nor a dropped wire") {
+    FramedFixture f;
+    const Rect board = board_of(f);
+    auto side = find_widget_rect(*f.snap, f.m.side_id);
+    REQUIRE(side);
+    f.m.graph.move(f.m.b, P(-40, 0));   // the Sink's left part lies over the button
+    f.frame();
+    auto sink_card = f.tree.laid_out_at(f.card_of(f.m.sink.in_label));   // not cut to the board
+    REQUIRE(sink_card);
+    REQUIRE(sink_card->origin.x.raw() < board.origin.x.raw());
+
+    const Point on_side = P(board.origin.x.raw() - 10, middle_y(*side));
+    REQUIRE(sink_card->contains(on_side));
+    REQUIRE(side->contains(on_side));
+    CHECK(hit_test(*f.snap, on_side) == std::optional{f.m.side_id});
+    f.press(on_side);
+    f.release(on_side);
+    CHECK(f.m.side.get().click_count == 1);
+
+    auto in_row = f.tree.laid_out_at(*f.tree.parent_of(f.m.sink.in_label));
+    REQUIRE(in_row);
+    const Point off_board_row = P(board.origin.x.raw() - 10, middle_y(*in_row));
+    REQUIRE(in_row->contains(off_board_row));
+    const Point from = centre(f, f.m.source.out_label);
+    f.press(from);
+    f.move_to(off_board_row);
+    // No hint outside the board: the input's row is hinted only where it shows.
+    CHECK_FALSE(std::ranges::any_of(f.snap->overlay.commands, [&](const DrawCmd& c) {
+        auto* x = std::get_if<FilledRect>(&c);
+        return x && x->rect.origin.x.raw() < board.origin.x.raw();
+    }));
+    f.release(off_board_row);
+    CHECK_FALSE(f.m.graph.edge_into({f.m.b, 0}));
+}
+
+TEST_CASE("Tab from the focused board goes to the widget after it, Shift+Tab to the one before") {
+    FramedFixture f;
+    const Rect board = board_of(f);
+    const Point empty = P(right(board) - 50, board.origin.y.raw() + board.extent.h.raw() - 30);
+    f.press(empty);
+    f.release(empty);
+    REQUIRE(f.tree.focused_id() != 0);
+    f.tree.focus_next();
+    CHECK(f.tree.focused_id() == f.m.after_id);
+    f.press(empty);
+    f.release(empty);
+    f.tree.focus_prev();
+    CHECK(f.tree.focused_id() == f.m.side_id);
+}
+
+TEST_CASE("input reaching a node's widgets after the node was removed does nothing") {
+    Fixture f;
+    const Point header = *f.text_at("Source") + Offset{DX{4.f}, DY{4.f}};
+    const Point in = centre(f, f.m.sink.in_label);
+    f.m.graph.remove(f.m.a);   // no frame yet: the snapshot still shows the node
+    route_event(f.tree, f.snap.get(), MouseButton{header, buttons::left, true});
+    route_event(f.tree, f.snap.get(), MouseMove{header + Offset{DX{30.f}, DY{0.f}}, 1});
+    route_event(f.tree, f.snap.get(), MouseButton{header + Offset{DX{30.f}, DY{0.f}}, buttons::left, false});
+    f.m.graph.remove(f.m.b);
+    route_event(f.tree, f.snap.get(), MouseButton{in, buttons::left, true});
+    route_event(f.tree, f.snap.get(), MouseMove{in + Offset{DX{-30.f}, DY{0.f}}, 1});
+    route_event(f.tree, f.snap.get(), MouseButton{in + Offset{DX{-30.f}, DY{0.f}}, buttons::left, false});
+    f.frame();
+    CHECK(f.m.graph.nodes().empty());
+    CHECK_FALSE(f.shows("Source"));
 }

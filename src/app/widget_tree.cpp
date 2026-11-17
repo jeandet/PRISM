@@ -313,11 +313,32 @@ void WidgetTree::set_focused(WidgetId id) {
     return ring;
 }
 
+// The first of `order` after `from` (before it when `dir` < 0) that is in `ring`, wrapping
+// around; from a widget not in `order`, the ring's first (last).
+static WidgetId next_in_ring(const std::vector<WidgetId>& order, const std::vector<WidgetId>& ring,
+                             WidgetId from, int dir) {
+    const auto at = std::ranges::find(order, from);
+    if (at == order.end()) return dir > 0 ? ring.front() : ring.back();
+    const auto n = static_cast<std::ptrdiff_t>(order.size());
+    const auto start = at - order.begin();
+    for (std::ptrdiff_t k = 1; k <= n; ++k) {
+        const WidgetId id = order[static_cast<std::size_t>(((start + dir * k) % n + n) % n)];
+        if (std::ranges::contains(ring, id)) return id;
+    }
+    return ring.front();
+}
+
+// From a widget focused by a click but not by Tab (a board), Tab goes on from its place in the
+// tree: the focus order lists content built later (a board's) after the rest.
 void WidgetTree::step_focus(int dir) {
     auto ring = focus_ring();
     if (ring.empty()) return;
     auto it = std::ranges::find(ring, focused_id_);
-    if (it == ring.end()) return set_focused(dir > 0 ? ring.front() : ring.back());
+    if (it == ring.end()) {
+        std::vector<WidgetId> in_tree;
+        widget_detail::for_each_node(root_, [&](const WidgetNode& n) { in_tree.push_back(n.id); });
+        return set_focused(next_in_ring(in_tree, ring, focused_id_, dir));
+    }
     auto i = static_cast<std::ptrdiff_t>(it - ring.begin()) + dir;
     auto n = static_cast<std::ptrdiff_t>(ring.size());
     set_focused(ring[static_cast<std::size_t>((i % n + n) % n)]);

@@ -37,7 +37,7 @@ struct NodeOptions {
     std::string title;
     std::string family;
     core::Point at{};
-    bool removable = true;
+    bool removable = false;   // Delete on the board removes it only when the app allows that
 };
 
 enum class ConnectError { NotOutputToInput, TypeMismatch, Cycle, UnknownPort };

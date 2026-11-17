@@ -33,18 +33,42 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
     return mm->position - *press;
 }
 
+// Every conversion between the graph's positions, the board's coordinates, the window's and a
+// widget's own: a zoom changes this one place.
+namespace board_coords {
+
+// Where the graph's point `at` lies on the board.
+core::Point on_board(const nodes::Graph& graph, core::Point at) { return at + (graph.pan() - core::Point{}); }
+
+// Where a point of the graph dragged from `from` (a node's position, the pan) goes when the
+// pointer has moved by `d`.
+core::Point dragged(core::Point from, core::Offset d) { return from + d; }
+
+// A point on the board (a drop's place) in the window; none before the board is laid out.
+std::optional<core::Point> board_to_window(const NodeBoardParts& parts, core::Point on_board) {
+    const auto board = parts.tree->laid_out_at(parts.board_id);
+    return board ? std::optional{board->origin + (on_board - core::Point{})} : std::nullopt;
+}
+
+core::Point to_window(const ui::WidgetNode& n, core::Point local) {
+    return {n.absolute_x + core::DX{local.x.raw()}, n.absolute_y + core::DY{local.y.raw()}};
+}
+
+core::Point to_local(const ui::WidgetNode& n, core::Point window) {
+    return {core::X{window.x.raw() - n.absolute_x.raw()}, core::Y{window.y.raw() - n.absolute_y.raw()}};
+}
+
+// Where the board's widgets lie, in the window.
 ui::BoardRectOf window_rects(const NodeBoardParts& parts) {
     return [&tree = *parts.tree](ui::WidgetId id) { return tree.laid_out_at(id); };
 }
 
-core::Point in_window(const ui::WidgetNode& n, core::Point local) {
-    return {n.absolute_x + core::DX{local.x.raw()}, n.absolute_y + core::DY{local.y.raw()}};
-}
+} // namespace board_coords
 
 // The wire within wire_reach of `p` (window coordinates), the nearest if several are.
 std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p) {
     constexpr float wire_reach = 6.f;
-    const auto rect_of = window_rects(parts);
+    const auto rect_of = board_coords::window_rects(parts);
     std::optional<nodes::EdgeId> best;
     float nearest = wire_reach;
     for (const auto id : parts.graph->edges()) {
@@ -65,7 +89,7 @@ std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p)
 std::optional<nodes::PortRef> dot_near(const NodeBoardParts& parts, core::Point p,
                                        const std::function<bool(nodes::PortRef)>& wanted) {
     constexpr float port_reach = 10.f;
-    const auto rect_of = window_rects(parts);
+    const auto rect_of = board_coords::window_rects(parts);
     std::optional<nodes::PortRef> best;
     float nearest = port_reach;
     for (const auto& [port, place] : parts.ports) {
@@ -110,21 +134,23 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
     nodes::Graph& graph = *parts->graph;
     if (removes_selection(ev)) return remove_selected(*parts);
     if (track_press(press, ev)) {
-        const core::Point at = in_window(n, *press);
+        const core::Point at = board_coords::to_window(n, *press);
         if (dot_near(*parts, at, any_port)) return press.reset();   // it draws a wire (dot_drag)
         pan_at_press = graph.pan();
         set_selection(*parts, n, {.wire = wire_at(*parts, at), .node = {}});
         if (parts->selected.wire) press.reset();   // a wire clicked is selected, not dragged
     }
     if (const auto d = dragged_by(press, ev, n)) {
-        const core::Point to = pan_at_press + *d;
+        const core::Point to = board_coords::dragged(pan_at_press, *d);
         graph.pan_by(to.x - graph.pan().x, to.y - graph.pan().y);
     }
 }
 
+// Its node may be gone already: the cards are rebuilt on the next frame.
 void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
     nodes::Graph& graph = *parts->graph;
     WidgetTree& tree = *parts->tree;
+    if (!std::ranges::contains(graph.nodes(), id)) return;
     if (track_press(press, ev)) {
         shown = {{0, graph.position(id)}};
         set_selection(*parts, n, {.wire = {}, .node = id});
@@ -134,7 +160,7 @@ void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     if (!d) return;
     auto seen = shown.upper_bound(tree.input_frame());
     if (seen != shown.begin()) --seen;
-    const core::Point to = seen->second + *d;
+    const core::Point to = board_coords::dragged(seen->second, *d);
     shown.erase(shown.begin(), seen);   // older frames are not shown any more
     graph.move(id, to);
     shown.insert_or_assign(tree.next_frame_version(), to);
@@ -198,23 +224,26 @@ void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, co
 void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRef from, core::Point pointer,
                 Color color) {
     const nodes::Port* port = parts.graph->port(from);
-    const auto end = wire_end(parts, port, window_rects(parts));
+    const auto end = wire_end(parts, port, board_coords::window_rects(parts));
     if (!end) return;
     const auto curve = port->dir() == nodes::Dir::Out ? nodes::wire_curve(*end, pointer) : nodes::wire_curve(pointer, *end);
     dl.polyline(nodes::polyline(curve), color, wire_thickness);
 }
 
-// What a drag from port `at` carries. From an input with a wire, it picks the wire up: the
-// wire goes now, and comes back only where the drag is dropped on a port taking it. A drop
-// refused, or on nothing, leaves it gone, as node editors do.
-PortDrag pick_up(nodes::Graph& graph, nodes::PortRef at) {
-    if (graph.port(at)->dir() == nodes::Dir::In)
+// What a drag from port `at` carries (a PortDrag). From an input with a wire, it picks the wire
+// up: the wire goes now, and comes back only where the drag is dropped on a port taking it. A
+// drop refused, or on nothing, leaves it gone, as node editors do. Nothing if the port's node
+// is gone already (the cards are rebuilt on the next frame).
+std::any pick_up(nodes::Graph& graph, nodes::PortRef at) {
+    const nodes::Port* port = graph.port(at);
+    if (!port) return {};
+    if (port->dir() == nodes::Dir::In)
         if (const auto e = graph.edge_into(at)) {
             const nodes::PortRef from = graph.edge(*e)->from;
             graph.disconnect(*e);
-            return {&graph, from};
+            return PortDrag{&graph, from};
         }
-    return {&graph, at};
+    return PortDrag{&graph, at};
 }
 
 const PortDrag* port_drag_of(const nodes::Graph* graph, const std::any& v) {
@@ -236,7 +265,7 @@ ui::DragRole wire_drag(NodeBoardParts& parts) {
 // A port's name: dragging it draws a wire from the port.
 ui::DragRole port_source(NodeBoardParts& parts, nodes::PortRef at) {
     ui::DragRole role = wire_drag(parts);
-    role.source = [graph = parts.graph, at](const ui::WidgetNode&, core::Point) { return std::any(pick_up(*graph, at)); };
+    role.source = [graph = parts.graph, at](const ui::WidgetNode&, core::Point) { return pick_up(*graph, at); };
     return role;
 }
 
@@ -265,8 +294,8 @@ std::optional<nodes::PortRef> port_under(const NodeBoardParts& parts, core::Poin
 ui::DragRole dot_drag(NodeBoardParts& parts) {
     ui::DragRole role = wire_drag(parts);
     role.source = [&parts](const ui::WidgetNode& self, core::Point at) {
-        const auto port = port_under(parts, in_window(self, at));
-        return port ? std::any(pick_up(*parts.graph, *port)) : std::any{};
+        const auto port = port_under(parts, board_coords::to_window(self, at));
+        return port ? pick_up(*parts.graph, *port) : std::any{};
     };
     return role;
 }
@@ -286,18 +315,14 @@ std::optional<nodes::PortRef> dot_taking(const NodeBoardParts& parts, const std:
 // incompatible dot is nearer, both within reach. Pass the value to slot() if that shows.
 ui::DragRole dot_target(NodeBoardParts& parts) {
     constexpr float bar = 3.f;
-    const auto window_point = [&parts](core::Point local) {
-        const auto board = parts.tree->laid_out_at(parts.board_id);
-        return board ? std::optional{board->origin + (local - core::Point{})} : std::nullopt;
-    };
     ui::DragRole role;
     role.accepts = [&parts](const std::any& v) { return port_drag_of(parts.graph, v) != nullptr; };
-    role.takes_at = [&parts, window_point](const std::any& v, ui::DropPlace place) {
-        const auto p = window_point(place.at);
+    role.takes_at = [&parts](const std::any& v, ui::DropPlace place) {
+        const auto p = board_coords::board_to_window(parts, place.at);
         return p && dot_taking(parts, v, *p);
     };
     role.slot = [&parts](const ui::WidgetNode& self, core::Point at) {
-        const auto port = dot_near(parts, in_window(self, at), any_port);
+        const auto port = dot_near(parts, board_coords::to_window(self, at), any_port);
         const auto it = std::ranges::find_if(parts.ports, [&](const auto& kv) { return port && kv.second.ref == *port; });
         return static_cast<std::size_t>(std::distance(parts.ports.begin(), it));
     };
@@ -305,14 +330,13 @@ ui::DragRole dot_target(NodeBoardParts& parts) {
         if (slot >= parts.ports.size()) return core::Rect{};
         const auto& [port, place] = *std::next(parts.ports.begin(), static_cast<std::ptrdiff_t>(slot));
         const auto row = parts.tree->laid_out_at(place.row);
-        const auto end = wire_end(parts, port, window_rects(parts));
+        const auto end = wire_end(parts, port, board_coords::window_rects(parts));
         if (!row || !end) return core::Rect{};
-        return core::Rect{core::Point{core::X{end->x.raw() - bar / 2 - self.absolute_x.raw()},
-                                      core::Y{row->origin.y.raw() - self.absolute_y.raw()}},
+        return core::Rect{board_coords::to_local(self, core::Point{core::X{end->x.raw() - bar / 2}, row->origin.y}),
                           core::Size{core::Width{bar}, row->extent.h}};
     };
-    role.drop = [&parts, window_point](const std::any& v, ui::DropPlace place) {
-        const auto p = window_point(place.at);
+    role.drop = [&parts](const std::any& v, ui::DropPlace place) {
+        const auto p = board_coords::board_to_window(parts, place.at);
         if (const auto to = p ? dot_taking(parts, v, *p) : std::nullopt)
             static_cast<void>(parts.graph->connect(std::any_cast<const PortDrag&>(v).from, *to));
     };
@@ -394,8 +418,7 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
 std::vector<core::Point> places(const nodes::Graph& graph, const NodeBoardParts& parts) {
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
-    const core::Offset pan = graph.pan() - core::Point{};
-    for (const auto id : parts.built) out.push_back(graph.position(id) + pan);
+    for (const auto id : parts.built) out.push_back(board_coords::on_board(graph, graph.position(id)));
     return out;
 }
 
