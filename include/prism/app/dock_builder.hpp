@@ -133,6 +133,12 @@ inline void place_group(ViewBuilder& vb, const Place& where, const DockNode& nod
             .drop = [&state = where.state, &layout = where.layout, anchor = names.front()](const std::any& v, std::size_t i) {
                 auto& name = std::any_cast<const PanelDrag&>(v).name;
                 layout.set(insert_panel(fitted(layout.get(), state.names), name, anchor, i));
+            },
+            .closable = [names, &panels = where.panels](std::size_t i) {
+                return i < names.size() && panel(panels, names[i]).closable;
+            },
+            .close = [names, &state = where.state, &layout = where.layout](std::size_t i) {
+                if (i < names.size()) layout.set(close_panel(fitted(layout.get(), state.names), names[i]));
             }});
     });
 }

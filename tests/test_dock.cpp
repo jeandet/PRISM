@@ -73,6 +73,27 @@ TEST_CASE("insert_panel: a tab put before another, in its own group (a reorder) 
     CHECK(insert_panel(l, "search", "editor", 2) == l);
 }
 
+TEST_CASE("close_panel keeps a panel aside, fitted leaves it there, show_panel brings it back") {
+    DockLayout l{dock_split(false, {dock_group({"files"}), dock_group({"editor", "search"})})};
+    auto closed = close_panel(l, "files");
+    CHECK(closed.root == dock_group({"editor", "search"}));
+    CHECK(closed.closed == std::vector<std::string>{"files"});
+    CHECK(fitted(closed, {"files", "editor", "search"}).root == dock_group({"editor", "search"}));   // not back
+    auto shown = show_panel(closed, "files");
+    CHECK(shown.closed.empty());
+    CHECK(shown.root.panels == std::vector<std::string>{"editor", "search", "files"});
+    CHECK(shown.root.active == 2);
+    CHECK(show_panel(l, "files") == l);   // not closed: nothing to do
+    // The last one closed leaves an empty dock, and showing one fills it again.
+    auto none = close_panel(close_panel(closed, "editor"), "search");
+    CHECK(none.root.panels.empty());
+    CHECK(show_panel(none, "search").root == dock_group({"search"}));
+    // A floating panel closes too.
+    DockLayout floating{dock_group({"editor"}), {"files"}};
+    CHECK(close_panel(floating, "files").floating.empty());
+    CHECK(close_panel(floating, "files").closed == std::vector<std::string>{"files"});
+}
+
 TEST_CASE("the zone of a drop: the middle, or the edge it is nearest within a quarter") {
     Size s{Width{400}, Height{200}};
     auto at = [&](float x, float y) { return dock_zone(DropPlace{Point{X{x}, Y{y}}, s}); };
@@ -380,6 +401,75 @@ TEST_CASE("dropping a tab on another group's tab bar puts it there, between its 
     route_event(tree, snap.get(), MouseMove{to});
     route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
     CHECK(model.layout.get().root.panels == std::vector<std::string>{"editor", "search", "files"});
+}
+
+namespace dock_test {
+// The same IDE, its files and search panels closable.
+struct ClosableIde {
+    Field<Label<>> files{{"FILES"}};
+    Field<TextField<>> editor{{.value = "code"}};
+    Field<Label<>> search{{"SEARCH"}};
+    Field<DockLayout> layout{{dock_split(false, {dock_group({"files"}), dock_group({"editor", "search"})})}};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.dock(layout, {
+            {"files", "Files", [&](WidgetTree::ViewBuilder& p) { p.widget(files); }, true},
+            {"editor", "Editor", [&](WidgetTree::ViewBuilder& p) { p.widget(editor); }},
+            {"search", "Search", [&](WidgetTree::ViewBuilder& p) { p.widget(search); }, true},
+        });
+    }
+};
+} // namespace dock_test
+
+namespace {
+// The middle of the close button drawn after `title` in its tab: the crossing of its two lines.
+std::optional<Point> close_button(const SceneSnapshot& snap, std::string_view title) {
+    for (std::size_t i = 0; i < snap.draw_lists.size(); ++i) {
+        std::optional<Point> text;
+        for (auto& c : snap.draw_lists[i]->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->text == title) text = t->origin;
+        if (!text) continue;
+        float next = 1e9f;   // the next tab's title: the button is before it
+        for (auto& c : snap.draw_lists[i]->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->origin.x.raw() > text->x.raw()) next = std::min(next, t->origin.x.raw());
+        std::optional<Point> best;
+        for (auto& c : snap.draw_lists[i]->commands)
+            if (auto* l = std::get_if<Line>(&c); l && l->from.x.raw() > text->x.raw() && l->from.x.raw() < next
+                && (!best || l->from.x.raw() < best->x.raw()))
+                best = Point{X{(l->from.x.raw() + l->to.x.raw()) / 2.f}, Y{(l->from.y.raw() + l->to.y.raw()) / 2.f}};
+        return best;
+    }
+    return std::nullopt;
+}
+} // namespace
+
+TEST_CASE("a closable panel's tab shows a close button; a click on it closes the panel") {
+    ClosableIde model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    CHECK_FALSE(close_button(*snap, "Editor"));   // not closable
+    auto x = close_button(*snap, "Search");
+    REQUIRE(x);
+    route_event(tree, snap.get(), MouseButton{*x, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{*x, buttons::left, false});
+    CHECK(model.layout.get().closed == std::vector<std::string>{"search"});
+    snap = tree.build_snapshot(600, 400, 2);
+    CHECK_FALSE(text_rect(*snap, "Search"));
+    CHECK(text_rect(*snap, "Editor"));
+}
+
+TEST_CASE("a middle click on a closable tab closes it; on another, nothing") {
+    ClosableIde model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto editor = text_at(*snap, "Editor"), files = text_at(*snap, "Files");
+    REQUIRE(editor);
+    REQUIRE(files);
+    route_event(tree, snap.get(), MouseButton{*editor, buttons::middle, true});
+    route_event(tree, snap.get(), MouseButton{*editor, buttons::middle, false});
+    CHECK(model.layout.get().closed.empty());
+    route_event(tree, snap.get(), MouseButton{*files, buttons::middle, true});
+    route_event(tree, snap.get(), MouseButton{*files, buttons::middle, false});
+    CHECK(model.layout.get().closed == std::vector<std::string>{"files"});
 }
 
 TEST_CASE("dropping a tab on a group's guide button splits the group that way") {

@@ -6,26 +6,42 @@ namespace prism::ui {
 
 namespace tabs_detail {
 
+namespace {
+constexpr float close_w = 16.f, close_gap = 4.f;   // a close button, and the space before it
+
+bool has_close(const TabBarEditState& es, size_t i) { return es.close && es.closable && es.closable(i); }
+
+// A close button: an x of two lines, on a hover shade when the pointer is on it.
+void draw_close(DrawList& dl, X x0, bool hovered, Color ink, const Theme& t) {
+    const float cx = x0.raw() + close_w / 2.f, cy = tab_h.raw() / 2.f, arm = 3.5f;
+    if (hovered) dl.rounded_rect(Rect{Point{x0, Y{cy - close_w / 2.f}}, Size{Width{close_w}, Height{close_w}}}, t.surface_hover, 3.f);
+    dl.line(Point{X{cx - arm}, Y{cy - arm}}, Point{X{cx + arm}, Y{cy + arm}}, ink, 1.5f);
+    dl.line(Point{X{cx - arm}, Y{cy + arm}}, Point{X{cx + arm}, Y{cy - arm}}, ink, 1.5f);
+}
+} // namespace
+
 void tabs_record(DrawList& dl, WidgetNode& node,
                  size_t selected, const std::vector<std::string>& names) {
     auto& vs = node_vs(node);
     auto& es = node.get_or_create<TabBarEditState>();
     auto& t = *node.theme;
 
-    auto tab_w = [&](const std::string& name) {
-        return tab_padding * 2.f + Width{text_width(t.measurer, name, tab_font_size)};
-    };
+    std::vector<Width> widths;
+    for (size_t i = 0; i < names.size(); ++i)
+        widths.push_back(tab_padding * 2.f + Width{text_width(t.measurer, names[i], tab_font_size)}
+                         + Width{has_close(es, i) ? close_w + close_gap - tab_padding.raw() / 2.f : 0.f});
     Width total_w{0};
-    for (auto& name : names)
-        total_w += tab_w(name);
+    for (auto w : widths)
+        total_w += w;
 
     dl.filled_rect(delegate_detail::make_rect(X{0}, Y{0}, total_w, tab_h), t.tab_bar_bg);
 
     es.header_x_ranges.clear();
     es.header_x_ranges.reserve(names.size());
+    es.close_x_ranges.assign(names.size(), {X{0}, X{0}});
     X x{0};
     for (size_t i = 0; i < names.size(); ++i) {
-        Width w = tab_w(names[i]);
+        Width w = widths[i];
         es.header_x_ranges.push_back({x, x + DX{w.raw()}});
 
         bool is_selected = (i == selected);
@@ -39,6 +55,12 @@ void tabs_record(DrawList& dl, WidgetNode& node,
         auto text_color = is_selected ? t.tab_text_active
                                       : t.tab_text;
         dl.text(names[i], delegate_detail::make_point(x + DX{tab_padding.raw()}, Y{8}), tab_font_size, text_color);
+
+        if (has_close(es, i)) {
+            const X cx0 = x + DX{w.raw() - tab_padding.raw() / 2.f - close_w};
+            es.close_x_ranges[i] = {cx0, cx0 + DX{close_w}};
+            draw_close(dl, cx0, es.close_hovered && is_hovered, text_color, t);
+        }
 
         if (is_selected)
             dl.filled_rect(delegate_detail::make_rect(x, Y{(tab_h - tab_accent_h).raw()}, w, tab_accent_h),
@@ -78,6 +100,18 @@ bool tabs_handle_input(const InputEvent& ev, WidgetNode& node,
 
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed) {
         X mx = mb->position.x;
+        for (size_t i = 0; i < es.header_x_ranges.size(); ++i) {   // a close button, or a middle click
+            auto [x0, x1] = es.header_x_ranges[i];
+            auto [c0, c1] = es.close_x_ranges.size() > i ? es.close_x_ranges[i] : std::pair{X{0}, X{0}};
+            bool on_button = mb->button == buttons::left && mx >= c0 && mx < c1;
+            bool middle = mb->button == buttons::middle && mx >= x0 && mx < x1;
+            if ((on_button || middle) && has_close(es, i)) {
+                es.close(i);
+                node.dirty = true;
+                return true;
+            }
+        }
+        if (mb->button != buttons::left) return false;
         for (size_t i = 0; i < es.header_x_ranges.size(); ++i) {
             auto [x0, x1] = es.header_x_ranges[i];
             if (mx >= x0 && mx < x1 && i != selected) {
@@ -92,8 +126,11 @@ bool tabs_handle_input(const InputEvent& ev, WidgetNode& node,
             auto [x0, x1] = es.header_x_ranges[i];
             if (mx >= x0 && mx < x1) { hover = i; break; }
         }
-        if (hover != es.hovered_tab) {
+        bool on_close = hover && es.close_x_ranges.size() > *hover && mx >= es.close_x_ranges[*hover].first
+                        && mx < es.close_x_ranges[*hover].second;
+        if (hover != es.hovered_tab || on_close != es.close_hovered) {
             es.hovered_tab = hover;
+            es.close_hovered = on_close;
             node.dirty = true;
         }
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {

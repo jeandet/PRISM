@@ -436,10 +436,13 @@ public:
     }
 
     // A panel of a dock: its name (what the layout stores), its tab title, and what it shows.
+    // `closable`: its tab has a close button (ui::show_panel opens it again: give the user a way,
+    // a View menu, before making panels closable).
     struct DockPanel {
         std::string name;
         std::string title;
         std::function<void(ViewBuilder&)> build;
+        bool closable = false;
     };
 
     // A dock (doc/design/drag-and-docking.md): the panels arranged as `layout` says, in splits
@@ -856,25 +859,26 @@ public:
 #endif // __cpp_impl_reflection
 
     // Tabs: a header to pick a page, and the page; only the selected page is built.
-    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true, TabDrag{}); }
-    // What a tab bar's tabs do in a drag inside the app.
-    struct TabDrag {
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true, TabActions{}); }
+    // What a tab bar's tabs do beyond picking a page: dragged, taking drops, closed.
+    struct TabActions {
         std::function<std::any(std::size_t)> source{};        // what dragging tab i carries
         std::function<void(const std::any&)> outside{};       // a dragged tab let go outside the window
         std::function<bool(const std::any&)> accepts{};       // the bar takes this value between its tabs?
         std::function<void(const std::any&, std::size_t)> drop{};   // ... dropped before tab i (count: after the last)
+        std::function<bool(std::size_t)> closable{};          // tab i has a close button (none: all, with close)
+        std::function<void(std::size_t)> close{};             // its button, or a middle click on it
     };
-    // Tabs whose headers are dragged, and take drops between them.
-    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, TabDrag drag) {
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, TabActions drag) {
         switched_pages(field, builder, true, std::move(drag));
     }
 
     // Pages: tabs without the header, the app picks the page through `field.selected` (a
     // detail view that follows a selection, a wizard's steps). Pages are declared with tab().
-    void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false, TabDrag{}); }
+    void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false, TabActions{}); }
 
 private:
-    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header, TabDrag drag) {
+    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header, TabActions drag) {
         placed_.insert(&field);
 
         auto state = std::make_shared<TabsState>();
@@ -896,8 +900,14 @@ private:
             auto bar = node_leaf(field, tree_.next_id_);
             auto bar_build = bar.build_widget;
             auto names_ptr = state->tab_names;
-            bar.build_widget = [bar_build, names_ptr](WidgetNode& wn) {
+            bar.build_widget = [bar_build, names_ptr, closable = std::move(drag.closable),
+                                close = std::move(drag.close)](WidgetNode& wn) {
                 wn.tab_names = names_ptr;
+                if (close) {
+                    auto& es = wn.get_or_create<TabBarEditState>();
+                    es.close = close;
+                    es.closable = closable ? closable : [](std::size_t) { return true; };
+                }
                 if (bar_build) bar_build(wn);
             };
             if (drag.accepts) {   // a value dropped between two tabs

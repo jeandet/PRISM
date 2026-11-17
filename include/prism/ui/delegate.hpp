@@ -18,6 +18,7 @@
 #include <cmath>
 #include <chrono>
 #include <charconv>
+#include <functional>
 #include <memory>
 #include <optional>
 #if __cpp_impl_reflection
@@ -413,6 +414,12 @@ struct TabBar<S> {
 struct TabBarEditState {
     std::optional<size_t> hovered_tab;
     std::vector<std::pair<X, X>> header_x_ranges;
+    // Closing tabs (vb.tabs with TabActions::close): which have a button, what it does, and where
+    // each button was drawn (empty range: none).
+    std::function<bool(size_t)> closable{};
+    std::function<void(size_t)> close{};
+    std::vector<std::pair<X, X>> close_x_ranges{};
+    bool close_hovered = false;
 };
 
 // Type-erased ephemeral widget state stored in WidgetNode::edit_state.

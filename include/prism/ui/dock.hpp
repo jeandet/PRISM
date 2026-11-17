@@ -27,6 +27,7 @@ struct DockNode {
 struct DockLayout {
     DockNode root{};
     std::vector<std::string> floating{};   // panels in windows of their own (desktop)
+    std::vector<std::string> closed{};     // panels the user closed: shown again with show_panel
     bool operator==(const DockLayout&) const = default;
 };
 
@@ -76,21 +77,31 @@ inline bool prune(DockNode& n, const std::vector<std::string>& names, std::vecto
 inline DockNode& first_group(DockNode& n) { return is_group(n) ? n : first_group(n.parts.front()); }
 } // namespace dock_detail
 
+namespace dock_detail {
+// The panels of `list` the app has, not already in `taken`, once each; each kept is taken.
+inline std::vector<std::string> known(const std::vector<std::string>& list, const std::vector<std::string>& names,
+                                      std::vector<std::string>& taken) {
+    std::vector<std::string> out;
+    for (auto& p : list)
+        if (std::ranges::contains(names, p) && !std::ranges::contains(taken, p)) {
+            out.push_back(p);
+            taken.push_back(p);
+        }
+    return out;
+}
+} // namespace dock_detail
+
 // The layout fitted to the panels the app has now (`names`, in its order): a saved layout from
-// another version always gives a working dock. Unknown panels are dropped; missing ones join
-// the first group.
+// another version always gives a working dock. Unknown panels are dropped; missing ones (not
+// docked, floating or closed) join the first group.
 inline DockLayout fitted(DockLayout layout, const std::vector<std::string>& names) {
     std::vector<std::string> seen;
     if (!dock_detail::prune(layout.root, names, seen)) layout.root = DockNode{};
-    std::vector<std::string> floating;   // known, not docked as well, once each
-    for (auto& f : layout.floating)
-        if (std::ranges::contains(names, f) && !std::ranges::contains(seen, f) && !std::ranges::contains(floating, f))
-            floating.push_back(f);
-    layout.floating = std::move(floating);
+    layout.floating = dock_detail::known(layout.floating, names, seen);
+    layout.closed = dock_detail::known(layout.closed, names, seen);
     auto& first = dock_detail::first_group(layout.root);
     for (const auto& name : names)
-        if (!std::ranges::contains(seen, name) && !std::ranges::contains(layout.floating, name))
-            first.panels.push_back(name);
+        if (!std::ranges::contains(seen, name)) first.panels.push_back(name);
     return layout;
 }
 
@@ -257,6 +268,29 @@ inline DockLayout float_panel(DockLayout layout, const std::string& name) {
     dock_detail::names_in(layout.root, left);
     if (!dock_detail::prune(layout.root, left, seen)) layout.root = DockNode{};
     layout.floating.push_back(name);
+    return layout;
+}
+
+// The layout with panel `name` closed: out of its group or its window, kept in `closed`.
+inline DockLayout close_panel(DockLayout layout, const std::string& name) {
+    if (auto* from = dock_detail::group_of(layout.root, name)) {
+        std::erase(from->panels, name);
+        std::vector<std::string> left, seen;
+        dock_detail::names_in(layout.root, left);
+        if (!dock_detail::prune(layout.root, left, seen)) layout.root = DockNode{};
+    } else if (std::erase(layout.floating, name) == 0) {
+        return layout;
+    }
+    if (!std::ranges::contains(layout.closed, name)) layout.closed.push_back(name);
+    return layout;
+}
+
+// The layout with closed panel `name` shown again, in the first group.
+inline DockLayout show_panel(DockLayout layout, const std::string& name) {
+    if (std::erase(layout.closed, name) == 0) return layout;
+    auto& group = dock_detail::first_group(layout.root);
+    group.panels.push_back(name);
+    group.active = group.panels.size() - 1;
     return layout;
 }
 
