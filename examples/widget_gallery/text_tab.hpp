@@ -6,7 +6,7 @@
 
 namespace gallery {
 
-inline constexpr const char* sample_code = R"(// Edit me: Ctrl+Z undoes, Ctrl+A selects all.
+inline constexpr const char* sample_code = R"(// Edit me: Tab indents, Ctrl+Z undoes, the caret beside a bracket shows its match.
 struct Settings {
     core::Field<ui::Slider<>> volume{{.value = 0.6}};
     core::Field<ui::Checkbox> mute{{.label = "Mute"}};
@@ -26,8 +26,8 @@ inline constexpr const char* sample_prose =
 
 struct TextTab {
     prism::core::Field<prism::ui::Label<>> title{{.value = "Text", .heading = true}};
-    prism::core::Field<prism::ui::Label<>> code_label{{"Code (JetBrains Mono): editable, undo, search highlights"}};
-    prism::core::Field<prism::ui::TextArea<>> code{{.value = sample_code, .rows = 7}};
+    prism::core::Field<prism::ui::Label<>> code_label{{"Code: vb.code_editor(doc, \"cpp\"): colors, line numbers, matching brackets, Tab indents"}};
+    prism::text::Document code{sample_code};
     prism::core::Field<prism::ui::Label<>> prose_label{{"Prose (Noto Sans): graphemes, line breaks, right-to-left runs"}};
     prism::core::Field<prism::ui::TextArea<>> prose{{.value = sample_prose, .rows = 9,
                                                      .font = prism::render::FontRole::Ui}};

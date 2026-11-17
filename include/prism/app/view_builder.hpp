@@ -285,6 +285,22 @@ public:
         CanvasHandle& min_size(Width w) { node_ref.canvas_min_width = w.raw(); return *this; }
     };
 
+    // Returned by text_view(), text_editor() and code_editor(): a text fills the space it is given,
+    // or, with rows(n), is n lines tall (inside a scroll area, where there is no space to fill).
+    struct TextHandle {
+        Node& node_ref;
+        std::set<const void*>& placed_ref;
+        TextHandle&& rows(int n) && {
+            node_ref.canvas_min_height = static_cast<float>(n) * text_line_estimate + 2.f * text_padding;
+            return std::move(*this);
+        }
+        TextHandle&& tooltip(std::string text) && { node_ref.tooltip = std::move(text); return std::move(*this); }
+        TextHandle&& focus_on_open() && { node_ref.focus_on_open = true; return std::move(*this); }
+        // The default text's line height (1.4 x 14 pt) and padding, before any font is measured.
+        static constexpr float text_line_estimate = 1.4f * 14.f;
+        static constexpr float text_padding = 8.f;
+    };
+
     // Returned by widget(): settings for the leaf just placed. Use it in the same statement --
     // the next placement may move the node it points to.
     struct LeafHandle {
@@ -616,15 +632,15 @@ public:
 
     // A document, shown: only the blocks in sight are laid out, so a long one scrolls as fast as a
     // short one (text/view.hpp). It redraws when the document changes.
-    LeafHandle text_view(text::Document& doc, text::ViewOptions options = {});
+    TextHandle text_view(text::Document& doc, text::ViewOptions options = {});
     // The same, edited: a caret, a selection, the keys and the mouse of a text editor
     // (text/editor.hpp). Undo is the document's. Focused by a click or Tab.
-    LeafHandle text_editor(text::Document& doc, text::EditorOptions options = {});
+    TextHandle text_editor(text::Document& doc, text::EditorOptions options = {});
 
     // A code editor: mono, line numbers, the caret's line shaded, `language`'s colors
     // (text::language: "cpp", "python", "sql", "json", "toml", "shell"...), Tab to indent, Enter
     // keeping the indent, brackets matched. text_editor with options for anything else.
-    LeafHandle code_editor(text::Document& doc, std::string_view language = {});
+    TextHandle code_editor(text::Document& doc, std::string_view language = {});
 
     template <typename T>
         requires requires(T& t, DrawList& dl, Rect r, const WidgetNode& n) {
