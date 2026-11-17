@@ -94,6 +94,30 @@ TEST_CASE("Scroll flatten clips to viewport") {
     CHECK(has_clip);
 }
 
+TEST_CASE("a row partly scrolled out of view takes no click on its hidden part") {
+    LayoutNode scroll;
+    scroll.kind = LayoutNode::Kind::Scroll;
+    scroll.id = 1;
+    scroll.allocated = Rect{Point{X{10}, Y{20}}, Size{Width{200}, Height{100}}};
+    scroll.scroll_content_h = Height{400};
+
+    LayoutNode row;
+    row.kind = LayoutNode::Kind::Leaf;
+    row.id = 2;
+    row.draws.filled_rect(Rect{Point{X{0}, Y{0}}, Size{Width{200}, Height{400}}}, Color::rgba(255, 0, 0));
+    row.allocated = Rect{Point{X{10}, Y{20}}, Size{Width{200}, Height{400}}};
+    scroll.children.push_back(std::move(row));
+
+    SceneSnapshot snap;
+    layout_flatten(scroll, snap);
+
+    CHECK(hit_test(snap, Point{X{50}, Y{60}}) == std::optional<WidgetId>{2});    // its visible part
+    CHECK(hit_test(snap, Point{X{50}, Y{200}}) != std::optional<WidgetId>{2});   // below the viewport
+    auto origin = find_widget_rect(snap, 2);   // events still reach it in its own coordinates
+    REQUIRE(origin);
+    CHECK(origin->origin == Point{X{10}, Y{20}});
+}
+
 // --- Model structs (must be at namespace scope for reflection) ---
 
 struct ScrollModel8 {

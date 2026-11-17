@@ -2,11 +2,18 @@
 
 #include <prism/render/scene_snapshot.hpp>
 
+#include <cassert>
 #include <optional>
 
 namespace prism::input {
 using namespace prism::core;
 using namespace prism::render;
+
+// What a click can hit of geometry entry `i`: its visible part.
+[[nodiscard]] inline Rect hit_area(const SceneSnapshot& snap, std::size_t i) {
+    assert(snap.visible.empty() || snap.visible.size() == snap.geometry.size());
+    return snap.visible.empty() ? snap.geometry[i].second : snap.visible[i];
+}
 
 [[nodiscard]] inline std::optional<WidgetId> hit_test(
     const SceneSnapshot& snap, Point pos)
@@ -19,8 +26,8 @@ using namespace prism::render;
     }
     // Then normal widget geometry, back-to-front (skip synthetic entries with id=0)
     for (auto it = snap.z_order.rbegin(); it != snap.z_order.rend(); ++it) {
-        auto& [id, rect] = snap.geometry[*it];
-        if (id != 0 && rect.contains(pos))
+        const WidgetId id = snap.geometry[*it].first;
+        if (id != 0 && hit_area(snap, *it).contains(pos))
             return id;
     }
     return std::nullopt;

@@ -34,6 +34,14 @@ struct DropPlace {
     std::size_t slot = 0;   // between which of the target's items (DragRole::slot), when it has them
 };
 
+// Where a container taking drops is, in the window: `rect` places drops in its coordinates,
+// `visible` (what the scroll views and boards around it leave) is where a drop can land.
+struct DropArea {
+    WidgetId id = 0;
+    Rect rect;
+    Rect visible;
+};
+
 // What a widget does in a drag inside the app (doc/design/drag-and-docking.md). The value is
 // typed; std::any carries it between source and target, and the target checks its type.
 struct DragRole {

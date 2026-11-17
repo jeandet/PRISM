@@ -5,6 +5,7 @@
 #include <prism/app/layout_writeback.hpp>
 #include <prism/app/popup_layout.hpp>
 #include <prism/app/table_paint.hpp>
+#include <prism/input/hit_test.hpp>
 #include <prism/core/list.hpp>
 #include <prism/ui/dock.hpp>
 #include <prism/ui/popup_place.hpp>
@@ -355,9 +356,9 @@ bool WidgetTree::start_drag_at(Point p) {
 }
 
 [[nodiscard]] WidgetId WidgetTree::claiming_drop_area(Point p, const std::any& value) const {
-    for (auto& [id, r] : drop_areas_) {
+    for (auto& [id, r, visible] : drop_areas_) {
         auto it = index_.find(id);
-        if (it == index_.end() || !it->second->drag.claims || !r.contains(p) || !takes(id, value)) continue;
+        if (it == index_.end() || !it->second->drag.claims || !visible.contains(p) || !takes(id, value)) continue;
         Point at{X{p.x.raw() - r.origin.x.raw()}, Y{p.y.raw() - r.origin.y.raw()}};
         if (it->second->drag.claims(DropPlace{at, r.extent})) return id;
     }
@@ -458,7 +459,7 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
         viewport_moved = update_scroll_state(layout);
         viewport_moved |= update_split_state(layout);   // panes resized: the layout is stale
         drop_areas_.clear();
-        collect_drop_areas(layout, DY{0}, drop_areas_);
+        collect_drop_areas(layout, DY{0}, std::nullopt, drop_areas_);
         popup = layout_popup(root_, layout, Size{Width{w}, Height{h}}, theme_);
         popup_card_ = popup ? std::optional{popup->card} : std::nullopt;
         if (popup) viewport_moved |= popup->viewport_moved;
@@ -692,23 +693,26 @@ void WidgetTree::draw_dragged(SceneSnapshot& snap, const WidgetNode& source) con
 }
 
 // Every widget and drop area taking the dragged value, softly marked; not one taking it only
-// at some places in it (DragRole::takes_at), which would be marked whole.
+// at some places in it (DragRole::takes_at), which would be marked whole. Only their visible
+// parts: the overlay is not clipped.
 void WidgetTree::draw_drop_hints(SceneSnapshot& snap) const {
     const auto hinted = [&](WidgetId id) { return takes(id, drag_->value) && !index_.at(id)->drag.takes_at; };
-    for (auto& [id, rect] : snap.geometry)
-        if (id != 0 && hinted(id)) drag_draw::hint(snap.overlay, rect, theme_.accent);
-    for (auto& [id, rect] : drop_areas_)
-        if (hinted(id)) drag_draw::hint(snap.overlay, rect, theme_.accent);
+    for (std::size_t i = 0; i < snap.geometry.size(); ++i)
+        if (const WidgetId id = snap.geometry[i].first; id != 0 && hinted(id))
+            if (const Rect seen = input::hit_area(snap, i); seen.extent.w.raw() > 0 && seen.extent.h.raw() > 0)
+                drag_draw::hint(snap.overlay, seen, theme_.accent);
+    for (auto& [id, rect, visible] : drop_areas_)
+        if (hinted(id)) drag_draw::hint(snap.overlay, visible, theme_.accent);
 }
 
 // The innermost dock group under the pointer that takes the dragged value, but elsewhere in it
 // (a floating card: on its guide only), so the guide shows where.
 [[nodiscard]] std::optional<std::pair<WidgetId, Rect>> WidgetTree::guide_under_pointer() const {
     for (auto it = drop_areas_.rbegin(); it != drop_areas_.rend(); ++it) {
-        auto n = index_.find(it->first);
-        if (n != index_.end() && n->second->drag.zones && it->second.contains(drag_->pointer) && takes(it->first, drag_->value)
-            && !takes_at(it->first, drag_->value, drag_->pointer))
-            return *it;
+        auto n = index_.find(it->id);
+        if (n != index_.end() && n->second->drag.zones && it->visible.contains(drag_->pointer) && takes(it->id, drag_->value)
+            && !takes_at(it->id, drag_->value, drag_->pointer))
+            return std::pair{it->id, it->rect};
     }
     return std::nullopt;
 }

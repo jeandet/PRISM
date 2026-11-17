@@ -496,15 +496,37 @@ inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, std::optional<
 
 namespace layout_detail {
 
-// The visible part of `inner` given what the enclosing scroll views leave visible.
-inline Rect narrow(std::optional<Rect> clip, Rect inner) { return clip ? clip->intersect(inner) : inner; }
+inline bool lies_within(Rect inner, Rect outer) {
+    return inner.origin.x >= outer.origin.x && inner.origin.y >= outer.origin.y
+        && inner.origin.x + DX{inner.extent.w.raw()} <= outer.origin.x + DX{outer.extent.w.raw()}
+        && inner.origin.y + DY{inner.extent.h.raw()} <= outer.origin.y + DY{outer.extent.h.raw()};
+}
+
+// The visible part of `inner` given what the enclosing scroll views leave visible. Wholly
+// visible, it is `inner` itself: an intersection would round its extent.
+inline Rect narrow(std::optional<Rect> clip, Rect inner) {
+    return !clip || lies_within(inner, *clip) ? inner : clip->intersect(inner);
+}
+
+// A geometry entry: where the widget is, and the part of it `clip` leaves to clicks.
+inline void push_geometry(SceneSnapshot& snap, WidgetId id, Rect rect, std::optional<Rect> clip) {
+    snap.geometry.push_back({id, rect});
+    snap.visible.push_back(narrow(clip, rect));
+}
+
+inline void push_entry(SceneSnapshot& snap, WidgetId id, Rect rect, DrawList dl,
+                       std::optional<Rect> clip = std::nullopt) {
+    push_geometry(snap, id, rect, clip);
+    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(dl)));
+    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
+}
 
 inline void flatten_table(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
     auto vp = node.allocated;
     Height item_h = node.vlist_item_height.raw() > 0 ? node.vlist_item_height : Height{24.f};
     Height header_h = node.table_header_h.raw() > 0 ? node.table_header_h : item_h;
 
-    snap.geometry.push_back({node.id, vp});
+    push_geometry(snap, node.id, vp, clip);
 
     // Header background (fixed at top, doesn't scroll vertically)
     DrawList header_dl;
@@ -535,9 +557,7 @@ inline void flatten_table(LayoutNode& node, SceneSnapshot& snap, std::optional<R
 
     DrawList body_clip;
     body_clip.clip_push(body_rect.origin, body_rect.extent);
-    snap.geometry.push_back({0, body_rect});
-    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(body_clip)));
-    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
+    push_entry(snap, 0, body_rect, std::move(body_clip));
 
     // Flatten visible children with scroll offset only
     // (header offset already applied during layout_arrange)
@@ -551,9 +571,7 @@ inline void flatten_table(LayoutNode& node, SceneSnapshot& snap, std::optional<R
 
     DrawList body_clip_pop;
     body_clip_pop.clip_pop();
-    snap.geometry.push_back({0, Rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}}});
-    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(body_clip_pop)));
-    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
+    push_entry(snap, 0, Rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}}, std::move(body_clip_pop));
 
     scrollbar::emit_thumb(snap, node.id, body_rect, node.scroll_content_h, scroll_dy, *node.theme, clip);
 }
@@ -562,9 +580,7 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap, std::optio
     // ClipPush for the viewport
     DrawList clip_dl;
     clip_dl.clip_push(node.allocated.origin, node.allocated.extent);
-    snap.geometry.push_back({node.id, node.allocated});
-    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(clip_dl)));
-    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
+    push_entry(snap, node.id, node.allocated, std::move(clip_dl), clip);
 
     // Flatten visible children with scroll offset applied to entire subtree
     DY scroll_dy = node.scroll_offset;
@@ -587,18 +603,10 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap, std::optio
     // ClipPop
     DrawList clip_pop_dl;
     clip_pop_dl.clip_pop();
-    snap.geometry.push_back({0, Rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}}});
-    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(clip_pop_dl)));
-    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
+    push_entry(snap, 0, Rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}}, std::move(clip_pop_dl));
 
     scrollbar::emit_thumb(snap, node.id, node.allocated, node.scroll_content_h,
                           node.scroll_offset, *node.theme, clip);
-}
-
-inline void push_entry(SceneSnapshot& snap, WidgetId id, Rect rect, DrawList dl) {
-    snap.geometry.push_back({id, rect});
-    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(dl)));
-    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
 }
 
 // simplify: a depth-first walk per call; an id-to-rect map built once per flatten if boards
@@ -626,7 +634,8 @@ inline void flatten_board_draw(const LayoutNode& board, const BoardDraw& draw, S
     push_entry(snap, 0, board.allocated, std::move(dl));
 }
 
-inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor) {
+inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
+    const bool clipped_by_ancestor = clip.has_value();
     // A popup anchor (context menu, dialog) draws nothing in place, but routing needs its
     // origin: its popup is stored in its own coordinates. It gets a zero-size rect there,
     // which nothing can hit.
@@ -682,10 +691,9 @@ inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipp
         entry = std::move(clipped);
     }
 
-    auto idx = static_cast<uint32_t>(snap.geometry.size());
-    snap.geometry.push_back({node.id, hit_rect});
+    push_geometry(snap, node.id, hit_rect, clip);
     snap.draw_lists.push_back(std::move(entry));
-    snap.z_order.push_back(idx);
+    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
 }
 
 inline void flatten_overlays(LayoutNode& node, SceneSnapshot& snap) {
@@ -698,8 +706,7 @@ inline void flatten_overlays(LayoutNode& node, SceneSnapshot& snap) {
         snap.overlay.commands.push_back(std::move(cmd));
 }
 
-// Hit testing ignores clips, so a card wholly outside is not flattened: its geometry would
-// take the clicks of whatever lies there.
+// A card wholly outside is not flattened: nothing of it would show.
 inline bool shows_in(Rect r, Rect visible) {
     const Rect seen = r.intersect(visible);
     return seen.extent.w.raw() > 0 && seen.extent.h.raw() > 0;
@@ -709,7 +716,7 @@ inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<R
     const Rect inside = narrow(clip, node.allocated);
     DrawList clip_dl;
     clip_dl.clip_push(node.allocated.origin, node.allocated.extent);
-    push_entry(snap, node.id, node.allocated, std::move(clip_dl));
+    push_entry(snap, node.id, node.allocated, std::move(clip_dl), clip);
     if (!node.children.empty()) layout_flatten(node.children[0], snap, inside);
     flatten_board_draw(node, node.board_under, snap);
     for (std::size_t i = 1; i < node.children.size(); ++i)
@@ -722,14 +729,13 @@ inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<R
 
 } // namespace layout_detail
 
-// `clip`: set when some ancestor (Scroll/VirtualList/Table) wraps this node in a
+// `clip`: set when some ancestor (Scroll/VirtualList/Table/Board) wraps this node in a
 // ClipPush/ClipPop pair; it is the part those ancestors leave visible (their viewports,
-// intersected). Draw lists are clipped by the ClipPush; scrollbar thumbs, which go to the
-// unclipped overlay, are cut to it. Leaf/Canvas DrawLists are only cached and shared
+// intersected). Draw lists are clipped by the ClipPush; hit areas (SceneSnapshot::visible) and
+// scrollbar thumbs, which go to the unclipped overlay, are cut to it. Leaf/Canvas DrawLists are only cached and shared
 // across frames (see LayoutNode::widget below) when it is unset -- see the comment at
 // that cache check for why.
 inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
-    bool clipped_by_ancestor = clip.has_value();
     switch (node.kind) {
     case LayoutNode::Kind::Spacer:
         return;
@@ -751,7 +757,7 @@ inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, std::optional<
         break;
     }
 
-    layout_detail::flatten_node_draws(node, snap, clipped_by_ancestor);
+    layout_detail::flatten_node_draws(node, snap, clip);
     layout_detail::flatten_overlays(node, snap);
     if (node.widget && node.widget->inner_scroll && node.theme) {
         const auto& is = *node.widget->inner_scroll;

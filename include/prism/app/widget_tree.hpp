@@ -377,7 +377,7 @@ public:
     // The innermost container taking drops whose area holds `p` and that takes `value`.
     [[nodiscard]] WidgetId drop_area_at(Point p, const std::any& value) const {
         for (auto it = drop_areas_.rbegin(); it != drop_areas_.rend(); ++it)
-            if (it->second.contains(p) && takes(it->first, value) && takes_at(it->first, value, p)) return it->first;
+            if (it->visible.contains(p) && takes(it->id, value) && takes_at(it->id, value, p)) return it->id;
         return 0;
     }
     // Whether target `id` takes `value` at `p` (DragRole::takes_at), when it says where.
@@ -386,8 +386,8 @@ public:
     // its groups -- before whatever lies under it takes the drop.
     [[nodiscard]] WidgetId claiming_drop_area(Point p, const std::any& value) const;
     [[nodiscard]] std::optional<Rect> drop_area_rect(WidgetId id) const {
-        for (auto& [i, r] : drop_areas_)
-            if (i == id) return r;
+        for (auto& a : drop_areas_)
+            if (a.id == id) return a.rect;
         return std::nullopt;
     }
 
@@ -479,7 +479,7 @@ private:
     WidgetId captured_id_ = 0;
     std::uint8_t captured_button_ = input::buttons::left;
     std::optional<DragState> drag_;
-    std::vector<std::pair<WidgetId, Rect>> drop_areas_;   // containers that take drops, outermost first
+    std::vector<DropArea> drop_areas_;   // containers that take drops, outermost first
     std::unordered_map<std::string, WidgetNode> parked_;   // kept subtrees, by keep_key (park_kept)
     WindowOpener window_opener_;
     std::function<void(WindowId)> window_closer_;

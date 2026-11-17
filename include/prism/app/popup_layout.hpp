@@ -87,25 +87,20 @@ inline void flatten_popup(PopupLayout& p, SceneSnapshot& snap, const Theme& them
 
     SceneSnapshot content;
     content.viewport = snap.viewport;
-    auto add = [&](WidgetId id, Rect r, DrawList dl) {
-        content.geometry.push_back({id, r});
-        content.draw_lists.push_back(std::make_shared<DrawList>(std::move(dl)));
-        content.z_order.push_back(static_cast<uint32_t>(content.geometry.size() - 1));
-    };
     DrawList open_clip, close_clip;
     open_clip.clip_push(p.card.origin, p.card.extent);
     close_clip.clip_pop();
-    add(0, Rect{}, std::move(open_clip));
+    layout_detail::push_entry(content, 0, Rect{}, std::move(open_clip));
     layout_flatten(p.content, content, p.card);
-    add(0, Rect{}, std::move(close_clip));
+    layout_detail::push_entry(content, 0, Rect{}, std::move(close_clip));
     resolve_clips(content);   // nested clips (a scroll area) cut to the card
 
     for (auto idx : content.z_order)
         if (content.draw_lists[idx])
             for (const auto& cmd : content.draw_lists[idx]->commands) snap.overlay.commands.push_back(cmd);
-    for (auto& [id, r] : content.geometry) {
-        Rect visible = p.card.intersect(r);
-        if (id != 0 && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
+    for (std::size_t i = 0; i < content.geometry.size(); ++i) {
+        const Rect& visible = content.visible[i];   // already cut to the card
+        if (const WidgetId id = content.geometry[i].first; id != 0 && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
             snap.overlay_geometry.push_back({id, visible});
     }
     for (const auto& cmd : content.overlay.commands) snap.overlay.commands.push_back(cmd);

@@ -31,6 +31,10 @@ struct SceneSnapshot {
     WindowColors window;
     Size viewport{Width{0}, Height{0}};  // the window, in the same coordinates as geometry
     std::vector<std::pair<WidgetId, Rect>> geometry;
+    // Parallel to geometry: the part of each entry that the scroll views and boards around it
+    // leave visible, all a click can hit. geometry keeps the whole rect, as its origin is where
+    // the widget's own coordinates start. Empty in a snapshot built by hand: hits use geometry.
+    std::vector<Rect> visible;
     // Per-widget entries may be shared with a previous snapshot (see layout_flatten's
     // per-widget DrawList cache) -- const so nothing downstream can mutate a shared entry
     // out from under another snapshot still holding it.

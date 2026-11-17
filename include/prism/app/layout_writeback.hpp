@@ -73,13 +73,25 @@ inline bool update_scroll_state(LayoutNode& layout_node) {
     return moved;
 }
 
+inline bool clips_children(LayoutNode::Kind k) {
+    using enum LayoutNode::Kind;
+    return k == Scroll || k == VirtualList || k == Table || k == Board;
+}
+
 // The screen area of every container that takes drops (a dock group): a drop on its empty
-// space, where no widget is hit, still finds it. Moved up by the scroll areas above it.
-inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::vector<std::pair<WidgetId, Rect>>& out) {
+// space, where no widget is hit, still finds it. Moved up by the scroll areas above it, cut to
+// what they and the boards above it leave visible (`clip`); one wholly hidden is left out.
+// simplify: a table cuts to its whole rect, header included; cut to its body if a container
+// taking drops ever sits in a table row.
+inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::optional<Rect> clip, std::vector<DropArea>& out) {
     if (n.kept) return;
-    if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts)
-        out.push_back({n.id, Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent}});
-    for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset, out);
+    const Rect on_screen{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent};
+    const Rect visible = layout_detail::narrow(clip, on_screen);
+    if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts
+        && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
+        out.push_back({n.id, on_screen, visible});
+    const auto inner = clips_children(n.kind) ? std::optional{visible} : clip;
+    for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset, inner, out);
 }
 
 // Returns whether a split's panes were rescaled to their space: the layout that used them is stale.
