@@ -197,3 +197,41 @@ TEST_CASE(".highlights(field): the app's ranges are drawn, focused or not, and f
     snap = tree.build_snapshot(400, 300, ++version);
     CHECK(match_rects(*snap, tree.theme()) == 0);
 }
+
+TEST_CASE("without wrapping, a long line scrolls sideways; the gutter stays put") {
+    Document doc{"short\n" + std::string(200, 'x')};
+    View view{doc, {.family = render::FontRole::Mono, .wrap = false, .padding = 0, .line_numbers = true}};
+    render::DrawList dl;
+    view.draw(dl, window, theme);
+    const float number_x = text_cmd(dl, "1")->origin.x.raw();
+    const float text_x = text_cmd(dl, "short")->origin.x.raw();
+    view.scroll_x = core::DX{150};
+    dl.clear();
+    view.draw(dl, window, theme);
+    CHECK(text_cmd(dl, "1")->origin.x.raw() == doctest::Approx(number_x));
+    CHECK(text_cmd(dl, "short")->origin.x.raw() == doctest::Approx(text_x - 150));
+    CHECK(text_cmd(dl, "2")->origin.y.raw() == doctest::Approx(21.f));   // lines stay where they are
+    CHECK(text_cmd(dl, "short")->origin.y.raw() == doctest::Approx(0.f));
+    view.scroll_x = core::DX{1e6f};
+    dl.clear();
+    view.draw(dl, window, theme);
+    CHECK(view.scroll_x.raw() == doctest::Approx(2000.f - (400.f - (text_x - 0.f))));   // held at the end
+}
+
+TEST_CASE("the caret is kept in sight sideways, and a sideways swipe scrolls") {
+    Document doc{std::string(200, 'x')};
+    Editor ed{doc, {.view = {.family = render::FontRole::Mono, .wrap = false, .padding = 0}}};
+    render::DrawList dl;
+    ed.view.draw(dl, window, theme);
+    ed.handle(input::KeyPress{input::keys::end, 0}, nullptr);
+    CHECK(ed.view.scroll_x.raw() > 1500.f);
+    ed.handle(input::KeyPress{input::keys::home, 0}, nullptr);
+    CHECK(ed.view.scroll_x.raw() == 0.f);
+    ed.handle(input::MouseScroll{core::Point{core::X{50}, core::Y{5}}, core::DX{-10}, core::DY{0}}, nullptr);
+    CHECK(ed.view.scroll_x.raw() > 0.f);
+    // a click lands where the text is now drawn
+    dl.clear();
+    ed.view.draw(dl, window, theme);
+    const float scrolled = ed.view.scroll_x.raw();
+    CHECK(ed.view.hit(core::Point{core::X{20}, core::Y{5}}).byte == static_cast<std::size_t>((20.f + scrolled) / 10.f + 0.5f));
+}

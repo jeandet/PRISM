@@ -645,7 +645,8 @@ public:
     // (text/editor.hpp). Undo is the document's. Focused by a click or Tab.
     TextHandle text_editor(text::Document& doc, text::EditorOptions options = {});
 
-    // A code editor: mono, line numbers, the caret's line shaded, `language`'s colors
+    // A code editor: mono, long lines scrolled sideways (not wrapped), line numbers, the caret's
+    // line shaded, `language`'s colors
     // (text::language: "cpp", "python", "sql", "json", "toml", "shell"...), Tab to indent, Enter
     // keeping the indent, brackets matched. text_editor with options for anything else.
     TextHandle code_editor(text::Document& doc, std::string_view language = {});

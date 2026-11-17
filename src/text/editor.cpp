@@ -14,6 +14,8 @@ namespace prism::text {
 namespace keys = input::keys;
 namespace mods = input::mods;
 
+constexpr float sideways_step = 40.f;   // px per wheel step sideways
+
 namespace {
 bool is_word_byte(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || (c & 0x80); }
 bool is_blank(std::string_view s) {
@@ -362,6 +364,10 @@ bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard)
         return !options_.read_only;
     }
     if (auto* b = std::get_if<input::MouseButton>(&ev)) return mouse_button(*b);
+    if (auto* w = std::get_if<input::MouseScroll>(&ev); w && w->dx.raw() != 0.f && !options_.view.wrap) {
+        view.scroll_sideways(-w->dx.raw() * sideways_step);   // up and down: the tree scrolls the view
+        return true;
+    }
     if (auto* m = std::get_if<input::MouseMove>(&ev); m && dragging_ && (m->buttons & input::buttons::left_mask)) {
         caret_ = view.hit(m->position);
         show();

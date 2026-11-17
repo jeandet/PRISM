@@ -344,6 +344,15 @@ Node text_view_node(text::Document& doc, std::shared_ptr<text::View> view, Widge
     n.build_widget = [view](WidgetNode& wn) {
         wn.edit_state = view;
         wn.focus_policy = FocusPolicy::tab_and_click;
+        if (!view->options().wrap)   // a sideways swipe scrolls it; up and down are the tree's
+            wn.wire = [view](WidgetNode& node) {
+                node.connections.push_back(node.on_input.connect([view, &node](const InputEvent& ev) {
+                    if (auto* w = std::get_if<MouseScroll>(&ev); w && w->dx.raw() != 0.f) {
+                        view->scroll_sideways(-w->dx.raw() * 40.f);
+                        node.dirty = true;
+                    }
+                }));
+            };
         wn.record = [view](WidgetNode& node) {
             static const Theme fallback{};
             node.draws.clear();
@@ -408,7 +417,7 @@ Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor,
 } // namespace
 
 ViewBuilder::TextHandle ViewBuilder::code_editor(text::Document& doc, std::string_view language) {
-    return text_editor(doc, {.view = {.family = render::FontRole::Mono,
+    return text_editor(doc, {.view = {.family = render::FontRole::Mono, .wrap = false,
                                       .highlighter = language.empty() ? nullptr : &text::language(language),
                                       .line_numbers = true, .current_line = true},
                              .tab_inserts = true, .auto_indent = true, .match_brackets = true});

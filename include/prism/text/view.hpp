@@ -47,6 +47,10 @@ public:
     core::Height viewport_h{0};
     core::Height content_h{0};
     std::uint8_t show_ticks = 0;
+    // Sideways, without wrapping: how far the text is scrolled left, within the widest line laid
+    // out so far. The gutter does not move.
+    core::DX scroll_x{0};
+    void scroll_sideways(float dx);
 
     // What an editor shows over the text: the caret, and the selection between it and the anchor.
     struct Marks {
@@ -105,6 +109,8 @@ private:
     std::size_t valid_ = 0;
     std::size_t edit_end_ = 0;
     float gutter_ = 0.f;
+    float widest_ = 0.f;   // the widest line laid out (no wrapping): how far scroll_x goes
+    float text_w_ = 0.f;   // the text's column at the last draw
     std::size_t first_drawn_ = 0;
     std::uint64_t layouts_made_ = 0;
     core::Connection follow_;
@@ -115,14 +121,19 @@ private:
     const BlockLayout& layout(std::size_t i);
     Highlighter::State state_before(std::size_t i);
     void follow_states(const Change& c);
-    float text_left(const BlockLayout& l) const { return options_.padding + gutter_ + l.indent; }
+    float text_left(const BlockLayout& l) const {
+        return options_.padding + gutter_ + l.indent - (options_.wrap ? 0.f : scroll_x.raw());
+    }
+    void clamp_sideways();
     float block_top(std::size_t i) const { return heights_.prefix(i).height; }   // in content coordinates
     static std::size_t line_of(const BlockLayout& l, std::size_t byte);
+    // dx: what to add to x inside a clip whose origin is not the view's (the text column's).
     void draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, float width,
-                    const ui::Theme& theme) const;
+                    const ui::Theme& theme, float dx) const;
+    void draw_number(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, const ui::Theme& theme) const;
     void draw_preedit(render::DrawList& dl, const ui::Theme& theme);
     void draw_range(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, Range r,
-                    render::Color color, bool with_newline) const;
+                    render::Color color, bool with_newline, float dx) const;
 };
 
 } // namespace prism::text

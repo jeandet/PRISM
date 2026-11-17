@@ -7,7 +7,7 @@
 namespace gallery {
 
 inline constexpr const char* sample_code = R"(// Edit me: Tab indents, Ctrl+Z undoes, the caret beside a bracket shows its match.
-struct Settings {
+struct Settings {   // a long line scrolls sideways: the code editor does not wrap, a swipe or the caret moves it along
     core::Field<ui::Slider<>> volume{{.value = 0.6}};
     core::Field<ui::Checkbox> mute{{.label = "Mute"}};
 };

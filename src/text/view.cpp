@@ -8,6 +8,7 @@
 namespace prism::text {
 
 namespace {
+using core::DX;
 using core::DY;
 using core::Height;
 using core::Point;
@@ -93,11 +94,15 @@ const BlockLayout& View::layout(std::size_t i) {
     const Key key{b.version, state_before(i)};
     auto it = cache_.find(key);
     if (it == cache_.end()) {
-        if (cache_.size() >= cache_cap) cache_.clear();
+        if (cache_.size() >= cache_cap) { cache_.clear(); widest_ = 0.f; }
         std::vector<Span> colors;
         if (options_.highlighter) options_.highlighter->highlight(b.text, key.before, colors);
         it = cache_.emplace(key, layout_block(b, colors, style_)).first;
         ++layouts_made_;
+        if (!options_.wrap)
+            for (const Line& line : it->second.lines)
+                if (!line.runs.empty())
+                    widest_ = std::max(widest_, it->second.indent + line.runs.back().x + line.runs.back().width);
     }
     if (heights_[i] != it->second.height) heights_.modify(i, [&](float& h) { h = it->second.height; });
     return it->second;
@@ -116,8 +121,10 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
         style_.theme = &theme;
         style_.measurer = theme.measurer;
         cache_.clear();
+        widest_ = 0.f;
         reset_heights();
     }
+    text_w_ = width;
     viewport_h = Height{std::max(0.f, size.h.raw() - 2.f * pad)};
     const auto clamp_scroll = [&] {
         content_h = Height{heights_.total().height};
@@ -133,11 +140,21 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
     std::size_t i = std::min(at.index, doc_.size() - 1);
     float y = i == at.index ? at.before.height : heights_.prefix(i).height;
     first_drawn_ = i;
+    // Without wrapping the text column scrolls sideways under a fixed gutter: it is drawn in a
+    // clip of its own, whose origin (DrawList::clip_push translates) dx takes back out.
+    const float column = pad + gutter_;
+    const float dx = options_.wrap ? 0.f : -column;
+    if (!options_.wrap) dl.clip_push(Point{X{column}, Y{0}}, Size{Width{width}, size.h});
+    std::vector<std::pair<std::size_t, float>> drawn;   // the blocks drawn, and their tops
     for (; i < doc_.size() && y < scroll.raw() + viewport_h.raw(); ++i) {
         const BlockLayout& l = layout(i);
-        draw_block(dl, i, l, pad + y - scroll.raw(), width, theme);
+        draw_block(dl, i, l, pad + y - scroll.raw(), width, theme, dx);
+        drawn.emplace_back(i, pad + y - scroll.raw());
         y += l.height;
     }
+    if (!options_.wrap) dl.clip_pop();
+    if (options_.line_numbers)
+        for (const auto& [k, top] : drawn) draw_number(dl, k, layout(k), top, theme);
     if (marks && marks->caret.block < doc_.size() && !marks->preedit.empty()) {
         draw_preedit(dl, theme);
     } else if (marks && marks->caret.block < doc_.size()) {
@@ -147,24 +164,29 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
     }
     dl.clip_pop();
     clamp_scroll();   // the blocks just laid out replaced their estimates
+    clamp_sideways();
+}
+
+// A block's number in the gutter, right-aligned against the text column; the caret's brighter.
+void View::draw_number(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, const ui::Theme& theme) const {
+    const std::string number = std::to_string(i + 1);
+    const float left = options_.padding + gutter_;
+    const float digit = ui::text_width(style_.measurer, "0", style_.size, render::FontRole::Mono);
+    const float w = ui::text_width(style_.measurer, number, style_.size, render::FontRole::Mono);
+    const bool caret_here = marks && marks->caret.block == i;
+    dl.text(number, Point{X{left - 0.75f * digit - w}, Y{top + l.lines.front().y}}, style_.size,
+            caret_here ? theme.text : theme.text_muted, 0.f, render::TextAnchor::TopLeft,
+            render::FontStyle{render::FontRole::Mono});
 }
 
 void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, float width,
-                      const ui::Theme& theme) const {
+                      const ui::Theme& theme, float dx) const {
     const Block& b = doc_[i];
-    const float left = options_.padding + gutter_;
-    const float text_x = text_left(l);
+    const float left = options_.padding + gutter_ + dx;
+    const float text_x = text_left(l) + dx;
     const bool caret_here = marks && marks->caret.block == i;
     if (options_.current_line && caret_here)
         dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{width}, Height{l.height}}}, theme.current_line);
-    if (options_.line_numbers) {
-        const std::string number = std::to_string(i + 1);
-        const float digit = ui::text_width(style_.measurer, "0", style_.size, render::FontRole::Mono);
-        const float w = ui::text_width(style_.measurer, number, style_.size, render::FontRole::Mono);
-        dl.text(number, Point{X{left - 0.75f * digit - w}, Y{top + l.lines.front().y}}, style_.size,
-                caret_here ? theme.text : theme.text_muted, 0.f, render::TextAnchor::TopLeft,
-                render::FontStyle{render::FontRole::Mono});
-    }
     if (l.background) dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{width}, Height{l.height}}}, *l.background);
     if (l.quote_bar) dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{3.f}, Height{l.height}}}, theme.divider);
     if (l.rule) dl.filled_rect(Rect{Point{X{left}, Y{top + l.height / 2.f}}, Size{Width{width}, Height{1.f}}}, theme.divider);
@@ -174,11 +196,11 @@ void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l,
                 theme.text_muted, 0.f, render::TextAnchor::TopLeft, render::FontStyle{style_.family});
     }
     if (decorations)
-        for (const Range& h : decorations->get()) draw_range(dl, i, l, top, h, theme.text_match, false);
+        for (const Range& h : decorations->get()) draw_range(dl, i, l, top, h, theme.text_match, false, dx);
     if (marks) {
-        for (const Range& h : marks->highlights) draw_range(dl, i, l, top, h, theme.text_match, false);
+        for (const Range& h : marks->highlights) draw_range(dl, i, l, top, h, theme.text_match, false, dx);
         draw_range(dl, i, l, top, {std::min(marks->caret, marks->anchor), std::max(marks->caret, marks->anchor)},
-                   theme.text_selection, true);
+                   theme.text_selection, true, dx);
     }
     for (const Line& line : l.lines) {
         const float line_top = top + line.y;
@@ -198,12 +220,12 @@ void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l,
 // The part of range r on block i, line by line, behind the text. With `with_newline`, a range
 // that goes on past the block's end covers a space's width there: the newline it holds.
 void View::draw_range(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, Range r,
-                      render::Color color, bool with_newline) const {
+                      render::Color color, bool with_newline, float dx) const {
     if (r.empty() || i < r.begin.block || i > r.end.block) return;
     const Block& b = doc_[i];
     const std::size_t a = i == r.begin.block ? r.begin.byte : 0;
     const std::size_t z = i == r.end.block ? r.end.byte : b.text.size();
-    const float text_x = text_left(l);
+    const float text_x = text_left(l) + dx;
     const float newline = with_newline && i < r.end.block ? 0.5f * style_.size : 0.f;
     for (std::size_t k = 0; k < l.lines.size(); ++k) {
         const Line& line = l.lines[k];
@@ -292,10 +314,25 @@ Range View::visual_line(Position p) {
     return {{p.block, line.begin}, {p.block, end}};
 }
 
+void View::scroll_sideways(float dx) {
+    scroll_x = DX{scroll_x.raw() + dx};
+    clamp_sideways();
+}
+
+void View::clamp_sideways() {
+    const float most = options_.wrap ? 0.f : std::max(0.f, widest_ - text_w_);
+    scroll_x = DX{std::clamp(scroll_x.raw(), 0.f, most)};
+}
+
 void View::reveal(Position p) {
     if (viewport_h.raw() <= 0.f) return;   // not drawn yet: no window to bring it into
     const BlockLayout& l = layout(p.block);
     const Line& line = l.lines[line_of(l, p.byte)];
+    if (!options_.wrap) {
+        const float x = l.indent + text::x_of(doc_[p.block], line, p.byte, style_);
+        if (x < scroll_x.raw()) scroll_x = DX{x};
+        else if (x + 2.f > scroll_x.raw() + text_w_) scroll_x = DX{x + 2.f - text_w_};
+    }
     const float top = block_top(p.block) + line.y;
     if (top < scroll.raw()) scroll = DY{top};
     else if (top + line.height > scroll.raw() + viewport_h.raw()) scroll = DY{top + line.height - viewport_h.raw()};
