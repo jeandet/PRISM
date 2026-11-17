@@ -290,11 +290,19 @@ public:
     struct TextHandle {
         Node& node_ref;
         std::set<const void*>& placed_ref;
+        std::shared_ptr<text::View> view;
         TextHandle&& rows(int n) && {
             node_ref.canvas_min_height = static_cast<float>(n) * text_line_estimate + 2.f * text_padding;
             return std::move(*this);
         }
         TextHandle&& tooltip(std::string text) && { node_ref.tooltip = std::move(text); return std::move(*this); }
+        // Ranges the app highlights (a SQL error's token, search matches), redrawn as they change.
+        TextHandle&& highlights(Field<std::vector<text::Range>>& ranges) && {
+            placed_ref.insert(&ranges);
+            node_ref.dependencies.push_back(view_builder_detail::adapt_on_change(ranges));
+            view->decorations = &ranges;
+            return std::move(*this);
+        }
         TextHandle&& focus_on_open() && { node_ref.focus_on_open = true; return std::move(*this); }
         // The default text's line height (1.4 x 14 pt) and padding, before any font is measured.
         static constexpr float text_line_estimate = 1.4f * 14.f;

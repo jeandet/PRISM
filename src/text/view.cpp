@@ -168,6 +168,8 @@ void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l,
         dl.text(l.marker, Point{X{text_x - w - 0.4f * style_.size}, Y{top + l.lines.front().y}}, style_.size,
                 theme.text_muted, 0.f, render::TextAnchor::TopLeft, render::FontStyle{style_.family});
     }
+    if (decorations)
+        for (const Range& h : decorations->get()) draw_range(dl, i, l, top, h, theme.text_match, false);
     if (marks) {
         for (const Range& h : marks->highlights) draw_range(dl, i, l, top, h, theme.text_match, false);
         draw_range(dl, i, l, top, {std::min(marks->caret, marks->anchor), std::max(marks->caret, marks->anchor)},

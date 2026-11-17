@@ -61,6 +61,7 @@ struct Position {
 struct Range {
     Position begin, end;
     [[nodiscard]] bool empty() const { return begin == end; }
+    bool operator==(const Range&) const = default;
 };
 
 // Blocks [first, first + removed) were replaced by blocks [first, first + inserted).

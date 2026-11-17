@@ -143,3 +143,36 @@ TEST_CASE("vb.code_editor(doc, \"cpp\"): numbered, highlighted, and Tab indents"
     app::widget_detail::route_event(tree, snap.get(), input::KeyPress{input::keys::tab, 0});
     CHECK(src.doc[1].text == "        return 0;");
 }
+
+namespace {
+struct Marked {
+    Document doc{"select * from trips"};
+    core::Field<std::vector<Range>> errors{};
+    void view(app::ViewBuilder& vb) { vb.code_editor(doc, "sql").highlights(errors); }
+};
+
+int match_rects(const render::SceneSnapshot& snap, const ui::Theme& t) {
+    int n = 0;
+    for (const auto& dl : snap.draw_lists)
+        for (const auto& c : dl->commands)
+            if (auto* r = std::get_if<render::FilledRect>(&c); r && r->color == t.text_match) ++n;
+    return n;
+}
+} // namespace
+
+TEST_CASE(".highlights(field): the app's ranges are drawn, focused or not, and follow the field") {
+    Marked m;
+    app::WidgetTree tree{m};
+    tree.set_text_measurer(&fixed);
+    std::uint64_t version = 0;
+    auto snap = tree.build_snapshot(400, 300, ++version);
+    tree.clear_dirty();
+    CHECK(match_rects(*snap, tree.theme()) == 0);
+    m.errors.set({{{0, 9}, {0, 13}}});   // "from"
+    snap = tree.build_snapshot(400, 300, ++version);
+    tree.clear_dirty();
+    CHECK(match_rects(*snap, tree.theme()) == 1);
+    m.errors.set({});
+    snap = tree.build_snapshot(400, 300, ++version);
+    CHECK(match_rects(*snap, tree.theme()) == 0);
+}

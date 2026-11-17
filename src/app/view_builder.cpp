@@ -333,7 +333,7 @@ void publish_inner_scroll(WidgetNode& node, const text::View& view);
 
 // A text view as a leaf: drawn like a canvas (it fills its space), its View kept in the node's
 // edit state, where the tree's wheel, Page Up/Down and scrollbar find it (get_scroll_view).
-Node text_view_node(text::Document& doc, text::ViewOptions options, WidgetId& next_id) {
+Node text_view_node(text::Document& doc, std::shared_ptr<text::View> view, WidgetId& next_id) {
     Node n;
     n.id = next_id++;
     n.is_leaf = true;
@@ -341,7 +341,6 @@ Node text_view_node(text::Document& doc, text::ViewOptions options, WidgetId& ne
     n.on_change = [&doc](std::function<void()> dirty) {
         return doc.on_change().connect([dirty = std::move(dirty)](const text::Change&) { dirty(); });
     };
-    auto view = std::make_shared<text::View>(doc, options);
     n.build_widget = [view](WidgetNode& wn) {
         wn.edit_state = view;
         wn.focus_policy = FocusPolicy::tab_and_click;
@@ -368,7 +367,7 @@ void publish_inner_scroll(WidgetNode& node, const text::View& view) {
 
 // An editor as a leaf: its view where the tree scrolls it (an aliasing pointer into the editor),
 // a text-input role so typed text and editing shortcuts reach it, the caret shown when focused.
-Node text_editor_node(text::Document& doc, text::EditorOptions options, WidgetId& next_id) {
+Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor, WidgetId& next_id) {
     Node n;
     n.id = next_id++;
     n.is_leaf = true;
@@ -376,7 +375,6 @@ Node text_editor_node(text::Document& doc, text::EditorOptions options, WidgetId
     n.on_change = [&doc](std::function<void()> dirty) {
         return doc.on_change().connect([dirty = std::move(dirty)](const text::Change&) { dirty(); });
     };
-    auto editor = std::make_shared<text::Editor>(doc, std::move(options));
     n.build_widget = [editor](WidgetNode& wn) {
         wn.edit_state = std::shared_ptr<text::View>(editor, &editor->view);
         wn.focus_policy = FocusPolicy::tab_and_click;
@@ -417,12 +415,14 @@ ViewBuilder::TextHandle ViewBuilder::code_editor(text::Document& doc, std::strin
 }
 
 ViewBuilder::TextHandle ViewBuilder::text_editor(text::Document& doc, text::EditorOptions options) {
-    current_parent().children.push_back(text_editor_node(doc, std::move(options), tree_.next_id_));
-    return {current_parent().children.back(), placed_};
+    auto editor = std::make_shared<text::Editor>(doc, std::move(options));
+    current_parent().children.push_back(text_editor_node(doc, editor, tree_.next_id_));
+    return {current_parent().children.back(), placed_, std::shared_ptr<text::View>(editor, &editor->view)};
 }
 
 ViewBuilder::TextHandle ViewBuilder::text_view(text::Document& doc, text::ViewOptions options) {
-    current_parent().children.push_back(text_view_node(doc, options, tree_.next_id_));
-    return {current_parent().children.back(), placed_};
+    auto view = std::make_shared<text::View>(doc, options);
+    current_parent().children.push_back(text_view_node(doc, view, tree_.next_id_));
+    return {current_parent().children.back(), placed_, view};
 }
 } // namespace prism::app

@@ -13,10 +13,12 @@
 
 namespace prism::data_studio::blocks {
 
-// The query editor and its toolbar. It owns the error mark: SQLite names the token it choked on,
-// and the underline that leaves goes away the moment the user types.
+// The query editor and its toolbar: a SQL code editor (colors, line numbers, Tab to indent). It
+// owns the error mark: SQLite names the token it choked on, and the highlight that leaves goes away
+// the moment the text changes.
 struct Editor {
-    core::Field<ui::TextArea<>> text{{.value = std::string{kSavedQueries[kOpeningQuery].sql}, .rows = 8}};
+    text::Document text{kSavedQueries[kOpeningQuery].sql};
+    core::Field<std::vector<text::Range>> error{};   // the token SQLite choked on
     core::Field<ui::Button> run{{.text = "Run",
                                  .primary = true,
                                  .shortcut = ui::parse_shortcut("Ctrl+Enter").value_or(ui::Shortcut{})}};
@@ -24,20 +26,17 @@ struct Editor {
     core::Field<ui::Label<>> hint{{.value = "Ctrl+Enter runs the editor's query"}};
 
     Editor() {
-        reactions_.push_back(text.on_change().connect([this](const auto&) { typed(); }));
+        wire.on(text, [this](const text::Change&) { clear_mark(); });
     }
 
-    std::string sql() const { return value(text); }
-
-    void open(std::string sql) {
-        edit([&](auto& area) { area.value = std::move(sql); area.highlights.clear(); });
-    }
+    std::string sql() const { return text.text(); }
+    void open(std::string sql) { text.assign(text::Document{sql}); }
 
     void mark(std::optional<ByteRange> range) {
-        if (range) edit([&](auto& area) { area.highlights = {ui::TextRange{range->begin, range->end}}; });
+        if (range) error.set({{text.position_at(range->begin), text.position_at(range->end)}});
     }
 
-    void clear_mark() { edit([](auto& area) { area.highlights.clear(); }); }
+    void clear_mark() { error.set({}); }
 
     void view(app::ViewBuilder& vb) {
         vb.vstack([&] {
@@ -47,27 +46,12 @@ struct Editor {
                 vb.spacer();
                 vb.widget(hint);
             });
-            vb.widget(text);
+            vb.code_editor(text, "sql").rows(8).highlights(error);
         });
     }
 
 private:
-    // Setting the text from here is not the user typing: the mark has to survive it.
-    template <typename F>
-    void edit(F&& change) {
-        marking_ = true;
-        text.update(std::forward<F>(change));
-        marking_ = false;
-    }
-
-    void typed() {
-        if (marking_) return;
-        clear_mark();
-    }
-
-    bool marking_ = false;
-    // Declared last, so the connection goes before the field it observes.
-    std::vector<core::Connection> reactions_{};
+    core::Wiring wire;   // captures `this`: the block never moves
 };
 
 } // namespace prism::data_studio::blocks

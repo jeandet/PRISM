@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/core/connection.hpp>
+#include <prism/core/field.hpp>
 #include <prism/core/sum_tree.hpp>
 #include <prism/core/types.hpp>
 #include <prism/render/draw_list.hpp>
@@ -52,6 +53,8 @@ public:
         std::vector<Range> highlights{};   // drawn behind the text: matching brackets, search hits
     };
     std::optional<Marks> marks;
+    // Ranges the app highlights, shown focused or not: a SQL error's token, search matches.
+    const core::Field<std::vector<Range>>* decorations = nullptr;
 
     // Geometry, in the view's coordinates ((0, 0) is its corner). Each lays out what it needs.
     [[nodiscard]] Position hit(core::Point p);                      // the position nearest a point

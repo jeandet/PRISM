@@ -27,7 +27,7 @@ inline ui::ProgressBar progress_bar(const Status& status) {
 // The status bar: one line of words and a progress bar, both read from `state`, so the app never
 // touches either control. It also owns the loaded-row count the schema panel prints.
 struct StatusBar {
-    core::Field<Status> state{};
+    core::State<Status> state{};   // what both read; never a widget itself
     core::Field<std::uint32_t> loaded_rows{0};
 
     core::Derived<std::string> text{[this] { return status_line(state.get()); }};
