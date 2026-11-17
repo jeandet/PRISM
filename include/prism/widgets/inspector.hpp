@@ -2,6 +2,7 @@
 
 #include <prism/widgets/field_mirror.hpp>
 #include <prism/core/shared.hpp>
+#include <prism/app/model_app.hpp>
 #include <prism/app/widget_tree.hpp>
 
 #if __cpp_impl_reflection
@@ -42,7 +43,13 @@ struct Inspector {
         mirror_.view(vb);
     }
 
-    void drain() { source_->drain_notifications(); }
+    // The Shared lives outside the model, so the tree never gives it a waker: without this, a
+    // worker's set() would wait for the next input to show.
+    void attach(prism::app::AppContext& ctx) {
+        ctx.receive(*source_, [](const T&) {});
+    }
+
+    void drain() { source_->drain_notifications(); }   // a tree with no app drains through it
 
     [[nodiscard]] FieldMirror<T>& mirror() { return mirror_; }
     [[nodiscard]] const FieldMirror<T>& mirror() const { return mirror_; }

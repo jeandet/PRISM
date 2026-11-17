@@ -649,3 +649,28 @@ TEST_CASE("a producer that never lets the queue empty does not starve the animat
     });
     CHECK(ticks_while_flooding.load() >= kEnough);
 }
+
+#if __cpp_impl_reflection
+#include <prism/widgets/inspector.hpp>
+
+struct Probe {
+    int level = 0;
+};
+
+// The Shared an Inspector shows lives outside the model, so nothing gave it a waker: a worker's
+// set() stayed pending until some input happened to drain it.
+TEST_CASE("an Inspector follows a worker's set() with no input") {
+    prism::Shared<Probe> probe{Probe{}};
+    prism::inspector::Inspector<Probe> inspector(probe);
+    std::atomic<bool> ready{false};
+    std::atomic<int> seen{0};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [&] { probe.set(Probe{.level = 6}); }, [&] { return seen.load() == 6; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, inspector, [&](prism::AppContext&) {
+        std::get<0>(inspector.mirror().slots).value.observe([&](const int& v) { seen.store(v); });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(seen.load() == 6);
+}
+#endif
