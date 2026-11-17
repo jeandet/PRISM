@@ -1,12 +1,15 @@
 #include <prism/nodes/graph.hpp>
 
 #include <algorithm>
+#include <set>
 #include <utility>
 
 namespace prism::nodes {
 
 // simplify: values cross as std::any copies, synchronously; the Edge is the seam where a
-// later version hands them to another thread (spec goal 11).
+// later version hands them to another thread (spec goal 11). The callback captures raw port
+// pointers: a receiver removing the downstream node during the same emit would reach a freed
+// port; that needs a liveness flag once board callbacks change the graph.
 struct Graph::Edge {
     EdgeInfo info;
     core::Connection link;
@@ -37,8 +40,10 @@ std::optional<ConnectError> Graph::refusal(PortRef from, PortRef to) const {
     if (!f || !t) return ConnectError::UnknownPort;
     if (f->dir() != Dir::Out || t->dir() != Dir::In) return ConnectError::NotOutputToInput;
     if (f->type() != t->type()) return ConnectError::TypeMismatch;
-    const auto reaches = [this](auto&& self, NodeId at, NodeId target) -> bool {
+    std::set<NodeId> visited;
+    const auto reaches = [this, &visited](auto&& self, NodeId at, NodeId target) -> bool {
         if (at == target) return true;
+        if (!visited.insert(at).second) return false;
         return std::ranges::any_of(edges_, [&](const auto& kv) {
             const EdgeInfo& e = kv.second->info;
             return e.from.node == at && self(self, e.to.node, target);
@@ -76,17 +81,17 @@ std::expected<EdgeId, ConnectError> Graph::connect(PortRef a, PortRef b) {
     return id;
 }
 
-void Graph::drop_edge(EdgeId id, bool revert) {
+bool Graph::drop_edge(EdgeId id, bool revert) {
     const auto it = edges_.find(id);
-    if (it == edges_.end()) return;
+    if (it == edges_.end()) return false;
     const PortRef to = it->second->info.to;
     edges_.erase(it);
     if (revert) port(to)->reset();
+    return true;
 }
 
 void Graph::disconnect(EdgeId id) {
-    drop_edge(id, true);
-    structure.set(structure.get() + 1);
+    if (drop_edge(id, true)) structure.set(structure.get() + 1);
 }
 
 void Graph::remove(NodeId id) {
@@ -94,8 +99,7 @@ void Graph::remove(NodeId id) {
         const EdgeInfo& info = edges_.at(e)->info;
         if (info.from.node == id || info.to.node == id) drop_edge(e, true);
     }
-    nodes_.erase(id);
-    structure.set(structure.get() + 1);
+    if (nodes_.erase(id)) structure.set(structure.get() + 1);
 }
 
 std::optional<EdgeId> Graph::edge_into(PortRef input) const {

@@ -96,7 +96,7 @@ private:
     }
 
     NodeId add_entry(Entry entry);
-    void drop_edge(EdgeId, bool revert);
+    bool drop_edge(EdgeId, bool revert);
     std::optional<ConnectError> refusal(PortRef from, PortRef to) const;
 
     std::map<NodeId, Entry> nodes_;

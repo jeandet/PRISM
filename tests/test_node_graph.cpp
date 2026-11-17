@@ -147,3 +147,31 @@ TEST_CASE("structure changes on add, connect, disconnect and remove; layout on m
     CHECK(g.layout.get() > l);
     CHECK(g.position(b) == Point{prism::core::X{3}, prism::core::Y{4}});
 }
+
+TEST_CASE("disconnecting or removing something unknown changes nothing") {
+    Graph g;
+    const auto n = g.structure.get();
+    g.disconnect(42);
+    g.remove(42);
+    CHECK(g.structure.get() == n);
+}
+
+TEST_CASE("nodes that die before the graph leave it safe to destroy") {
+    Graph g;
+    {
+        Source s; Sink k;
+        const auto a = g.add(s, titled()), b = g.add(k, titled());
+        REQUIRE(g.connect({a, OUT}, {b, 0}));
+    }
+}
+
+TEST_CASE("a diamond of nodes is walked without revisits and still refuses its loop") {
+    Graph g;
+    Source a, b, c, d;
+    const auto ia = g.add(a, titled()), ib = g.add(b, titled()), ic = g.add(c, titled()), id = g.add(d, titled());
+    REQUIRE(g.connect({ia, OUT}, {ib, 0}));
+    REQUIRE(g.connect({ia, OUT}, {ic, 0}));
+    REQUIRE(g.connect({ib, OUT}, {id, 0}));
+    REQUIRE(g.connect({ic, OUT}, {id, 0}));
+    CHECK(g.connect({id, OUT}, {ia, 0}).error() == ConnectError::Cycle);
+}
