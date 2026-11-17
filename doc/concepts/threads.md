@@ -38,6 +38,8 @@ An audio callback that must never wait: `Latest`.
 ## A worker with `Shared<T>`
 
 ```cpp
+double read_sensor();   // yours: reads the hardware, may block
+
 struct Thermometer {
     core::Field<ui::Label<>> text{{"waiting..."}};
     core::Shared<double> celsius{0.0};
@@ -77,6 +79,8 @@ and updates on its own, with no `receive`.
 A `Channel<T>` delivers every value sent, in the order sent:
 
 ```cpp
+std::vector<std::string> run_build();   // yours: runs the build, returns its output lines
+
 struct BuildLog {
     core::List<std::string> lines;
     core::Channel<std::string> output;
@@ -104,6 +108,8 @@ Called on the logic thread itself, it runs `fn` right away.
 `ctx.poster()` returns a function a worker can keep and call later:
 
 ```cpp
+std::string long_computation();   // yours: takes seconds
+
 struct Report {
     core::Field<ui::Label<>> status{{"working..."}};
     std::jthread job;

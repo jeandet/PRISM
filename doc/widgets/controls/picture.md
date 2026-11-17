@@ -3,6 +3,8 @@
 A picture shows an image on its own: a logo, a preview, a plot rendered elsewhere.
 
 ```cpp
+#include <prism/render/image_decoder.hpp>   // render::load_image
+
 struct Splash {
     core::Field<ui::Picture> logo{{.image = *render::load_image("logo.png"),
                                    .size = core::Size{core::Width{200}, core::Height{100}},

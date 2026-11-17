@@ -14,6 +14,7 @@ struct Peak {
 };
 
 core::Latest<Peak> peaks;
+float max_abs(std::span<const float> samples);   // yours: the loudest sample
 
 // the audio thread, every buffer:
 void on_audio(std::span<const float> l, std::span<const float> r) {

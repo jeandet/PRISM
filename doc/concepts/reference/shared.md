@@ -9,6 +9,8 @@ Values set in between are dropped, so a slow window never falls behind.
 ## Example
 
 ```cpp
+double read_cpu_load();   // yours: 0 to 1
+
 struct Cpu {
     core::Field<ui::ProgressBar> load{{.label = "CPU"}};
     core::Shared<double> sample{0.0};

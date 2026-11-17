@@ -9,9 +9,15 @@ the clock, windows, themes, file dialogs.
 ## app::run
 
 ```cpp
+#include <prism/app/settings.hpp>   // needed to pass .settings
+
 struct Settings {
     core::Field<bool> dark{false};
     app::WindowGeometry window;   // the window's size and place, remembered
+};
+
+struct Notes {   // the app's model
+    core::Field<ui::TextArea<>> text{};
 };
 
 int main() {

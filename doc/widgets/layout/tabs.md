@@ -87,6 +87,9 @@ With reflection, a `ui::TabBar<S>` makes one tab per member of the struct `S`,
 titled with the member's name:
 
 ```cpp
+struct Account { core::Field<ui::TextField<>> name{{.value = "ada"}}; };
+struct Audio { core::Field<ui::Slider<>> volume{}; };
+
 struct Pages {
     Account account;
     Audio audio;

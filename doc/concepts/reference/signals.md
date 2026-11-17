@@ -23,14 +23,23 @@ and a `Wiring` member covers reactions to other structs. This page documents all
 It is Qt's "context object", as a member instead of a base class.
 
 ```cpp
+struct Editor {   // another block of the app
+    core::Field<std::string> path{""};
+    core::Field<bool> modified{false};
+};
+struct Look {
+    core::Field<bool> dark{false};
+    core::Field<std::string> accent{"#3366cc"};
+};
+
 struct Status {
     core::Field<ui::Label<>> text{};
     core::Field<bool> unsaved{false};
     core::Wiring wire;   // last: destroyed first, before the fields it writes to
 
-    Status(Editor& editor, Theme& theme) {
+    Status(Editor& editor, Look& look) {
         wire.on(editor.path, [this](const std::string& p) { set_value(text, p); });
-        wire.on_any([this] { refresh(); }, theme.dark, theme.accent);
+        wire.on_any([this] { refresh(); }, look.dark, look.accent);
         wire.link(editor.modified, unsaved);   // unsaved follows editor.modified
     }
 

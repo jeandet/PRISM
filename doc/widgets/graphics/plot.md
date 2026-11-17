@@ -85,6 +85,7 @@ struct Ramp {
     double y(std::size_t i) const { return static_cast<double>(i % 1000); }
 };
 
+// in PlotShowcase::setup_data() above:
 plot.add_series(Ramp{}, plot::SeriesStyle{});
 ```
 

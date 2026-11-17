@@ -5,6 +5,8 @@
 Show the matches by handing them to the editor's `.highlights()`.
 
 ```cpp
+#include <prism/text/find.hpp>   // text::find_all
+
 struct Search {
     text::Document doc{"one two one three one"};
     core::Field<ui::TextField<>> find{{.placeholder = "Find"}};
