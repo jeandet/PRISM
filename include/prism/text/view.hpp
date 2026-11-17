@@ -30,6 +30,7 @@ struct ViewOptions {
     const Highlighter* highlighter = nullptr;   // code: its colors (text/highlight.hpp)
     bool line_numbers = false;                  // a gutter numbering the blocks
     bool current_line = false;                  // the caret's line shaded
+    bool minimap = false;                       // the whole document shrunk in a column on the right
     std::string placeholder{};                  // shown, muted, while the document is empty
 };
 
@@ -51,6 +52,15 @@ public:
     // out so far. The gutter does not move.
     core::DX scroll_x{0};
     void scroll_sideways(float dx);
+
+    // The minimap: each block a strip 2 px tall, its words bars in their colors, a band over what is
+    // in sight. On a document taller than the column it scrolls along with the view.
+    [[nodiscard]] float minimap_left() const { return minimap_left_; }
+    [[nodiscard]] std::size_t minimap_first() const { return minimap_first_; }   // the block at its top
+    [[nodiscard]] std::size_t minimap_rows() const { return minimap_rows_; }
+    [[nodiscard]] bool in_minimap(core::Point p) const { return options_.minimap && p.x.raw() >= minimap_left_; }
+    void minimap_scroll(core::Point p);              // the block under p into the middle of the view
+    static render::Color minimap_tint(render::Color c) { return render::Color::rgba(c.r, c.g, c.b, 150); }
 
     // Brings up to `lines` more blocks' highlighting states up to date, past what is in sight:
     // what a view does between frames, so a jump far down does not wait for every line above.
@@ -115,6 +125,9 @@ private:
     std::size_t edit_end_ = 0;
     float gutter_ = 0.f;
     float widest_ = 0.f;   // the widest line laid out (no wrapping): how far scroll_x goes
+    float minimap_left_ = 0.f;
+    std::size_t minimap_first_ = 0, minimap_rows_ = 0;
+    std::size_t last_drawn_ = 0;
     float text_w_ = 0.f;   // the text's column at the last draw
     std::size_t first_drawn_ = 0;
     std::uint64_t layouts_made_ = 0;
@@ -130,6 +143,7 @@ private:
         return options_.padding + gutter_ + l.indent - (options_.wrap ? 0.f : scroll_x.raw());
     }
     void clamp_sideways();
+    void draw_minimap(render::DrawList& dl, const ui::Theme& theme);
     float block_top(std::size_t i) const { return heights_.prefix(i).height; }   // in content coordinates
     static std::size_t line_of(const BlockLayout& l, std::size_t byte);
     // dx: what to add to x inside a clip whose origin is not the view's (the text column's).

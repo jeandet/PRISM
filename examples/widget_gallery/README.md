@@ -200,7 +200,7 @@ The tabs, in the order they appear:
 | Controls | Every input widget, live: type, pick, drag, tick. The Lock toggle greys the group below it, and the Save button waits for a name. |
 | Catalog | Pick a widget on the left; its documentation, its code line and a live sample are on the right. |
 | Text | Selection, clipboard, undo across a code sample and prose; Hebrew and Arabic run right to left, and combining marks stay attached. |
-| Code | `vb.code_editor(doc, language)` for C++, Python, SQL, JSON, TOML and shell: colors, line numbers, matching brackets, Tab to indent, long lines scrolled sideways. Type in Find: every match is highlighted; Replace all is one undo step. **Open a 100,000-line file**, press Ctrl+End and type: it costs what it costs in ten lines. |
+| Code | `vb.code_editor(doc, language)` for C++, Python, SQL, JSON, TOML and shell: colors, line numbers, a minimap, matching brackets, Tab to indent, long lines scrolled sideways. Type in Find: every match is highlighted; Replace all is one undo step. **Open a 100,000-line file**, press Ctrl+End and type: it costs what it costs in ten lines. |
 | Document | Type Markdown on the left; the right side renders it as you type: headings, lists, quotes, code, tables. The rendering is a `text::Document` in `vb.text_view`, which lays out only what is in sight. |
 | Data | 10 000 rows, seven columns, sorted by clicking a header; drag a header to move that column, drag its edge to resize it, right-click the header to hide columns. |
 | Plot | Two sliders and a checkbox refill the plot's two series; beside them a hand-drawn Lissajous canvas reads the ratio field. |

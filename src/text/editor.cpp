@@ -320,7 +320,12 @@ bool Editor::key(const input::KeyPress& k, const ui::Clipboard* clipboard) {
 
 bool Editor::mouse_button(const input::MouseButton& b) {
     if (b.button != input::buttons::left) return false;
-    if (!b.pressed) { dragging_ = false; return false; }
+    if (!b.pressed) { dragging_ = dragging_map_ = false; return false; }
+    if (view.in_minimap(b.position)) {   // the minimap scrolls; the caret stays where it is
+        view.minimap_scroll(b.position);
+        dragging_map_ = true;
+        return true;
+    }
     const Position at = view.hit(b.position);
     if (b.clicks == 2) {
         const Range w = word_at(at);
@@ -366,6 +371,10 @@ bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard)
     if (auto* b = std::get_if<input::MouseButton>(&ev)) return mouse_button(*b);
     if (auto* w = std::get_if<input::MouseScroll>(&ev); w && w->dx.raw() != 0.f && !options_.view.wrap) {
         view.scroll_sideways(-w->dx.raw() * sideways_step);   // up and down: the tree scrolls the view
+        return true;
+    }
+    if (auto* m = std::get_if<input::MouseMove>(&ev); m && dragging_map_ && (m->buttons & input::buttons::left_mask)) {
+        view.minimap_scroll(m->position);
         return true;
     }
     if (auto* m = std::get_if<input::MouseMove>(&ev); m && dragging_ && (m->buttons & input::buttons::left_mask)) {

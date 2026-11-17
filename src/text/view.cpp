@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,26 @@ using core::Y;
 // simplify: the cache is dropped whole when it holds this many layouts (a long scroll), not
 // trimmed least-recently-used first. Upgrade when scrolling back shows the cost.
 constexpr std::size_t cache_cap = 4096;
+
+constexpr float minimap_width = 84.f;   // the column, its left margin included
+constexpr float minimap_margin = 4.f;
+constexpr float minimap_line = 2.f;     // px per block
+constexpr float minimap_char = 1.f;     // px per character (a tab: four)
+
+// What a span is drawn as in the minimap: its syntax or link color; nullopt for plain text.
+std::optional<render::Color> minimap_color(Style s, const ui::Theme& t) {
+    switch (s) {
+    case Style::keyword: return t.syntax_keyword;
+    case Style::type: return t.syntax_type;
+    case Style::string: return t.syntax_string;
+    case Style::number: return t.syntax_number;
+    case Style::comment: return t.syntax_comment;
+    case Style::preprocessor: return t.syntax_preprocessor;
+    case Style::function: return t.syntax_function;
+    case Style::link: return t.link;
+    default: return std::nullopt;
+    }
+}
 } // namespace
 
 View::View(Document& doc, ViewOptions options) : doc_(doc), options_(options) {
@@ -115,7 +136,9 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
         const float digit = ui::text_width(theme.measurer, "0", options_.size, render::FontRole::Mono);
         gutter_ = (static_cast<float>(std::to_string(doc_.size()).size()) + 1.5f) * digit;
     }
-    const float width = size.w.raw() - 2.f * pad - gutter_;
+    const float map = options_.minimap ? minimap_width : 0.f;
+    minimap_left_ = size.w.raw() - pad - map + minimap_margin;
+    const float width = size.w.raw() - 2.f * pad - gutter_ - map;
     if (width != style_.width || &theme != style_.theme || theme.measurer != style_.measurer) {
         style_.width = width;
         style_.theme = &theme;
@@ -150,6 +173,7 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
         const BlockLayout& l = layout(i);
         draw_block(dl, i, l, pad + y - scroll.raw(), width, theme, dx);
         drawn.emplace_back(i, pad + y - scroll.raw());
+        last_drawn_ = i;
         y += l.height;
     }
     if (!options_.wrap) dl.clip_pop();
@@ -162,6 +186,7 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
         if (r.origin.y.raw() + r.extent.h.raw() > 0.f && r.origin.y.raw() < size.h.raw())
             dl.filled_rect(Rect{r.origin, Size{Width{2.f}, r.extent.h}}, theme.cursor);
     }
+    if (options_.minimap) draw_minimap(dl, theme);
     dl.clip_pop();
     clamp_scroll();   // the blocks just laid out replaced their estimates
     clamp_sideways();
@@ -315,6 +340,61 @@ Range View::visual_line(Position p) {
     const std::string& text = doc_[p.block].text;
     if (k + 1 < l.lines.size() && end > line.begin && ui::is_wrap_space(text[end - 1])) --end;   // before the hanging space
     return {{p.block, line.begin}, {p.block, end}};
+}
+
+// Each block a strip: its words as bars (runs of non-spaces) in the color of the span they are in.
+// The band behind marks the blocks drawn. Blocks are highlighted from the states the view keeps.
+void View::draw_minimap(render::DrawList& dl, const ui::Theme& theme) {
+    const std::size_t n = doc_.size();
+    const float top = options_.padding;
+    minimap_rows_ = std::max<std::size_t>(1, static_cast<std::size_t>(viewport_h.raw() / minimap_line));
+    const float most = std::max(0.f, content_h.raw() - viewport_h.raw());
+    const float along = most > 0.f ? std::clamp(scroll.raw() / most, 0.f, 1.f) : 0.f;
+    minimap_first_ = n > minimap_rows_ ? static_cast<std::size_t>(std::lround(along * static_cast<float>(n - minimap_rows_))) : 0;
+    const float right = minimap_left_ + minimap_width - minimap_margin;
+    if (last_drawn_ >= first_drawn_ && last_drawn_ + 1 > minimap_first_) {
+        const float a = static_cast<float>(first_drawn_ > minimap_first_ ? first_drawn_ - minimap_first_ : 0);
+        const float z = static_cast<float>(last_drawn_ + 1 - minimap_first_);
+        dl.filled_rect(Rect{Point{X{minimap_left_}, Y{top + a * minimap_line}},
+                            Size{Width{right - minimap_left_}, Height{(z - a) * minimap_line}}}, theme.scrollbar_thumb);
+    }
+    const render::Color plain = minimap_tint(theme.text_muted);
+    std::vector<Span> colors;
+    for (std::size_t k = minimap_first_; k < n && k < minimap_first_ + minimap_rows_; ++k) {
+        const Block& b = doc_[k];
+        colors.clear();
+        if (options_.highlighter) options_.highlighter->highlight(b.text, state_before(k), colors);
+        colors.insert(colors.end(), b.spans.begin(), b.spans.end());
+        const auto color_at = [&](std::size_t byte) {
+            std::optional<render::Color> c;
+            for (const Span& s : colors)
+                if (s.begin <= byte && byte < s.end)
+                    if (auto sc = minimap_color(s.style, theme)) c = minimap_tint(*sc);
+            return c.value_or(plain);
+        };
+        const float y = top + static_cast<float>(k - minimap_first_) * minimap_line;
+        float col = 0.f;
+        for (std::size_t i = 0; i < b.text.size() && minimap_left_ + col < right;) {
+            if (b.text[i] == ' ' || b.text[i] == '\t') { col += b.text[i] == '\t' ? 4.f : 1.f; ++i; continue; }
+            const render::Color c = color_at(i);
+            const float start = col;
+            while (i < b.text.size() && b.text[i] != ' ' && b.text[i] != '\t' && color_at(i) == c) {
+                if ((static_cast<unsigned char>(b.text[i]) & 0xC0) != 0x80) col += minimap_char;   // one per character
+                ++i;
+            }
+            const float w = std::min(col, right - minimap_left_) - start;
+            if (w > 0.f)
+                dl.filled_rect(Rect{Point{X{minimap_left_ + start}, Y{y}}, Size{Width{w}, Height{minimap_line - 0.5f}}}, c);
+        }
+    }
+}
+
+void View::minimap_scroll(Point p) {
+    if (doc_.size() == 0) return;
+    const float row = std::max(0.f, (p.y.raw() - options_.padding) / minimap_line);
+    const std::size_t block = std::min(doc_.size() - 1, minimap_first_ + static_cast<std::size_t>(row));
+    const float most = std::max(0.f, content_h.raw() - viewport_h.raw());
+    scroll = DY{std::clamp(block_top(block) - viewport_h.raw() / 2.f, 0.f, most)};
 }
 
 bool View::highlight_ahead(std::size_t lines) {

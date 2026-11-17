@@ -345,11 +345,20 @@ Node text_view_node(text::Document& doc, std::shared_ptr<text::View> view, Widge
     n.build_widget = [view](WidgetNode& wn) {
         wn.edit_state = view;
         wn.focus_policy = FocusPolicy::tab_and_click;
-        if (!view->options().wrap)   // a sideways swipe scrolls it; up and down are the tree's
+        // A sideways swipe scrolls it (up and down are the tree's); a press or drag in the minimap
+        // scrolls to where it lands.
+        if (!view->options().wrap || view->options().minimap)
             wn.wire = [view](WidgetNode& node) {
                 node.connections.push_back(node.on_input.connect([view, &node](const InputEvent& ev) {
-                    if (auto* w = std::get_if<MouseScroll>(&ev); w && w->dx.raw() != 0.f) {
+                    if (auto* w = std::get_if<MouseScroll>(&ev); w && w->dx.raw() != 0.f && !view->options().wrap) {
                         view->scroll_sideways(-w->dx.raw() * 40.f);
+                        node.dirty = true;
+                    }
+                    const auto* b = std::get_if<MouseButton>(&ev);
+                    const auto* m = std::get_if<MouseMove>(&ev);
+                    if ((b && b->pressed && view->in_minimap(b->position)) ||
+                        (m && (m->buttons & buttons::left_mask) && view->in_minimap(m->position))) {
+                        view->minimap_scroll(b ? b->position : m->position);
                         node.dirty = true;
                     }
                 }));
@@ -430,7 +439,7 @@ Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor,
 ViewBuilder::TextHandle ViewBuilder::code_editor(text::Document& doc, std::string_view language) {
     return text_editor(doc, {.view = {.family = render::FontRole::Mono, .wrap = false,
                                       .highlighter = language.empty() ? nullptr : &text::language(language),
-                                      .line_numbers = true, .current_line = true},
+                                      .line_numbers = true, .current_line = true, .minimap = true},
                              .tab_inserts = true, .auto_indent = true, .match_brackets = true});
 }
 

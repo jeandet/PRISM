@@ -61,6 +61,7 @@ private:
     Position caret_{}, anchor_{};
     float column_x_ = -1.f;    // where up and down aim; -1: the caret's own x
     bool dragging_ = false;
+    bool dragging_map_ = false;    // a press in the minimap: moving scrolls, not selects
     std::string preedit_;          // an input method's composition, shown at the caret
     std::size_t preedit_caret_ = 0;
     core::Connection follow_;

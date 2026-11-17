@@ -252,3 +252,83 @@ TEST_CASE("highlighting goes on ahead in idle time; a jump to the end then highl
     view.draw(dl, window, theme);
     CHECK(counting.lines < 40);
 }
+
+// --- Minimap ---------------------------------------------------------------------------------
+
+namespace {
+// The filled rectangles right of `x`: the minimap's bars and band.
+std::vector<render::FilledRect> rects_right_of(const render::DrawList& dl, float x) {
+    std::vector<render::FilledRect> out;
+    for (const auto& c : dl.commands)
+        if (auto* r = std::get_if<render::FilledRect>(&c); r && r->rect.origin.x.raw() >= x) out.push_back(*r);
+    return out;
+}
+} // namespace
+
+TEST_CASE("the minimap draws each line as bars in its colors, in a column of its own") {
+    Document doc{"int x;\n\nreturn 0;"};
+    View view{doc, {.family = render::FontRole::Mono, .padding = 0, .highlighter = &language("cpp"), .minimap = true}};
+    render::DrawList dl;
+    view.draw(dl, window, theme);
+    const float column = view.minimap_left();
+    CHECK(column > 300.f);
+    CHECK(column < 400.f);
+    const auto bars = rects_right_of(dl, column);
+    bool type_bar = false, keyword_bar = false;
+    for (const auto& r : bars) {
+        if (r.color == View::minimap_tint(theme.syntax_type)) type_bar = true;
+        if (r.color == View::minimap_tint(theme.syntax_keyword)) keyword_bar = true;
+    }
+    CHECK(type_bar);
+    CHECK(keyword_bar);
+    // the text no longer reaches under the minimap
+    REQUIRE(text_cmd(dl, "int"));
+    CHECK(text_cmd(dl, "int")->origin.x.raw() < column);
+}
+
+TEST_CASE("the minimap's band marks what is in sight, and follows the scroll on a long file") {
+    Document doc{many_lines(5000)};
+    View view{doc, {.family = render::FontRole::Mono, .padding = 0, .minimap = true}};
+    render::DrawList dl;
+    view.draw(dl, window, theme);
+    CHECK(view.minimap_first() == 0);
+    view.scroll = core::DY{1e9f};
+    dl.clear();
+    view.draw(dl, window, theme);
+    CHECK(view.minimap_first() + view.minimap_rows() >= 5000);   // the end of the file is shown
+    bool band = false;
+    for (const auto& r : rects_right_of(dl, view.minimap_left()))
+        if (r.color == theme.scrollbar_thumb) band = true;
+    CHECK(band);
+}
+
+TEST_CASE("a click in the minimap scrolls the editor there") {
+    Document doc{many_lines(1000)};
+    Editor ed{doc, {.view = {.family = render::FontRole::Mono, .padding = 0, .minimap = true}}};
+    render::DrawList dl;
+    ed.view.draw(dl, window, theme);
+    const core::Point p{core::X{ed.view.minimap_left() + 5.f}, core::Y{100.f}};   // well down the map
+    ed.handle(input::MouseButton{p, input::buttons::left, true}, nullptr);
+    ed.handle(input::MouseButton{p, input::buttons::left, false}, nullptr);
+    CHECK(ed.view.scroll.raw() > 0.f);
+    CHECK(ed.caret() == Position{0, 0});   // the caret stays: the minimap only scrolls
+}
+
+namespace {
+struct WithMap {
+    Document doc{"int main() {}"};
+    void view(app::ViewBuilder& vb) { vb.code_editor(doc, "cpp"); }
+};
+} // namespace
+
+TEST_CASE("vb.code_editor shows a minimap") {
+    WithMap m;
+    app::WidgetTree tree{m};
+    tree.set_text_measurer(&fixed);
+    auto snap = tree.build_snapshot(600, 300, 1);
+    bool bar = false;
+    for (const auto& dl : snap->draw_lists)
+        for (const auto& c : dl->commands)
+            if (auto* r = std::get_if<render::FilledRect>(&c); r && r->color == View::minimap_tint(tree.theme().syntax_type)) bar = true;
+    CHECK(bar);
+}

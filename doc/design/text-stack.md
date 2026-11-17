@@ -240,6 +240,9 @@ Each step ends with something visible, tested, and shown in the gallery and the 
   Document tab edits Markdown and rich text side by side; its Text tab's code sample is a code
   editor; the data studio's query editor is `vb.code_editor(text, "sql")` with its error mark as
   highlights; the notes app edits a `Document`, its search hits as highlights.
+- A minimap (`ViewOptions::minimap`, on in `vb.code_editor`): each block a 2 px strip, words as
+  bars in their colors from the same highlighter states, a band over what is in sight, scrolling
+  along on a long file; a click or a drag scrolls there.
 - Python: `prism.document(text, markdown=False)` with `vb.text_editor`, `code_editor`,
   `text_view` (`python/src/text_bound.hpp`, example 19). Markdown is compiled into the extension.
 - Also: `text::find_all`, `find_next`, `replace_all` (Boyer-Moore-Horspool, non-overlapping
