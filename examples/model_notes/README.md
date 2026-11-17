@@ -49,7 +49,7 @@ One thread, and one pass from a change to a repaint:
 ## Walkthrough
 
 Read the files in this order. `model_notes.cpp` (268 lines) wires the widgets; `notes_logic.hpp`
-(73 lines) is the logic and `file_tree_source.hpp` (92 lines) is the tree. About 445 lines in all.
+(68 lines) is the logic and `file_tree_source.hpp` (92 lines) is the tree. About 430 lines in all.
 
 ### The document, and its search hits
 
