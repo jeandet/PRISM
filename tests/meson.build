@@ -66,6 +66,7 @@ headless_tests = {
   'table_hover_alias' : files('test_table_hover_alias.cpp'),
   'table_ops' : files('test_table_ops.cpp'),
   'node_ports' : files('test_node_ports.cpp'),
+  'wire_geometry' : files('test_wire_geometry.cpp'),
   'derived' : files('test_derived.cpp'),
   'derived_sources' : files('test_derived_sources.cpp'),
   'derived_tracking' : files('test_derived_tracking.cpp'),
