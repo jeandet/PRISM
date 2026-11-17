@@ -527,6 +527,29 @@ screen-reader bridge.
 
 <p align="center"><img src="doc/screenshots/model_notes.svg" alt="Notes editor example" width="700"/></p>
 
+### Documents, code and Markdown
+
+A `TextArea` holds its text in a field, fine for a form. A long text wants a `text::Document`:
+blocks (a line of code, a paragraph, a heading, a list item) with styled spans, edited in place,
+observed and undone. Its views lay out only what is in sight, so typing in a 100,000-line file
+costs what it costs in a ten-line one (0.01 ms against a second for `TextArea`,
+`benchmarks/text_scale.cpp`).
+
+```cpp
+text::Document source{load("main.cpp")};
+text::Document notes = text::markdown(readme);   // GitHub-flavoured Markdown, opt-in (-Dmarkdown)
+
+vb.code_editor(source, "cpp");                   // colors, line numbers, brackets, Tab to indent
+vb.text_editor(notes, {.rich = true});           // Ctrl+B, "# " for a heading, "- " for a list
+vb.text_view(notes);                             // read-only
+save("README.md", text::to_markdown(notes));     // and back
+```
+
+Inside a scroll area, `.rows(10)` makes one ten lines tall instead of filling the space. The
+built-in languages (`text::language("python")`, C/C++, SQL, JSON, TOML, shell) are rules written
+as data; another engine (tree-sitter, a language server) implements one `Highlighter` function.
+How it works, and which current editors each algorithm comes from: `doc/design/text-stack.md`.
+
 ### Settings that persist
 
 A struct of fields is also a settings file. Hand it to `app::run` as `.settings`: it is loaded

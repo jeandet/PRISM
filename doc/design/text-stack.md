@@ -1,6 +1,6 @@
 # The text stack: from a text area to a code editor, rich text and Markdown
 
-Status: proposal (2026-11-16). Nothing below is built yet.
+Status: built (2026-11-17), steps 1 to 6 below. What is left is listed at the end.
 
 ## What we want, and what it shares
 
@@ -223,6 +223,24 @@ Each step ends with something visible, tested, and shown in the gallery and the 
    The data studio's SQL editor and the notes app move to it.
 6. **Rich text editing**: commands that add or remove spans (Ctrl+B, Ctrl+I, a link), block kinds
    (heading, list). Markdown editor with live preview in the notes app.
+
+## Built, and what is left (2026-11-17)
+
+- `core::SumTree` (`core/sum_tree.hpp`), `text::Document` (`text/document.hpp`), `layout_block`
+  (`text/layout.hpp`), `View` (`text/view.hpp`, behind `vb.text_view`), `Editor`
+  (`text/editor.hpp`, `vb.text_editor`), `Highlighter` and the built-in languages
+  (`text/highlight.hpp`), `vb.code_editor(doc, "cpp")`, `text::markdown` (`prism-markdown`),
+  `text::to_markdown`, rich text editing (`EditorOptions::rich`), `FontStyle` (bold and italic in
+  every backend). The gallery's Document tab edits Markdown and rich text side by side; its Text
+  tab's code sample is a code editor.
+- Left, each noted as `simplify:` where the cut is:
+  - real bold and italic font files: SDL_ttf's synthetic slant reports a wider italic run than it
+    draws, leaving a small gap after an italic word;
+  - a decoration source for editors built by `vb` (search matches, a SQL error's range), so the
+    data studio's SQL editor and the notes app can move from `TextArea`;
+  - horizontal scrolling without wrapping; an input method's composition shown before it is
+    committed; highlighting past the screen in idle time; table rows as their own kind of block;
+    the caret put back at the change on undo; the layout cache trimmed least-recently-used.
 
 ## Open questions
 
