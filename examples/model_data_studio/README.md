@@ -54,7 +54,7 @@ Two threads, and only one of them touches the model:
 ## Walkthrough
 
 Read the files in this order. The PRISM part is `model_data_studio.cpp`, `settings.hpp` and
-`blocks/`, 535 lines. `query_runner.hpp` (199 lines) is the thread glue, and the only file here that
+`blocks/`, 507 lines. `query_runner.hpp` (199 lines) is the thread glue, and the only file here that
 knows both a thread and a PRISM type. `sql/` is plain C++ with no PRISM in it.
 
 ### A block: the results panel

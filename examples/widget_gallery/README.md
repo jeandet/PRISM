@@ -44,9 +44,9 @@ Two mechanisms, one file each, and a tab's knobs tying them together:
 
 ## Walkthrough
 
-Read the files in this order. The PRISM part is `knob.hpp` (163 lines) and
-`build_your_own_tab.hpp` + `.cpp` (118 and 64), with `main.cpp` (124 lines) arranging the rest. The
-ten tabs are a header and a `.cpp` each, about 1 250 lines together: one tab's `view()` compiles in
+Read the files in this order. The PRISM part is `knob.hpp` (161 lines) and
+`build_your_own_tab.hpp` + `.cpp` (114 and 65), with `main.cpp` (126 lines) arranging the rest. The
+ten tabs are a header and a `.cpp` each, about 1 550 lines together: one tab's `view()` compiles in
 its own file, so editing a tab recompiles one file.
 
 ### A value type with no drawing in it
@@ -200,12 +200,12 @@ The tabs, in the order they appear:
 | Controls | Every input widget, live: type, pick, drag, tick. The Lock toggle greys the group below it, and the Save button waits for a name. |
 | Catalog | Pick a widget on the left; its documentation, its code line and a live sample are on the right. |
 | Text | Selection, clipboard, undo across a code sample and prose; Hebrew and Arabic run right to left, and combining marks stay attached. |
-| Code | `vb.code_editor(doc, language)` for C++, Python, SQL, JSON, TOML and shell: colors, line numbers, a minimap, matching brackets, Tab to indent, long lines scrolled sideways. Type in Find: every match is highlighted; Replace all is one undo step. **Open a 100,000-line file**, press Ctrl+End and type: it costs what it costs in ten lines. |
+| Code | `vb.code_editor(doc, language)` for C++, Python, SQL, JSON, TOML and shell: colors, line numbers, a minimap, matching brackets, Tab to indent, long lines scrolled sideways, and a completion list of the file's words as you type (Ctrl+Space asks for it). Type in Find: every match is highlighted; Replace all is one undo step. **Open a 100,000-line file**, press Ctrl+End and type: it costs what it costs in ten lines. |
 | Document | Type Markdown on the left; the right side renders it as you type: headings, lists, quotes, code, tables. The rendering is a `text::Document` in `vb.text_view`, which lays out only what is in sight. |
 | Data | 10 000 rows, seven columns, sorted by clicking a header; drag a header to move that column, drag its edge to resize it, right-click the header to hide columns. |
 | Plot | Two sliders and a checkbox refill the plot's two series; beside them a hand-drawn Lissajous canvas reads the ratio field. |
 | Popups | Dialogs, a popover, a context menu and the platform's file dialogs, each opened by a button. |
-| Docking | Four panels in a dock. Drag a panel's tab onto another panel: the guide puts it in that panel's tabs, beside it, or along a side; let it go outside the window to float it. The arrangement is a preference. |
+| Docking | Four panels in a dock. Drag a panel's tab onto another panel: the guide puts it in that panel's tabs, beside it, or along a side; let it go outside the window to float it, or double-click its tab. Drag a tab along its bar to reorder it; List and Log have a × to close them, and a button reopens them. A floating panel is its own window on the desktop and a card over the dock in the browser; let a card go on a guide button and it docks there. The arrangement is a preference. |
 | Build your own | Three knobs from `knob.hpp`, the file itself, then eight `ChannelStrip`s and a master. Drag a knob; the meter under it follows. |
 
 Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.

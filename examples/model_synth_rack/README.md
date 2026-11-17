@@ -44,7 +44,7 @@ Three threads, and only one of them touches the model:
 ## Walkthrough
 
 Read the files in this order. The PRISM part is `model_synth_rack.cpp`, `rack_settings.hpp` and
-`blocks/`, about 780 lines. `audio_thread.hpp` (175 lines) is the thread glue. `dsp/` is plain C++
+`blocks/`, about 780 lines. `audio_thread.hpp` (195 lines) is the thread glue. `dsp/` is plain C++
 with no PRISM in it.
 
 ### A block: the effects panel

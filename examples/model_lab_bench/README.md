@@ -55,10 +55,10 @@ Two threads, and only one of them touches the model:
 ## Walkthrough
 
 Read the files in this order. The PRISM part is `model_lab_bench.cpp`, `settings.hpp` and
-`blocks/`, 626 lines: the five docked panels, the one settings value that reaches the hardware
-thread, and the status bar. `hardware_thread.hpp` (51 lines) is the thread glue. `daq/` (186
+`blocks/`, 712 lines: the five docked panels, the one settings value that reaches the hardware
+thread, and the status bar. `hardware_thread.hpp` (51 lines) is the thread glue. `daq/` (356
 lines) is plain C++ with no PRISM in it: waveforms, the supply's load line, the scope's autoscale
-and measurements.
+and measurements, and the SCPI commands the instrument answers.
 
 ### A panel is a block
 

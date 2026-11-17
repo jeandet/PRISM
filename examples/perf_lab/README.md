@@ -47,7 +47,7 @@ Three lanes, one value crossing between the first two:
 
 ## Walkthrough
 
-Read the files in this order. `main.cpp` (192 lines) is the app, the producer and `main()`;
+Read the files in this order. `main.cpp` (191 lines) is the app, the producer and `main()`;
 `lab_model.hpp` (237 lines) is the workload and the arithmetic, with no PRISM in it, and
 `headless_lab_backend.hpp` (76 lines) is the backend behind `--headless`.
 
