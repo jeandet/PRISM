@@ -29,6 +29,11 @@ struct EditorOptions {
     bool tab_inserts = false;     // Tab types an indent (code) instead of moving the focus on
     bool auto_indent = false;     // Enter keeps the line's leading whitespace (code)
     bool match_brackets = false;  // the bracket at the caret and its match highlighted (code)
+    // Rich text: Ctrl+B, Ctrl+I and Ctrl+E make the selection (or the word at the caret) strong,
+    // emphasis or code, and again take it off; "# ", "- ", "1. " or "> " typed at a paragraph's
+    // start make it a heading, a list item or a quote; Enter goes on with a list, and leaves it
+    // on an empty item; Backspace at a block's start makes it a paragraph again.
+    bool rich = false;
     std::string indent = "    ";
 };
 
@@ -74,6 +79,10 @@ private:
     Position prev_word(Position p) const;
     Range word_at(Position p) const;
     std::vector<Range> bracket_pair() const;
+    void toggle(Style s);
+    void markdown_shortcut();
+    bool leave_block();          // Backspace at the start of a heading, quote or list item
+    void continue_block();       // after Enter: what the new block becomes
     void move(Position to, bool extend);   // a caret jump: the next typing starts a new undo step
     void show();                           // the view's marks follow the caret, and it scrolls to it
 };

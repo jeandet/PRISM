@@ -186,10 +186,11 @@ void Document::unstyle(Range r, Style s) {
     splice(r.begin.block, blocks.size(), std::move(blocks));
 }
 
-void Document::set_kind(std::size_t block, BlockKind kind, int level) {
+void Document::set_kind(std::size_t block, BlockKind kind, int level, std::string info) {
     auto blocks = take(block, 1);
     blocks[0].kind = kind;
     blocks[0].level = level;
+    blocks[0].info = std::move(info);
     splice(block, 1, std::move(blocks));
 }
 

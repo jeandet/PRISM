@@ -90,7 +90,7 @@ public:
     Position replace(Range r, std::string_view text);
     void style(Range r, Style s, std::string target = {});
     void unstyle(Range r, Style s);
-    void set_kind(std::size_t block, BlockKind kind, int level = 0);
+    void set_kind(std::size_t block, BlockKind kind, int level = 0, std::string info = {});
     // Everything replaced by `other`'s blocks, as one edit: a view showing this document follows
     // (assigning a new Document over it would leave the view on the old one). Undoable.
     void assign(Document other);

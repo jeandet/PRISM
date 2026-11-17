@@ -213,6 +213,16 @@ if prism_io_dep.found()
   test('lab_bench_link', test_lab_bench_link)
 endif
 
+# Rich text editing and text::to_markdown; read back through text::markdown when it is built.
+rich_text_deps = [prism_core_dep, doctest_dep]
+rich_text_args = []
+if prism_markdown_dep.found()
+  rich_text_deps += [prism_markdown_dep]
+  rich_text_args += ['-DPRISM_HAS_MARKDOWN']
+endif
+test('rich_text', executable('test_rich_text', files('test_rich_text.cpp'),
+  dependencies : rich_text_deps, cpp_args : rich_text_args))
+
 # text::markdown: GitHub-flavoured Markdown into a document.
 if prism_markdown_dep.found()
   test('markdown', executable('test_markdown', files('test_markdown.cpp'),

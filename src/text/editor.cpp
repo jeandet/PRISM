@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <string>
 #include <variant>
 
 namespace prism::text {
@@ -141,6 +143,66 @@ void Editor::type(std::string_view text) {
     caret_ = anchor_ = doc_.replace(sel, text);
     column_x_ = -1.f;
     if (is_blank(text)) doc_.break_undo_group();   // a word typed is one undo step
+    if (options_.rich && text == " ") markdown_shortcut();
+    show();
+}
+
+// The Markdown that starts a paragraph, typed: the block becomes what it says, the markup goes.
+void Editor::markdown_shortcut() {
+    const std::size_t i = caret_.block;
+    if (doc_[i].kind != BlockKind::paragraph) return;
+    const std::string_view head = std::string_view(doc_[i].text).substr(0, caret_.byte);
+    BlockKind kind = BlockKind::paragraph;
+    int level = 0;
+    std::string info;
+    const std::size_t hashes = head.find_first_not_of('#');
+    const std::size_t digits = head.find_first_not_of("0123456789");
+    if (hashes >= 1 && hashes <= 6 && head.substr(hashes) == " ") { kind = BlockKind::heading; level = static_cast<int>(hashes); }
+    else if (head == "- " || head == "* ") { kind = BlockKind::bullet; info = "\xE2\x80\xA2"; }
+    else if (digits >= 1 && head.substr(digits) == ". ") { kind = BlockKind::ordered; info = std::string(head.substr(0, digits + 1)); }
+    else if (head == "> ") kind = BlockKind::quote;
+    else return;
+    doc_.break_undo_group();
+    doc_.erase({{i, 0}, {i, head.size()}});
+    doc_.set_kind(i, kind, level, info);
+    caret_ = anchor_ = {i, 0};
+}
+
+void Editor::continue_block() {
+    const std::size_t i = caret_.block;
+    if (i == 0) return;
+    const Block& before = doc_[i - 1];
+    if (before.kind == BlockKind::heading) doc_.set_kind(i, BlockKind::paragraph);
+    else if (before.kind == BlockKind::ordered)
+        doc_.set_kind(i, BlockKind::ordered, before.level, std::to_string(std::atoi(before.info.c_str()) + 1) + ".");
+}
+
+bool Editor::leave_block() {
+    const Block& b = doc_[caret_.block];
+    if (b.kind == BlockKind::paragraph || b.kind == BlockKind::code || caret_ != anchor_ || caret_.byte != 0) return false;
+    doc_.break_undo_group();
+    doc_.set_kind(caret_.block, BlockKind::paragraph);
+    show();
+    return true;
+}
+
+// The selection, or the word at the caret, gets style s; if all of it has s already, loses it.
+void Editor::toggle(Style s) {
+    if (options_.read_only) return;
+    const Range r = caret_ != anchor_ ? selection() : word_at(caret_);
+    if (r.empty()) return;
+    bool all = true;
+    for (std::size_t i = r.begin.block; i <= r.end.block; ++i) {
+        const std::size_t a = i == r.begin.block ? r.begin.byte : 0;
+        const std::size_t z = i == r.end.block ? r.end.byte : doc_[i].text.size();
+        if (a >= z) continue;
+        const auto& spans = doc_[i].spans;
+        all = all && std::ranges::any_of(spans, [&](const Span& sp) { return sp.style == s && sp.begin <= a && sp.end >= z; });
+    }
+    doc_.break_undo_group();
+    if (all) doc_.unstyle(r, s);
+    else doc_.style(r, s);
+    doc_.break_undo_group();
     show();
 }
 
@@ -153,10 +215,17 @@ void Editor::erase(Range r) {
 }
 
 void Editor::enter() {
+    if (options_.rich && (doc_[caret_.block].kind == BlockKind::bullet || doc_[caret_.block].kind == BlockKind::ordered) &&
+        doc_[caret_.block].text.empty()) {
+        doc_.break_undo_group();
+        doc_.set_kind(caret_.block, BlockKind::paragraph);   // Enter on an empty item leaves the list
+        return show();
+    }
     const std::string indent =
         options_.auto_indent ? std::string(leading_space(doc_[caret_.block].text.substr(0, caret_.byte))) : std::string{};
     doc_.break_undo_group();
     type("\n" + indent);
+    if (options_.rich) continue_block();
 }
 
 // Tab: the indent typed at the caret. Shift+Tab: up to one indent's width of leading spaces gone.
@@ -185,6 +254,9 @@ bool Editor::key(const input::KeyPress& k, const ui::Clipboard* clipboard) {
     if (mods::shortcut(k.mods)) {
         switch (k.key) {
         case keys::a: select_all(); return true;
+        case keys::b: if (!options_.rich) break; toggle(Style::strong); return true;
+        case keys::i: if (!options_.rich) break; toggle(Style::emphasis); return true;
+        case keys::e: if (!options_.rich) break; toggle(Style::code); return true;
         case keys::c: return copy(clipboard);
         case keys::x: copy(clipboard); erase(selection()); return true;
         case keys::z:
@@ -220,6 +292,7 @@ bool Editor::key(const input::KeyPress& k, const ui::Clipboard* clipboard) {
     case keys::home: move(word ? Position{0, 0} : view.visual_line(caret_).begin, shift); return true;
     case keys::end: move(word ? doc_.end() : view.visual_line(caret_).end, shift); return true;
     case keys::backspace:
+        if (options_.rich && leave_block()) return true;
         if (has_selection) erase(selection());
         else erase({word ? prev_word(caret_) : prev_char(caret_), caret_});
         return true;

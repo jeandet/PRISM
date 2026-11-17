@@ -60,10 +60,12 @@ namespace keys {
     inline constexpr int32_t f5        = f1 + 4;
     inline constexpr int32_t f12       = f1 + 11;
     inline constexpr int32_t a         = 0x61;         // matches SDLK_A
+    inline constexpr int32_t b         = 0x62;         // matches SDLK_B
     inline constexpr int32_t c         = 0x63;         // matches SDLK_C
     inline constexpr int32_t e         = 0x65;         // matches SDLK_E
     inline constexpr int32_t f         = 0x66;         // matches SDLK_F
     inline constexpr int32_t i         = 0x69;         // matches SDLK_I
+    inline constexpr int32_t k         = 0x6B;         // matches SDLK_K
     inline constexpr int32_t m         = 0x6D;         // matches SDLK_M
     inline constexpr int32_t o         = 0x6F;         // matches SDLK_O
     inline constexpr int32_t s         = 0x73;         // matches SDLK_S
