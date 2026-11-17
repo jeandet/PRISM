@@ -29,7 +29,7 @@ Editor::Editor(Document& doc, EditorOptions options) : view(doc, options.view), 
     follow_ = doc_.on_change().connect([this](const Change&) {
         caret_ = clamp(caret_);
         anchor_ = clamp(anchor_);
-        view.marks = View::Marks{caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{}};
+        view.marks = marks();
     });
     show();
 }
@@ -78,9 +78,12 @@ Range Editor::word_at(Position p) const {
     return {{p.block, a}, {p.block, z}};
 }
 
+View::Marks Editor::marks() const {
+    return {caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{}, preedit_, preedit_caret_};
+}
+
 void Editor::show() {
-    view.marks = View::Marks{caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{},
-                             preedit_, preedit_caret_};
+    view.marks = marks();
     view.reveal(caret_);
 }
 
@@ -116,7 +119,7 @@ std::vector<Range> Editor::bracket_pair() const {
                 else break;
             }
         }
-        return {};
+        // no match for this one: the bracket before the caret may have one
     }
     return {};
 }
@@ -170,11 +173,14 @@ void Editor::markdown_shortcut() {
     caret_ = anchor_ = {i, 0};
 }
 
-void Editor::continue_block() {
+// After Enter split a block: the new line under a heading is a paragraph, a numbered item counts
+// on. Enter at a heading's start pushed it down instead: the empty line left above is a paragraph.
+void Editor::continue_block(bool at_start) {
     const std::size_t i = caret_.block;
     if (i == 0) return;
     const Block& before = doc_[i - 1];
-    if (before.kind == BlockKind::heading) doc_.set_kind(i, BlockKind::paragraph);
+    if (at_start && before.kind == BlockKind::heading) doc_.set_kind(i - 1, BlockKind::paragraph);
+    else if (before.kind == BlockKind::heading) doc_.set_kind(i, BlockKind::paragraph);
     else if (before.kind == BlockKind::ordered)
         doc_.set_kind(i, BlockKind::ordered, before.level, std::to_string(std::atoi(before.info.c_str()) + 1) + ".");
 }
@@ -225,9 +231,10 @@ void Editor::enter() {
     }
     const std::string indent =
         options_.auto_indent ? std::string(leading_space(doc_[caret_.block].text.substr(0, caret_.byte))) : std::string{};
+    const bool at_start = caret_.byte == 0 && caret_ == anchor_;
     doc_.break_undo_group();
     type("\n" + indent);
-    if (options_.rich) continue_block();
+    if (options_.rich) continue_block(at_start);
 }
 
 // Tab: the indent typed at the caret. Shift+Tab: up to one indent's width of leading spaces gone.

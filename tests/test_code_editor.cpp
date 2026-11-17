@@ -116,6 +116,27 @@ TEST_CASE("the caret next to a bracket highlights it and its match, across lines
     CHECK(ed.view.marks->highlights.empty());
 }
 
+TEST_CASE("review: a bracket before the caret is matched even when the one at the caret has no match") {
+    Document doc{"(a)("};
+    Editor ed{doc, {.view = {.family = render::FontRole::Mono, .padding = 0}, .match_brackets = true}};
+    render::DrawList dl;
+    ed.view.draw(dl, window, theme);
+    ed.set_caret({0, 3});   // after ")", before the unmatched "("
+    REQUIRE(ed.view.marks);
+    REQUIRE(ed.view.marks->highlights.size() == 2);
+    CHECK(ed.view.marks->highlights[0].begin == Position{0, 2});
+    CHECK(ed.view.marks->highlights[1].begin == Position{0, 0});
+}
+
+TEST_CASE("review: a composition stays shown when the document changes meanwhile") {
+    Document doc{"ab"};
+    Editor ed{doc};
+    ed.handle(input::Composition{"x", 1, 0}, nullptr);
+    doc.insert({0, 2}, "c");
+    REQUIRE(ed.view.marks);
+    CHECK(ed.view.marks->preedit == "x");
+}
+
 namespace {
 struct Source {
     Document doc{"int main() {\n    return 0;\n}"};

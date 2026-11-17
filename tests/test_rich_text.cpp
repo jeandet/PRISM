@@ -5,6 +5,9 @@
 
 #include <prism/text/editor.hpp>
 #include <prism/text/to_markdown.hpp>
+#ifdef PRISM_HAS_MARKDOWN
+#include <prism/text/markdown.hpp>
+#endif
 
 #include <string>
 
@@ -120,7 +123,6 @@ TEST_CASE("spans over the same words nest: the one opened last closes first") {
 }
 
 #ifdef PRISM_HAS_MARKDOWN
-#include <prism/text/markdown.hpp>
 TEST_CASE("Markdown read and written back reads the same") {
     const std::string source = "# Title\n\nA *word*, `code` and ~~gone~~.\n\n1. one\n2. two\n\n```py\nx = 1\n```\n";
     auto doc = markdown(source);
@@ -133,3 +135,43 @@ TEST_CASE("Markdown read and written back reads the same") {
     }
 }
 #endif
+
+TEST_CASE("review: Enter at the start of a heading leaves the heading a heading") {
+    Rig r{""};
+    r.type("# Title");
+    r.ed.set_caret({0, 0});
+    r.key(keys::enter);
+    REQUIRE(r.doc.size() == 2);
+    CHECK(r.doc[0].kind == BlockKind::paragraph);
+    CHECK(r.doc[0].text.empty());
+    CHECK(r.doc[1].kind == BlockKind::heading);
+    CHECK(r.doc[1].text == "Title");
+}
+
+TEST_CASE("review: replacing a styled word keeps its style") {
+    Document doc{"say hello now"};
+    doc.style({{0, 4}, {0, 9}}, Style::strong);
+    doc.replace({{0, 4}, {0, 9}}, "world");
+    REQUIRE(doc[0].spans.size() == 1);
+    CHECK(doc[0].spans[0].begin == 4);
+    CHECK(doc[0].spans[0].end == 9);
+}
+
+TEST_CASE("review: text that looks like Markdown markup stays text through to_markdown") {
+    Document doc{std::vector<Block>{{.text = "# not a heading"}, {.text = "- not a list"}, {.text = "> not a quote"},
+                                    {.text = "1. not a list"}, {.text = "a `tick`", .spans = {{2, 8, Style::code}}},
+                                    {.text = "```", .kind = BlockKind::code}}};
+    const std::string md = to_markdown(doc);
+    CHECK(md.find("\\# not") != std::string::npos);
+    CHECK(md.find("\\- not") != std::string::npos);
+    CHECK(md.find("\\> not") != std::string::npos);
+    CHECK(md.find("1\\. not") != std::string::npos);
+#ifdef PRISM_HAS_MARKDOWN
+    auto back = markdown(md);
+    REQUIRE(back.size() == doc.size());
+    for (std::size_t i = 0; i < doc.size(); ++i) {
+        CHECK(back[i].kind == doc[i].kind);
+        CHECK(back[i].text == doc[i].text);
+    }
+#endif
+}

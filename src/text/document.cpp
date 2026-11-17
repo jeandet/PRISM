@@ -157,9 +157,18 @@ void Document::erase(Range r) {
     splice(r.begin.block, r.end.block - r.begin.block + 1, {std::move(joined)});
 }
 
+// The new text takes the styles of the text it replaces, where that starts (a word retyped in
+// bold stays bold), as editors do.
 Position Document::replace(Range r, std::string_view text) {
+    std::vector<Span> kept;
+    if (!r.empty())
+        for (const Span& s : blocks_[r.begin.block].spans)
+            if (s.begin <= r.begin.byte && r.begin.byte < s.end) kept.push_back(s);
     erase(r);
-    return insert(r.begin, text);
+    const Position end = insert(r.begin, text);
+    for (const Span& s : kept)
+        if (!text.empty()) style({r.begin, end}, s.style, s.target);
+    return end;
 }
 
 void Document::replace_each(const std::vector<Range>& ranges, std::string_view with) {
@@ -168,9 +177,18 @@ void Document::replace_each(const std::vector<Range>& ranges, std::string_view w
     auto blocks = take(first, last - first + 1);
     for (auto r = ranges.rbegin(); r != ranges.rend(); ++r) {   // from the end: earlier offsets stay put
         Block& b = blocks[r->begin.block - first];
+        std::vector<Span> kept;   // styles where the match starts: the replacement takes them
+        for (const Span& s : b.spans)
+            if (s.begin <= r->begin.byte && r->begin.byte < s.end) kept.push_back(s);
         b.text.replace(r->begin.byte, r->end.byte - r->begin.byte, with);
         spans_after_erase(b.spans, r->begin.byte, r->end.byte);
         spans_after_insert(b.spans, r->begin.byte, with.size());
+        for (Span s : kept) {
+            s.begin = r->begin.byte;
+            s.end = r->begin.byte + with.size();
+            if (s.end > s.begin) b.spans.push_back(std::move(s));
+        }
+        normalize(b.spans);
     }
     const Range& end = ranges.back();
     std::size_t shift = 0;   // the last range's end moved by the replacements before it in its block

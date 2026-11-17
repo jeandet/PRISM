@@ -96,3 +96,11 @@ TEST_CASE("empty input is one empty block") {
     CHECK(doc.size() == 1);
     CHECK(doc[0].text.empty());
 }
+
+TEST_CASE("review: an empty list item is kept, with its marker") {
+    auto doc = markdown("- a\n-\n- c");
+    REQUIRE(doc.size() == 3);
+    CHECK(doc[1].kind == BlockKind::bullet);
+    CHECK(doc[1].text.empty());
+    CHECK(doc[1].info == "\xE2\x80\xA2");
+}

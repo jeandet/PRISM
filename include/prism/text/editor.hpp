@@ -83,9 +83,10 @@ private:
     void toggle(Style s);
     void markdown_shortcut();
     bool leave_block();          // Backspace at the start of a heading, quote or list item
-    void continue_block();       // after Enter: what the new block becomes
+    void continue_block(bool at_start);   // after Enter: what the new block becomes
     void move(Position to, bool extend);   // a caret jump: the next typing starts a new undo step
     void show();                           // the view's marks follow the caret, and it scrolls to it
+    View::Marks marks() const;
 };
 
 } // namespace prism::text

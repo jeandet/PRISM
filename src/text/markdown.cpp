@@ -130,6 +130,13 @@ struct Walker {
                 inner.marker = cmark_gfm_extensions_get_tasklist_item_checked(item) ? "\xE2\x96\xA0" : "\xE2\x96\xA1";
             else
                 inner.marker = ordered ? std::to_string(number) + "." : bullet(inner.depth);
+            // An item with no paragraph of its own first (empty, or opening on a nested list) is
+            // still a line with its marker.
+            cmark_node* first = cmark_node_first_child(item);
+            if (!first || cmark_node_get_type(first) != CMARK_NODE_PARAGRAPH) {
+                out.push_back(Block{.kind = inner.item_kind, .level = inner.depth, .info = inner.marker});
+                inner.marker.clear();
+            }
             children(item, inner);
         }
     }
