@@ -240,7 +240,7 @@ Each step ends with something visible, tested, and shown in the gallery and the 
     draws, leaving a small gap after an italic word;
   - horizontal scrolling without wrapping; an input method's composition shown before it is
     committed; highlighting past the screen in idle time; table rows as their own kind of block;
-    the caret put back at the change on undo; the layout cache trimmed least-recently-used.
+    the layout cache trimmed least-recently-used.
 
 ## Open questions
 

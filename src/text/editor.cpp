@@ -261,10 +261,10 @@ bool Editor::key(const input::KeyPress& k, const ui::Clipboard* clipboard) {
         case keys::x: copy(clipboard); erase(selection()); return true;
         case keys::z:
             if (options_.read_only) return false;
-            if (shift ? doc_.redo() : doc_.undo()) set_caret(caret_);
+            if (shift ? doc_.redo() : doc_.undo()) set_caret(doc_.replayed_at());
             return true;
         case keys::y:
-            if (!options_.read_only && doc_.redo()) set_caret(caret_);
+            if (!options_.read_only && doc_.redo()) set_caret(doc_.replayed_at());
             return true;
         default: break;
         }

@@ -7,6 +7,15 @@
 
 #include <string>
 
+namespace doctest {
+template <>
+struct StringMaker<prism::text::Position> {
+    static String convert(const prism::text::Position& p) {
+        return ("{" + std::to_string(p.block) + ", " + std::to_string(p.byte) + "}").c_str();
+    }
+};
+} // namespace doctest
+
 using namespace prism;
 using namespace prism::text;
 using input::KeyPress;
@@ -155,6 +164,24 @@ TEST_CASE("undo and redo: a word typed is one step") {
     CHECK(r.doc.text().empty());
     r.key(keys::y, mods::ctrl);
     CHECK(r.doc.text() == "ab ");
+}
+
+TEST_CASE("undo and redo put the caret at the change, wherever it was") {
+    Rig r{"hello world"};
+    r.ed.set_caret({0, 5});
+    r.type(" big");                 // "hello big world"
+    r.key(keys::home);              // the caret goes away from the change
+    r.key(keys::z, mods::ctrl);
+    CHECK(r.doc.text() == "hello world");
+    CHECK(r.ed.caret() == Position{0, 5});
+    r.key(keys::home);
+    r.key(keys::y, mods::ctrl);
+    CHECK(r.ed.caret() == Position{0, 9});   // after what came back
+    r.ed.set_caret({0, 15});
+    r.key(keys::backspace, mods::ctrl);      // "hello big " (world gone)
+    r.key(keys::home);
+    r.key(keys::z, mods::ctrl);
+    CHECK(r.ed.caret() == Position{0, 15});  // after the word put back
 }
 
 TEST_CASE("a click puts the caret where it lands; a drag selects; a double click takes a word") {

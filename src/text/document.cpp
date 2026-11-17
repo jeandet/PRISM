@@ -119,6 +119,7 @@ Position Document::insert(Position at, std::string_view text) {
         Block one = b;
         one.text.insert(at.byte, text);
         spans_after_insert(one.spans, at.byte, text.size());
+        carets(at, {at.block, at.byte + text.size()});
         splice(at.block, 1, {std::move(one)});
         return {at.block, at.byte + text.size()};
     }
@@ -131,12 +132,14 @@ Position Document::insert(Position at, std::string_view text) {
     tail.spans = spans_from(b.spans, at.byte, lines.back().size());
     out.push_back(std::move(tail));
     const Position end_at{at.block + lines.size() - 1, lines.back().size()};
+    carets(at, end_at);
     splice(at.block, 1, std::move(out));
     return end_at;
 }
 
 void Document::erase(Range r) {
     if (r.empty()) return;
+    carets(r.end, r.begin);
     const Block& first = blocks_[r.begin.block];
     if (r.begin.block == r.end.block) {
         Block one = first;
@@ -160,6 +163,7 @@ Position Document::replace(Range r, std::string_view text) {
 }
 
 void Document::style(Range r, Style s, std::string target) {
+    carets(r.end, r.end);
     auto blocks = take(r.begin.block, r.end.block - r.begin.block + 1);
     for (std::size_t k = 0; k < blocks.size(); ++k) {
         auto [a, b] = bytes_in(r, r.begin.block + k, blocks[k].text.size());
@@ -171,6 +175,7 @@ void Document::style(Range r, Style s, std::string target) {
 }
 
 void Document::unstyle(Range r, Style s) {
+    carets(r.end, r.end);
     auto blocks = take(r.begin.block, r.end.block - r.begin.block + 1);
     for (std::size_t k = 0; k < blocks.size(); ++k) {
         auto [a, b] = bytes_in(r, r.begin.block + k, blocks[k].text.size());
@@ -187,6 +192,7 @@ void Document::unstyle(Range r, Style s) {
 }
 
 void Document::set_kind(std::size_t block, BlockKind kind, int level, std::string info) {
+    carets({block, 0}, {block, 0});
     auto blocks = take(block, 1);
     blocks[0].kind = kind;
     blocks[0].level = level;
@@ -202,6 +208,7 @@ void Document::reset(Document other) {
 
 void Document::assign(Document other) {
     break_undo_group();
+    carets({0, 0}, {0, 0});
     splice(0, size(), other.take(0, other.size()));
     break_undo_group();
 }
@@ -231,16 +238,18 @@ void Document::record(std::size_t first, std::vector<Block> before, std::size_t 
         Step& last = undo_.back();
         if (first >= last.first && first + removed <= last.first + last.after) {
             last.after = last.after - removed + after;
+            last.redo_caret = redo_caret_;
             return;
         }
     }
-    undo_.push_back({first, std::move(before), after});
+    undo_.push_back({first, std::move(before), after, undo_caret_, redo_caret_});
     grouping_ = true;
 }
 
+
 // Undo and redo are one move: put a step's blocks back, and keep what they replaced as the step
 // that goes the other way.
-bool Document::replay(std::vector<Step>& from, std::vector<Step>& to) {
+bool Document::replay(std::vector<Step>& from, std::vector<Step>& to, bool undoing) {
     if (from.empty()) return false;
     Step step = std::move(from.back());
     from.pop_back();
@@ -249,13 +258,14 @@ bool Document::replay(std::vector<Step>& from, std::vector<Step>& to) {
     for (auto& b : step.before) b.version = next_version_++;
     blocks_.erase(step.first, step.first + step.after);
     blocks_.insert(step.first, std::make_move_iterator(step.before.begin()), std::make_move_iterator(step.before.end()));
-    to.push_back({step.first, std::move(now), restored});
+    replayed_at_ = undoing ? step.undo_caret : step.redo_caret;
+    to.push_back({step.first, std::move(now), restored, step.undo_caret, step.redo_caret});
     grouping_ = false;
     changed_.emit(Change{step.first, step.after, restored});
     return true;
 }
 
-bool Document::undo() { return replay(undo_, redo_); }
-bool Document::redo() { return replay(redo_, undo_); }
+bool Document::undo() { return replay(undo_, redo_, true); }
+bool Document::redo() { return replay(redo_, undo_, false); }
 
 } // namespace prism::text

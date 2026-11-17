@@ -18,9 +18,8 @@
 // Shift to select, Backspace/Delete (Ctrl: a word), Enter, Ctrl+A/C/X/Z/Y, Ctrl+Shift+Z; Tab and
 // Shift+Tab indent when tab_inserts. Mouse: click, Shift+click, drag, double click (a word), triple
 // click (a line).
-// simplify: an input method's composition is not shown until committed, undo leaves the caret
-// where it was (clamped), not at the change, and a bracket inside a string or a comment still
-// counts. Each when an editor needs it.
+// simplify: an input method's composition is not shown until committed, and a bracket inside a
+// string or a comment still counts. Each when an editor needs it.
 namespace prism::text {
 
 struct EditorOptions {

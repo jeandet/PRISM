@@ -107,6 +107,8 @@ public:
     bool redo();
     [[nodiscard]] bool can_undo() const { return !undo_.empty(); }
     [[nodiscard]] bool can_redo() const { return !redo_.empty(); }
+    // Where a caret goes after the last undo or redo: the end of what it changed.
+    [[nodiscard]] Position replayed_at() const { return replayed_at_; }
 
     core::SenderHub<const Change&>& on_change() { return changed_; }
 
@@ -114,24 +116,30 @@ private:
     struct Bytes {
         std::size_t operator()(const Block& b) const { return b.text.size() + 1; }   // + its newline
     };
-    // Blocks [first, first + after) replaced the `before` blocks: what undo puts back.
+    // Blocks [first, first + after) replaced the `before` blocks: what undo puts back. And where
+    // the caret goes: after undoing it (the edit's start, or the end of the text it erased), and
+    // after redoing it (the edit's end).
     struct Step {
         std::size_t first;
         std::vector<Block> before;
         std::size_t after;
+        Position undo_caret{}, redo_caret{};
     };
 
     core::SumTree<Block, std::size_t, Bytes> blocks_;
     core::SenderHub<const Change&> changed_;
     std::vector<Step> undo_, redo_;
     bool grouping_ = false;
+    Position replayed_at_{};
+    Position undo_caret_{}, redo_caret_{};   // the edit under way, for the step it records
     std::uint64_t next_version_ = 1;
 
     // The one edit every other is made of: blocks [first, first + removed) become `blocks`.
     void splice(std::size_t first, std::size_t removed, std::vector<Block> blocks);
     std::vector<Block> take(std::size_t first, std::size_t count) const;
     void record(std::size_t first, std::vector<Block> before, std::size_t after);
-    bool replay(std::vector<Step>& from, std::vector<Step>& to);
+    bool replay(std::vector<Step>& from, std::vector<Step>& to, bool undoing);
+    void carets(Position undo, Position redo) { undo_caret_ = undo; redo_caret_ = redo; }
 };
 
 } // namespace prism::text
