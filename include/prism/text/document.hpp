@@ -91,6 +91,9 @@ public:
     Position insert(Position at, std::string_view text);
     void erase(Range r);
     Position replace(Range r, std::string_view text);
+    // Each range (in order, apart, each within one block) replaced by `with`, as one edit: what
+    // text::replace_all is made of.
+    void replace_each(const std::vector<Range>& ranges, std::string_view with);
     void style(Range r, Style s, std::string target = {});
     void unstyle(Range r, Style s);
     void set_kind(std::size_t block, BlockKind kind, int level = 0, std::string info = {});
@@ -136,6 +139,7 @@ private:
 
     // The one edit every other is made of: blocks [first, first + removed) become `blocks`.
     void splice(std::size_t first, std::size_t removed, std::vector<Block> blocks);
+    void rewrite(std::size_t first, std::vector<Block> blocks);
     std::vector<Block> take(std::size_t first, std::size_t count) const;
     void record(std::size_t first, std::vector<Block> before, std::size_t after);
     bool replay(std::vector<Step>& from, std::vector<Step>& to, bool undoing);

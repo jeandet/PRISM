@@ -198,3 +198,14 @@ TEST_CASE("a Derived reading a document follows it, with no list") {
     doc.insert({0, 7}, " three");
     CHECK(length.get() == 13);
 }
+
+TEST_CASE("styling, unstyling and changing a kind keep the number of blocks") {
+    Document doc{"one\ntwo\nthree"};
+    doc.style({{1, 0}, {2, 2}}, Style::strong);
+    CHECK(doc.size() == 3);
+    doc.unstyle({{1, 1}, {1, 2}}, Style::strong);
+    CHECK(doc.size() == 3);
+    doc.set_kind(0, BlockKind::heading, 1);
+    CHECK(doc.size() == 3);
+    CHECK(doc.text() == "one\ntwo\nthree");
+}

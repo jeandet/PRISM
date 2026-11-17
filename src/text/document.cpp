@@ -162,6 +162,26 @@ Position Document::replace(Range r, std::string_view text) {
     return insert(r.begin, text);
 }
 
+void Document::replace_each(const std::vector<Range>& ranges, std::string_view with) {
+    if (ranges.empty()) return;
+    const std::size_t first = ranges.front().begin.block, last = ranges.back().begin.block;
+    auto blocks = take(first, last - first + 1);
+    for (auto r = ranges.rbegin(); r != ranges.rend(); ++r) {   // from the end: earlier offsets stay put
+        Block& b = blocks[r->begin.block - first];
+        b.text.replace(r->begin.byte, r->end.byte - r->begin.byte, with);
+        spans_after_erase(b.spans, r->begin.byte, r->end.byte);
+        spans_after_insert(b.spans, r->begin.byte, with.size());
+    }
+    const Range& end = ranges.back();
+    std::size_t shift = 0;   // the last range's end moved by the replacements before it in its block
+    for (const Range& r : ranges)
+        if (r.begin.block == end.begin.block && r.begin.byte < end.begin.byte) shift += with.size() - (r.end.byte - r.begin.byte);
+    break_undo_group();
+    carets(ranges.front().begin, {end.begin.block, end.begin.byte + shift + with.size()});
+    rewrite(first, std::move(blocks));
+    break_undo_group();
+}
+
 void Document::style(Range r, Style s, std::string target) {
     carets(r.end, r.end);
     auto blocks = take(r.begin.block, r.end.block - r.begin.block + 1);
@@ -171,7 +191,7 @@ void Document::style(Range r, Style s, std::string target) {
         blocks[k].spans.push_back({a, b, s, target});
         normalize(blocks[k].spans);
     }
-    splice(r.begin.block, blocks.size(), std::move(blocks));
+    rewrite(r.begin.block, std::move(blocks));
 }
 
 void Document::unstyle(Range r, Style s) {
@@ -188,7 +208,7 @@ void Document::unstyle(Range r, Style s) {
         blocks[k].spans = std::move(kept);
         normalize(blocks[k].spans);
     }
-    splice(r.begin.block, blocks.size(), std::move(blocks));
+    rewrite(r.begin.block, std::move(blocks));
 }
 
 void Document::set_kind(std::size_t block, BlockKind kind, int level, std::string info) {
@@ -197,7 +217,7 @@ void Document::set_kind(std::size_t block, BlockKind kind, int level, std::strin
     blocks[0].kind = kind;
     blocks[0].level = level;
     blocks[0].info = std::move(info);
-    splice(block, 1, std::move(blocks));
+    rewrite(block, std::move(blocks));
 }
 
 void Document::reset(Document other) {
@@ -218,6 +238,12 @@ std::vector<Block> Document::take(std::size_t first, std::size_t count) const {
     out.reserve(count);
     for (std::size_t i = first; i < first + count; ++i) out.push_back(blocks_[i]);
     return out;
+}
+
+// Blocks [first, first + n) replaced by n new ones: a style, a kind, replacements within blocks.
+void Document::rewrite(std::size_t first, std::vector<Block> blocks) {
+    const std::size_t n = blocks.size();   // first: argument order is unspecified, and the vector moves
+    splice(first, n, std::move(blocks));
 }
 
 void Document::splice(std::size_t first, std::size_t removed, std::vector<Block> blocks) {

@@ -76,6 +76,7 @@ headless_tests = {
   'text_editor' : files('test_text_editor.cpp'),
   'highlight' : files('test_highlight.cpp'),
   'code_editor' : files('test_code_editor.cpp'),
+  'find' : files('test_find.cpp'),
   'shared' : files('test_shared.cpp'),
   'utf8' : files('test_utf8.cpp'),
   'text_metrics' : files('test_text_metrics.cpp'),
