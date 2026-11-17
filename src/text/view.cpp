@@ -355,8 +355,10 @@ void View::draw_minimap(render::DrawList& dl, const ui::Theme& theme) {
     if (last_drawn_ >= first_drawn_ && last_drawn_ + 1 > minimap_first_) {
         const float a = static_cast<float>(first_drawn_ > minimap_first_ ? first_drawn_ - minimap_first_ : 0);
         const float z = static_cast<float>(last_drawn_ + 1 - minimap_first_);
-        dl.filled_rect(Rect{Point{X{minimap_left_}, Y{top + a * minimap_line}},
-                            Size{Width{right - minimap_left_}, Height{(z - a) * minimap_line}}}, theme.scrollbar_thumb);
+        band_top_ = top + a * minimap_line;
+        band_h_ = (z - a) * minimap_line;
+        dl.filled_rect(Rect{Point{X{minimap_left_}, Y{band_top_}}, Size{Width{right - minimap_left_}, Height{band_h_}}},
+                       theme.scrollbar_thumb);
     }
     const render::Color plain = minimap_tint(theme.text_muted);
     std::vector<Span> colors;
@@ -395,6 +397,32 @@ void View::minimap_scroll(Point p) {
     const std::size_t block = std::min(doc_.size() - 1, minimap_first_ + static_cast<std::size_t>(row));
     const float most = std::max(0.f, content_h.raw() - viewport_h.raw());
     scroll = DY{std::clamp(block_top(block) - viewport_h.raw() / 2.f, 0.f, most)};
+}
+
+void View::minimap_press(Point p) {
+    const float y = p.y.raw();
+    if (y >= band_top_ && y < band_top_ + band_h_) {
+        grab_ = y - band_top_;
+        return;
+    }
+    minimap_scroll(p);   // outside the band: there first, then held by its middle
+    grab_ = band_h_ / 2.f;
+}
+
+void View::minimap_drag(Point p) {
+    const float top = p.y.raw() - grab_ - options_.padding;   // where the band's top is to go
+    const float most = std::max(0.f, content_h.raw() - viewport_h.raw());
+    const std::size_t n = doc_.size();
+    if (n > minimap_rows_) {   // the minimap scrolls too: the band's travel is the whole file
+        const float travel = std::max(1.f, static_cast<float>(minimap_rows_) * minimap_line - band_h_);
+        scroll = DY{std::clamp(top / travel, 0.f, 1.f) * most};
+        return;
+    }
+    const float line = std::max(0.f, top / minimap_line);   // line for line
+    const std::size_t k = std::min(n - 1, static_cast<std::size_t>(line));
+    const float frac = line - static_cast<float>(k);
+    const float within = (k + 1 < n ? block_top(k + 1) : content_h.raw()) - block_top(k);
+    scroll = DY{std::clamp(block_top(k) + frac * within, 0.f, most)};
 }
 
 bool View::highlight_ahead(std::size_t lines) {

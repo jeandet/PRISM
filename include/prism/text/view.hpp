@@ -60,6 +60,12 @@ public:
     [[nodiscard]] std::size_t minimap_rows() const { return minimap_rows_; }
     [[nodiscard]] bool in_minimap(core::Point p) const { return options_.minimap && p.x.raw() >= minimap_left_; }
     void minimap_scroll(core::Point p);              // the block under p into the middle of the view
+    [[nodiscard]] float minimap_band_top() const { return band_top_; }
+    // A press grabs the band where it is pressed (or, outside it, jumps there first); a drag then
+    // moves it with the pointer: line for line while the whole file fits in the minimap, across
+    // the whole file otherwise (as a scrollbar's thumb).
+    void minimap_press(core::Point p);
+    void minimap_drag(core::Point p);
     static render::Color minimap_tint(render::Color c) { return render::Color::rgba(c.r, c.g, c.b, 150); }
 
     // Brings up to `lines` more blocks' highlighting states up to date, past what is in sight:
@@ -127,6 +133,8 @@ private:
     float widest_ = 0.f;   // the widest line laid out (no wrapping): how far scroll_x goes
     float minimap_left_ = 0.f;
     std::size_t minimap_first_ = 0, minimap_rows_ = 0;
+    float band_top_ = 0.f, band_h_ = 0.f;   // the band over what is in sight, at the last draw
+    float grab_ = 0.f;                      // where in the band the pointer holds it
     std::size_t last_drawn_ = 0;
     float text_w_ = 0.f;   // the text's column at the last draw
     std::size_t first_drawn_ = 0;

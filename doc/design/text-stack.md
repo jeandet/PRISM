@@ -242,7 +242,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
   highlights; the notes app edits a `Document`, its search hits as highlights.
 - A minimap (`ViewOptions::minimap`, on in `vb.code_editor`): each block a 2 px strip, words as
   bars in their colors from the same highlighter states, a band over what is in sight, scrolling
-  along on a long file; a click or a drag scrolls there.
+  along on a long file. Its band is grabbed and dragged like a scrollbar's thumb (line for line
+  while the file fits, across the whole file otherwise); a press elsewhere jumps there first.
 - Python: `prism.document(text, markdown=False)` with `vb.text_editor`, `code_editor`,
   `text_view` (`python/src/text_bound.hpp`, example 19). Markdown is compiled into the extension.
 - Also: `text::find_all`, `find_next`, `replace_all` (Boyer-Moore-Horspool, non-overlapping

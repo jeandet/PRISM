@@ -322,7 +322,7 @@ bool Editor::mouse_button(const input::MouseButton& b) {
     if (b.button != input::buttons::left) return false;
     if (!b.pressed) { dragging_ = dragging_map_ = false; return false; }
     if (view.in_minimap(b.position)) {   // the minimap scrolls; the caret stays where it is
-        view.minimap_scroll(b.position);
+        view.minimap_press(b.position);
         dragging_map_ = true;
         return true;
     }
@@ -374,7 +374,7 @@ bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard)
         return true;
     }
     if (auto* m = std::get_if<input::MouseMove>(&ev); m && dragging_map_ && (m->buttons & input::buttons::left_mask)) {
-        view.minimap_scroll(m->position);
+        view.minimap_drag(m->position);
         return true;
     }
     if (auto* m = std::get_if<input::MouseMove>(&ev); m && dragging_ && (m->buttons & input::buttons::left_mask)) {

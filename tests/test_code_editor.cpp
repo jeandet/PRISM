@@ -332,3 +332,34 @@ TEST_CASE("vb.code_editor shows a minimap") {
             if (auto* r = std::get_if<render::FilledRect>(&c); r && r->color == View::minimap_tint(tree.theme().syntax_type)) bar = true;
     CHECK(bar);
 }
+
+TEST_CASE("the minimap's band is grabbed and dragged: no jump on the press, then it follows the pointer") {
+    Document doc{many_lines(40)};   // the whole file fits in the minimap (105 rows of 2 px)
+    Editor ed{doc, {.view = {.family = render::FontRole::Mono, .padding = 0, .minimap = true}}};
+    render::DrawList dl;
+    ed.view.draw(dl, window, theme);
+    ed.view.scroll = core::DY{21.f * 10};   // block 10 at the top
+    dl.clear();
+    ed.view.draw(dl, window, theme);
+    const float before = ed.view.scroll.raw();
+    const float x = ed.view.minimap_left() + 5.f;
+    const float band_y = ed.view.minimap_band_top() + 3.f;
+    ed.handle(input::MouseButton{core::Point{core::X{x}, core::Y{band_y}}, input::buttons::left, true}, nullptr);
+    CHECK(ed.view.scroll.raw() == doctest::Approx(before));   // grabbed, not jumped
+    ed.handle(input::MouseMove{core::Point{core::X{x}, core::Y{band_y + 20.f}}, input::buttons::left_mask}, nullptr);
+    // 20 px of minimap at 2 px a line: ten lines further down
+    CHECK(ed.view.scroll.raw() == doctest::Approx(before + 10 * 21.f).epsilon(0.02));
+    ed.handle(input::MouseButton{core::Point{core::X{x}, core::Y{band_y + 20.f}}, input::buttons::left, false}, nullptr);
+}
+
+TEST_CASE("on a file longer than the minimap, the band's travel spans the whole file") {
+    Document doc{many_lines(5000)};
+    Editor ed{doc, {.view = {.family = render::FontRole::Mono, .padding = 0, .minimap = true}}};
+    render::DrawList dl;
+    ed.view.draw(dl, window, theme);
+    const float x = ed.view.minimap_left() + 5.f;
+    const float band_y = ed.view.minimap_band_top() + 2.f;
+    ed.handle(input::MouseButton{core::Point{core::X{x}, core::Y{band_y}}, input::buttons::left, true}, nullptr);
+    ed.handle(input::MouseMove{core::Point{core::X{x}, core::Y{1000.f}}, input::buttons::left_mask}, nullptr);
+    CHECK(ed.view.scroll.raw() == doctest::Approx(5001 * 21.f - 210.f));   // past the bottom: the end (5,001 blocks: a last empty one)
+}

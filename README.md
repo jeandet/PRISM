@@ -548,7 +548,7 @@ save("README.md", text::to_markdown(notes));     // and back, tables included
 - **Code:** C/C++, Python, SQL, JSON, TOML and shell are built in (`text::language("python")`),
   as rules written as data; another engine (tree-sitter, a language server) implements one
   `Highlighter` function. Colors follow the theme. A minimap shows the whole file in a column on
-  the right (click or drag in it to scroll there). Long lines scroll sideways; highlighting goes
+  the right: drag its band to scroll, or click elsewhere in it to jump there. Long lines scroll sideways; highlighting goes
   on ahead between frames, so a jump to the end of a long file finds it done.
 - **Editing:** selection, clipboard, undo that puts the caret back at the change, input methods,
   matching brackets, auto-indent; `.rows(10)` makes an editor ten lines tall inside a scroll area.

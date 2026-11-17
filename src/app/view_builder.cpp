@@ -349,16 +349,18 @@ Node text_view_node(text::Document& doc, std::shared_ptr<text::View> view, Widge
         // scrolls to where it lands.
         if (!view->options().wrap || view->options().minimap)
             wn.wire = [view](WidgetNode& node) {
-                node.connections.push_back(node.on_input.connect([view, &node](const InputEvent& ev) {
+                auto held = std::make_shared<bool>(false);   // the minimap's band is held
+                node.connections.push_back(node.on_input.connect([view, &node, held](const InputEvent& ev) {
                     if (auto* w = std::get_if<MouseScroll>(&ev); w && w->dx.raw() != 0.f && !view->options().wrap) {
                         view->scroll_sideways(-w->dx.raw() * 40.f);
                         node.dirty = true;
                     }
-                    const auto* b = std::get_if<MouseButton>(&ev);
-                    const auto* m = std::get_if<MouseMove>(&ev);
-                    if ((b && b->pressed && view->in_minimap(b->position)) ||
-                        (m && (m->buttons & buttons::left_mask) && view->in_minimap(m->position))) {
-                        view->minimap_scroll(b ? b->position : m->position);
+                    if (auto* b = std::get_if<MouseButton>(&ev); b && b->button == buttons::left) {
+                        *held = b->pressed && view->in_minimap(b->position);
+                        if (*held) { view->minimap_press(b->position); node.dirty = true; }
+                    }
+                    if (auto* m = std::get_if<MouseMove>(&ev); m && *held && (m->buttons & buttons::left_mask)) {
+                        view->minimap_drag(m->position);
                         node.dirty = true;
                     }
                 }));
