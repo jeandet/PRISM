@@ -24,6 +24,7 @@ struct PortPlace {
     ui::WidgetId card = 0;
     ui::WidgetId row = 0;
     nodes::Dir dir = nodes::Dir::In;
+    nodes::PortRef ref{};
 };
 
 // What dragging from a port carries: the wire's fixed end (the port itself, or the output of the
@@ -80,6 +81,7 @@ struct NodeBoardParts {
     std::deque<NodeGrip> grips;                     // likewise
     BoardBackground background;
     ui::WidgetId background_id = 0;
+    ui::WidgetId board_id = 0;
 
     core::Field<ui::Label<>>& label(std::string text, bool heading = false) {
         return labels.emplace_back(ui::Label<>{.value = std::move(text), .heading = heading, .wrap = false});

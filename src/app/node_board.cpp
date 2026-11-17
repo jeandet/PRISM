@@ -60,6 +60,27 @@ std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p)
     return best;
 }
 
+// The port whose dot is within port_reach of `p` (window coordinates) and that `wanted` takes,
+// the nearest if several are. Generous: a dot is small, and half of it lies off its card.
+std::optional<nodes::PortRef> dot_near(const NodeBoardParts& parts, core::Point p,
+                                       const std::function<bool(nodes::PortRef)>& wanted) {
+    constexpr float port_reach = 10.f;
+    const auto rect_of = window_rects(parts);
+    std::optional<nodes::PortRef> best;
+    float nearest = port_reach;
+    for (const auto& [port, place] : parts.ports) {
+        const auto at = wire_end(parts, port, rect_of);
+        if (!at || !wanted(place.ref)) continue;
+        if (const float d = (*at - p).length(); d <= nearest) {
+            nearest = d;
+            best = place.ref;
+        }
+    }
+    return best;
+}
+
+bool any_port(nodes::PortRef) { return true; }
+
 // The selection is drawn by the board: `n`, a widget on it, asks for a frame.
 void set_selection(NodeBoardParts& parts, ui::WidgetNode& n, BoardSelection what) {
     parts.selected = what;
@@ -89,8 +110,10 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
     nodes::Graph& graph = *parts->graph;
     if (removes_selection(ev)) return remove_selected(*parts);
     if (track_press(press, ev)) {
+        const core::Point at = in_window(n, *press);
+        if (dot_near(*parts, at, any_port)) return press.reset();   // it draws a wire (dot_drag)
         pan_at_press = graph.pan();
-        set_selection(*parts, n, {.wire = wire_at(*parts, in_window(n, *press)), .node = {}});
+        set_selection(*parts, n, {.wire = wire_at(*parts, at), .node = {}});
         if (parts->selected.wire) press.reset();   // a wire clicked is selected, not dragged
     }
     if (const auto d = dragged_by(press, ev, n)) {
@@ -194,22 +217,105 @@ PortDrag pick_up(nodes::Graph& graph, nodes::PortRef at) {
     return {&graph, at};
 }
 
-// A port's label: a drag source of PortDrag, and a drop target of those it can connect to.
-ui::DragRole port_role(NodeBoardParts& parts, nodes::PortRef at) {
-    nodes::Graph* graph = parts.graph;
+const PortDrag* port_drag_of(const nodes::Graph* graph, const std::any& v) {
+    const auto* d = std::any_cast<PortDrag>(&v);
+    return d && d->graph == graph ? d : nullptr;
+}
+
+// What every drag of a wire shares: the wire follows the pointer, and the ports taking it are
+// hinted.
+ui::DragRole wire_drag(NodeBoardParts& parts) {
     ui::DragRole role;
-    role.source = [graph, at](const ui::WidgetNode&, core::Point) { return std::any(pick_up(*graph, at)); };
-    role.accepts = [graph, at](const std::any& v) {
-        const auto* d = std::any_cast<PortDrag>(&v);
-        return d && d->graph == graph && graph->can_connect(d->from, at);
-    };
-    role.drop = [graph, at](const std::any& v, ui::DropPlace) {
-        static_cast<void>(graph->connect(std::any_cast<const PortDrag&>(v).from, at));
-    };
     role.trail = [&parts, &theme = parts.tree->theme()](render::DrawList& dl, const std::any& v, core::Point pointer) {
         draw_trail(dl, parts, std::any_cast<const PortDrag&>(v).from, pointer, theme.accent);
     };
     role.hint_targets = true;
+    return role;
+}
+
+// A port's name: dragging it draws a wire from the port.
+ui::DragRole port_source(NodeBoardParts& parts, nodes::PortRef at) {
+    ui::DragRole role = wire_drag(parts);
+    role.source = [graph = parts.graph, at](const ui::WidgetNode&, core::Point) { return std::any(pick_up(*graph, at)); };
+    return role;
+}
+
+// A port's row: a drop of a wire it can take, anywhere on it, connects it.
+ui::DragRole port_target(nodes::Graph& graph, nodes::PortRef at) {
+    ui::DragRole role;
+    role.accepts = [&graph, at](const std::any& v) {
+        const auto* d = port_drag_of(&graph, v);
+        return d && graph.can_connect(d->from, at);
+    };
+    role.drop = [&graph, at](const std::any& v, ui::DropPlace) {
+        static_cast<void>(graph.connect(std::any_cast<const PortDrag&>(v).from, at));
+    };
+    return role;
+}
+
+// The port whose row holds `p` (window coordinates), or else whose dot is near it.
+std::optional<nodes::PortRef> port_under(const NodeBoardParts& parts, core::Point p) {
+    for (const auto& [port, place] : parts.ports)
+        if (const auto row = parts.tree->laid_out_at(place.row); row && row->contains(p)) return place.ref;
+    return dot_near(parts, p, any_port);
+}
+
+// The background and the cards: a press on a port's row (beside its name) or near its dot
+// draws a wire from it. Half of a dot lies off its card, on the background.
+ui::DragRole dot_drag(NodeBoardParts& parts) {
+    ui::DragRole role = wire_drag(parts);
+    role.source = [&parts](const ui::WidgetNode& self, core::Point at) {
+        const auto port = port_under(parts, in_window(self, at));
+        return port ? std::any(pick_up(*parts.graph, *port)) : std::any{};
+    };
+    return role;
+}
+
+// The port whose dot near `p` (window coordinates) takes the drag `v`.
+std::optional<nodes::PortRef> dot_taking(const NodeBoardParts& parts, const std::any& v, core::Point p) {
+    const auto* d = port_drag_of(parts.graph, v);
+    if (!d) return std::nullopt;
+    return dot_near(parts, p, [&](nodes::PortRef to) { return parts.graph->can_connect(d->from, to); });
+}
+
+// The board: a drop near a dot connects to its port. It takes drops only there, so it is not
+// hinted whole; the port taking one is marked by a bar on its card's edge (the drop's slot,
+// an index into parts.ports).
+// simplify: the slot, and so the bar, is the nearest dot, as DragRole::slot is not given the
+// dragged value; the drop itself goes to the nearest dot taking it. They differ only when an
+// incompatible dot is nearer, both within reach. Pass the value to slot() if that shows.
+ui::DragRole dot_target(NodeBoardParts& parts) {
+    constexpr float bar = 3.f;
+    const auto window_point = [&parts](core::Point local) {
+        const auto board = parts.tree->laid_out_at(parts.board_id);
+        return board ? std::optional{board->origin + (local - core::Point{})} : std::nullopt;
+    };
+    ui::DragRole role;
+    role.accepts = [&parts](const std::any& v) { return port_drag_of(parts.graph, v) != nullptr; };
+    role.takes_at = [&parts, window_point](const std::any& v, ui::DropPlace place) {
+        const auto p = window_point(place.at);
+        return p && dot_taking(parts, v, *p);
+    };
+    role.slot = [&parts](const ui::WidgetNode& self, core::Point at) {
+        const auto port = dot_near(parts, in_window(self, at), any_port);
+        const auto it = std::ranges::find_if(parts.ports, [&](const auto& kv) { return port && kv.second.ref == *port; });
+        return static_cast<std::size_t>(std::distance(parts.ports.begin(), it));
+    };
+    role.slot_marker = [&parts](const ui::WidgetNode& self, std::size_t slot) {
+        if (slot >= parts.ports.size()) return core::Rect{};
+        const auto& [port, place] = *std::next(parts.ports.begin(), static_cast<std::ptrdiff_t>(slot));
+        const auto row = parts.tree->laid_out_at(place.row);
+        const auto end = wire_end(parts, port, window_rects(parts));
+        if (!row || !end) return core::Rect{};
+        return core::Rect{core::Point{core::X{end->x.raw() - bar / 2 - self.absolute_x.raw()},
+                                      core::Y{row->origin.y.raw() - self.absolute_y.raw()}},
+                          core::Size{core::Width{bar}, row->extent.h}};
+    };
+    role.drop = [&parts, window_point](const std::any& v, ui::DropPlace place) {
+        const auto p = window_point(place.at);
+        if (const auto to = p ? dot_taking(parts, v, *p) : std::nullopt)
+            static_cast<void>(parts.graph->connect(std::any_cast<const PortDrag&>(v).from, *to));
+    };
     return role;
 }
 
@@ -258,7 +364,8 @@ void default_ports(ViewBuilder& vb, const nodes::Graph& graph, nodes::NodeId id)
             if (port->dir() == dir) vb.port(*port);
 }
 
-void node_card(ViewBuilder& vb, NodeBoardParts& parts, nodes::NodeId id) {
+// A card on `board`, the node `id`'s.
+void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::NodeId id) {
     const nodes::Graph& graph = *parts.graph;
     parts.card_ports.clear();
     parts.card_node = id;
@@ -268,6 +375,7 @@ void node_card(ViewBuilder& vb, NodeBoardParts& parts, nodes::NodeId id) {
         if (const auto& view = graph.view(id)) view(vb);
         else default_ports(vb, graph, id);
     });
+    board.children.back().drag = dot_drag(parts);
     parts.cards.insert_or_assign(id, card);
     for (auto& [port, place] : parts.card_ports) {
         place.card = card;
@@ -301,6 +409,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     b.id = tree_.next_id_++;
     b.is_leaf = false;
     b.layout_kind = LayoutKind::Board;
+    b.drag = dot_target(*parts);
     b.on_change = on_either(graph.structure, graph.layout);
     // A new wire bumps `structure` too, but changes no card: only a change of nodes rebuilds.
     // simplify: a node added or removed rebuilds every card, so the other nodes' widgets get new
@@ -309,6 +418,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     b.content_stale = [&graph, parts] { return parts->built != graph.nodes(); };
     parts->graph = &graph;
     parts->tree = &tree_;
+    parts->board_id = b.id;
     parts->background.parts = parts.get();
     b.build_content = [&graph, parts, &tree = tree_](Node& target) {
         parts->built = graph.nodes();
@@ -321,7 +431,8 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
         ui::Node& background = vb.canvas(parts->background).node_ref;
         parts->background_id = background.id;
         focus_by(background, ui::FocusPolicy::click);
-        for (const auto id : parts->built) node_card(vb, *parts, id);
+        background.drag = dot_drag(*parts);
+        for (const auto id : parts->built) node_card(vb, target, *parts, id);
         assert(every_port_placed(graph, *parts) && "a node's view must place each of its ports with vb.port");
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
@@ -341,12 +452,14 @@ ViewBuilder::LeafHandle ViewBuilder::port(nodes::Port& p) {
     // the view (a section's, a popup's) asserts here. Hand board_ on to nested builders if needed.
     assert(board_ && "vb.port places a port's row in a node's view, inside a node_board");
     const bool output = p.dir() == nodes::Dir::Out;
+    const nodes::PortRef ref = ref_of(*board_, p);
     const auto row = hstack([&] {
         if (output) spacer();
-        widget(board_->label(std::string(p.name()))).node_ref.drag = port_role(*board_, ref_of(*board_, p));
+        widget(board_->label(std::string(p.name()))).node_ref.drag = port_source(*board_, ref);
         if (!output) spacer();
     });
-    board_->card_ports.emplace_back(&p, PortPlace{.card = 0, .row = row, .dir = p.dir()});
+    current_parent().children.back().drag = port_target(*board_->graph, ref);
+    board_->card_ports.emplace_back(&p, PortPlace{.card = 0, .row = row, .dir = p.dir(), .ref = ref});
     return {current_parent().children.back().children[output ? 1 : 0], placed_};
 }
 

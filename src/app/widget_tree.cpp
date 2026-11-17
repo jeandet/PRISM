@@ -691,12 +691,14 @@ void WidgetTree::draw_dragged(SceneSnapshot& snap, const WidgetNode& source) con
     snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
 }
 
-// Every widget and drop area taking the dragged value, softly marked.
+// Every widget and drop area taking the dragged value, softly marked; not one taking it only
+// at some places in it (DragRole::takes_at), which would be marked whole.
 void WidgetTree::draw_drop_hints(SceneSnapshot& snap) const {
+    const auto hinted = [&](WidgetId id) { return takes(id, drag_->value) && !index_.at(id)->drag.takes_at; };
     for (auto& [id, rect] : snap.geometry)
-        if (id != 0 && takes(id, drag_->value)) drag_draw::hint(snap.overlay, rect, theme_.accent);
+        if (id != 0 && hinted(id)) drag_draw::hint(snap.overlay, rect, theme_.accent);
     for (auto& [id, rect] : drop_areas_)
-        if (takes(id, drag_->value)) drag_draw::hint(snap.overlay, rect, theme_.accent);
+        if (hinted(id)) drag_draw::hint(snap.overlay, rect, theme_.accent);
 }
 
 // The innermost dock group under the pointer that takes the dragged value, but elsewhere in it

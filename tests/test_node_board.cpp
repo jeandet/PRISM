@@ -385,8 +385,9 @@ void key(Fixture& f, std::int32_t k) {
     f.frame();
 }
 
-bool hinted(const Fixture& f, WidgetId id) {
-    auto r = find_widget_rect(*f.snap, id);
+// A port's whole row, its name and the space beside it.
+bool hinted(const Fixture& f, WidgetId label) {
+    auto r = f.tree.laid_out_at(*f.tree.parent_of(label));
     return r && std::ranges::any_of(f.snap->overlay.commands, [&](const DrawCmd& c) {
         auto* x = std::get_if<FilledRect>(&c);
         return x && x->rect.origin == r->origin && x->rect.extent == r->extent;
@@ -515,4 +516,42 @@ TEST_CASE("a node that is not removable stays on Delete") {
     CHECK(std::ranges::count(f.m.graph.nodes(), f.m.b) == 0);
     CHECK_FALSE(f.shows("Sink"));
     f.m.graph.remove(id);
+}
+
+TEST_CASE("a port's whole row takes a wire: the empty part beside its name too") {
+    Fixture f;
+    auto out = find_widget_rect(*f.snap, f.m.source.out_label);
+    auto in = find_widget_rect(*f.snap, f.m.sink.in_label);
+    REQUIRE((out && in));
+    f.drag(P(out->origin.x.raw() - 10, middle_y(*out)), P(right(*in) + 10, middle_y(*in)));
+    auto e = f.m.graph.edge_into({f.m.b, 0});
+    REQUIRE(e);
+    CHECK(f.m.graph.edge(*e)->from == nodes::PortRef{f.m.a, 0});
+}
+
+TEST_CASE("a wire starts and ends on the ports' dots, at the card's edge") {
+    Fixture f;
+    auto out_card = f.allocated(f.card_of(f.m.source.out_label));
+    auto in_card = f.allocated(f.card_of(f.m.sink.in_label));
+    auto out_row = f.row_of(f.m.source.out_label);
+    auto in_row = f.row_of(f.m.sink.in_label);
+    REQUIRE((out_card && in_card && out_row && in_row));
+    const Point out_dot = P(right(*out_card), middle_y(*out_row));
+    const Point in_dot = P(in_card->origin.x.raw(), middle_y(*in_row));
+
+    f.press(out_dot + Offset{DX{4.f}, DY{0.f}});   // off the card: on the background
+    f.move_to(empty_spot);
+    // The board is no target as a whole: only the dots it takes the wire at.
+    CHECK_FALSE(std::ranges::any_of(f.snap->overlay.commands, [](const DrawCmd& c) {
+        auto* x = std::get_if<FilledRect>(&c);
+        return x && x->rect.contains(empty_spot);
+    }));
+    f.move_to(in_dot + Offset{DX{-6.f}, DY{3.f}});   // near the dot is enough
+    f.release(in_dot + Offset{DX{-6.f}, DY{3.f}});
+    CHECK(f.m.graph.pan() == P(0, 0));   // a press on a dot draws a wire, it does not pan
+    REQUIRE(f.m.graph.edge_into({f.m.b, 0}));
+
+    f.drag(in_dot, empty_spot);   // the input's dot picks its wire up
+    CHECK(f.m.graph.edges().empty());
+    CHECK(f.m.graph.pan() == P(0, 0));
 }
