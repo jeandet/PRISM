@@ -12,6 +12,7 @@
 <p align="center">
   <a href="https://github.com/jeandet/PRISM/actions/workflows/ci.yml"><img src="https://github.com/jeandet/PRISM/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://jeandet.github.io/PRISM/"><img src="https://img.shields.io/badge/live%20demos-in%20your%20browser-8250df" alt="Live demos"/></a>
+  <a href="https://prism-gui.readthedocs.io/"><img src="https://readthedocs.org/projects/prism-gui/badge/?version=latest" alt="Documentation"/></a>
   <img src="https://img.shields.io/badge/C%2B%2B-26%20%7C%2023-0969da" alt="C++26 | C++23"/>
   <img src="https://img.shields.io/badge/license-MIT-1a7f37" alt="MIT license"/>
 </p>
@@ -54,8 +55,8 @@ This is an architectural choice, not a tuning trick. It is built in from day one
 
 ## Documentation
 
-The guide and the design notes live in [`doc/`](doc/index.md), and build into a Read the Docs site
-(`doc/conf.py`).
+Read it on [prism-gui.readthedocs.io](https://prism-gui.readthedocs.io/). The pages are Markdown in
+[`doc/`](doc/index.md), so the links below work on GitHub too.
 
 | Start | Guide | |
 |---|---|---|
