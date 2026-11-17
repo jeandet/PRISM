@@ -17,6 +17,7 @@ widget_gallery_sources = files(
   'popups_tab.cpp',
   'docking_tab.cpp',
   'document_tab.cpp',
+  'code_tab.cpp',
   'build_your_own_tab.cpp'
 )
 

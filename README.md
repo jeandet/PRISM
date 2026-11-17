@@ -530,10 +530,10 @@ screen-reader bridge.
 ### Documents, code and Markdown
 
 A `TextArea` holds its text in a field, fine for a form. A long text wants a `text::Document`:
-blocks (a line of code, a paragraph, a heading, a list item) with styled spans, edited in place,
-observed and undone. Its views lay out only what is in sight, so typing in a 100,000-line file
-costs what it costs in a ten-line one (0.01 ms against a second for `TextArea`,
-`benchmarks/text_scale.cpp`).
+blocks (a line of code, a paragraph, a heading, a list item, a table row) with styled spans,
+edited in place, observed and undone. Its views lay out only what is in sight, so typing in a
+100,000-line file costs what it costs in a ten-line one: 0.01 ms a key, against a second for
+`TextArea` (`benchmarks/text_scale.cpp`). Try it in the gallery's Code tab, in the browser.
 
 ```cpp
 text::Document source{load("main.cpp")};
@@ -542,12 +542,22 @@ text::Document notes = text::markdown(readme);   // GitHub-flavoured Markdown, o
 vb.code_editor(source, "cpp");                   // colors, line numbers, brackets, Tab to indent
 vb.text_editor(notes, {.rich = true});           // Ctrl+B, "# " for a heading, "- " for a list
 vb.text_view(notes);                             // read-only
-save("README.md", text::to_markdown(notes));     // and back
+save("README.md", text::to_markdown(notes));     // and back, tables included
 ```
 
-Inside a scroll area, `.rows(10)` makes one ten lines tall instead of filling the space. The
-built-in languages (`text::language("python")`, C/C++, SQL, JSON, TOML, shell) are rules written
-as data; another engine (tree-sitter, a language server) implements one `Highlighter` function.
+- **Code:** C/C++, Python, SQL, JSON, TOML and shell are built in (`text::language("python")`),
+  as rules written as data; another engine (tree-sitter, a language server) implements one
+  `Highlighter` function. Colors follow the theme. Long lines scroll sideways; highlighting goes
+  on ahead between frames, so a jump to the end of a long file finds it done.
+- **Editing:** selection, clipboard, undo that puts the caret back at the change, input methods,
+  matching brackets, auto-indent; `.rows(10)` makes an editor ten lines tall inside a scroll area.
+- **Find and replace:** `text::find_all(doc, "word")` and `replace_all` (one undo step). Ranges the
+  app highlights, such as search hits or an error's position, go in a field: `.highlights(hits)`.
+- **Rich text:** headings, lists, quotes, code blocks, tables, bold, italic and links, in real Noto
+  Sans Bold and Italic faces; Markdown shortcuts as you type.
+- **Python:** `prism.document(text, markdown=False)` with the same three `vb` calls
+  (`python/examples/19_markdown_notes.py`).
+
 How it works, and which current editors each algorithm comes from: `doc/design/text-stack.md`.
 
 ### Settings that persist
@@ -721,8 +731,9 @@ captioned "volts" that writes a plain `double`.
 
 - [`tour`](examples/tour/): **start here** — five programs of 20 to 40 lines, one idea each, from a
   struct that becomes a window to a block, each pointing at the big example that uses it.
-- [`widget_gallery`](examples/widget_gallery/): every widget, in nine tabs, docking, drag and drop,
-  and a custom widget built in the open. Come here to pick a widget and copy its line.
+- [`widget_gallery`](examples/widget_gallery/): every widget, in ten tabs: a code editor in six
+  languages (open a 100,000-line file and type), Markdown edited as rich text, docking, drag and
+  drop, and a custom widget built in the open. Come here to pick a widget and copy its line.
 - [`model_notes`](examples/model_notes/): a small editor with a file tree, search, menus and undo.
 - [`model_system_monitor`](examples/model_system_monitor/): sampler threads feeding live plots, a
   sortable process table and tree (Linux `/proc`, or a simulated machine elsewhere).

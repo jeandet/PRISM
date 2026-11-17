@@ -294,7 +294,7 @@
 <clipPath id="clip-24"><rect x="817.92" y="544.656" width="382.08" height="30"/></clipPath>
 <g clip-path="url(#clip-24)">
 <rect x="817.92" y="544.656" width="382.08" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="821.92" y="548.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.349 ms mean · 0.441 ms max</text>
+<text xml:space="preserve" x="821.92" y="548.656" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.381 ms mean · 0.392 ms max</text>
 </g>
 <clipPath id="clip-25"><rect x="817.92" y="574.656" width="382.08" height="27.144"/></clipPath>
 <g clip-path="url(#clip-25)">
@@ -470,7 +470,7 @@
 <clipPath id="clip-49"><rect x="992" y="716" width="200" height="30"/></clipPath>
 <g clip-path="url(#clip-49)">
 <rect x="992" y="716" width="200" height="30" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="996" y="720" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.349 ms mean of 10.67 ms</text>
+<text xml:space="preserve" x="996" y="720" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">callback 0.381 ms mean of 10.67 ms</text>
 </g>
 <rect x="1192" y="32" width="6" height="114.91" fill="rgba(120,120,130,0.627451)"/>
 <rect x="1192" y="220.838" width="6" height="152.86" fill="rgba(120,120,130,0.627451)"/>

@@ -63,7 +63,7 @@
 <text xml:space="preserve" x="305" y="8" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">model_notes</text>
 <text xml:space="preserve" x="305" y="26" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">type: directory</text>
 <text xml:space="preserve" x="305" y="44" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">entries: 7</text>
-<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-16 21:56:40</text>
+<text xml:space="preserve" x="305" y="62" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(220,220,220,1)" dominant-baseline="hanging">modified: 2026-11-17 01:12:52</text>
 </g>
 <clipPath id="clip-11"><rect x="497" y="0" width="6" height="608"/></clipPath>
 <g clip-path="url(#clip-11)">
@@ -115,8 +115,8 @@
 <clipPath id="clip-21"><rect x="503" y="70" width="497" height="255"/></clipPath>
 <g clip-path="url(#clip-21)">
 <text xml:space="preserve" x="511" y="78" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">#pragma once</text>
-<text xml:space="preserve" x="511" y="117.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O, </text>
-<text xml:space="preserve" x="511" y="136.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">statistics and search. Tested in</text>
+<text xml:space="preserve" x="511" y="117.2" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// The notes editor's logic without any UI: file I/O and </text>
+<text xml:space="preserve" x="511" y="136.8" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">statistics. Tested in</text>
 <text xml:space="preserve" x="511" y="156.4" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">// tests/test_notes_logic.cpp; the app (model_notes.cpp) </text>
 <text xml:space="preserve" x="511" y="176" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">only wires these to widgets.</text>
 <rect x="519.4" y="215.2" width="58.8" height="19.6" fill="rgba(230,170,50,0.352941)"/>
@@ -139,7 +139,7 @@
 <clipPath id="clip-23"><rect x="511" y="582" width="512" height="24"/></clipPath>
 <g clip-path="url(#clip-23)">
 <rect x="511" y="582" width="512" height="24" fill="rgba(45,45,55,1)"/>
-<text xml:space="preserve" x="515" y="586" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  77 lines, 3077 characters  |  11 matches</text>
+<text xml:space="preserve" x="515" y="586" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">notes_logic.hpp  |  68 lines, 2682 characters  |  11 matches</text>
 </g>
 <clipPath id="clip-24"><rect x="503" y="608" width="497" height="0"/></clipPath>
 <g clip-path="url(#clip-24)">
@@ -150,5 +150,5 @@
 <clipPath id="clip-26"><rect x="503" y="608" width="497" height="0"/></clipPath>
 <g clip-path="url(#clip-26)">
 </g>
-<rect x="984" y="78" width="6" height="28.2945" fill="rgba(120,120,130,0.627451)"/>
+<rect x="984" y="78" width="6" height="32.0257" fill="rgba(120,120,130,0.627451)"/>
 </svg>
