@@ -180,6 +180,10 @@ if get_option('markdown').allowed()
                          fallback : ['cmark-gfm', 'cmark_gfm_dep'],
                          default_options : ['default_library=static', 'werror=false', 'warning_level=0'])
   if cmark_dep.found()
+    # WrapDB's port writes Python's True into its export headers (#if True), which the
+    # preprocessor reads as 0: the static build is not seen as static, and on Windows every
+    # function is declared dllimport. Said here instead, for whoever compiles against it.
+    cmark_dep = declare_dependency(dependencies : cmark_dep, compile_args : ['-DCMARK_GFM_STATIC_DEFINE'])
     prism_markdown_lib = library('prism-markdown', 'text/markdown.cpp',
       dependencies : [prism_core_dep, cmark_dep.as_system('system')],
       install : true,
