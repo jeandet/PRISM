@@ -247,7 +247,10 @@ Each step ends with something visible, tested, and shown in the gallery and the 
     draws, leaving a small gap after an italic word;
   - horizontal scrolling without wrapping; an input method's composition drawn over the text
     after the caret rather than pushing it along; highlighting past the screen in idle time; table rows as their own kind of block;
-    the layout cache trimmed least-recently-used.
+    the layout cache trimmed least-recently-used;
+  - stepping by character rescans the block (ui::next_grapheme), so a click or a wrap in one very
+    long paragraph is quadratic in its length; per-block grapheme marks, cached with the layout,
+    when a long paragraph shows it.
 
 ## Open questions
 
