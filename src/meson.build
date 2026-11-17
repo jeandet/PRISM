@@ -208,7 +208,12 @@ endif
 # python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
 # The script fonts are found beside the UI font (SdlFontSet::script_font_files).
 script_font_paths = [fonts_dir / 'NotoSansHebrew-Regular.ttf', fonts_dir / 'NotoSansArabic-Regular.ttf']
-bundled_font_files = [ui_font_path, mono_font_path] + script_font_paths + [
+# The UI font's real bold and italic faces, found beside it (SdlFontSet::styled). The mono font
+# has none bundled: its bold and italic are drawn by SDL_ttf (2.4 MB a face; code uses italic
+# only for comments, which run to the line's end, where a drawn slant's extra width shows nowhere).
+ui_style_paths = [fonts_dir / 'NotoSans-Bold.ttf', fonts_dir / 'NotoSans-Italic.ttf',
+                  fonts_dir / 'NotoSans-BoldItalic.ttf']
+bundled_font_files = [ui_font_path, mono_font_path] + ui_style_paths + script_font_paths + [
                       fonts_dir / 'NotoSans-OFL.txt', fonts_dir / 'JetBrainsMono-OFL.txt',
                       fonts_dir / 'NotoSansScripts-OFL.txt']
 install_data(bundled_font_files, install_dir : fonts_install_dir, install_tag : 'fonts')
@@ -239,6 +244,9 @@ if host_machine.system() == 'emscripten'
                    # settings kept in the page's IndexedDB (backends/web_settings.js says how)
                    '-lidbfs.js', '--pre-js=' + (meson.current_source_dir() / 'backends' / 'web_settings.js')]
   foreach f : [[ui_font_path, 'web_ui_font.ttf', text_ranges],
+               [ui_style_paths[0], 'web_ui_bold.ttf', text_ranges],
+               [ui_style_paths[1], 'web_ui_italic.ttf', text_ranges],
+               [ui_style_paths[2], 'web_ui_bold_italic.ttf', text_ranges],
                [mono_font_path, 'web_mono_font.ttf', text_ranges + ',U+F07B,U+F15B']]
     t = custom_target(f[1],
       input : f[0],

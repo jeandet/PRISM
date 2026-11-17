@@ -243,8 +243,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
   matches, one undo step), undo and redo putting the caret at the change, an input method's
   composition shown at the caret.
 - Left, each noted as `simplify:` where the cut is:
-  - real bold and italic font files: SDL_ttf's synthetic slant reports a wider italic run than it
-    draws, leaving a small gap after an italic word;
+  - the mono font's bold and italic are still drawn by SDL_ttf (its faces are 2.4 MB each; the
+    UI font's real Bold, Italic and Bold Italic are bundled since 2026-11-17);
   - horizontal scrolling without wrapping; an input method's composition drawn over the text
     after the caret rather than pushing it along; highlighting past the screen in idle time; table rows as their own kind of block;
     the layout cache trimmed least-recently-used;

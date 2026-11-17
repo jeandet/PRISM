@@ -6,6 +6,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <cstdlib>
+#include <string>
 
 using prism::render::FontRole;
 
@@ -220,4 +221,18 @@ TEST_CASE("bold draws more ink than regular; italic draws different pixels; both
         fonts.get(family, 32.f);   // a size change reaches the styled face too
         CHECK(TTF_GetFontSize(styled) == doctest::Approx(32.f));
     }
+}
+
+TEST_CASE("the UI font's bold and italic are the real faces bundled beside it; mono's are drawn") {
+    TtfSession ttf;
+    prism::backends::SdlFontSet fonts;
+    REQUIRE(fonts.open(PRISM_TEST_UI_FONT_PATH, PRISM_TEST_MONO_FONT_PATH, 14.f));
+    using prism::render::FontStyle;
+    auto style_name = [&](FontStyle s) { return std::string(TTF_GetFontStyleName(fonts.get(s, 14.f))); };
+    CHECK(style_name(FontStyle{FontRole::Ui, true}) == "Bold");
+    CHECK(style_name(FontStyle{FontRole::Ui, false, true}) == "Italic");
+    CHECK(style_name(FontStyle{FontRole::Ui, true, true}) == "Bold Italic");
+    // No bold file beside the mono font: its regular face, drawn bold by SDL_ttf.
+    CHECK(style_name(FontStyle{FontRole::Mono, true}) == "Regular");
+    CHECK((TTF_GetFontStyle(fonts.get(FontStyle{FontRole::Mono, true}, 14.f)) & TTF_STYLE_BOLD) != 0);
 }
