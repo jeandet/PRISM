@@ -12,7 +12,7 @@ using namespace prism::render;
 using namespace prism::core;
 using prism::backends::WgpuContext;
 using prism::backends::render_to_pixels;
-using prism::render::FontRole;
+using prism::render::FontStyle;
 using prism::render::TextAnchor;
 
 namespace {
@@ -121,7 +121,7 @@ struct BoxFont {
     int calls = 0;
     std::vector<float> sizes;
     prism::backends::TextRasterizer fn() {
-        return [this](std::string_view, float px, FontRole) {
+        return [this](std::string_view, float px, FontStyle) {
             ++calls;
             sizes.push_back(px);
             int w = static_cast<int>(std::lround(2 * px)), h = static_cast<int>(std::lround(px));
@@ -237,7 +237,7 @@ TEST_CASE("a frame of text only draws, and a string the font cannot render draws
     auto out = draw_text(std::move(dl), 30, 20, 1.f, font);
     CHECK(out.at(5, 5) == std::array{0, 255, 0, 255});
 
-    prism::backends::TextRasterizer none = [](std::string_view, float, FontRole) { return std::optional<prism::backends::TextBitmap>{}; };
+    prism::backends::TextRasterizer none = [](std::string_view, float, FontStyle) { return std::optional<prism::backends::TextBitmap>{}; };
     DrawList dl2;
     dl2.text("missing", Point{X{2}, Y{2}}, 10.f, green);
     auto empty = render_to_pixels(*context(), scene(std::move(dl2)), 30, 20, 1.f, black, none);
