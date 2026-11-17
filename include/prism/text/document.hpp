@@ -1,6 +1,7 @@
 #pragma once
 
 #include <prism/core/connection.hpp>
+#include <prism/core/read_log.hpp>
 #include <prism/core/sum_tree.hpp>
 
 #include <compare>
@@ -76,8 +77,9 @@ public:
     explicit Document(std::string_view text);   // one block per line
     explicit Document(std::vector<Block> blocks);   // what a parser builds; at least one block kept
 
-    [[nodiscard]] std::size_t size() const { return blocks_.size(); }
-    [[nodiscard]] const Block& operator[](std::size_t i) const { return blocks_[i]; }
+    // Reads are noted like a Field's: a core::Derived reading a document follows it.
+    [[nodiscard]] std::size_t size() const { core::read_log_detail::note_read(this); return blocks_.size(); }
+    [[nodiscard]] const Block& operator[](std::size_t i) const { core::read_log_detail::note_read(this); return blocks_[i]; }
     [[nodiscard]] std::size_t bytes() const { return blocks_.total() - 1; }   // newlines included
     [[nodiscard]] Position end() const { return {size() - 1, blocks_[size() - 1].text.size()}; }
     [[nodiscard]] Position position_at(std::size_t offset) const;
@@ -95,6 +97,8 @@ public:
     // Everything replaced by `other`'s blocks, as one edit: a view showing this document follows
     // (assigning a new Document over it would leave the view on the old one). Undoable.
     void assign(Document other);
+    // The same, with no undo back to what was there: a file opened, not an edit.
+    void reset(Document other);
 
     // Edits between two breaks undo as one step: an editor breaks on a pause, a caret jump, a
     // new word. Undo and redo restore text, spans and kinds alike.

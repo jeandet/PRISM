@@ -22,14 +22,14 @@ struct NotesPrefs {
 };
 
 // A second window (AppContext::open_window): live statistics of the text being edited, read
-// from the main window's field.
+// from the main window's document (a Derived reading a document follows it).
 struct NotesStats {
     core::Derived<std::string> summary;
-    explicit NotesStats(core::Field<ui::TextArea<>>& body)
+    explicit NotesStats(const text::Document& body)
         : summary([&body] {
-              auto s = notes::stats(value(body));
+              auto s = notes::stats(body.text());
               return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
-          }, body) {}
+          }) {}
     void view(app::ViewBuilder& vb) { vb.widget(summary); }
 };
 
@@ -56,7 +56,8 @@ struct NotesApp {
     core::Field<ui::TextField<>> search{{.placeholder = "Find in file..."}};
     core::Field<ui::Button> save{{.text = "Save", .primary = false}};
     core::Field<ui::Button> reload{{.text = "Reload", .primary = false}};
-    core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
+    text::Document body;
+    core::Field<std::vector<text::Range>> matches{};   // the search text's hits in the body
     core::Field<ui::Label<>> status{{"No file open"}};
     NotesStats stats{body};
     app::WindowId stats_window = 0;
@@ -75,7 +76,7 @@ struct NotesApp {
             std::error_code ec;
             if (id && fs::is_regular_file(source.path_of(*id), ec)) open(source.path_of(*id));
         });
-        wire.on(body, [this](const auto&) { update_matches(); });
+        wire.on(body, [this](const text::Change&) { update_matches(); });
         wire.on(search, [this](const auto&) { update_matches(); });
         wire.on(save, [this](const auto&) { write(); });
         auto run_from = [this](auto& menu) {
@@ -132,7 +133,9 @@ struct NotesApp {
                     vb.widget(reload).tooltip("Read the file again, dropping unsaved edits");
                     vb.widget(search).tooltip("Highlights every match in the file");
                 });
-                vb.widget(body);
+                vb.text_editor(body, {.view = {.family = render::FontRole::Mono,
+                                               .placeholder = "Select a text file on the left"}})
+                    .highlights(matches);
                 vb.spacer();
                 vb.status_bar([&] { vb.widget(status); vb.spacer(); });
                 vb.context_menu(editor_menu);
@@ -153,7 +156,7 @@ struct NotesApp {
         saved = *text;
         error.clear();
         prefs.last_file.set(fs::absolute(path).string());
-        set_value(body, *text);
+        body.reset(text::Document{*text});   // a file opened: no undo back to the last one
         refresh_status();
     }
 
@@ -194,42 +197,42 @@ struct NotesApp {
 
     // Writes to `path` and makes it the current file -- only if the write succeeded.
     void save_as(const fs::path& path) {
-        if (auto ok = notes::save_text(path, value(body)); !ok) {
+        if (auto ok = notes::save_text(path, body.text()); !ok) {
             error = "save failed: " + ok.error();
         } else {
             current = path;
-            saved = value(body);
+            saved = body.text();
             error.clear();
         }
         refresh_status();
     }
 
     void confirm_reload() {
-        if (value(body) == saved) return open(current);
+        if (body.text() == saved) return open(current);
         pending_reload = current;
         show(discard);
     }
 
     void write() {
         if (current.empty()) return;
-        if (auto ok = notes::save_text(current, value(body)); !ok) error = "save failed: " + ok.error();
-        else { saved = value(body); error.clear(); }
+        if (auto ok = notes::save_text(current, body.text()); !ok) error = "save failed: " + ok.error();
+        else { saved = body.text(); error.clear(); }
         refresh_status();
     }
 
-    // Highlights every match of the search text in the editor (stored in the field's value, so the
-    // TextArea draws them), then refreshes the status line. Setting the value notifies again;
-    // the second pass finds identical highlights and stops.
+    // Highlights every match of the search text in the editor (its .highlights field), then
+    // refreshes the status line.
     void update_matches() {
         const auto& query = value(search);
-        std::vector<ui::TextRange> hits;
-        for (auto pos : notes::find_all(value(body), query)) hits.push_back({pos, pos + query.size()});
-        body.update([&](auto& b) { b.highlights = std::move(hits); });   // no change, no notice
+        std::vector<text::Range> hits;
+        for (auto pos : notes::find_all(body.text(), query))
+            hits.push_back({body.position_at(pos), body.position_at(pos + query.size())});
+        matches.set(std::move(hits));
         refresh_status();
     }
 
     void refresh_status() {
-        const auto& text = value(body);
+        const auto text = body.text();
         auto query = value(search);
         std::optional<std::size_t> matches;
         if (!query.empty()) matches = notes::find_all(text, query).size();

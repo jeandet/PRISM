@@ -180,3 +180,21 @@ TEST_CASE("assign replaces everything as one edit: watchers hear it, and undo br
     CHECK(doc.undo());
     CHECK(doc.text() == "old\ntext");
 }
+
+#include <prism/core/derived.hpp>
+
+TEST_CASE("reset loads new text with no undo back to the old one") {
+    Document doc{"old"};
+    doc.insert({0, 3}, "!");
+    doc.reset(Document{"a new file"});
+    CHECK(doc.text() == "a new file");
+    CHECK_FALSE(doc.can_undo());
+}
+
+TEST_CASE("a Derived reading a document follows it, with no list") {
+    Document doc{"one two"};
+    prism::core::Derived<std::size_t> length{[&] { return doc.text().size(); }};
+    CHECK(length.get() == 7);
+    doc.insert({0, 7}, " three");
+    CHECK(length.get() == 13);
+}

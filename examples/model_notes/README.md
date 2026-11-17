@@ -9,8 +9,9 @@ things a dashboard never touches.
 
 It shows three things:
 
-- **A document as one field.** The text and its search highlights are one `Field<ui::TextArea<>>`
-  value, and setting it is what makes the editor redraw.
+- **A document, edited.** The file is a `text::Document` in `vb.text_editor`: only the lines in
+  sight are laid out, so a long file types as fast as a short one. The search hits are a field of
+  their own, drawn over it with `.highlights(matches)`.
 - **Reactivity as plain connections.** Every consequence of an edit is an `on_change()` callback
   set up once, in the app's constructor.
 - **A second window on the same data.** The Statistics window recomputes a `Derived<std::string>`
@@ -30,47 +31,51 @@ It shows three things:
 
 <p align="center"><img src="diagrams/flow.svg" alt="One thread: a key, a click or a menu item changes a field, whose on_change connections set status and modified (which repaint the status bar and the Save entries), and a Derived in the Statistics window recomputes from the same body field." width="900"/></p>
 
-The PRISM part is `model_notes.cpp`, 281 lines. `notes_logic.hpp` (77 lines) loads, saves,
+The PRISM part is `model_notes.cpp`, 272 lines. `notes_logic.hpp` (77 lines) loads, saves,
 searches and counts with no widget in it, and `file_tree_source.hpp` (92 lines) shows a directory
 to the tree widget.
 
 One thread, and one pass from a change to a repaint:
 
-1. A key, a click in the tree, a menu item or a dropped file changes a field: `body`, the editor's
-   value, or `files.selected`.
-2. `body`'s `on_change()` runs `update_matches()`, which writes every match of the search text into
-   that same value (the highlights the text area draws), then `refresh_status()`.
+1. A key, a click in the tree, a menu item or a dropped file changes `body` (the document being
+   edited), the search text, or `files.selected`.
+2. `body`'s `on_change()` runs `update_matches()`, which sets `matches` to every hit of the search
+   text (the editor draws them), then `refresh_status()`.
 3. `refresh_status()` sets `status` (the bottom line) and `modified`; `modified`'s own connection
    enables or greys the Save entries in two menus. The status bar and the menus repaint.
-4. `NotesStats` holds a `Derived<std::string>` built from `body`; the Statistics window recomputes
+4. `NotesStats` holds a `Derived<std::string>` that reads `body`; the Statistics window recomputes
    it and repaints its label.
 
 ## Walkthrough
 
-Read the files in this order. `model_notes.cpp` (281 lines) wires the widgets; `notes_logic.hpp`
+Read the files in this order. `model_notes.cpp` (272 lines) wires the widgets; `notes_logic.hpp`
 (73 lines) is the logic and `file_tree_source.hpp` (92 lines) is the tree. About 445 lines in all.
 
-### The document is one field
+### The document, and its search hits
 
 ```cpp
-core::Field<ui::TextArea<>> body{{.placeholder = "Select a text file on the left", .rows = 26}};
+text::Document body;
+core::Field<std::vector<text::Range>> matches{};   // the search text's hits in the body
+...
+vb.text_editor(body, {.view = {.family = render::FontRole::Mono,
+                               .placeholder = "Select a text file on the left"}})
+    .highlights(matches);
 ```
 
-The search highlights are part of that value, not a second model:
+Opening a file is `body.reset(text::Document{*text})`: not an edit, so Ctrl+Z cannot bring the last
+file back. The hits are a second field, not part of the text: the editor draws them, and they never
+reach the undo history.
 
 ```cpp
 void update_matches() {
     const auto& query = value(search);
-    std::vector<ui::TextRange> hits;
-    for (auto pos : notes::find_all(value(body), query)) hits.push_back({pos, pos + query.size()});
-    body.update([&](auto& b) { b.highlights = std::move(hits); });   // no change, no notice
+    std::vector<text::Range> hits;
+    for (auto pos : notes::find_all(body.text(), query))
+        hits.push_back({body.position_at(pos), body.position_at(pos + query.size())});
+    matches.set(std::move(hits));
     refresh_status();
 }
 ```
-
-`update()` changes the highlights and keeps the text. It notifies `on_change()` again, so the
-search runs a second time on the new value, finds the same highlights, and stops there: a value
-set to what it already was notifies nobody.
 
 ### Logic with no window in it
 
@@ -99,7 +104,7 @@ wire.on(files.selected, [this](const auto& id) {
     std::error_code ec;
     if (id && fs::is_regular_file(source.path_of(*id), ec)) open(source.path_of(*id));
 });
-wire.on(body, [this](const auto&) { update_matches(); });
+wire.on(body, [this](const text::Change&) { update_matches(); });
 wire.on(save, [this](const auto&) { write(); });
 wire.on(modified, [this](bool on) {
     enable_item(file_menu, "Save", on);
@@ -110,23 +115,24 @@ wire.on(modified, [this](bool on) {
 The last one is the interesting shape: a `Field<bool>` that only exists to enable menu items, set
 by `refresh_status()` and read by nobody else.
 
-### A second window on the same field
+### A second window on the same document
 
 ```cpp
 struct NotesStats {
     core::Derived<std::string> summary;
-    explicit NotesStats(core::Field<ui::TextArea<>>& body)
+    explicit NotesStats(const text::Document& body)
         : summary([&body] {
-              auto s = notes::stats(value(body));
+              auto s = notes::stats(body.text());
               return std::to_string(s.lines) + " lines, " + std::to_string(s.characters) + " characters";
-          }, body) {}
+          }) {}
     void view(app::ViewBuilder& vb) { vb.widget(summary); }
 };
 ```
 
-`Derived` names `body` as its dependency, so it recomputes when the text changes and nowhere else.
+The `Derived` follows what it reads, the document included, so it recomputes when the text
+changes and nowhere else.
 It becomes a window of its own through `ctx->open_window(stats, {.title = "Statistics", ...})`, from
-the View menu — the same field, a second place to read it.
+the View menu — the same document, a second place to read it.
 
 ### The file tree is a `TreeSource`
 

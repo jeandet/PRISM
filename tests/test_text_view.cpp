@@ -152,3 +152,18 @@ TEST_CASE("vb.text_view: the wheel scrolls it, and an edit of the document redra
     snap = tree.build_snapshot(400, 300, ++version);
     CHECK(shows(*snap, "edited line 0"));
 }
+
+TEST_CASE("an empty document shows the placeholder, muted; any text replaces it") {
+    Document doc{""};
+    View view{doc, {.padding = 0, .placeholder = "Select a file"}};
+    render::DrawList dl;
+    view.draw(dl, window, theme);
+    bool muted = false;
+    for (const auto& c : dl.commands)
+        if (auto* t = std::get_if<render::TextCmd>(&c); t && t->text == "Select a file") muted = t->color == theme.text_placeholder;
+    CHECK(muted);
+    doc.insert({0, 0}, "x");
+    dl.clear();
+    view.draw(dl, window, theme);
+    CHECK_FALSE(draws_text(dl, "Select a file"));
+}

@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -29,6 +30,7 @@ struct ViewOptions {
     const Highlighter* highlighter = nullptr;   // code: its colors (text/highlight.hpp)
     bool line_numbers = false;                  // a gutter numbering the blocks
     bool current_line = false;                  // the caret's line shaded
+    std::string placeholder{};                  // shown, muted, while the document is empty
 };
 
 class View {

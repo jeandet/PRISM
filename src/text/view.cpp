@@ -126,6 +126,9 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
     clamp_scroll();
 
     dl.clip_push(Point{X{0}, Y{0}}, size);
+    if (!options_.placeholder.empty() && doc_.size() == 1 && doc_[0].text.empty())
+        dl.text(options_.placeholder, Point{X{pad + gutter_}, Y{pad}}, options_.size, theme.text_placeholder, 0.f,
+                render::TextAnchor::TopLeft, render::FontStyle{options_.family});
     auto at = heights_.seek([](const Heights& h) { return h.height; }, scroll.raw());
     std::size_t i = std::min(at.index, doc_.size() - 1);
     float y = i == at.index ? at.before.height : heights_.prefix(i).height;

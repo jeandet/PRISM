@@ -194,6 +194,12 @@ void Document::set_kind(std::size_t block, BlockKind kind, int level, std::strin
     splice(block, 1, std::move(blocks));
 }
 
+void Document::reset(Document other) {
+    assign(std::move(other));
+    undo_.clear();
+    redo_.clear();
+}
+
 void Document::assign(Document other) {
     break_undo_group();
     splice(0, size(), other.take(0, other.size()));
