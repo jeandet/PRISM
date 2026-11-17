@@ -439,6 +439,10 @@ struct TableState {
     // order. vb.table(...).columns(field) makes the app's field the one used.
     Field<std::vector<size_t>> own_columns{};
     Field<std::vector<size_t>>* app_columns = nullptr;
+    // vb.table(...).selection(field): the app's field holds the selected rows instead of
+    // selected_rows; the watch keeps the current row among them when the app sets it.
+    Field<std::vector<size_t>>* app_selection = nullptr;
+    Connection app_selection_watch;
     std::optional<HeaderDrag> header_drag;
 
     std::vector<float> column_widths;  // by source column: user-resized widths; 0 or missing = auto

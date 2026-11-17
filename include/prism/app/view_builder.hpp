@@ -311,6 +311,21 @@ public:
             if (node_ref.table_state) node_ref.table_state->app_columns = &shown;
             return *this;
         }
+        // The selected rows, as source row indices, ascending: the user's clicks land in `rows`,
+        // and setting `rows` selects them. The table redraws when the app sets it.
+        TableBuilder& selection(Field<std::vector<size_t>>& rows) {
+            placed_ref.insert(&rows);
+            node_ref.dependencies.push_back(view_builder_detail::adapt_on_change(rows));
+            if (auto ts = node_ref.table_state) {
+                ts->app_selection = &rows;
+                ts->app_selection_watch = rows.on_change().connect([raw = ts.get()](const std::vector<size_t>& r) {
+                    if (raw->selected_row.get() && !std::ranges::binary_search(r, *raw->selected_row.get()))
+                        raw->selected_row.set(r.empty() ? std::nullopt : std::optional{r.front()});
+                    if (raw->anchor_row && !std::ranges::binary_search(r, *raw->anchor_row)) raw->anchor_row.reset();
+                });
+            }
+            return *this;
+        }
         // Initial sort; the user changes it by clicking a header.
         TableBuilder& sort(size_t column, bool descending = false) {
             if (node_ref.table_state)

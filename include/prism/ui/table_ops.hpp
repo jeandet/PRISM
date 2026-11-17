@@ -84,12 +84,18 @@ inline SortSpec next_sort(std::optional<SortSpec> current, size_t column) {
     return {column, false};
 }
 
+// The selected rows: the app's field when it gave one (vb.table(...).selection), else the table's.
+inline Field<std::vector<size_t>>& rows_field(TableState& ts) { return ts.app_selection ? *ts.app_selection : ts.selected_rows; }
+inline const std::vector<size_t>& selected_rows(const TableState& ts) {
+    return ts.app_selection ? ts.app_selection->get() : ts.selected_rows.get();
+}
+
 // Drops selected rows past the end of the data (rows were removed).
 inline void prune_selection(TableState& ts) {
     size_t n = ts.row_count();
-    auto& rows = ts.selected_rows.get();
+    auto& rows = selected_rows(ts);
     if (!rows.empty() && rows.back() >= n)
-        ts.selected_rows.set(std::vector<size_t>(rows.begin(), std::ranges::lower_bound(rows, n)));
+        rows_field(ts).set(std::vector<size_t>(rows.begin(), std::ranges::lower_bound(rows, n)));
     if (ts.selected_row.get() >= n) ts.selected_row.set(std::nullopt);  // nullopt compares less
     if (ts.anchor_row >= n) ts.anchor_row.reset();
 }
@@ -255,17 +261,17 @@ inline float max_scroll_x(const TableState& ts) {
 // ---- Selection -------------------------------------------------------------
 
 inline bool is_selected(const TableState& ts, size_t row) {
-    return ts.selected_row.get() == row || std::ranges::binary_search(ts.selected_rows.get(), row);
+    return ts.selected_row.get() == row || std::ranges::binary_search(selected_rows(ts), row);
 }
 
 inline void clear_selection(TableState& ts) {
     ts.selected_row.set(std::nullopt);
-    ts.selected_rows.set({});
+    rows_field(ts).set({});
     ts.anchor_row.reset();
 }
 
 inline void select_single(TableState& ts, size_t row) {
-    ts.selected_rows.set({row});
+    rows_field(ts).set({row});
     ts.selected_row.set(row);
     ts.anchor_row = row;
 }
@@ -277,31 +283,31 @@ inline void select_range_to(TableState& ts, size_t view_pos) {
     for (size_t p = std::min(from, view_pos); p <= std::max(from, view_pos); ++p)
         rows.push_back(source_row(ts, p));
     std::ranges::sort(rows);
-    ts.selected_rows.set(std::move(rows));
+    rows_field(ts).set(std::move(rows));
     ts.selected_row.set(source_row(ts, view_pos));
 }
 
 inline void toggle_row(TableState& ts, size_t row) {
-    auto rows = ts.selected_rows.get();
+    auto rows = selected_rows(ts);
     bool removing = std::ranges::binary_search(rows, row);
     if (removing)
         rows.erase(std::ranges::lower_bound(rows, row));
     else
         rows.insert(std::ranges::lower_bound(rows, row), row);
-    ts.selected_rows.set(std::move(rows));
+    rows_field(ts).set(std::move(rows));
     ts.selected_row.set(removing ? std::nullopt : std::optional{row});
     ts.anchor_row = row;
 }
 
 inline bool only_selected(const TableState& ts, size_t row) {
-    auto& rows = ts.selected_rows.get();
+    auto& rows = selected_rows(ts);
     return ts.selected_row.get() == row && (rows.empty() || rows == std::vector<size_t>{row});
 }
 
 inline void select_all(TableState& ts) {
     std::vector<size_t> rows(ts.row_count());
     std::iota(rows.begin(), rows.end(), size_t{0});
-    ts.selected_rows.set(std::move(rows));
+    rows_field(ts).set(std::move(rows));
     if (!ts.selected_row.get() && ts.row_count() > 0) {
         ts.selected_row.set(source_row(ts, 0));
         ts.anchor_row = source_row(ts, 0);

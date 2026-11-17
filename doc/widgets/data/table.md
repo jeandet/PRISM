@@ -75,11 +75,44 @@ The [gallery's Data tab](https://jeandet.github.io/PRISM/widget_gallery.html) is
 | `.sort(column, descending = false)` | the starting sort; the user changes it by clicking a header |
 | `.columns(field)` | a `Field<std::vector<std::size_t>>` of the columns shown, in order; empty: all |
 | `.depends_on(a, b...)` | redraws and re-sorts when any of these fields change |
+| `.selection(field)` | a `Field<std::vector<std::size_t>>` of the selected rows: the user's selection lands in it, and setting it selects rows |
 
 With `.columns(field)`, the app hides a column by leaving it out of the vector, and saves the
 user's order by saving the field. A header drag writes the new order into it.
 There is no built-in menu to hide columns: the gallery builds one with a
 [context menu](../popups/context-menu.md).
+
+With `.selection(field)`, the app reads what the user selected and selects rows itself:
+
+```cpp
+struct Mail {
+    std::string from;
+    std::string subject;
+};
+
+struct Inbox {
+    core::List<Mail> mails;
+    core::Field<std::vector<std::size_t>> picked;
+    core::Field<ui::Button> remove{{.text = "Delete"}};
+    core::Wiring wire;
+
+    Inbox() {
+        wire.on(remove, [this](const ui::Button&) {
+            auto rows = picked.get();
+            for (auto r = rows.rbegin(); r != rows.rend(); ++r) mails.erase(*r);   // last first
+            picked = std::vector<std::size_t>{};
+        });
+    }
+
+    void view(app::ViewBuilder& vb) {
+        vb.table(mails).selection(picked);
+        vb.widget(remove);
+    }
+};
+```
+
+The rows are source rows (the order of your data, not the sorted order on screen), ascending.
+When the app sets the field, keep it sorted too.
 
 A table over a `List` hears its changes itself. A table over your own source does not know
 when your data changes: list the fields it depends on with `.depends_on(...)`.
