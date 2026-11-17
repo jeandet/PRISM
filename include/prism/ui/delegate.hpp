@@ -845,7 +845,36 @@ struct Widget<Slider<T, O>> {
         field.set(updated);
     }
 
+    // One key press: the step, or a hundredth of the range when there is none (at least 1 for
+    // an integer slider).
+    static T key_step(const Slider<T, O>& s) {
+        if (s.step != T{0}) return s.step;
+        T hundredth = static_cast<T>((s.max - s.min) / T{100});
+        if constexpr (std::is_integral_v<T>) return std::max(hundredth, T{1});
+        return hundredth;
+    }
+
+    // Arrows move a step (up and right raise the value), Page Up/Down ten steps, Home/End the ends.
+    static void handle_key(Field<Slider<T, O>>& field, int32_t key) {
+        auto s = field.get();
+        const T step = key_step(s);
+        // Compared before adding, so an unsigned or a near-limit value cannot wrap around.
+        auto up = [&](T n) { return s.max - s.value < n ? s.max : static_cast<T>(s.value + n); };
+        auto down = [&](T n) { return s.value - s.min < n ? s.min : static_cast<T>(s.value - n); };
+        switch (key) {
+        case keys::right: case keys::up: s.value = up(step); break;
+        case keys::left: case keys::down: s.value = down(step); break;
+        case keys::page_up: s.value = up(static_cast<T>(T{10} * step)); break;
+        case keys::page_down: s.value = down(static_cast<T>(T{10} * step)); break;
+        case keys::home: s.value = s.min; break;
+        case keys::end: s.value = s.max; break;
+        default: return;
+        }
+        field.set(s);
+    }
+
     static void handle_input(Field<Slider<T, O>>& field, const InputEvent& ev, WidgetNode& node) {
+        if (auto* kp = std::get_if<KeyPress>(&ev)) return handle_key(field, kp->key);
         auto extract = [](auto& e) { return vertical ? e.position.y.raw() : e.position.x.raw(); };
         if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed)
             apply_position(field, extract(*mb), node);

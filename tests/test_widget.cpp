@@ -598,3 +598,40 @@ TEST_CASE("User-defined Widget<Knob> handles input and uses custom edit state") 
     auto& es = wn.get_or_create<KnobEditState>();
     CHECK(es.dragging == true);
 }
+
+TEST_CASE("a focused slider moves with the keys: a step, ten steps, the ends") {
+    prism::Field<prism::Slider<int>> field{{.value = 50, .min = 0, .max = 100, .step = 5}};
+    auto node = make_node();
+    auto press = [&](int32_t key) { prism::Widget<prism::Slider<int>>::handle_input(field, prism::KeyPress{key, 0}, node); };
+    press(prism::keys::right);
+    CHECK(field.get().value == 55);
+    press(prism::keys::down);
+    press(prism::keys::left);
+    CHECK(field.get().value == 45);
+    press(prism::keys::up);
+    CHECK(field.get().value == 50);
+    press(prism::keys::page_up);
+    CHECK(field.get().value == 100);
+    press(prism::keys::page_down);
+    CHECK(field.get().value == 50);
+    press(prism::keys::home);
+    CHECK(field.get().value == 0);
+    press(prism::keys::left);   // stays inside the range
+    CHECK(field.get().value == 0);
+    press(prism::keys::end);
+    CHECK(field.get().value == 100);
+}
+
+TEST_CASE("a slider with no step moves by a hundredth of its range") {
+    prism::Field<prism::Slider<>> field{{.value = 0.5, .min = 0.0, .max = 2.0}};
+    auto node = make_node();
+    prism::Widget<prism::Slider<>>::handle_input(field, prism::KeyPress{prism::keys::right, 0}, node);
+    CHECK(field.get().value == doctest::Approx(0.52));
+}
+
+TEST_CASE("an unsigned slider stops at its minimum instead of wrapping") {
+    prism::Field<prism::Slider<unsigned>> field{{.value = 2u, .min = 0u, .max = 10u, .step = 5u}};
+    auto node = make_node();
+    prism::Widget<prism::Slider<unsigned>>::handle_input(field, prism::KeyPress{prism::keys::left, 0}, node);
+    CHECK(field.get().value == 0u);
+}

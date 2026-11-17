@@ -55,7 +55,17 @@ The member's name is the caption. Without the annotation, a number is read-only 
 - Drag the knob, or click the track to jump there.
 - With a step, the value snaps to the nearest step.
 - The value notifies at every move of a drag.
-- The keyboard does not move a slider yet: use a [spin box](spin-box.md) where that matters.
+- Tab or a click gives it the focus. Then the keys move it:
+
+| Key | Moves the value |
+|---|---|
+| Right, Up | one step up |
+| Left, Down | one step down |
+| Page Up, Page Down | ten steps |
+| Home, End | to `min`, to `max` |
+
+  One step is `step`, or a hundredth of the range when `step` is 0 (at least 1 for an integer).
+  The value stays between `min` and `max`.
 
 ## See also
 
