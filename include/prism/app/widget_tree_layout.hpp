@@ -77,7 +77,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep = false
 inline bool keeps_state(const WidgetNode& n) {
     using LK = LayoutKind;
     return n.layout_kind == LK::Scroll || n.layout_kind == LK::VirtualList || n.layout_kind == LK::Table
-        || n.layout_kind == LK::Tabs || n.layout_kind == LK::Layers;
+        || n.layout_kind == LK::Tabs || n.layout_kind == LK::Layers || n.layout_kind == LK::Board;
 }
 // A container that hands its children to its parent's layout node (no node of its own).
 inline bool passes_through(const WidgetNode& n) {
@@ -268,6 +268,17 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep) {
         container.source = &node;
         container.theme = node.theme;
         if (node.layer_places) container.layer_rects = node.layer_places();
+        build_children(node, container, keep);
+        parent.children.push_back(std::move(container));
+    } else if (node.layout_kind == LK::Board) {
+        LayoutNode container;
+        container.kind = LayoutNode::Kind::Board;
+        container.id = node.id;
+        container.source = &node;
+        container.theme = node.theme;
+        if (node.board_places) container.board_points = node.board_places();
+        container.board_under = node.board_under;
+        container.board_over = node.board_over;
         build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Tabs) {

@@ -93,8 +93,11 @@ struct LayoutNode {
     DrawList draws;
     DrawList overlay_draws;
     std::vector<LayoutNode> children;
-    enum class Kind { Leaf, Row, Column, Spacer, Canvas, Scroll, VirtualList, Table, Tabs, Handle, Layers } kind = Kind::Leaf;
+    enum class Kind { Leaf, Row, Column, Spacer, Canvas, Scroll, VirtualList, Table, Tabs, Handle, Layers, Board } kind = Kind::Leaf;
     std::vector<Rect> layer_rects;   // Kind::Layers: where children after the first lie, in its coordinates
+    std::vector<Point> board_points;   // Kind::Board: where children after the first lie, in its coordinates
+    BoardDraw board_under;   // Kind::Board: drawn above the first child, below the others
+    BoardDraw board_over;    // Kind::Board: drawn above all its children
     DY scroll_offset{0};        // only for Kind::Scroll and VirtualList
     Height scroll_content_h{0}; // total content height, for scrollbar rendering
     size_t vlist_visible_start = 0;  // first materialized item index (VirtualList only)
@@ -244,6 +247,19 @@ inline void arrange_uniform_rows(LayoutNode& node, Rect available, Height item_h
 namespace layout_detail {
 inline void measure_node(LayoutNode& node, LayoutAxis parent_axis);
 inline Rect layer_rect(const LayoutNode& node, std::size_t i, Rect area);
+inline Size natural_size(const SizeHint& vertical);
+inline Rect card_rect(const LayoutNode& board, std::size_t i, Rect area);
+}
+
+// What a child measured down a column takes when not stretched: its width across, its height down.
+inline Size layout_detail::natural_size(const SizeHint& vertical) {
+    return {Width{vertical.cross}, Height{vertical.preferred}};
+}
+
+// A board's card i (its child i + 1) in the window: at its point, at its natural size, not clamped.
+inline Rect layout_detail::card_rect(const LayoutNode& board, std::size_t i, Rect area) {
+    const Point p = i < board.board_points.size() ? board.board_points[i] : Point{X{0}, Y{0}};
+    return {area.origin + Offset{DX{p.x.raw()}, DY{p.y.raw()}}, natural_size(board.children[i + 1].hint)};
 }
 
 // A layer's rect in the window: its place, kept inside the area (cut down if bigger).
@@ -317,6 +333,11 @@ inline void layout_detail::measure_node(LayoutNode& node, LayoutAxis parent_axis
             layout_measure(node.children[i], i == 0 ? parent_axis : LayoutAxis::Vertical);
         node.hint = node.children.empty() ? SizeHint{.expand = true} : node.children[0].hint;
         return;
+    case LayoutNode::Kind::Board:   // takes what it is given; the cards take what they need
+        for (std::size_t i = 0; i < node.children.size(); ++i)
+            layout_measure(node.children[i], i == 0 ? parent_axis : LayoutAxis::Vertical);
+        node.hint = SizeHint{.expand = true};
+        return;
     case LayoutNode::Kind::Tabs: {
         if (node.children.size() >= 1)
             layout_measure(node.children[0], LayoutAxis::Horizontal);
@@ -369,6 +390,12 @@ inline void layout_arrange(LayoutNode& node, Rect available) {
     if (node.kind == LayoutNode::Kind::Layers) {
         for (std::size_t i = 0; i < node.children.size(); ++i)
             layout_arrange(node.children[i], i == 0 ? available : layout_detail::layer_rect(node, i - 1, available));
+        return;
+    }
+
+    if (node.kind == LayoutNode::Kind::Board) {
+        for (std::size_t i = 0; i < node.children.size(); ++i)
+            layout_arrange(node.children[i], i == 0 ? available : layout_detail::card_rect(node, i - 1, available));
         return;
     }
 
@@ -568,6 +595,37 @@ inline void flatten_scrollable(LayoutNode& node, SceneSnapshot& snap, std::optio
                           node.scroll_offset, *node.theme, clip);
 }
 
+inline void push_entry(SceneSnapshot& snap, WidgetId id, Rect rect, DrawList dl) {
+    snap.geometry.push_back({id, rect});
+    snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(dl)));
+    snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
+}
+
+// simplify: a depth-first walk per call; an id-to-rect map built once per flatten if boards
+// with many cards and wires show up in profiles.
+inline std::optional<Rect> find_rect(const LayoutNode& node, WidgetId id) {
+    if (node.id == id) return node.allocated;
+    for (auto& child : node.children)
+        if (auto r = find_rect(child, id)) return r;
+    return std::nullopt;
+}
+
+inline std::optional<Rect> board_rect_of(const LayoutNode& board, WidgetId id) {
+    for (auto& child : board.children)
+        if (auto r = find_rect(child, id))
+            return Rect{r->origin - Offset{DX{board.allocated.origin.x.raw()}, DY{board.allocated.origin.y.raw()}}, r->extent};
+    return std::nullopt;
+}
+
+// Hit testing skips id 0, so a board's drawings never hide the cards under them.
+inline void flatten_board_draw(const LayoutNode& board, const BoardDraw& draw, SceneSnapshot& snap) {
+    if (!draw) return;
+    DrawList dl;
+    draw(dl, [&board](WidgetId id) { return board_rect_of(board, id); });
+    translate_draw_list(dl, DX{board.allocated.origin.x.raw()}, DY{board.allocated.origin.y.raw()});
+    push_entry(snap, 0, board.allocated, std::move(dl));
+}
+
 inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, bool clipped_by_ancestor) {
     // A popup anchor (context menu, dialog) draws nothing in place, but routing needs its
     // origin: its popup is stored in its own coordinates. It gets a zero-size rect there,
@@ -640,6 +698,20 @@ inline void flatten_overlays(LayoutNode& node, SceneSnapshot& snap) {
         snap.overlay.commands.push_back(std::move(cmd));
 }
 
+inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
+    const Rect inside = narrow(clip, node.allocated);
+    DrawList clip_dl;
+    clip_dl.clip_push(node.allocated.origin, node.allocated.extent);
+    push_entry(snap, node.id, node.allocated, std::move(clip_dl));
+    if (!node.children.empty()) layout_flatten(node.children[0], snap, inside);
+    flatten_board_draw(node, node.board_under, snap);
+    for (std::size_t i = 1; i < node.children.size(); ++i) layout_flatten(node.children[i], snap, inside);
+    flatten_board_draw(node, node.board_over, snap);
+    DrawList pop_dl;
+    pop_dl.clip_pop();
+    push_entry(snap, 0, Rect{Point{X{0}, Y{0}}, Size{Width{0}, Height{0}}}, std::move(pop_dl));
+}
+
 } // namespace layout_detail
 
 // `clip`: set when some ancestor (Scroll/VirtualList/Table) wraps this node in a
@@ -663,6 +735,9 @@ inline void layout_flatten(LayoutNode& node, SceneSnapshot& snap, std::optional<
     case LayoutNode::Kind::Scroll:
     case LayoutNode::Kind::VirtualList:
         layout_detail::flatten_scrollable(node, snap, clip);
+        return;
+    case LayoutNode::Kind::Board:
+        layout_detail::flatten_board(node, snap, clip);
         return;
     default:
         break;

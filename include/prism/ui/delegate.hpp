@@ -63,8 +63,9 @@ concept StringLike = requires(const T& t) {
 enum class FocusPolicy : uint8_t { none, tab_and_click };
 
 // Layers: the first child fills it, the others lie over it where layer_places says (a dock's
-// floating cards).
-enum class LayoutKind : uint8_t { Default, Row, Column, Spacer, Canvas, Scroll, VirtualList, Table, Tabs, Handle, Layers };
+// floating cards). Board: the first child fills it, the others lie at their natural size where
+// board_places says, unclamped and clipped to it (a node editor's cards).
+enum class LayoutKind : uint8_t { Default, Row, Column, Spacer, Canvas, Scroll, VirtualList, Table, Tabs, Handle, Layers, Board };
 
 enum class ScrollBarPolicy : uint8_t { Auto, Always, Never };
 enum class ScrollEventPolicy : uint8_t { ConsumeAlways, BubbleAtBounds };

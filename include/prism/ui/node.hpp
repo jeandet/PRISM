@@ -21,6 +21,11 @@ struct WidgetNode;
 struct TableState;
 struct TabsState;
 
+// A board's descendant's rect in the board's coordinates, from the layout just made.
+using BoardRectOf = std::function<std::optional<Rect>(WidgetId)>;
+// Drawn in the board's coordinates; may ask where the board's descendants lie.
+using BoardDraw = std::function<void(DrawList&, const BoardRectOf&)>;
+
 // Where a drop landed, in the target widget's coordinates, and the widget's size: enough to
 // tell before from after, or which row.
 struct DropPlace {
@@ -80,6 +85,11 @@ struct Node {
     std::function<bool()> content_stale;
     // LayoutKind::Layers: where the children after the first lie, in its coordinates. Copied too.
     std::function<std::vector<Rect>()> layer_places;
+    // LayoutKind::Board: where the children after the first lie, in its coordinates, read at
+    // every layout; and what it draws above its first child (under) and above all (over). Copied.
+    std::function<std::vector<Point>()> board_places;
+    BoardDraw board_under;
+    BoardDraw board_over;
     // Kept when what holds it is rebuilt (a dock panel moved elsewhere): the built widgets are
     // parked under this key and put back where a node with the same key is built next.
     std::string keep_key;
