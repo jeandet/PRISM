@@ -200,12 +200,14 @@ inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
     tree.move_popup(Rect{Point{local.origin.x + dx, local.origin.y + dy}, local.extent});
 }
 
-// While one button holds a widget (a drag), another button's press or release goes to that
-// widget and leaves the capture alone: a right click mid-drag must not end the drag.
+// While the left button holds a widget (a drag), another button's press or release goes to that
+// widget and leaves the capture alone: a right click mid-drag must not end the drag. Only a left
+// capture is kept so: a right press whose release is lost (the pointer went to another window)
+// must not take every later left click.
 inline bool route_other_button(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev,
                                const MouseButton& mb) {
     const WidgetId cid = tree.captured_id();
-    if (cid == 0 || mb.button == tree.captured_button()) return false;
+    if (cid == 0 || tree.captured_button() != buttons::left || mb.button == buttons::left) return false;
     auto rect = find_widget_rect(snap, cid);
     tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);
     return true;
@@ -222,7 +224,7 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
         tree.set_pressed(tree.captured_id(), false);
         return;
     }
-    if (mb.pressed) {
+    if (mb.pressed && mb.button == buttons::left) {
         if (auto oid = hit_test_scrollbar(snap, mb.position)) {
             tree.begin_scrollbar_drag(*oid, mb.position.y);
             if (tree.in_scrollbar_drag()) return;
