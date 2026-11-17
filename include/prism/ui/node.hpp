@@ -47,6 +47,9 @@ struct DragRole {
     // The parts of it that take a drop over whatever lies under them (a dock's edge buttons, over
     // its groups); none: all of it, and the innermost target holding the pointer wins.
     std::function<bool(DropPlace)> claims{};
+    // A target that takes some values only at some places in it (a dock group: a floating card,
+    // on its guide's buttons); none: anywhere it accepts them.
+    std::function<bool(const std::any&, DropPlace)> takes_at{};
     // A target whose drops land between its items (a tab bar's tabs): the slot a drop at `at`
     // takes (DropPlace::slot), and the line drawn there while dragging, in its coordinates.
     std::function<std::size_t(const WidgetNode& self, Point at)> slot{};

@@ -465,6 +465,11 @@ public:
                 d.between = role.between;
                 d.inside_middle = role.inside_middle;
                 d.zones = role.zones;
+                d.edge_zones = role.edge_zones;
+                d.claims = role.claims;
+                d.takes_at = role.takes_at;
+                d.slot = role.slot;
+                d.slot_marker = role.slot_marker;
             }
         }
     }

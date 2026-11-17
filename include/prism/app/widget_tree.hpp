@@ -374,9 +374,11 @@ public:
     // The innermost container taking drops whose area holds `p` and that takes `value`.
     [[nodiscard]] WidgetId drop_area_at(Point p, const std::any& value) const {
         for (auto it = drop_areas_.rbegin(); it != drop_areas_.rend(); ++it)
-            if (it->second.contains(p) && takes(it->first, value)) return it->first;
+            if (it->second.contains(p) && takes(it->first, value) && takes_at(it->first, value, p)) return it->first;
         return 0;
     }
+    // Whether target `id` takes `value` at `p` (DragRole::takes_at), when it says where.
+    [[nodiscard]] bool takes_at(WidgetId id, const std::any& value, Point p) const;
     // The container that claims `p` by a rule of its own -- a dock's edge buttons, which lie over
     // its groups -- before whatever lies under it takes the drop.
     [[nodiscard]] WidgetId claiming_drop_area(Point p, const std::any& value) const;
@@ -519,6 +521,7 @@ private:
 
     // The container around the drop target whose edges take drops (a dock): it shows its edge
     // buttons while anything is dragged over it.
+    [[nodiscard]] std::optional<std::pair<WidgetId, Rect>> guide_under_pointer() const;
     [[nodiscard]] const WidgetNode* edge_drop_container() const;
 
     // A widget whose condition changed redraws (faded or not); one just disabled lets go of the

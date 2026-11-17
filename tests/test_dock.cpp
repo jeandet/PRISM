@@ -781,6 +781,94 @@ TEST_CASE("dragging a card's title bar moves the card there") {
     CHECK(text_at(*snap, "Search")->x.raw() == doctest::Approx(title->x.raw() + 100.f));
 }
 
+TEST_CASE("dock_floating: a floating panel joins a group, beside it, or along a side of the dock") {
+    DockLayout l{dock_split(false, {dock_group({"files", "x"}), dock_group({"editor"})})};
+    l = place_card(float_panel(l, "x"), "x", 10.f, 10.f);
+    REQUIRE(l.floating == std::vector<std::string>{"x"});
+    auto middle = dock_floating(l, "x", "editor", DockZone::Middle);
+    CHECK(middle.floating.empty());
+    CHECK(middle.places.empty());
+    CHECK(middle.root.parts[1].panels == std::vector<std::string>{"editor", "x"});
+    CHECK(dock_floating(l, "x", "files", DockZone::Bottom).root ==
+          dock_split(false, {dock_split(true, {dock_group({"files"}), dock_group({"x"})}), dock_group({"editor"})}));
+    CHECK(dock_floating_at_edge(l, "x", DockZone::Left).root ==
+          dock_split(false, {dock_group({"x"}), dock_split(false, {dock_group({"files"}), dock_group({"editor"})})}));
+}
+
+namespace {
+// Drags the card titled `title` by its title bar and lets it go at `to`.
+void drag_card(WidgetTree& tree, std::unique_ptr<SceneSnapshot>& snap, std::string_view title, Point to,
+               bool release = true) {
+    auto t = text_at(*snap, title);
+    REQUIRE(t);
+    Point from{t->x + DX{4}, t->y + DY{4}};
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{to});
+    if (release) route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+}
+
+// A floating "search" card over the IDE, its place away from the groups' centres.
+std::unique_ptr<SceneSnapshot> with_search_card(Ide& model, WidgetTree& tree) {
+    model.layout.set(place_card(float_panel(model.layout.get(), "search"), "search", 10.f, 300.f));
+    auto snap = tree.build_snapshot(600, 400, 1);
+    return tree.build_snapshot(600, 400, 2);
+}
+} // namespace
+
+TEST_CASE("a card let go on a group's middle button joins that group") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = with_search_card(model, tree);
+    auto group = group_rect(tree, *snap, "Files");
+    REQUIRE(group);
+    drag_card(tree, snap, "Search", group->center());
+    CHECK(model.layout.get().floating.empty());
+    CHECK(model.layout.get().root.parts[0].panels == std::vector<std::string>{"files", "search"});
+}
+
+TEST_CASE("a card let go on a group's side button goes beside it") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = with_search_card(model, tree);
+    auto group = group_rect(tree, *snap, "Editor");
+    REQUIRE(group);
+    auto bottom = dock_guide(group->extent)[4].second;   // Bottom
+    drag_card(tree, snap, "Search", Point{group->origin.x + DX{bottom.center().x.raw()}, group->origin.y + DY{bottom.center().y.raw()}});
+    CHECK(model.layout.get().root ==
+          dock_split(false, {dock_group({"files"}), dock_split(true, {dock_group({"editor"}), dock_group({"search"})})}));
+}
+
+TEST_CASE("a card let go on one of the dock's edge buttons docks along that side") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = with_search_card(model, tree);
+    auto dock = dock_rect(tree);
+    REQUIRE(dock);
+    auto right = dock_edge_guide(dock->extent)[1].second;
+    drag_card(tree, snap, "Search", Point{dock->origin.x + DX{right.center().x.raw()}, dock->origin.y + DY{right.center().y.raw()}});
+    CHECK(model.layout.get().floating.empty());
+    CHECK(model.layout.get().root.parts.back() == dock_group({"search"}));
+}
+
+TEST_CASE("a card dragged over a group shows that group's guide, and moves when let go off it") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = with_search_card(model, tree);
+    auto group = group_rect(tree, *snap, "Files");
+    REQUIRE(group);
+    Point off{group->origin.x + DX{20}, group->origin.y + DY{60}};   // in the group, far from its guide
+    drag_card(tree, snap, "Search", off, false);
+    snap = tree.build_snapshot(600, 400, 3);
+    float button = dock_guide(group->extent)[0].second.extent.w.raw();
+    bool plate = false;
+    for (auto& c : snap->overlay.commands)
+        if (auto* r = std::get_if<RoundedRect>(&c)) plate |= r->rect.contains(group->center()) && r->rect.extent.w.raw() > 2.5f * button;
+    CHECK(plate);
+    route_event(tree, snap.get(), MouseButton{off, buttons::left, false});
+    CHECK(model.layout.get().floating == std::vector<std::string>{"search"});   // moved, not docked
+}
+
 TEST_CASE("a card's dock button puts its panel back in the dock") {
     Ide model;
     model.layout.set(float_panel(model.layout.get(), "search"));

@@ -90,8 +90,12 @@ inline void guide_plate(DrawList& dl, Rect r, Size group, Color accent) {
 
 // A group's guide: a plate, and the five buttons on it (ui::dock_guide), the one the pointer
 // is on lit.
-inline void guide(DrawList& dl, Rect r, DropPlace at, Color accent) {
-    DockZone over = ui::dock_zone(at);
+// `buttons_only`: a button is lit only under the pointer (a floating card docks on a button and
+// nowhere else); otherwise the zone a drop there would take is.
+inline void guide(DrawList& dl, Rect r, DropPlace at, Color accent, bool buttons_only = false) {
+    std::optional<DockZone> over = ui::dock_zone(at);
+    if (buttons_only && !std::ranges::any_of(ui::dock_guide(at.size), [&](const auto& b) { return b.second.contains(at.at); }))
+        over.reset();
     guide_plate(dl, r, at.size, accent);
     for (auto& [zone, local] : ui::dock_guide(at.size)) {
         Rect button{Point{r.origin.x + DX{local.origin.x.raw()}, r.origin.y + DY{local.origin.y.raw()}}, local.extent};
@@ -137,8 +141,8 @@ inline void dock_edge_marker(DrawList& dl, Rect r, Point pointer, Color accent) 
 
 // The guide of a dock group under the pointer, drawn last, over the dragged panel, as docking
 // libraries do: the button under the pointer stays in sight.
-inline void drop_guide(DrawList& dl, Rect r, Point pointer, const DragRole& role, Color accent) {
-    if (role.zones) guide(dl, r, place_in(r, pointer), accent);
+inline void drop_guide(DrawList& dl, Rect r, Point pointer, const DragRole& role, Color accent, bool buttons_only = false) {
+    if (role.zones) guide(dl, r, place_in(r, pointer), accent, buttons_only);
 }
 
 // Where a drop on target `r` would land: a dock group's zone, a line on the nearer edge of a

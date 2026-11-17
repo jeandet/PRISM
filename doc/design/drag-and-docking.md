@@ -47,9 +47,13 @@ on desktop). A double click on a tab, or the button at its bar's right end (`Tab
 floats a panel. Cards: `vb.layers(places, ...)` (`LayoutKind::Layers`: the first child fills it,
 the others lie over it at their places, read at every layout) and `vb.card` (`FrameLook::Card`);
 `DockLayout::places` keeps where each card was moved (`card_place`, `place_card`), a card's
-title bar dragged anywhere on the dock moves it (`CardDrag`), and its button docks it again. The
+title bar dragged anywhere on the dock moves it (`CardDrag`), and its button docks it again. A
+card let go on a group's guide button, or the dock's edge button, docks there
+(`dock_floating`, `dock_floating_at_edge`): groups claim their buttons over a card lying on them
+(`claims`) and take a card nowhere else (`DragRole::takes_at`); the group under the pointer shows
+its guide while a card is dragged, a button lit only under the pointer. The
 web build installs no window opener: SDL's second window there is a canvas over the whole page.
-simplify: a card is not resized, and is docked by its button only (not by a drop on a group).
+simplify: a card is not resized.
 
 ## Problem
 

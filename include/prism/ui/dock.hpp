@@ -323,6 +323,33 @@ inline DockLayout place_card(DockLayout layout, const std::string& name, float x
     return layout;
 }
 
+namespace dock_detail {
+// Floating panel `name` into the group holding `anchor` (else the first), shown there; false if
+// it was not floating.
+inline bool unfloat(DockLayout& layout, const std::string& name, const std::string& anchor) {
+    if (std::erase(layout.floating, name) == 0) return false;
+    std::erase_if(layout.places, [&](const PanelPlace& p) { return p.name == name; });
+    auto* to = group_of(layout.root, anchor);
+    auto& group = to ? *to : first_group(layout.root);
+    group.panels.push_back(name);
+    group.active = group.panels.size() - 1;
+    return true;
+}
+} // namespace dock_detail
+
+// The layout with floating panel `name` docked by `anchor`'s group: into it (Middle) or beside
+// it (an edge), as move_panel puts a panel.
+inline DockLayout dock_floating(DockLayout layout, const std::string& name, const std::string& anchor, DockZone zone) {
+    if (!dock_detail::unfloat(layout, name, anchor)) return layout;
+    return zone == DockZone::Middle ? layout : move_panel(std::move(layout), name, anchor, zone);
+}
+
+// The layout with floating panel `name` docked along the whole side `side` of the dock.
+inline DockLayout dock_floating_at_edge(DockLayout layout, const std::string& name, DockZone side) {
+    if (!dock_detail::unfloat(layout, name, {})) return layout;
+    return dock_panel_at_edge(std::move(layout), name, side);
+}
+
 // The layout with panel `name` back in the dock (in its first group).
 inline DockLayout dock_panel(DockLayout layout, const std::string& name) {
     if (std::erase(layout.floating, name) == 0) return layout;

@@ -80,18 +80,33 @@ struct Place {
     }
 };
 
-// A group takes a panel dropped on its middle (into its tabs) or an edge (a new group beside it).
+// A tab of this dock, or one of its floating cards: the panel's name; none for anything else.
+inline const std::string* dragged_panel(const std::any& v, const void* dock_id) {
+    if (auto* p = std::any_cast<PanelDrag>(&v); p && p->dock == dock_id) return &p->name;
+    if (auto* c = std::any_cast<CardDrag>(&v); c && c->dock == dock_id) return &c->name;
+    return nullptr;
+}
+
+inline bool on_guide(DropPlace at) {
+    return std::ranges::any_of(dock_guide(at.size), [&](const auto& b) { return b.second.contains(at.at); });
+}
+
+// A group takes a panel's tab dropped on its middle (into its tabs) or an edge (a new group beside
+// it); a floating card only on its guide's buttons, which it claims over a card lying on it --
+// anywhere else, a card is moved.
 inline DragRole group_drop_role(const Place& where, std::string anchor) {
     const void* dock_id = &where.state;
-    return {.accepts = [dock_id](const std::any& v) {
-                auto* p = std::any_cast<PanelDrag>(&v);
-                return p && p->dock == dock_id;
-            },
+    return {.accepts = [dock_id](const std::any& v) { return dragged_panel(v, dock_id) != nullptr; },
             .drop = [&state = where.state, &layout = where.layout, anchor = std::move(anchor)](const std::any& v, DropPlace at) {
-                auto& name = std::any_cast<const PanelDrag&>(v).name;
-                layout.set(move_panel(fitted(layout.get(), state.names), name, anchor, dock_zone(at)));
+                auto fit = fitted(layout.get(), state.names);
+                if (auto* card = std::any_cast<CardDrag>(&v))
+                    layout.set(dock_floating(std::move(fit), card->name, anchor, dock_zone(at)));
+                else
+                    layout.set(move_panel(std::move(fit), std::any_cast<const PanelDrag&>(v).name, anchor, dock_zone(at)));
             },
-            .zones = true};
+            .zones = true,
+            .claims = on_guide,
+            .takes_at = [](const std::any& v, DropPlace at) { return !std::any_cast<CardDrag>(&v) || on_guide(at); }};
 }
 
 // The dock's own container: four buttons at the middle of its edges dock a panel along that
@@ -99,14 +114,14 @@ inline DragRole group_drop_role(const Place& where, std::string anchor) {
 // drop: `claims` is only true over one of those buttons.
 inline DragRole dock_outer_role(DockState& state, Field<DockLayout>& layout) {
     const void* dock_id = &state;
-    return {.accepts = [dock_id](const std::any& v) {
-                auto* p = std::any_cast<PanelDrag>(&v);
-                return p && p->dock == dock_id;
-            },
-            .drop = [&state, &layout](const std::any& v, DropPlace at) {
-                auto& name = std::any_cast<const PanelDrag&>(v).name;
-                if (auto side = dock_edge_zone(at))
-                    layout.set(dock_panel_at_edge(fitted(layout.get(), state.names), name, *side));
+    return {.accepts = [dock_id](const std::any& v) { return dragged_panel(v, dock_id) != nullptr; },
+            .drop = [&state, &layout, dock_id](const std::any& v, DropPlace at) {
+                auto side = dock_edge_zone(at);
+                if (!side) return;
+                auto fit = fitted(layout.get(), state.names);
+                auto& name = *dragged_panel(v, dock_id);
+                layout.set(std::any_cast<CardDrag>(&v) ? dock_floating_at_edge(std::move(fit), name, *side)
+                                                        : dock_panel_at_edge(std::move(fit), name, *side));
             },
             .edge_zones = true,
             .claims = [](DropPlace at) { return dock_edge_zone(at).has_value(); }};

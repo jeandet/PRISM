@@ -344,6 +344,14 @@ bool WidgetTree::start_drag_at(Point p) {
     return value.type() == typeid(std::string) && edits_text(n);
 }
 
+[[nodiscard]] bool WidgetTree::takes_at(WidgetId id, const std::any& value, Point p) const {
+    auto it = index_.find(id);
+    if (it == index_.end() || !it->second->drag.takes_at) return true;
+    auto r = drop_area_rect(id);
+    if (!r) return true;
+    return it->second->drag.takes_at(value, DropPlace{Point{X{p.x.raw() - r->origin.x.raw()}, Y{p.y.raw() - r->origin.y.raw()}}, r->extent});
+}
+
 [[nodiscard]] WidgetId WidgetTree::claiming_drop_area(Point p, const std::any& value) const {
     for (auto& [id, r] : drop_areas_) {
         auto it = index_.find(id);
@@ -662,11 +670,26 @@ void WidgetTree::draw_drag(SceneSnapshot& snap) const {
         auto ghost = drag_draw::ghost(it->second->draws, area, drag_->pointer - drag_->grab);
         snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
     }
-    if (target_rect && target != index_.end())
+    if (target_rect && target != index_.end() && target->second->drag.zones)
         drag_draw::drop_guide(snap.overlay, *target_rect, drag_->pointer, target->second->drag, theme_.accent);
+    else if (auto guide = guide_under_pointer())   // a group taking this only on its guide: show it
+        drag_draw::drop_guide(snap.overlay, guide->second, drag_->pointer, index_.at(guide->first)->drag, theme_.accent,
+                              /*buttons_only=*/true);
     if (auto* outer = edge_drop_container())
         if (auto rect = drop_area_rect(outer->id))
             drag_draw::edge_guide(snap.overlay, *rect, drag_->pointer, theme_.accent);
+}
+
+// The innermost dock group under the pointer that takes the dragged value, but elsewhere in it
+// (a floating card: on its guide only), so the guide shows where.
+[[nodiscard]] std::optional<std::pair<WidgetId, Rect>> WidgetTree::guide_under_pointer() const {
+    for (auto it = drop_areas_.rbegin(); it != drop_areas_.rend(); ++it) {
+        auto n = index_.find(it->first);
+        if (n != index_.end() && n->second->drag.zones && it->second.contains(drag_->pointer) && takes(it->first, drag_->value)
+            && !takes_at(it->first, drag_->value, drag_->pointer))
+            return *it;
+    }
+    return std::nullopt;
 }
 
 [[nodiscard]] const WidgetNode* WidgetTree::edge_drop_container() const {
