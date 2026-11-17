@@ -651,6 +651,10 @@ public:
     // keeping the indent, brackets matched. text_editor with options for anything else.
     TextHandle code_editor(text::Document& doc, std::string_view language = {});
 
+    // Code shown, not edited: `language`'s colors, selectable and copyable, no gutter or minimap
+    // (a snippet in a page). .rows(n) for its height in a scroll area.
+    TextHandle code_view(text::Document& doc, std::string_view language = {});
+
     template <typename T>
         requires requires(T& t, DrawList& dl, Rect r, const WidgetNode& n) {
             t.canvas(dl, r, n);

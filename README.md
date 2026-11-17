@@ -540,6 +540,7 @@ text::Document source{load("main.cpp")};
 text::Document notes = text::markdown(readme);   // GitHub-flavoured Markdown, opt-in (-Dmarkdown)
 
 vb.code_editor(source, "cpp");                   // colors, line numbers, brackets, Tab to indent
+vb.code_view(snippet, "cpp");                    // the same colors, read-only, for code in a page
 vb.text_editor(notes, {.rich = true});           // Ctrl+B, "# " for a heading, "- " for a list
 vb.text_view(notes);                             // read-only
 save("README.md", text::to_markdown(notes));     // and back, tables included

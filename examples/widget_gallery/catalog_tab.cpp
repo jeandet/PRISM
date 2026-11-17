@@ -1,5 +1,7 @@
 #include "catalog_tab.hpp"
 
+#include <algorithm>
+
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -159,7 +161,8 @@ void CatalogTab::view(Vb& vb) {
 void CatalogTab::page_view(Vb& vb, std::size_t i) {
     vb.widget(text[i].name);
     vb.widget(text[i].doc);
-    if (!entries[i].code.empty()) vb.widget(text[i].code);
+    if (!entries[i].code.empty())   // as tall as the snippet, up to a few lines
+        vb.code_view(text[i].code, "cpp").rows(static_cast<int>(std::min<std::size_t>(text[i].code.size(), 6)));
     if (!entries[i].sample) return;
     vb.gap(12.f);
     vb.widget(text[i].try_it);

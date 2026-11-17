@@ -384,3 +384,32 @@ TEST_CASE("the gutter is tinted and divided from the text, with room on both sid
     CHECK(line_x - number_right >= 5.f);   // a gap before the divider
     CHECK(text_x - line_x >= 5.f);         // and after it
 }
+
+namespace {
+struct Snippet {
+    Document doc{"vb.widget(volume);  // a slider"};
+    void view(app::ViewBuilder& vb) { vb.code_view(doc, "cpp").rows(1); }
+};
+} // namespace
+
+TEST_CASE("vb.code_view: read-only code in its colors, with no gutter or minimap") {
+    Snippet s;
+    app::WidgetTree tree{s};
+    tree.set_text_measurer(&fixed);
+    auto snap = tree.build_snapshot(400, 100, 1);
+    tree.clear_dirty();
+    bool comment = false, number = false, map = false;
+    for (const auto& dl : snap->draw_lists)
+        for (const auto& c : dl->commands) {
+            if (auto* t = std::get_if<render::TextCmd>(&c); t && t->text == "// a slider") comment = t->color == tree.theme().syntax_comment;
+            if (auto* t = std::get_if<render::TextCmd>(&c); t && t->text == "1") number = true;
+            if (auto* r = std::get_if<render::FilledRect>(&c); r && r->color == tree.theme().gutter) map = true;
+        }
+    CHECK(comment);
+    CHECK_FALSE(number);
+    CHECK_FALSE(map);
+    app::widget_detail::route_event(tree, snap.get(), input::MouseButton{core::Point{core::X{50}, core::Y{10}}, input::buttons::left, true});
+    app::widget_detail::route_event(tree, snap.get(), input::MouseButton{core::Point{core::X{50}, core::Y{10}}, input::buttons::left, false});
+    app::widget_detail::route_event(tree, snap.get(), input::TextInput{"x"});
+    CHECK(s.doc.text() == "vb.widget(volume);  // a slider");   // read-only
+}

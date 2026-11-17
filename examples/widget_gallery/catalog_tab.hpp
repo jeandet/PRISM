@@ -151,16 +151,16 @@ private:
     }
 };
 
-// A page's text: the entry's name, what it is for, and its code (read-only, so it can be copied).
+// A page's text: the entry's name, what it is for, and its code (in its colors, and copyable).
 struct PageText {
     prism::core::Field<prism::ui::Label<>> name;
     prism::core::Field<prism::ui::TextArea<>> doc;
-    prism::core::Field<prism::ui::TextArea<>> code;
+    prism::text::Document code;
     prism::core::Field<prism::ui::Label<>> try_it{{"Try it:"}};
     explicit PageText(const Entry& e)
         : name{{.value = e.name, .heading = true}},
           doc{{.value = e.doc, .rows = 2, .read_only = true, .font = prism::render::FontRole::Ui}},
-          code{{.value = e.code, .rows = 2, .read_only = true}} {}
+          code{e.code} {}
 };
 
 struct CatalogTab {

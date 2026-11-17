@@ -82,7 +82,7 @@ struct BuildYourOwnTab {
 
     static constexpr std::array<std::string_view, 8> strip_names{
         "Drums", "Bass", "Keys", "Pad", "Arp", "Lead", "Vox", "Fx"};
-    static constexpr size_t code_rows{18};
+    static constexpr int code_rows{18};
 
     core::Field<ui::Label<>> widget_title{
         {.value = "A widget is one specialization", .heading = true}};
@@ -95,9 +95,7 @@ struct BuildYourOwnTab {
     core::Field<Knob> drive{{.value = 0.35, .min = 0.0, .max = 1.0, .step = 0.01, .label = "Drive"}};
     core::Field<Knob> ratio{{.value = 4.0, .min = 1.0, .max = 20.0, .step = 0.5,
                              .label = "Ratio", .unit = ":1"}};
-    core::Field<ui::TextArea<>> widget_code{{.value = std::string{knob_source()},
-                                             .rows = code_rows,
-                                             .read_only = true}};
+    text::Document widget_code{knob_source()};
 
     core::Field<ui::Label<>> strip_title{{.value = "A block is a struct", .heading = true}};
     core::Field<ui::Label<>> strip_note{
@@ -107,9 +105,7 @@ struct BuildYourOwnTab {
     std::array<ChannelStrip, 8> strips{};
     core::Field<Knob> master{{.value = -3.0, .min = -60.0, .max = 6.0, .step = 0.5,
                               .label = "Master", .unit = "dB"}};
-    core::Field<ui::TextArea<>> strip_code{{.value = std::string{strip_source},
-                                            .rows = code_rows,
-                                            .read_only = true}};
+    text::Document strip_code{strip_source};
 
     BuildYourOwnTab();
     void view(Vb& vb);   // build_your_own_tab.cpp

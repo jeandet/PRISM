@@ -445,6 +445,12 @@ ViewBuilder::TextHandle ViewBuilder::code_editor(text::Document& doc, std::strin
                              .tab_inserts = true, .auto_indent = true, .match_brackets = true});
 }
 
+ViewBuilder::TextHandle ViewBuilder::code_view(text::Document& doc, std::string_view language) {
+    return text_editor(doc, {.view = {.family = render::FontRole::Mono, .wrap = false,
+                                      .highlighter = language.empty() ? nullptr : &text::language(language)},
+                             .read_only = true});
+}
+
 ViewBuilder::TextHandle ViewBuilder::text_editor(text::Document& doc, text::EditorOptions options) {
     auto editor = std::make_shared<text::Editor>(doc, std::move(options));
     current_parent().children.push_back(text_editor_node(doc, editor, tree_.next_id_));

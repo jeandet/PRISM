@@ -43,7 +43,7 @@ void BuildYourOwnTab::view(Vb& vb) {
         vb.spacer();
     });
     vb.gap(14.f);
-    vb.widget(widget_code).tooltip("The whole file, embedded at build time: scroll it");
+    vb.code_view(widget_code, "cpp").rows(code_rows).tooltip("The whole file, embedded at build time: scroll it");
 
     vb.gap(28.f);
     vb.widget(strip_title);
@@ -58,7 +58,8 @@ void BuildYourOwnTab::view(Vb& vb) {
         vb.widget(master);
     });
     vb.gap(14.f);
-    vb.widget(strip_code).tooltip("That struct: its view() and canvas() compile in a file of their own");
+    vb.code_view(strip_code, "cpp").rows(code_rows)
+        .tooltip("That struct: its view() and canvas() compile in a file of their own");
 }
 
 } // namespace gallery
