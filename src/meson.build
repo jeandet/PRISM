@@ -184,7 +184,9 @@ if get_option('markdown').allowed()
     # preprocessor reads as 0: the static build is not seen as static, and on Windows every
     # function is declared dllimport. Said here instead, for whoever compiles against it.
     cmark_dep = declare_dependency(dependencies : cmark_dep, compile_args : ['-DCMARK_GFM_STATIC_DEFINE'])
-    prism_markdown_lib = library('prism-markdown', 'text/markdown.cpp',
+    # Static: one source over a static parser. A DLL would export only cmark's own functions
+    # (its objects carry dllexport, which turns MinGW's export-everything off), not ours.
+    prism_markdown_lib = static_library('prism-markdown', 'text/markdown.cpp',
       dependencies : [prism_core_dep, cmark_dep.as_system('system')],
       install : true,
     )
