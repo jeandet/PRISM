@@ -2,6 +2,8 @@
 #include <prism/app/widget_tree.hpp>
 #include <prism/nodes/wire_geometry.hpp>
 
+#include <algorithm>
+#include <any>
 #include <array>
 #include <cassert>
 #include <memory>
@@ -31,27 +33,84 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
     return mm->position - *press;
 }
 
+ui::BoardRectOf window_rects(const NodeBoardParts& parts) {
+    return [&tree = *parts.tree](ui::WidgetId id) { return tree.laid_out_at(id); };
+}
+
+core::Point in_window(const ui::WidgetNode& n, core::Point local) {
+    return {n.absolute_x + core::DX{local.x.raw()}, n.absolute_y + core::DY{local.y.raw()}};
+}
+
+// The wire within wire_reach of `p` (window coordinates), the nearest if several are.
+std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p) {
+    constexpr float wire_reach = 6.f;
+    const auto rect_of = window_rects(parts);
+    std::optional<nodes::EdgeId> best;
+    float nearest = wire_reach;
+    for (const auto id : parts.graph->edges()) {
+        const auto* e = parts.graph->edge(id);
+        const auto from = wire_end(parts, parts.graph->port(e->from), rect_of);
+        const auto to = wire_end(parts, parts.graph->port(e->to), rect_of);
+        if (!from || !to) continue;
+        if (const float d = nodes::distance_to(nodes::wire_curve(*from, *to), p); d <= nearest) {
+            nearest = d;
+            best = id;
+        }
+    }
+    return best;
+}
+
+// The selection is drawn by the board: `n`, a widget on it, asks for a frame.
+void set_selection(NodeBoardParts& parts, ui::WidgetNode& n, BoardSelection what) {
+    parts.selected = what;
+    n.dirty = true;
+}
+
+bool removes_selection(const input::InputEvent& ev) {
+    auto* kp = std::get_if<input::KeyPress>(&ev);
+    return kp && (kp->key == input::keys::delete_ || kp->key == input::keys::backspace);
+}
+
+void remove_selected(NodeBoardParts& parts) {
+    nodes::Graph& graph = *parts.graph;
+    const auto [wire, node] = std::exchange(parts.selected, {});
+    if (wire && graph.edge(*wire)) graph.disconnect(*wire);
+    if (node && std::ranges::contains(graph.nodes(), *node) && graph.options(*node).removable) graph.remove(*node);
+}
+
 } // namespace
 
 // The background never moves, so the pan is simply where it was at the press plus the drag.
 void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
-    if (track_press(press, ev)) pan_at_press = graph->pan();
+    nodes::Graph& graph = *parts->graph;
+    if (removes_selection(ev)) return remove_selected(*parts);
+    if (track_press(press, ev)) {
+        pan_at_press = graph.pan();
+        set_selection(*parts, n, {.wire = wire_at(*parts, in_window(n, *press)), .node = {}});
+        if (parts->selected.wire) press.reset();   // a wire clicked is selected, not dragged
+    }
     if (const auto d = dragged_by(press, ev, n)) {
         const core::Point to = pan_at_press + *d;
-        graph->pan_by(to.x - graph->pan().x, to.y - graph->pan().y);
+        graph.pan_by(to.x - graph.pan().x, to.y - graph.pan().y);
     }
 }
 
 void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
-    if (track_press(press, ev)) shown = {{0, graph->position(id)}};
+    nodes::Graph& graph = *parts->graph;
+    WidgetTree& tree = *parts->tree;
+    if (track_press(press, ev)) {
+        shown = {{0, graph.position(id)}};
+        set_selection(*parts, n, {.wire = {}, .node = id});
+        tree.set_focused(parts->background_id);   // the board takes Delete
+    }
     const auto d = dragged_by(press, ev, n);
     if (!d) return;
-    auto seen = shown.upper_bound(tree->input_frame());
+    auto seen = shown.upper_bound(tree.input_frame());
     if (seen != shown.begin()) --seen;
     const core::Point to = seen->second + *d;
     shown.erase(shown.begin(), seen);   // older frames are not shown any more
-    graph->move(id, to);
-    shown.insert_or_assign(tree->next_frame_version(), to);
+    graph.move(id, to);
+    shown.insert_or_assign(tree.next_frame_version(), to);
 }
 
 std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Port* port,
@@ -68,6 +127,7 @@ std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Po
 namespace {
 
 constexpr float wire_thickness = 2.f;
+constexpr float selected_wire_thickness = wire_thickness + 2.f;
 constexpr float dot_radius = 5.f;
 
 // Wakes the board on either change: the next frame rebuilds it if its nodes changed and lays it
@@ -84,13 +144,14 @@ std::function<core::Connection(std::function<void()>)> on_either(core::Field<std
     };
 }
 
-void draw_wires(render::DrawList& dl, const nodes::Graph& graph, const NodeBoardParts& parts,
-                const ui::BoardRectOf& rect_of, Color color) {
+void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, Color color) {
+    const nodes::Graph& graph = *parts.graph;
     for (const auto id : graph.edges()) {
         const auto* e = graph.edge(id);
         const auto from = wire_end(parts, graph.port(e->from), rect_of);
         const auto to = wire_end(parts, graph.port(e->to), rect_of);
-        if (from && to) dl.polyline(nodes::polyline(nodes::wire_curve(*from, *to)), color, wire_thickness);
+        const float thickness = parts.selected.wire == id ? selected_wire_thickness : wire_thickness;
+        if (from && to) dl.polyline(nodes::polyline(nodes::wire_curve(*from, *to)), color, thickness);
     }
 }
 
@@ -99,11 +160,68 @@ void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::Boar
         if (const auto at = wire_end(parts, port, rect_of)) dl.circle(*at, dot_radius, color);
 }
 
-// A canvas that only takes the mouse: Tab passes it by (node_canvas makes one taking input focusable).
-void takes_no_focus(ui::Node& canvas) {
-    canvas.build_widget = [inner = std::move(canvas.build_widget)](ui::WidgetNode& wn) {
+void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
+                           Color color) {
+    const auto card = parts.selected.node ? parts.cards.find(*parts.selected.node) : parts.cards.end();
+    if (card == parts.cards.end()) return;
+    if (const auto r = rect_of(card->second)) dl.rect_outline(*r, color, 2.f);
+}
+
+// A wire being drawn: from the fixed end's port to the pointer (window coordinates).
+void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRef from, core::Point pointer,
+                Color color) {
+    const nodes::Port* port = parts.graph->port(from);
+    const auto end = wire_end(parts, port, window_rects(parts));
+    if (!end) return;
+    const auto curve = port->dir() == nodes::Dir::Out ? nodes::wire_curve(*end, pointer) : nodes::wire_curve(pointer, *end);
+    dl.polyline(nodes::polyline(curve), color, wire_thickness);
+}
+
+// What a drag from port `at` carries. From an input with a wire, it picks the wire up: the
+// wire goes now, and comes back only where the drag is dropped on a port taking it. A drop
+// refused, or on nothing, leaves it gone, as node editors do.
+PortDrag pick_up(nodes::Graph& graph, nodes::PortRef at) {
+    if (graph.port(at)->dir() == nodes::Dir::In)
+        if (const auto e = graph.edge_into(at)) {
+            const nodes::PortRef from = graph.edge(*e)->from;
+            graph.disconnect(*e);
+            return {&graph, from};
+        }
+    return {&graph, at};
+}
+
+// A port's label: a drag source of PortDrag, and a drop target of those it can connect to.
+ui::DragRole port_role(NodeBoardParts& parts, nodes::PortRef at) {
+    nodes::Graph* graph = parts.graph;
+    ui::DragRole role;
+    role.source = [graph, at](const ui::WidgetNode&, core::Point) { return std::any(pick_up(*graph, at)); };
+    role.accepts = [graph, at](const std::any& v) {
+        const auto* d = std::any_cast<PortDrag>(&v);
+        return d && d->graph == graph && graph->can_connect(d->from, at);
+    };
+    role.drop = [graph, at](const std::any& v, ui::DropPlace) {
+        static_cast<void>(graph->connect(std::any_cast<const PortDrag&>(v).from, at));
+    };
+    role.trail = [&parts, &theme = parts.tree->theme()](render::DrawList& dl, const std::any& v, core::Point pointer) {
+        draw_trail(dl, parts, std::any_cast<const PortDrag&>(v).from, pointer, theme.accent);
+    };
+    role.hint_targets = true;
+    return role;
+}
+
+nodes::PortRef ref_of(const NodeBoardParts& parts, const nodes::Port& p) {
+    std::size_t i = 0;
+    for (; const auto* q = parts.graph->port({parts.card_node, i}); ++i)
+        if (q == &p) break;
+    assert(parts.graph->port({parts.card_node, i}) && "vb.port places a port of the node whose card it is in");
+    return {parts.card_node, i};
+}
+
+// A canvas taking the mouse, focused as `policy` says (node_canvas makes it focusable by Tab).
+void focus_by(ui::Node& canvas, ui::FocusPolicy policy) {
+    canvas.build_widget = [inner = std::move(canvas.build_widget), policy](ui::WidgetNode& wn) {
         inner(wn);
-        wn.focus_policy = ui::FocusPolicy::none;
+        wn.focus_policy = policy;
     };
 }
 
@@ -124,7 +242,7 @@ void grabs(ui::Node& label, NodeGrip& grip) {
 void node_header(ViewBuilder& vb, NodeBoardParts& parts, NodeGrip& grip, const nodes::NodeOptions& opt) {
     vb.hstack([&] {
         grabs(vb.widget(parts.label(opt.title, true)).node_ref, grip);
-        takes_no_focus(vb.canvas(grip).node_ref);
+        focus_by(vb.canvas(grip).node_ref, ui::FocusPolicy::none);
         if (!opt.family.empty()) grabs(vb.widget(parts.label(opt.family)).node_ref, grip);
     });
 }
@@ -136,14 +254,17 @@ void default_ports(ViewBuilder& vb, const nodes::Graph& graph, nodes::NodeId id)
             if (port->dir() == dir) vb.port(*port);
 }
 
-void node_card(ViewBuilder& vb, NodeBoardParts& parts, nodes::Graph& graph, nodes::NodeId id, const WidgetTree& tree) {
+void node_card(ViewBuilder& vb, NodeBoardParts& parts, nodes::NodeId id) {
+    const nodes::Graph& graph = *parts.graph;
     parts.card_ports.clear();
-    auto& grip = parts.grips.emplace_back(NodeGrip{.graph = &graph, .id = id, .tree = &tree, .press = {}, .shown = {}});
+    parts.card_node = id;
+    auto& grip = parts.grips.emplace_back(NodeGrip{.parts = &parts, .id = id, .press = {}, .shown = {}});
     const auto card = vb.card([&] {
         node_header(vb, parts, grip, graph.options(id));
         if (const auto& view = graph.view(id)) view(vb);
         else default_ports(vb, graph, id);
     });
+    parts.cards.insert_or_assign(id, card);
     for (auto& [port, place] : parts.card_ports) {
         place.card = card;
         parts.ports.insert_or_assign(port, place);
@@ -182,24 +303,30 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     // ids and lose their state (focus, a half-typed value). Fine for tens of nodes; past that, or
     // once that state matters, rebuild per node: one keyed child per NodeId, built only when new.
     b.content_stale = [&graph, parts] { return parts->built != graph.nodes(); };
+    parts->graph = &graph;
+    parts->tree = &tree_;
+    parts->background.parts = parts.get();
     b.build_content = [&graph, parts, &tree = tree_](Node& target) {
         parts->built = graph.nodes();
         parts->ports.clear();
+        parts->cards.clear();
         parts->labels.clear();
         parts->grips.clear();
-        parts->background.graph = &graph;
         ViewBuilder vb{tree, target};
         vb.board_ = parts.get();
-        takes_no_focus(vb.canvas(parts->background).node_ref);
-        for (const auto id : parts->built) node_card(vb, *parts, graph, id, tree);
+        ui::Node& background = vb.canvas(parts->background).node_ref;
+        parts->background_id = background.id;
+        focus_by(background, ui::FocusPolicy::click);
+        for (const auto id : parts->built) node_card(vb, *parts, id);
         assert(every_port_placed(graph, *parts) && "a node's view must place each of its ports with vb.port");
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
-    b.board_under = [&graph, parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
-        draw_wires(dl, graph, *parts, rect_of, theme.accent);
+    b.board_under = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
+        draw_wires(dl, *parts, rect_of, theme.accent);
     };
     b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
         draw_dots(dl, *parts, rect_of, theme.accent);
+        outline_selected_node(dl, *parts, rect_of, theme.accent);
     };
     current_parent().children.push_back(std::move(b));
     return current_parent().children.back().id;
@@ -212,7 +339,7 @@ ViewBuilder::LeafHandle ViewBuilder::port(nodes::Port& p) {
     const bool output = p.dir() == nodes::Dir::Out;
     const auto row = hstack([&] {
         if (output) spacer();
-        widget(board_->label(std::string(p.name())));
+        widget(board_->label(std::string(p.name()))).node_ref.drag = port_role(*board_, ref_of(*board_, p));
         if (!output) spacer();
     });
     board_->card_ports.emplace_back(&p, PortPlace{.card = 0, .row = row, .dir = p.dir()});

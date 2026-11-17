@@ -60,7 +60,8 @@ concept StringLike = requires(const T& t) {
     { t.size() } -> std::convertible_to<std::size_t>;
 };
 
-enum class FocusPolicy : uint8_t { none, tab_and_click };
+// click: focused by a click only, Tab passes it by (a node board, which takes Delete).
+enum class FocusPolicy : uint8_t { none, tab_and_click, click };
 
 // Layers: the first child fills it, the others lie over it where layer_places says (a dock's
 // floating cards). Board: the first child fills it, the others lie at their natural size where

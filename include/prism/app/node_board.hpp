@@ -26,9 +26,25 @@ struct PortPlace {
     nodes::Dir dir = nodes::Dir::In;
 };
 
-// The empty board: dragging it pans every node.
-struct BoardBackground {
+// What dragging from a port carries: the wire's fixed end (the port itself, or the output of the
+// wire picked up from an input). It is dropped on a port it can connect to.
+struct PortDrag {
     nodes::Graph* graph = nullptr;
+    nodes::PortRef from;
+};
+
+// What the board has selected (a wire clicked, a node's header clicked): Delete removes it.
+struct BoardSelection {
+    std::optional<nodes::EdgeId> wire;
+    std::optional<nodes::NodeId> node;
+};
+
+struct NodeBoardParts;
+
+// The empty board: dragging it pans every node, clicking it selects the wire there (or nothing),
+// and with the focus it takes on a click, Delete removes what is selected.
+struct BoardBackground {
+    NodeBoardParts* parts = nullptr;
     std::optional<core::Point> press;   // in the background's coordinates
     core::Point pan_at_press{};
     void canvas(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n);
@@ -39,31 +55,38 @@ struct BoardBackground {
 // press point staying under the pointer. The header moves with the pointer, and a move is read
 // against the frame the user saw, which may still show the node where it was a few moves ago:
 // so each move starts from where that frame showed the node, not from where it is now.
+// A press on it selects the node.
 struct NodeGrip {
-    nodes::Graph* graph = nullptr;
+    NodeBoardParts* parts = nullptr;
     nodes::NodeId id = 0;
-    const WidgetTree* tree = nullptr;
     std::optional<core::Point> press;            // in the pressed widget's coordinates
     std::map<std::uint64_t, core::Point> shown;   // frame version -> where it first shows the node
     void canvas(render::DrawList&, core::Rect, const ui::WidgetNode&) {}
     void handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect r);
 };
 
-// Rebuilt with the cards; the labels are the texts the cards show, so they live as long.
+// Kept for the board's life; the cards' parts are rebuilt with the cards, and the labels are the
+// texts the cards show, so they live as long.
 struct NodeBoardParts {
+    nodes::Graph* graph = nullptr;
+    WidgetTree* tree = nullptr;
+    BoardSelection selected;
     std::vector<nodes::NodeId> built;   // the nodes the cards were built for, in board order
     std::map<const nodes::Port*, PortPlace> ports;
-    std::vector<std::pair<const nodes::Port*, PortPlace>> card_ports;   // the card being built
+    std::map<nodes::NodeId, ui::WidgetId> cards;
+    nodes::NodeId card_node = 0;   // the card being built
+    std::vector<std::pair<const nodes::Port*, PortPlace>> card_ports;   // likewise
     std::deque<core::Field<ui::Label<>>> labels;   // a deque: the widgets point at them
     std::deque<NodeGrip> grips;                     // likewise
     BoardBackground background;
+    ui::WidgetId background_id = 0;
 
     core::Field<ui::Label<>>& label(std::string text, bool heading = false) {
         return labels.emplace_back(ui::Label<>{.value = std::move(text), .heading = heading, .wrap = false});
     }
 };
 
-// The end of `port`'s wires in board coordinates; none if no row of it was placed.
+// The end of `port`'s wires, in the coordinates `rect_of` gives; none if no row of it was placed.
 std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Port* port,
                                     const ui::BoardRectOf& rect_of);
 

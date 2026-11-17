@@ -145,6 +145,12 @@ inline void drop_guide(DrawList& dl, Rect r, Point pointer, const DragRole& role
     if (role.zones) guide(dl, r, place_in(r, pointer), accent, buttons_only);
 }
 
+// A target that would take what is dragged (DragRole::hint_targets): a faint wash of the accent.
+inline void hint(DrawList& dl, Rect r, Color accent) {
+    accent.a = 40;
+    dl.filled_rect(r, accent);
+}
+
 // Where a drop on target `r` would land: a dock group's zone, a line on the nearer edge of a
 // list or tree row (an outline on a tree folder's middle), or an outline around anything else.
 inline void drop_marker(DrawList& dl, Rect r, Point pointer, const DragRole& role, Color accent) {

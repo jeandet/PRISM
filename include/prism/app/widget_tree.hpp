@@ -429,6 +429,13 @@ public:
         return it != parent_map_.end() ? std::optional{it->second} : std::nullopt;
     }
 
+    // Where the last layout put widget `id`, in window coordinates; none for an unknown id.
+    [[nodiscard]] std::optional<Rect> laid_out_at(WidgetId id) const {
+        auto it = index_.find(id);
+        if (it == index_.end()) return std::nullopt;
+        return Rect{Point{it->second->absolute_x, it->second->absolute_y}, it->second->arranged_extent};
+    }
+
     // Whether `id` is `ancestor` or below it.
     [[nodiscard]] bool within(WidgetId id, WidgetId ancestor) const;
 
@@ -518,10 +525,12 @@ private:
 
     void connect_deps_dirty(Node& node, WidgetNode& wn);
 
-    // While dragging: a marker on the target under the pointer, the dragged widget (or the part
-    // dragged) following the pointer where it was grabbed, then over it a dock's guides
-    // (app/drag_draw.hpp).
+    // While dragging: soft markers on every target taking it (DragRole::hint_targets), a marker
+    // on the target under the pointer, the dragged widget (or the part dragged) following the
+    // pointer where it was grabbed, or its trail, then over it a dock's guides (app/drag_draw.hpp).
     void draw_drag(SceneSnapshot& snap) const;
+    void draw_drop_hints(SceneSnapshot& snap) const;
+    void draw_dragged(SceneSnapshot& snap, const WidgetNode& source) const;
 
     // The container around the drop target whose edges take drops (a dock): it shows its edge
     // buttons while anything is dragged over it.

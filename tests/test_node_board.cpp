@@ -365,3 +365,151 @@ TEST_CASE("a node can sit at a negative position") {
     CHECK(after->x.raw() == doctest::Approx(before->x.raw() - 60));
     CHECK(after->y.raw() == doctest::Approx(before->y.raw() - 70));
 }
+
+namespace {
+struct Counter {   // an input of another type than double
+    nodes::In<int> count{"count", 0};
+    WidgetId count_label = 0;
+    std::vector<nodes::Port*> ports() { return {&count}; }
+    void view(WidgetTree::ViewBuilder& vb) { count_label = vb.port(count).node_ref.id; }
+};
+
+Point centre(const Fixture& f, WidgetId id) {
+    auto r = find_widget_rect(*f.snap, id);
+    REQUIRE(r);
+    return Point{r->origin.x + DX{r->extent.w.raw() / 2}, r->origin.y + DY{r->extent.h.raw() / 2}};
+}
+
+void key(Fixture& f, std::int32_t k) {
+    route_event(f.tree, f.snap.get(), KeyPress{k, 0});
+    f.frame();
+}
+
+bool hinted(const Fixture& f, WidgetId id) {
+    auto r = find_widget_rect(*f.snap, id);
+    return r && std::ranges::any_of(f.snap->overlay.commands, [&](const DrawCmd& c) {
+        auto* x = std::get_if<FilledRect>(&c);
+        return x && x->rect.origin == r->origin && x->rect.extent == r->extent;
+    });
+}
+}
+
+TEST_CASE("dragging from an output onto a compatible input connects them") {
+    Fixture f;
+    auto ids = f.tree.leaf_ids();
+    const Point from = centre(f, f.m.source.out_label), to = centre(f, f.m.sink.in_label);
+    f.press(from);
+    const Point half_way = P((from.x.raw() + to.x.raw()) / 2, (from.y.raw() + to.y.raw()) / 2);
+    f.move_to(half_way);
+
+    // A wire follows the pointer from the output's card edge; the input it may join is hinted.
+    auto out_card = f.allocated(f.card_of(f.m.source.out_label));
+    auto out_row = f.row_of(f.m.source.out_label);
+    REQUIRE((out_card && out_row));
+    std::vector<Polyline> trails;
+    for (auto& c : f.snap->overlay.commands)
+        if (auto* p = std::get_if<Polyline>(&c)) trails.push_back(*p);
+    REQUIRE(trails.size() == 1);
+    CHECK(trails[0].color == f.tree.theme().accent);
+    CHECK(trails[0].points.front().x.raw() == doctest::Approx(right(*out_card)));
+    CHECK(trails[0].points.front().y.raw() == doctest::Approx(middle_y(*out_row)));
+    CHECK(trails[0].points.back() == half_way);
+    CHECK(hinted(f, f.m.sink.in_label));
+    CHECK_FALSE(hinted(f, f.m.source.out_label));
+
+    f.move_to(to);
+    f.release(to);
+    auto e = f.m.graph.edge_into({f.m.b, 0});
+    REQUIRE(e);
+    CHECK(f.m.graph.edge(*e)->from == nodes::PortRef{f.m.a, 0});
+    CHECK(f.tree.leaf_ids() == ids);
+}
+
+TEST_CASE("a drop on an incompatible input, on an output, or on the starting port changes nothing") {
+    Fixture f;
+    Counter counter;
+    Source other;
+    f.m.graph.add(counter, {.title = "Counter", .family = "math", .at = P(300, 300)});
+    f.m.graph.add(other, {.title = "Other", .family = "source", .at = P(20, 300)});
+    f.frame();
+    const Point from = centre(f, f.m.source.out_label);
+    f.drag(from, centre(f, counter.count_label));   // an int input
+    CHECK(f.m.graph.edges().empty());
+    f.drag(from, centre(f, other.out_label));       // another output
+    CHECK(f.m.graph.edges().empty());
+    f.press(from);                                    // away and back to where it started
+    f.move_to(from + Offset{DX{30.f}, DY{0.f}});
+    f.move_to(from);
+    f.release(from);
+    CHECK(f.m.graph.edges().empty());
+    f.m.graph.remove(f.m.graph.nodes().back());
+    f.m.graph.remove(f.m.graph.nodes().back());
+}
+
+TEST_CASE("dragging a wire off its input and letting go on the board removes it") {
+    Fixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    const Point in = centre(f, f.m.sink.in_label);
+    f.press(in);
+    f.move_to(in + Offset{DX{-30.f}, DY{0.f}});
+    CHECK(f.m.graph.edges().empty());   // picked up when the drag starts
+    f.move_to(in);
+    f.release(in);
+    REQUIRE(f.m.graph.edge_into({f.m.b, 0}));   // dropped back on its input
+    f.drag(in, empty_spot);
+    CHECK(f.m.graph.edges().empty());
+    CHECK(f.m.sink.in.get() == 0.0);   // back to its default
+}
+
+TEST_CASE("click a wire, press Delete: it is gone") {
+    Fixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    CHECK(wires[0].thickness == 2.f);
+    const Point on_wire = wires[0].points[12] + Offset{DX{0.f}, DY{4.f}};
+    f.drag(on_wire, on_wire + Offset{DX{20.f}, DY{0.f}});
+    CHECK(f.m.graph.pan() == P(0, 0));   // a press on a wire selects it, it does not pan
+    wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    CHECK(wires[0].thickness == 4.f);    // selected: drawn thicker
+    key(f, keys::delete_);
+    CHECK(f.m.graph.edges().empty());
+
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    f.press(empty_spot);   // the background: nothing selected any more
+    f.release(empty_spot);
+    key(f, keys::backspace);
+    CHECK(f.m.graph.edges().size() == 1);
+}
+
+TEST_CASE("a node that is not removable stays on Delete") {
+    Fixture f;
+    Source fixed;
+    auto id = f.m.graph.add(fixed, {.title = "Fixed", .family = "source", .at = P(20, 300), .removable = false});
+    f.frame();
+    const Point header = *f.text_at("Fixed") + Offset{DX{4.f}, DY{4.f}};
+    f.press(header);
+    f.release(header);
+    const auto outlined = [&](WidgetId card) {
+        auto r = f.allocated(card);
+        return r && std::ranges::any_of(f.all<RectOutline>(), [&](const RectOutline& o) {
+            return o.color == f.tree.theme().accent && o.rect.origin == r->origin;
+        });
+    };
+    CHECK(outlined(f.card_of(fixed.out_label)));   // a header click selects its node
+    key(f, keys::delete_);
+    CHECK(std::ranges::count(f.m.graph.nodes(), id) == 1);
+
+    const Point sink = *f.text_at("Sink") + Offset{DX{4.f}, DY{4.f}};
+    f.press(sink);
+    f.release(sink);
+    CHECK_FALSE(outlined(f.card_of(fixed.out_label)));
+    key(f, keys::backspace);
+    CHECK(std::ranges::count(f.m.graph.nodes(), f.m.b) == 0);
+    CHECK_FALSE(f.shows("Sink"));
+    f.m.graph.remove(id);
+}

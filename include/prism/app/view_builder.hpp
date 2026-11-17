@@ -481,6 +481,8 @@ public:
                 d.source = role.source;
                 d.ghost_area = role.ghost_area;
                 d.outside = role.outside;
+                d.trail = role.trail;
+                d.hint_targets = role.hint_targets;
             }
             if (role.accepts) {
                 d.accepts = role.accepts;

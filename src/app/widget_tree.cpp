@@ -306,8 +306,9 @@ void WidgetTree::set_focused(WidgetId id) {
 [[nodiscard]] std::vector<WidgetId> WidgetTree::focus_ring() const {
     const WidgetNode* p = open_content_popup();
     std::vector<WidgetId> ring;
+    const auto tabs_to = [this](WidgetId id) { return index_.at(id)->focus_policy == FocusPolicy::tab_and_click; };
     for (WidgetId id : focus_order_)
-        if ((!p || within(id, p->id)) && enabled(id)) ring.push_back(id);
+        if ((!p || within(id, p->id)) && enabled(id) && tabs_to(id)) ring.push_back(id);
     return ring;
 }
 
@@ -650,6 +651,8 @@ void WidgetTree::connect_deps_dirty(Node& node, WidgetNode& wn) {
 }
 
 void WidgetTree::draw_drag(SceneSnapshot& snap) const {
+    const auto source = index_.find(drag_->source);
+    if (source != index_.end() && source->second->drag.hint_targets) draw_drop_hints(snap);
     std::optional<Rect> target_rect;
     for (auto& [id, rect] : snap.geometry)
         if (id == drag_->target && id != 0) target_rect = rect;
@@ -668,12 +671,7 @@ void WidgetTree::draw_drag(SceneSnapshot& snap) const {
                                      theme_.accent);
         }
     }
-    if (auto it = index_.find(drag_->source); it != index_.end()) {
-        Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
-        auto area = it->second->drag.ghost_area ? it->second->drag.ghost_area(*it->second, press) : std::nullopt;
-        auto ghost = drag_draw::ghost(it->second->draws, area, drag_->pointer - drag_->grab);
-        snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
-    }
+    if (source != index_.end()) draw_dragged(snap, *source->second);
     if (target_rect && target != index_.end() && target->second->drag.zones)
         drag_draw::drop_guide(snap.overlay, *target_rect, drag_->pointer, target->second->drag, theme_.accent);
     else if (auto guide = guide_under_pointer())   // a group taking this only on its guide: show it
@@ -682,6 +680,23 @@ void WidgetTree::draw_drag(SceneSnapshot& snap) const {
     if (auto* outer = edge_drop_container())
         if (auto rect = drop_area_rect(outer->id))
             drag_draw::edge_guide(snap.overlay, *rect, drag_->pointer, theme_.accent);
+}
+
+// What follows the pointer: the source's trail, or else the source (or the part dragged) faded.
+void WidgetTree::draw_dragged(SceneSnapshot& snap, const WidgetNode& source) const {
+    if (source.drag.trail) return source.drag.trail(snap.overlay, drag_->value, drag_->pointer);
+    Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
+    auto area = source.drag.ghost_area ? source.drag.ghost_area(source, press) : std::nullopt;
+    auto ghost = drag_draw::ghost(source.draws, area, drag_->pointer - drag_->grab);
+    snap.overlay.commands.insert(snap.overlay.commands.end(), ghost.commands.begin(), ghost.commands.end());
+}
+
+// Every widget and drop area taking the dragged value, softly marked.
+void WidgetTree::draw_drop_hints(SceneSnapshot& snap) const {
+    for (auto& [id, rect] : snap.geometry)
+        if (id != 0 && takes(id, drag_->value)) drag_draw::hint(snap.overlay, rect, theme_.accent);
+    for (auto& [id, rect] : drop_areas_)
+        if (takes(id, drag_->value)) drag_draw::hint(snap.overlay, rect, theme_.accent);
 }
 
 // The innermost dock group under the pointer that takes the dragged value, but elsewhere in it

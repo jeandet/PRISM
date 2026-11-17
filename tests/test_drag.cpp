@@ -6,6 +6,8 @@
 #include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 
+#include <algorithm>
+
 using namespace prism;
 using namespace prism::core;
 using namespace prism::input;
@@ -167,6 +169,99 @@ TEST_CASE("a click lands on release: sliding off the button before letting go ca
     auto off = Point{X{ok.x.raw()}, Y{299}};       // well below the button (no target there)
     f.release(off);
     CHECK(f.model.track.get().click_count == 1);
+}
+
+namespace drag_test {
+// A pen drags a Track drawn as a trail (a wire, say), not as a ghost of itself.
+struct Trails {
+    explicit Trails(bool hint) : hint(hint) {}
+    Field<Label<>> pen{{"Pen"}};
+    Field<Label<>> a{{"A"}};          // takes Tracks
+    Field<Label<>> b{{"B"}};          // takes Tracks
+    Field<Label<>> words{{"Words"}};  // takes strings only
+    bool hint;
+    std::vector<std::pair<int, Point>> trails;   // what the trail was drawn with
+    void view(WidgetTree::ViewBuilder& vb) {
+        DragRole role;
+        role.source = [](const WidgetNode&, Point) { return std::any(Track{7}); };
+        role.trail = [this](DrawList& dl, const std::any& v, Point pointer) {
+            trails.emplace_back(std::any_cast<const Track&>(v).id, pointer);
+            dl.circle(pointer, 3.f, Color::rgba(1, 2, 3));
+        };
+        role.hint_targets = hint;
+        vb.vstack([&] {
+            vb.with_drag(role, [&] { vb.widget(pen); });
+            vb.widget(a).drop_target([](const Track&, DropPlace) {});
+            vb.widget(b).drop_target([](const Track&, DropPlace) {});
+            vb.widget(words).drop_target([](const std::string&, DropPlace) {});
+        });
+    }
+};
+}
+
+namespace {
+template <bool Hint>
+struct TrailFixture {
+    Trails model{Hint};
+    WidgetTree tree{model};
+    std::unique_ptr<SceneSnapshot> snap = tree.build_snapshot(400, 300, 1);
+    uint64_t v = 1;
+    std::vector<WidgetId> ids = tree.leaf_ids();   // pen, a, b, words
+    void frame() { snap = tree.build_snapshot(400, 300, ++v); }
+    Rect rect(WidgetId id) const {
+        auto r = find_widget_rect(*snap, id);
+        REQUIRE(r);
+        return *r;
+    }
+    Point centre(WidgetId id) const {
+        auto r = rect(id);
+        return Point{r.origin.x + DX{r.extent.w.raw() / 2}, r.origin.y + DY{r.extent.h.raw() / 2}};
+    }
+    // Starts dragging the pen and holds it over `id`.
+    void drag_over(WidgetId id) {
+        auto at = centre(ids[0]);
+        route_event(tree, snap.get(), MouseButton{at, buttons::left, true});
+        route_event(tree, snap.get(), MouseMove{Point{at.x + DX{10}, at.y}});
+        route_event(tree, snap.get(), MouseMove{centre(id)});
+        frame();
+    }
+    bool hinted(WidgetId id) const {
+        return std::ranges::any_of(snap->overlay.commands, [&](const DrawCmd& c) {
+            auto* f = std::get_if<FilledRect>(&c);
+            return f && f->rect.origin == rect(id).origin && f->rect.extent == rect(id).extent;
+        });
+    }
+};
+}
+
+TEST_CASE("a source with a trail draws it instead of a ghost") {
+    TrailFixture<false> f;
+    f.drag_over(f.ids[1]);
+    REQUIRE_FALSE(f.model.trails.empty());
+    CHECK(f.model.trails.back().first == 7);
+    CHECK(f.model.trails.back().second == f.centre(f.ids[1]));
+    CHECK(std::ranges::any_of(f.snap->overlay.commands, [&](const DrawCmd& c) {
+        auto* d = std::get_if<Circle>(&c);
+        return d && d->center == f.centre(f.ids[1]);
+    }));
+    CHECK_FALSE(std::ranges::any_of(f.snap->overlay.commands, [](const DrawCmd& c) {
+        auto* t = std::get_if<TextCmd>(&c);
+        return t && t->text == "Pen";
+    }));
+}
+
+TEST_CASE("hint_targets marks every accepting target") {
+    TrailFixture<true> f;
+    f.drag_over(f.ids[3]);   // over a target that refuses it
+    CHECK(f.hinted(f.ids[1]));
+    CHECK(f.hinted(f.ids[2]));
+    CHECK_FALSE(f.hinted(f.ids[3]));
+    CHECK_FALSE(f.hinted(f.ids[0]));
+
+    TrailFixture<false> plain;
+    plain.drag_over(plain.ids[3]);
+    CHECK_FALSE(plain.hinted(plain.ids[1]));
+    CHECK_FALSE(plain.hinted(plain.ids[2]));
 }
 
 namespace drag_test {

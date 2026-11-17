@@ -59,6 +59,12 @@ struct DragRole {
     // takes (DropPlace::slot), and the line drawn there while dragging, in its coordinates.
     std::function<std::size_t(const WidgetNode& self, Point at)> slot{};
     std::function<Rect(const WidgetNode& self, std::size_t slot)> slot_marker{};
+    // A source whose drag is drawn by this instead of a ghost of it (a node editor's wire), with
+    // the dragged value and the pointer, in window coordinates.
+    std::function<void(DrawList&, const std::any& dragged, Point pointer)> trail{};
+    // A source whose drag shows a soft marker on every target that takes it, not only on the one
+    // under the pointer.
+    bool hint_targets = false;
 };
 
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;
