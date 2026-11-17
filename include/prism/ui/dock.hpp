@@ -204,6 +204,31 @@ inline DockLayout move_panel(DockLayout layout, const std::string& name, std::st
     return layout;
 }
 
+// The layout with panel `name` put into the group holding `anchor`, before its tab `index` (its
+// tab count or more: after the last), and shown there: a reorder within its own group, a move
+// from another. Groups left empty go, as in move_panel.
+inline DockLayout insert_panel(DockLayout layout, const std::string& name, const std::string& anchor, std::size_t index) {
+    auto* from = dock_detail::group_of(layout.root, name);
+    auto* to = dock_detail::group_of(layout.root, anchor);
+    if (!from || !to) return layout;
+    const auto& tabs = to->panels;
+    if ((index < tabs.size() && tabs[index] == name) || (index > 0 && index <= tabs.size() && tabs[index - 1] == name))
+        return layout;   // where it is already
+    const std::string before = index < tabs.size() ? tabs[index] : std::string{};
+    auto other = std::ranges::find_if(tabs, [&](const std::string& p) { return p != name; });
+    if (other == tabs.end()) return layout;
+    const std::string kept = *other;   // a panel of the target group that stays in it
+    std::erase(from->panels, name);
+    std::vector<std::string> left, seen;
+    dock_detail::names_in(layout.root, left);
+    dock_detail::prune(layout.root, left, seen);
+    auto& target = *dock_detail::group_of(layout.root, kept);
+    auto at = before.empty() ? target.panels.end() : std::ranges::find(target.panels, before);
+    target.active = static_cast<std::size_t>(at - target.panels.begin());
+    target.panels.insert(at, name);
+    return layout;
+}
+
 // The layout with panel `name` docked along the whole side `side` of the dock: out of its group
 // (pruned, as a move does), into a group of its own that the root is split with.
 inline DockLayout dock_panel_at_edge(DockLayout layout, const std::string& name, DockZone side) {

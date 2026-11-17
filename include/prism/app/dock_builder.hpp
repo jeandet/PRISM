@@ -118,13 +118,22 @@ inline void place_group(ViewBuilder& vb, const Place& where, const DockNode& nod
                     inner.keep_as(key, [&] { inner.vstack([&] { build(inner); }); });
                 });
             }
-        }, [dock_id, names](std::size_t i) {
-            return i < names.size() ? std::any(PanelDrag{dock_id, names[i]}) : std::any{};
-        }, [&state = where.state, &layout = where.layout, &tree = where.tree](const std::any& v) {
-            if (!tree.can_open_windows()) return;
-            auto& name = std::any_cast<const PanelDrag&>(v).name;
-            layout.set(float_panel(fitted(layout.get(), state.names), name));
-        });
+        }, {.source = [dock_id, names](std::size_t i) {
+                return i < names.size() ? std::any(PanelDrag{dock_id, names[i]}) : std::any{};
+            },
+            .outside = [&state = where.state, &layout = where.layout, &tree = where.tree](const std::any& v) {
+                if (!tree.can_open_windows()) return;
+                auto& name = std::any_cast<const PanelDrag&>(v).name;
+                layout.set(float_panel(fitted(layout.get(), state.names), name));
+            },
+            .accepts = [dock_id](const std::any& v) {
+                auto* p = std::any_cast<PanelDrag>(&v);
+                return p && p->dock == dock_id;
+            },
+            .drop = [&state = where.state, &layout = where.layout, anchor = names.front()](const std::any& v, std::size_t i) {
+                auto& name = std::any_cast<const PanelDrag&>(v).name;
+                layout.set(insert_panel(fitted(layout.get(), state.names), name, anchor, i));
+            }});
     });
 }
 

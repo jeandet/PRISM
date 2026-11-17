@@ -26,6 +26,7 @@ struct TabsState;
 struct DropPlace {
     Point at;
     Size size;
+    std::size_t slot = 0;   // between which of the target's items (DragRole::slot), when it has them
 };
 
 // What a widget does in a drag inside the app (doc/design/drag-and-docking.md). The value is
@@ -46,6 +47,10 @@ struct DragRole {
     // The parts of it that take a drop over whatever lies under them (a dock's edge buttons, over
     // its groups); none: all of it, and the innermost target holding the pointer wins.
     std::function<bool(DropPlace)> claims{};
+    // A target whose drops land between its items (a tab bar's tabs): the slot a drop at `at`
+    // takes (DropPlace::slot), and the line drawn there while dragging, in its coordinates.
+    std::function<std::size_t(const WidgetNode& self, Point at)> slot{};
+    std::function<Rect(const WidgetNode& self, std::size_t slot)> slot_marker{};
 };
 
 // A condition a widget is enabled under (vb.widget(f).enabled(flag), vb.enabled_if): read live;

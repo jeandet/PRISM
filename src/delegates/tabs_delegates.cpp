@@ -57,6 +57,20 @@ std::optional<size_t> tab_at(const WidgetNode& bar, X x) {
     return std::nullopt;
 }
 
+size_t insertion_at(const WidgetNode& bar, X x) {
+    const auto& ranges = bar.peek<TabBarEditState>().header_x_ranges;
+    for (size_t i = 0; i < ranges.size(); ++i)
+        if (x.raw() < (ranges[i].first.raw() + ranges[i].second.raw()) / 2.f) return i;
+    return ranges.size();
+}
+
+Rect insertion_marker(const WidgetNode& bar, size_t index) {
+    constexpr float w = 2.f;
+    const auto& ranges = bar.peek<TabBarEditState>().header_x_ranges;
+    const float x = ranges.empty() ? 0.f : index < ranges.size() ? ranges[index].first.raw() : ranges.back().second.raw();
+    return Rect{Point{X{x - w / 2.f}, Y{0}}, Size{Width{w}, tab_h}};
+}
+
 bool tabs_handle_input(const InputEvent& ev, WidgetNode& node,
                        size_t selected, size_t count,
                        std::function<void(size_t)> select) {

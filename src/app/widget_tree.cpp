@@ -373,6 +373,7 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
     if (!place || d.target == 0) return;
     auto it = index_.find(d.target);
     if (it == index_.end()) return;
+    if (it->second->drag.slot) place->slot = it->second->drag.slot(*it->second, place->at);
     if (it->second->drag.drop) it->second->drag.drop(d.value, *place);
     else if (d.value.type() == typeid(std::string)) {   // a text widget: typed in, as a drop from the OS
         set_focused(d.target);
@@ -641,8 +642,19 @@ void WidgetTree::draw_drag(SceneSnapshot& snap) const {
         if (id == drag_->target && id != 0) target_rect = rect;
     if (!target_rect) target_rect = drop_area_rect(drag_->target);
     auto target = index_.find(drag_->target);
-    if (target_rect && target != index_.end())
-        drag_draw::drop_marker(snap.overlay, *target_rect, drag_->pointer, target->second->drag, theme_.accent);
+    if (target_rect && target != index_.end()) {
+        const auto& role = target->second->drag;
+        const Point local{X{drag_->pointer.x.raw() - target_rect->origin.x.raw()},
+                          Y{drag_->pointer.y.raw() - target_rect->origin.y.raw()}};
+        if (!role.slot) {
+            drag_draw::drop_marker(snap.overlay, *target_rect, drag_->pointer, role, theme_.accent);
+        } else {
+            const Rect m = role.slot_marker(*target->second, role.slot(*target->second, local));
+            snap.overlay.filled_rect(Rect{Point{target_rect->origin.x + DX{m.origin.x.raw()},
+                                                target_rect->origin.y + DY{m.origin.y.raw()}}, m.extent},
+                                     theme_.accent);
+        }
+    }
     if (auto it = index_.find(drag_->source); it != index_.end()) {
         Point press{X{drag_->grab.dx.raw()}, Y{drag_->grab.dy.raw()}};
         auto area = it->second->drag.ghost_area ? it->second->drag.ghost_area(*it->second, press) : std::nullopt;

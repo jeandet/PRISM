@@ -56,6 +56,23 @@ TEST_CASE("move_panel: the middle joins a group, an edge splits it") {
     CHECK(move_panel(l, "files", "files", DockZone::Left) == l);
 }
 
+TEST_CASE("insert_panel: a tab put before another, in its own group (a reorder) or from another") {
+    DockLayout l{dock_split(false, {dock_group({"files"}), dock_group({"editor", "search", "log"})})};
+    auto first = insert_panel(l, "log", "editor", 0);
+    CHECK(first.root.parts[1].panels == std::vector<std::string>{"log", "editor", "search"});
+    CHECK(first.root.parts[1].active == 0);   // shown
+    auto last = insert_panel(l, "editor", "search", 3);   // past the last tab
+    CHECK(last.root.parts[1].panels == std::vector<std::string>{"search", "log", "editor"});
+    CHECK(last.root.parts[1].active == 2);
+    // From another group: its group, left empty, goes, and the split with it.
+    auto moved = insert_panel(l, "files", "search", 1).root;
+    CHECK(is_group(moved));
+    CHECK(moved.panels == std::vector<std::string>{"editor", "files", "search", "log"});
+    // Before itself or right after itself: where it is already.
+    CHECK(insert_panel(l, "search", "editor", 1) == l);
+    CHECK(insert_panel(l, "search", "editor", 2) == l);
+}
+
 TEST_CASE("the zone of a drop: the middle, or the edge it is nearest within a quarter") {
     Size s{Width{400}, Height{200}};
     auto at = [&](float x, float y) { return dock_zone(DropPlace{Point{X{x}, Y{y}}, s}); };
@@ -315,6 +332,54 @@ TEST_CASE("dragging a tab onto a group's edge moves the panel there") {
           dock_split(false, {dock_split(false, {dock_group({"files"}), dock_group({"search"})}), dock_group({"editor"})}));
     snap = tree.build_snapshot(600, 400, 2);
     CHECK(text_rect(*snap, "SEARCH"));   // shown in its new place
+}
+
+namespace {
+// The insertion line drawn in the overlay while dragging: a thin rectangle taller than wide.
+std::optional<Rect> insertion_line(const SceneSnapshot& snap, Color accent) {
+    for (auto& c : snap.overlay.commands)
+        if (auto* f = std::get_if<FilledRect>(&c); f && f->color == accent && f->rect.extent.w.raw() <= 3.f
+            && f->rect.extent.h.raw() > 10.f)
+            return f->rect;
+    return std::nullopt;
+}
+} // namespace
+
+TEST_CASE("dragging a tab onto the left half of another in its bar puts it before that one") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto search = text_at(*snap, "Search"), editor = text_at(*snap, "Editor");
+    REQUIRE(search);
+    REQUIRE(editor);
+    Point from{search->x + DX{5}, search->y + DY{5}};
+    Point to{editor->x + DX{2}, editor->y + DY{5}};   // the start of the Editor tab: before it
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{to});
+    snap = tree.build_snapshot(600, 400, 2);
+    auto line = insertion_line(*snap, tree.theme().accent);
+    REQUIRE(line);
+    CHECK(line->origin.x.raw() < editor->x.raw());   // at the Editor tab's left edge
+    CHECK(line->origin.x.raw() > editor->x.raw() - 20.f);
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(model.layout.get().root.parts[1].panels == std::vector<std::string>{"search", "editor"});
+}
+
+TEST_CASE("dropping a tab on another group's tab bar puts it there, between its tabs") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto files = text_at(*snap, "Files"), search = text_at(*snap, "Search");
+    REQUIRE(files);
+    REQUIRE(search);
+    Point from{files->x + DX{5}, files->y + DY{5}};
+    Point to{search->x + DX{40}, search->y + DY{5}};   // the right half of Search: after it
+    route_event(tree, snap.get(), MouseButton{from, buttons::left, true});
+    route_event(tree, snap.get(), MouseMove{Point{from.x + DX{10}, from.y}});
+    route_event(tree, snap.get(), MouseMove{to});
+    route_event(tree, snap.get(), MouseButton{to, buttons::left, false});
+    CHECK(model.layout.get().root.panels == std::vector<std::string>{"editor", "search", "files"});
 }
 
 TEST_CASE("dropping a tab on a group's guide button splits the group that way") {

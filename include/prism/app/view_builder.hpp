@@ -856,22 +856,25 @@ public:
 #endif // __cpp_impl_reflection
 
     // Tabs: a header to pick a page, and the page; only the selected page is built.
-    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true); }
-    // Tabs whose headers can be dragged: `tab_drag(i)` is what dragging tab i carries.
-    // `tab_outside(value)`: a dragged tab let go outside the window.
-    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, std::function<std::any(std::size_t)> tab_drag,
-              std::function<void(const std::any&)> tab_outside = {}) {
-        switched_pages(field, builder, true, std::move(tab_drag), std::move(tab_outside));
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, true, TabDrag{}); }
+    // What a tab bar's tabs do in a drag inside the app.
+    struct TabDrag {
+        std::function<std::any(std::size_t)> source{};        // what dragging tab i carries
+        std::function<void(const std::any&)> outside{};       // a dragged tab let go outside the window
+        std::function<bool(const std::any&)> accepts{};       // the bar takes this value between its tabs?
+        std::function<void(const std::any&, std::size_t)> drop{};   // ... dropped before tab i (count: after the last)
+    };
+    // Tabs whose headers are dragged, and take drops between them.
+    void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, TabDrag drag) {
+        switched_pages(field, builder, true, std::move(drag));
     }
 
     // Pages: tabs without the header, the app picks the page through `field.selected` (a
     // detail view that follows a selection, a wizard's steps). Pages are declared with tab().
-    void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false); }
+    void pages(Field<TabBar<>>& field, std::invocable auto&& builder) { switched_pages(field, builder, false, TabDrag{}); }
 
 private:
-    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header,
-                        std::function<std::any(std::size_t)> tab_drag = {},
-                        std::function<void(const std::any&)> tab_outside = {}) {
+    void switched_pages(Field<TabBar<>>& field, std::invocable auto&& builder, bool header, TabDrag drag) {
         placed_.insert(&field);
 
         auto state = std::make_shared<TabsState>();
@@ -897,13 +900,19 @@ private:
                 wn.tab_names = names_ptr;
                 if (bar_build) bar_build(wn);
             };
-            if (tab_drag)   // a tab pressed and moved drags what tab_drag gives for it
+            if (drag.accepts) {   // a value dropped between two tabs
+                bar.drag.accepts = std::move(drag.accepts);
+                bar.drag.drop = [drop = std::move(drag.drop)](const std::any& v, DropPlace at) { drop(v, at.slot); };
+                bar.drag.slot = [](const WidgetNode& n, Point at) { return tabs_detail::insertion_at(n, at.x); };
+                bar.drag.slot_marker = tabs_detail::insertion_marker;
+            }
+            if (drag.source)   // a tab pressed and moved drags what drag.source gives for it
             {
-                bar.drag.source = [tab_drag](const WidgetNode& n, Point at) {
+                bar.drag.source = [tab_drag = std::move(drag.source)](const WidgetNode& n, Point at) {
                     auto i = tabs_detail::tab_at(n, at.x);
                     return i ? tab_drag(*i) : std::any{};
                 };
-                bar.drag.outside = tab_outside;
+                bar.drag.outside = std::move(drag.outside);
                 bar.drag.ghost_area = [](const WidgetNode& n, Point at) -> std::optional<Rect> {   // that tab only
                     auto i = tabs_detail::tab_at(n, at.x);
                     if (!i) return std::nullopt;
