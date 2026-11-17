@@ -281,7 +281,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
     // else the display's actual refresh rate (60 Hz fallback) — and ask SDL for
     // vsync as a best-effort tear guard. Input dispatch below stays per-event-batch;
     // only presents wait for the frame clock.
-    if (render_config_.frame_pacing) {
+    {
         float display_hz = 0;
         {
             std::lock_guard<std::mutex> lk(windows_mutex_);
@@ -290,9 +290,12 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                     if (const auto* mode = SDL_GetCurrentDisplayMode(display))
                         display_hz = mode->refresh_rate;
             }
-            for (auto& [id, win] : windows_) win->enable_vsync();
+            if (render_config_.frame_pacing)
+                for (auto& [id, win] : windows_) win->enable_vsync();
         }
-        pacer_.emplace(frame_interval_from_hz(resolve_frame_hz(render_config_.target_fps, display_hz)));
+        const auto interval = frame_interval_from_hz(resolve_frame_hz(render_config_.target_fps, display_hz));
+        frame_ns_.store(interval.count());   // before ready_: the logic thread starts after it
+        if (render_config_.frame_pacing) pacer_.emplace(interval);
     }
 
     ready_.store(true, std::memory_order_release);

@@ -674,3 +674,23 @@ TEST_CASE("an Inspector follows a worker's set() with no input") {
     CHECK(seen.load() == 6);
 }
 #endif
+
+// The clock ticks once per frame, not as fast as the logic thread can turn: the screen shows at
+// most a frame's worth, and every extra tick was a busy core while anything animated.
+TEST_CASE("the animation clock ticks at the frame rate, not as fast as it can") {
+    ReceiveModel model;
+    std::atomic<bool> ready{false};
+    std::atomic<int> ticks{0};
+    auto backend = prism::Backend{std::make_unique<WorkerOnlyBackend>(
+        [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); }, [] { return true; }, ready)};
+    auto& window = backend.create_window({.width = 200, .height = 100});
+    prism::model_app(backend, window, model, [&](prism::AppContext& ctx) {
+        ctx.clock().add([&](auto) {
+            ticks.fetch_add(1);
+            return true;
+        });
+        ready.store(true, std::memory_order_release);
+    });
+    CHECK(ticks.load() >= 5);    // it does tick
+    CHECK(ticks.load() <= 30);   // 300 ms at 60 Hz is 18; thousands before
+}

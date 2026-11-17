@@ -77,7 +77,7 @@ whole story.
 
 | Call | What it does |
 |---|---|
-| `clock().add(fn)` | Calls `fn(now)` again and again on the logic thread while it is added. `fn` returns `false` to stop. Returns an id. |
+| `clock().add(fn)` | Calls `fn(now)` on the logic thread once per frame (the display's refresh rate, 60 Hz when unknown) while it is added. `fn` returns `false` to stop. Returns an id. |
 | `clock().remove(id)` | Stops it. |
 
 The clock ticks only while a function is added, so an idle app still sleeps. There is no

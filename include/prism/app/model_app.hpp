@@ -371,6 +371,8 @@ private:
     std::function<void(const KeyPress&)> global_key_handler_;
     std::function<void()> post_dispatch_hook_;
     bool tick_scheduled_ = false;
+    AnimationClock::time_point last_tick_{};   // when the clock last ticked
+    AnimationClock::time_point next_tick_{};   // when the scheduled tick is due
 
     // Destroyed by run() with the GIL released — queued closures must never capture nb::object.
     std::shared_ptr<mpsc_queue<std::function<void()>>> mutation_queue_ =

@@ -53,6 +53,9 @@ public:
     // Whether windows past the first can open; false where the page is the only one (the
     // browser): what would open one then does without (a dock floats its panels as cards).
     virtual bool opens_windows() const { return true; }
+    // How long one frame on screen lasts: the app's animation clock ticks once per frame. 60 Hz
+    // unless the backend knows the display's rate.
+    virtual std::chrono::nanoseconds frame_interval() const { return std::chrono::nanoseconds{16'666'667}; }
 };
 
 class Backend {
@@ -78,6 +81,7 @@ public:
     const ui::UrlOpener* url_opener() const { return impl_->url_opener(); }
     PlatformServices* platform_services() { return impl_->platform_services(); }
     bool opens_windows() const { return impl_->opens_windows(); }
+    std::chrono::nanoseconds frame_interval() const { return impl_->frame_interval(); }
 
     Backend(Backend&&) noexcept = default;
     Backend& operator=(Backend&&) noexcept = default;

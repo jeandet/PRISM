@@ -53,6 +53,7 @@ public:
     const ui::UrlOpener* url_opener() const override { return &url_opener_; }
     app::PlatformServices* platform_services() override { return &platform_; }
     bool opens_windows() const override;
+    std::chrono::nanoseconds frame_interval() const override { return std::chrono::nanoseconds{frame_ns_.load()}; }
 
 private:
     RenderConfig render_config_;
@@ -80,6 +81,8 @@ private:
     // Frame pacing — see doc/design/render-backend.md "Present Cadence".
     // nullopt pacer_ = unpaced (RenderConfig::frame_pacing == false).
     std::optional<FramePacer> pacer_;
+    // The display's frame, measured in run(); the logic thread reads it, so atomic.
+    std::atomic<std::int64_t> frame_ns_{16'666'667};
     // Last snapshot actually presented per window; a window presents only when the
     // slot's shared_ptr differs (or force_redraw_ contains it). Guarded by windows_mutex_.
     std::unordered_map<WindowId, std::shared_ptr<const SceneSnapshot>> last_presented_;

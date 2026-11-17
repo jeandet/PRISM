@@ -94,8 +94,8 @@ struct Pad {
 
 ## Animation
 
-To move something on its own, add a function to the app's clock. It is called again and again on
-the logic thread, with the time, until it returns `false`. The clock ticks only while a function
+To move something on its own, add a function to the app's clock. It is called on the logic thread
+once per frame, with the time, until it returns `false`. The clock ticks only while a function
 is added, so a still canvas costs nothing. Get the clock in the block's `attach`:
 
 ```cpp
@@ -125,9 +125,9 @@ struct Bounce {
 };
 ```
 
-The clock may tick more often than the screen redraws. Compute from the time you are given, as
-above, or step a simulation in fixed slices of time (a fixed-timestep loop), never one step per
-tick: then the speed does not depend on how often it ticks.
+A frame is not always the same length: the display may run at 60 or 144 Hz, and a busy frame is
+late. Compute from the time you are given, as above, or step a simulation in fixed slices of time
+(a fixed-timestep loop), never one step per tick: then the speed does not depend on the display.
 
 The gallery's **Orbit** tab is a whole game built this way: drag to aim
 (`handle_canvas_input`), a flight on the clock, and a gravity slider read at every tick, so moving

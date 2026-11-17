@@ -195,6 +195,13 @@ void AppRun::run(std::function<void(AppContext&)> setup) {
 void AppRun::run_due_wakes() {
     auto now = DeadlineTimer::clock::now();
     registry_.for_each([now](WindowId, WindowRegistry::Entry& e) { e.tree->tick(now); });
+    if (tick_scheduled_ && now >= next_tick_) {   // the frame's tick (schedule_tick); the
+        tick_scheduled_ = false;                  // drain and publish after this queue the next
+        last_tick_ = now;
+        anim_clock_.tick(now);
+    } else if (tick_scheduled_) {
+        deadline_timer_->arm(next_tick_);         // woken early, for a tree's own deadline
+    }
     arm_deadlines();
 }
 
@@ -253,15 +260,23 @@ void AppRun::publish_dirty() {
     });
 }
 
+// One tick per frame: the screen shows no more, and ticking as fast as the loop turns kept a
+// core busy for as long as anything animated. A tick due later waits on the deadline timer.
 void AppRun::schedule_tick() {
     if (!anim_clock_.active() || tick_scheduled_) return;
     tick_scheduled_ = true;
+    next_tick_ = last_tick_ + backend_.frame_interval();
+    if (AnimationClock::clock::now() < next_tick_) {
+        deadline_timer_->arm(next_tick_);   // run_due_wakes() ticks it
+        return;
+    }
     exec::start_detached(
         stdexec::schedule(sched_)
         | stdexec::then([this, logic_wrapper_holder = logic_wrapper_holder_] {
             auto do_tick = [this] {
                 tick_scheduled_ = false;
-                anim_clock_.tick(AnimationClock::clock::now());
+                last_tick_ = AnimationClock::clock::now();
+                anim_clock_.tick(last_tick_);
                 // schedule_tick() inside the shared tail no-ops when the
                 // clock went inactive, matching the old guarded reschedule.
                 (*mutation_drain_publish_)();
