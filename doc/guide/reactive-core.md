@@ -10,13 +10,18 @@
 | `Channel<T>` | every value, in order | no | **any thread** | event streams where nothing may be lost |
 
 ```cpp
-core::Derived<double> total{[&]{ return price.get() * quantity.get(); }};
+struct Order {
+    core::Field<double> price{1.0};
+    core::Field<int> quantity{1};
+    core::Derived<double> total{[this] { return price.get() * quantity.get(); }};
+};
+Order order;
 
-auto conn = price.on_change().connect([](const double& p) { /* ... */ });   // RAII handle
+auto conn = order.price.on_change().connect([](const double& p) { /* ... */ });   // RAII handle
 
 prism::transaction([&] {   // one notification at the end, not one per set()
-    price.set(9.99);
-    quantity.set(3);
+    order.price.set(9.99);
+    order.quantity.set(3);
 });
 ```
 
