@@ -30,51 +30,63 @@ real examples, compiled to WebAssembly.
 
 Where to start:
 
-- New here? Read [Why PRISM](guide/concepts.md), then [From a struct to a window](guide/struct-to-ui.md).
-- Want to build it? [Building](guide/building.md).
-- Looking for a widget? The [widget gallery](https://jeandet.github.io/PRISM/) shows them all, with
-  the line of C++ that makes each one.
-- Curious why it works this way? The [design notes](design/README.md).
+- New here? Read [Why PRISM](start/why.md), then [Your first app](start/first-app.md).
+- Want to build it? [Install](start/install.md).
+- Looking for a widget? The [widget reference](widgets/index.md) has every one, with an example;
+  the [widget gallery](https://jeandet.github.io/PRISM/) lets you try them in the browser.
 
 ```{toctree}
-:caption: Start
-:maxdepth: 2
-
-guide/concepts
-guide/building
-guide/examples
-```
-
-```{toctree}
-:caption: Guide
-:maxdepth: 2
-
-guide/struct-to-ui
-guide/blocks
-guide/reactive-core
-guide/canvas-and-plot
-guide/data-widgets
-guide/text-and-menus
-guide/documents
-guide/settings
-guide/drag-and-dock
-guide/windows-and-themes
-guide/io
-guide/python
-```
-
-```{toctree}
-:caption: Design
+:caption: Getting started
 :maxdepth: 1
-:glob:
 
-design/README
-design/*
+start/why
+start/install
+start/first-app
+start/examples
+```
+
+```{toctree}
+:caption: Concepts
+:maxdepth: 2
+
+concepts/model
+concepts/views
+concepts/blocks
+concepts/threads
+concepts/reference/index
+```
+
+```{toctree}
+:caption: Widgets
+:maxdepth: 2
+
+widgets/index
+```
+
+```{toctree}
+:caption: The app
+:maxdepth: 1
+
+app/windows
+app/themes
+app/settings
+app/inspector
+app/app-context
+```
+
+```{toctree}
+:caption: Integrations
+:maxdepth: 1
+
+integrations/http-and-io
+integrations/audio
+integrations/python
+integrations/python-reference
 ```
 
 ```{toctree}
 :caption: Project
 :maxdepth: 1
 
-guide/roadmap
+project/roadmap
 ```

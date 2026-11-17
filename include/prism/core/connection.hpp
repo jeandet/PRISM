@@ -122,7 +122,7 @@ private:
     std::shared_ptr<State> state_ = std::make_shared<State>();
 };
 
-// Pipe adaptor: hub | prism::then(f) → Connection
+// Pipe adaptor: hub | core::then(f) → Connection
 template <typename F>
 struct Then {
     F fn;

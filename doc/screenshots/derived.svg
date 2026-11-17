@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 110">
+<rect width="360" height="110" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="8" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">2</text>
+<rect x="342" y="0" width="1" height="30" fill="rgba(90,90,105,1)"/>
+<polygon points="347,11 355,11 351,6" fill="rgba(220,220,220,1)"/>
+<polygon points="347,19 355,19 351,24" fill="rgba(220,220,220,1)"/>
+</g>
+<clipPath id="clip-1"><rect x="0" y="30" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-1)">
+<rect x="0" y="30" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="8" y="37" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">3</text>
+<rect x="342" y="30" width="1" height="30" fill="rgba(90,90,105,1)"/>
+<polygon points="347,41 355,41 351,36" fill="rgba(220,220,220,1)"/>
+<polygon points="347,49 355,49 351,54" fill="rgba(220,220,220,1)"/>
+</g>
+<clipPath id="clip-2"><rect x="0" y="60" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-2)">
+<rect x="0" y="60" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="64" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">area: 6</text>
+</g>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220">
+<rect width="320" height="220" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="320" height="30"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="320" height="30" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="4" y="4" font-family="Noto Sans, sans-serif" font-size="17" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Export</text>
+</g>
+<clipPath id="clip-1"><rect x="0" y="30" width="320" height="44"/></clipPath>
+<g clip-path="url(#clip-1)">
+<rect x="0" y="30" width="320" height="44" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="4" y="34" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">The copy goes next to the original, which stays </text>
+<text xml:space="preserve" x="4" y="54" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(180,180,190,1)" dominant-baseline="hanging">as it was.</text>
+</g>
+<clipPath id="clip-2"><rect x="0" y="74" width="320" height="24"/></clipPath>
+<g clip-path="url(#clip-2)">
+<rect x="0" y="74" width="100" height="24" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="4" y="78" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(0,140,200,1)" dominant-baseline="hanging">Read the docs</text>
+<line x1="4" y1="94" x2="96" y2="94" stroke="rgba(0,140,200,1)" stroke-width="1"/>
+</g>
+<clipPath id="clip-3"><rect x="0" y="98" width="320" height="34"/></clipPath>
+<g clip-path="url(#clip-3)">
+<rect x="0" y="98" width="320" height="34" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="0" y="99" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">62% exported</text>
+<rect x="0" y="120" width="320" height="8" rx="4" fill="rgba(60,60,70,1)"/>
+<rect x="0" y="120" width="198.4" height="8" rx="4" fill="rgba(40,105,180,1)"/>
+</g>
+<clipPath id="clip-4"><rect x="0" y="132" width="320" height="34"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="0" y="132" width="320" height="34" fill="rgba(0,0,0,0)"/>
+<text xml:space="preserve" x="0" y="133" font-family="Noto Sans, sans-serif" font-size="12" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Connecting</text>
+<rect x="0" y="154" width="320" height="8" rx="4" fill="rgba(60,60,70,1)"/>
+<rect x="203.17" y="154" width="96" height="8" rx="4" fill="rgba(40,105,180,1)"/>
+</g>
+</svg>

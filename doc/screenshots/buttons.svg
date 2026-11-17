@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 90">
+<rect width="360" height="90" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="48" height="32"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="48" height="32" fill="rgba(40,105,180,1)"/>
+<rect x="0" y="0" width="48" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="8" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Save</text>
+</g>
+<clipPath id="clip-1"><rect x="56" y="0" width="59" height="32"/></clipPath>
+<g clip-path="url(#clip-1)">
+<rect x="56" y="0" width="59" height="32" fill="rgba(45,45,55,1)"/>
+<text xml:space="preserve" x="64" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Cancel</text>
+</g>
+<clipPath id="clip-2"><rect x="123" y="0" width="48" height="32"/></clipPath>
+<g clip-path="url(#clip-2)">
+<rect x="123" y="0" width="48" height="32" fill="rgba(30,90,160,1)"/>
+<rect x="123" y="0" width="48" height="32" stroke="rgba(60,140,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="131" y="7" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(240,240,240,1)" dominant-baseline="hanging">Bold</text>
+</g>
+<clipPath id="clip-3"><rect x="0" y="32" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-3)">
+<rect x="0" y="32" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<rect x="8" y="39" width="16" height="16" fill="rgba(0,140,200,1)"/>
+<text xml:space="preserve" x="10" y="40" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(240,240,240,1)" dominant-baseline="hanging">✓</text>
+<rect x="8" y="39" width="16" height="16" stroke="rgba(90,90,105,1)" fill="none" stroke-width="1.5"/>
+<text xml:space="preserve" x="32" y="39" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Remember me</text>
+</g>
+</svg>

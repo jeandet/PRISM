@@ -5,7 +5,7 @@
 
 namespace prism::core {
 
-// Scheduler adaptor: hub | prism::on(sched) | prism::then(f)
+// Scheduler adaptor: hub | core::on(sched) | core::then(f)
 // Wraps the downstream callback to execute on the given scheduler.
 template <typename Scheduler>
 struct On {
@@ -17,7 +17,7 @@ auto on(Scheduler sched) {
     return On<Scheduler>{sched};
 }
 
-// hub | prism::on(sched) → ScheduledHub that wraps connect()
+// hub | core::on(sched) → ScheduledHub that wraps connect()
 template <typename Scheduler, typename... Args>
 struct ScheduledHub {
     SenderHub<Args...>& hub;
@@ -29,7 +29,7 @@ ScheduledHub<Scheduler, Args...> operator|(SenderHub<Args...>& hub, On<Scheduler
     return {hub, adaptor.sched};
 }
 
-// ScheduledHub | prism::then(f) → Connection (callback runs on scheduler)
+// ScheduledHub | core::then(f) → Connection (callback runs on scheduler)
 template <typename Scheduler, typename... Args, typename F>
 [[nodiscard]] Connection operator|(ScheduledHub<Scheduler, Args...> sh, Then<F> adaptor) {
     return sh.hub.connect([sched = sh.sched, fn = std::move(adaptor.fn)](Args... args) {

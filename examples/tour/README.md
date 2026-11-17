@@ -61,13 +61,13 @@ thread collects the newest value with `ctx.receive`, and only there may it touch
 ```cpp
     std::jthread worker{[this](std::stop_token stop) {
         for (int n = 0; !stop.stop_requested(); ++n) {
-            ticks.set(n);
+            ticks = n;   // Shared<T>: any thread may set it
             std::this_thread::sleep_for(std::chrono::milliseconds{100});
         }
     }};
 
     void attach(app::AppContext& ctx) {
-        ctx.receive(ticks, [this](int n) { reading.set({"tick " + std::to_string(n)}); });
+        ctx.receive(ticks, [this](int n) { set_value(reading, "tick " + std::to_string(n)); });
     }
 ```
 

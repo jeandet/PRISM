@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220">
+<rect width="360" height="220" fill="rgba(30,30,30,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-1"><rect x="4" y="0" width="352" height="30"/></clipPath>
+<g clip-path="url(#clip-1)">
+<text xml:space="preserve" x="4" y="6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">ada</text>
+</g>
+</g>
+<clipPath id="clip-2"><rect x="0" y="30" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-2)">
+<rect x="0" y="30" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-3"><rect x="4" y="30" width="352" height="30"/></clipPath>
+<g clip-path="url(#clip-3)">
+<text xml:space="preserve" x="4" y="36" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">●●●●●●●</text>
+</g>
+</g>
+<clipPath id="clip-4"><rect x="0" y="60" width="360" height="30"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="0" y="60" width="360" height="30" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-5"><rect x="4" y="60" width="352" height="30"/></clipPath>
+<g clip-path="url(#clip-5)">
+<text xml:space="preserve" x="4" y="66" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Ap</text>
+</g>
+</g>
+<clipPath id="clip-6"><rect x="0" y="90" width="360" height="65"/></clipPath>
+<g clip-path="url(#clip-6)">
+<rect x="0" y="90" width="360" height="65" fill="rgba(45,45,55,1)"/>
+<clipPath id="clip-7"><rect x="4" y="94" width="352" height="57"/></clipPath>
+<g clip-path="url(#clip-7)">
+<text xml:space="preserve" x="4" y="96" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">Several lines</text>
+<text xml:space="preserve" x="4" y="115" font-family="monospace" font-size="14" fill="rgba(220,220,220,1)" dominant-baseline="hanging">of editable text.</text>
+</g>
+</g>
+</svg>

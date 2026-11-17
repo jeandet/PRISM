@@ -55,17 +55,16 @@ This is an architectural choice, not a tuning trick. It is built in from day one
 
 ## Documentation
 
-Read it on [prism-gui.readthedocs.io](https://prism-gui.readthedocs.io/). The pages are Markdown in
-[`doc/`](doc/index.md), so the links below work on GitHub too.
+The manual is on [prism-gui.readthedocs.io](https://prism-gui.readthedocs.io/en/latest/). It starts with a tour and ends with a
+reference for every widget and type, each with an example. Its pages are Markdown in
+[`doc/`](doc/index.md).
 
-| Start | Guide | |
-|---|---|---|
-| [Why PRISM and how it works](doc/guide/concepts.md) | [From a struct to a window](doc/guide/struct-to-ui.md) | [Documents, code and Markdown](doc/guide/documents.md) |
-| [Building](doc/guide/building.md) | [Blocks](doc/guide/blocks.md) | [Settings that persist](doc/guide/settings.md) |
-| [Examples](doc/guide/examples.md) | [Reactive core](doc/guide/reactive-core.md) | [Drag and drop, and docking](doc/guide/drag-and-dock.md) |
-| [Python SDK](doc/guide/python.md) | [Canvas and plot](doc/guide/canvas-and-plot.md) | [Windows, themes and the inspector](doc/guide/windows-and-themes.md) |
-| [Roadmap](doc/guide/roadmap.md) | [Table, tree and tabs](doc/guide/data-widgets.md) | [HTTP, TCP and serial](doc/guide/io.md) |
-| [Design notes](doc/design/README.md) | [Text, editing and menus](doc/guide/text-and-menus.md) | |
+| Start | Concepts | Widgets | The app |
+|---|---|---|---|
+| [Why PRISM](https://prism-gui.readthedocs.io/en/latest/start/why.html) | [The model](https://prism-gui.readthedocs.io/en/latest/concepts/model.html) | [All widgets](https://prism-gui.readthedocs.io/en/latest/widgets/index.html) | [Windows](https://prism-gui.readthedocs.io/en/latest/app/windows.html) |
+| [Install](https://prism-gui.readthedocs.io/en/latest/start/install.html) | [Views and layout](https://prism-gui.readthedocs.io/en/latest/concepts/views.html) | [Controls](https://prism-gui.readthedocs.io/en/latest/widgets/controls.html) | [Themes](https://prism-gui.readthedocs.io/en/latest/app/themes.html) |
+| [Your first app](https://prism-gui.readthedocs.io/en/latest/start/first-app.html) | [Blocks](https://prism-gui.readthedocs.io/en/latest/concepts/blocks.html) | [Tables, trees, lists](https://prism-gui.readthedocs.io/en/latest/widgets/data.html) | [Settings](https://prism-gui.readthedocs.io/en/latest/app/settings.html) |
+| [Examples](https://prism-gui.readthedocs.io/en/latest/start/examples.html) | [Threads](https://prism-gui.readthedocs.io/en/latest/concepts/threads.html) | [Text and code](https://prism-gui.readthedocs.io/en/latest/widgets/text.html) | [Python](https://prism-gui.readthedocs.io/en/latest/integrations/python.html) |
 
 ## Examples
 
@@ -92,7 +91,7 @@ meson test -C builddir
 | GCC 14+, Clang 17+ | no | one `view()` method per model |
 
 The browser build, the WebGPU renderer and the four entry points are in
-[Building](doc/guide/building.md).
+[Install](https://prism-gui.readthedocs.io/en/latest/start/install.html).
 
 ## License
 

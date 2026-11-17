@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">
+<rect width="320" height="200" fill="rgba(250,250,252,1)"/>
+<clipPath id="clip-0"><rect x="0" y="0" width="320" height="30"/></clipPath>
+<g clip-path="url(#clip-0)">
+<rect x="0" y="0" width="320" height="30" fill="rgba(236,237,242,1)"/>
+<clipPath id="clip-1"><rect x="4" y="0" width="312" height="30"/></clipPath>
+<g clip-path="url(#clip-1)">
+<text xml:space="preserve" x="4" y="6" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(30,30,35,1)" dominant-baseline="hanging">ada</text>
+</g>
+</g>
+<clipPath id="clip-2"><rect x="0" y="30" width="320" height="48"/></clipPath>
+<g clip-path="url(#clip-2)">
+<text xml:space="preserve" x="4" y="32" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(85,85,95,1)" dominant-baseline="hanging">Volume</text>
+<text xml:space="preserve" x="287" y="32" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(30,30,35,1)" dominant-baseline="hanging">60 %</text>
+<rect x="0" y="62" width="320" height="6" fill="rgba(215,217,224,1)"/>
+<rect x="184.8" y="50" width="12" height="30" fill="rgba(0,120,190,1)"/>
+</g>
+<clipPath id="clip-3"><rect x="0" y="78" width="320" height="30"/></clipPath>
+<g clip-path="url(#clip-3)">
+<rect x="0" y="78" width="320" height="30" fill="rgba(236,237,242,1)"/>
+<rect x="8" y="85" width="16" height="16" fill="rgba(0,120,190,1)"/>
+<text xml:space="preserve" x="10" y="86" font-family="Noto Sans, sans-serif" font-size="13" fill="rgba(255,255,255,1)" dominant-baseline="hanging">✓</text>
+<rect x="8" y="85" width="16" height="16" stroke="rgba(190,192,200,1)" fill="none" stroke-width="1.5"/>
+<text xml:space="preserve" x="32" y="85" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(30,30,35,1)" dominant-baseline="hanging">Notify me</text>
+</g>
+<clipPath id="clip-4"><rect x="0" y="108" width="320" height="32"/></clipPath>
+<g clip-path="url(#clip-4)">
+<rect x="0" y="108" width="320" height="32" fill="rgba(30,100,190,1)"/>
+<rect x="0" y="108" width="320" height="32" stroke="rgba(60,130,220,1)" fill="none" stroke-width="1"/>
+<text xml:space="preserve" x="8" y="115" font-family="Noto Sans, sans-serif" font-size="14" fill="rgba(255,255,255,1)" dominant-baseline="hanging">Save</text>
+</g>
+</svg>

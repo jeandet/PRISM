@@ -1,5 +1,5 @@
-# Sphinx configuration for the Read the Docs site: the guide (doc/guide/) and the design notes
-# (doc/design/), written in Markdown and read by MyST. No C++ is built here.
+# Sphinx configuration for the Read the Docs manual: doc/index.md and the pages it lists, written
+# in Markdown and read by MyST. The design notes (doc/design/) stay on GitHub. No C++ is built here.
 import pathlib
 import re
 
@@ -14,7 +14,7 @@ myst_fence_as_directive = ["mermaid"]
 
 source_suffix = {".md": "markdown"}
 root_doc = "index"
-exclude_patterns = ["_build", "review-*.md", "handover-*.md", "superpowers"]
+exclude_patterns = ["_build", "review-*.md", "handover-*.md", "design", "superpowers"]
 # Pygments cannot lex C++26 annotations ([[=core::range<...>]]): the block is still shown, uncolored.
 suppress_warnings = ["myst.header", "misc.highlighting_failure"]
 
@@ -32,7 +32,7 @@ html_theme_options = {
 REPO = pathlib.Path(__file__).resolve().parent.parent
 DOC = REPO / "doc"
 GITHUB = "https://github.com/jeandet/PRISM/blob/main/"
-GITHUB_ONLY = ["review-*.md", "handover-*.md"]  # in doc/, left out of the site
+GITHUB_ONLY = ["review-*.md", "handover-*.md", "design/*.md"]  # in doc/, left out of the site
 LINK = re.compile(r'(\]\(|src=")([^)"#\s]+)')
 
 

@@ -14,7 +14,7 @@
 // https://code.visualstudio.com/blogs/2017/02/08/syntax-highlighting-optimizations): typing
 // usually costs one line.
 //
-//   vb.code_editor(doc, {.language = &text::language("cpp")});
+//   vb.code_editor(doc, "cpp");
 //
 // A Highlighter is the one thing to implement for another engine (tree-sitter, a language
 // server's semantic tokens); the built-in languages are rules, written as data below.

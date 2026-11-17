@@ -14,15 +14,15 @@ struct Ticker {
     // Declared last, so it stops before the state it writes to goes away.
     std::jthread worker{[this](std::stop_token stop) {
         for (int n = 0; !stop.stop_requested(); ++n) {
-            ticks.set(n);
+            ticks = n;   // Shared<T>: any thread may set it
             std::this_thread::sleep_for(std::chrono::milliseconds{100});
         }
     }};
 
-    // Runs once on the logic thread: from here on every set() on `ticks` wakes the app with the
-    // newest value, and that callback may touch the model because it runs there too.
+    // Runs once on the logic thread: from here on every new value of `ticks` wakes the app with
+    // the newest one, and this callback may touch the model because it runs there too.
     void attach(app::AppContext& ctx) {
-        ctx.receive(ticks, [this](int n) { reading.set({"tick " + std::to_string(n)}); });
+        ctx.receive(ticks, [this](int n) { set_value(reading, "tick " + std::to_string(n)); });
     }
 
     void view(app::ViewBuilder& vb) { vb.widget(reading); }
