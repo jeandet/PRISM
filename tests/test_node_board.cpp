@@ -73,6 +73,24 @@ struct Fixture {
         return std::nullopt;
     }
     WidgetId card_of(WidgetId label) const { return *tree.parent_of(*tree.parent_of(label)); }
+    // A port's row draws nothing, so it has no entry of its own: its rect is the union of what
+    // its widgets were given (a row gives each its full height).
+    std::optional<Rect> row_of(WidgetId label) const {
+        const WidgetId row = *tree.parent_of(label);
+        std::optional<Rect> out;
+        for (auto& [id, r] : snap->geometry) {
+            if (id == 0 || tree.parent_of(id) != std::optional{row}) continue;
+            auto a = allocated(id);
+            if (!a) continue;
+            if (!out) { out = a; continue; }
+            float x0 = std::min(out->origin.x.raw(), a->origin.x.raw());
+            float y0 = std::min(out->origin.y.raw(), a->origin.y.raw());
+            float x1 = std::max(out->origin.x.raw() + out->extent.w.raw(), a->origin.x.raw() + a->extent.w.raw());
+            float y1 = std::max(out->origin.y.raw() + out->extent.h.raw(), a->origin.y.raw() + a->extent.h.raw());
+            out = Rect{Point{X{x0}, Y{y0}}, Size{Width{x1 - x0}, Height{y1 - y0}}};
+        }
+        return out;
+    }
 };
 
 float right(Rect r) { return r.origin.x.raw() + r.extent.w.raw(); }
@@ -97,8 +115,8 @@ TEST_CASE("a wire is drawn from the output's card edge to the input's") {
     f.frame();
     auto out_card = f.allocated(f.card_of(f.m.source.out_label));
     auto in_card = f.allocated(f.card_of(f.m.sink.in_label));
-    auto out_row = f.allocated(f.m.source.out_label);
-    auto in_row = f.allocated(f.m.sink.in_label);
+    auto out_row = f.row_of(f.m.source.out_label);
+    auto in_row = f.row_of(f.m.sink.in_label);
     REQUIRE((out_card && in_card && out_row && in_row));
 
     auto wires = f.all<Polyline>();

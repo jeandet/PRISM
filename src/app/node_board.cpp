@@ -77,6 +77,14 @@ void node_card(ViewBuilder& vb, NodeBoardParts& parts, const nodes::Graph& graph
     }
 }
 
+// A port without a row has nowhere to draw its wires from.
+[[maybe_unused]] bool every_port_placed(const nodes::Graph& graph, const NodeBoardParts& parts) {
+    for (const auto id : parts.built)
+        for (std::size_t i = 0; const auto* port = graph.port({id, i}); ++i)
+            if (!parts.ports.contains(port)) return false;
+    return true;
+}
+
 std::vector<core::Point> places(const nodes::Graph& graph, const NodeBoardParts& parts) {
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
@@ -96,6 +104,9 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     b.layout_kind = LayoutKind::Board;
     b.on_change = on_either(graph.structure, graph.layout);
     // A new wire bumps `structure` too, but changes no card: only a change of nodes rebuilds.
+    // simplify: a node added or removed rebuilds every card, so the other nodes' widgets get new
+    // ids and lose their state (focus, a half-typed value). Fine for tens of nodes; past that, or
+    // once that state matters, rebuild per node: one keyed child per NodeId, built only when new.
     b.content_stale = [&graph, parts] { return parts->built != graph.nodes(); };
     b.build_content = [&graph, parts, &tree = tree_](Node& target) {
         parts->built = graph.nodes();
@@ -105,6 +116,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
         vb.board_ = parts.get();
         vb.canvas(parts->background);
         for (const auto id : parts->built) node_card(vb, *parts, graph, id);
+        assert(every_port_placed(graph, *parts) && "a node's view must place each of its ports with vb.port");
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
     b.board_under = [&graph, parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
