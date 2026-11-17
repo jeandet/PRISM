@@ -25,10 +25,7 @@ struct DeviceState {
 int main() {
     core::Shared<DeviceState> device_state{DeviceState{}};
     inspector::Inspector<DeviceState> panel{device_state};
-    return app::run(panel, {.title = "Device"}, [&](app::AppContext& ctx) {
-        // wake the window when another thread changes the state
-        ctx.receive(device_state, [](const DeviceState&) {});
-    });
+    return app::run(panel, {.title = "Device"});   // another thread's set() wakes the window
 }
 ```
 
@@ -129,7 +126,3 @@ The hotkey is built in when the build is not a release build. The meson option
 
 - The `Shared<T>` must outlive the inspector: the inspector keeps a callback registered on it.
 - An inspector cannot be copied or moved.
-- Without the `ctx.receive(...)` line, a change made on another thread shows only at the next
-  input event: nothing wakes the window.
-- `[[=core::skip]]` on a model's field does not hide it. There it only silences the debug
-  warning about a field a `view()` never placed.

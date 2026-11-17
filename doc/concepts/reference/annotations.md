@@ -26,7 +26,7 @@ struct PowerSupply {
 | `unit<"V">` | with `range` | printed after the slider's value | the inspector |
 | `label<"Sample rate">` | a member | the slider's caption, instead of the member's name | a table's column header; the inspector's caption |
 | `tooltip<"...">` | a `Field`, `Derived` or `Shared` | the widget's tooltip | the same when a `view()` places it |
-| `skip` | a member | — | the forgotten-field check ignores it; a table leaves the column out; the inspector hides it |
+| `skip` | a member | — | hidden everywhere: no widget in a window built from the struct, no table column, no inspector row; the forgotten-field check ignores it. A skipped `Shared` or `Channel` is still delivered |
 | `readonly` | a member | — | the inspector shows it, not editable |
 | `section<"Audio">` | a member | — | the inspector shows a header above it |
 
@@ -41,5 +41,3 @@ The inspector is the [live object inspector](../../app/inspector.md), which show
 - **`range` is for numbers.** On another type it is a compile error.
 - **A `view()` that places the field with `vb.widget` does not read `range`.** It sees the field,
   not the member. Annotate, or place a `Slider` field.
-- **`skip` does not hide a field from a window built by reflection.** It only silences the
-  forgotten-field check, and hides a column or an inspector row.

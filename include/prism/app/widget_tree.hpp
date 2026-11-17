@@ -597,7 +597,14 @@ private:
                 auto& member = model.[:m:];
                 using M = std::remove_cvref_t<decltype(member)>;
 
-                if constexpr (is_state_v<M>) {
+                if constexpr (core::has_annotation<m, decltype(core::skip)>()) {
+                    // [[=core::skip]]: no widget. A Shared or a Channel is still delivered.
+                    if constexpr (is_shared_v<M> || is_channel_v<M>) {
+                        drain_callbacks_.push_back([&member] { member.drain_notifications(); });
+                        waker_binders_.push_back(
+                            [&member](std::function<void()> w) { member.set_waker(std::move(w)); });
+                    }
+                } else if constexpr (is_state_v<M>) {
                     // invisible observable — no widget
                 } else if constexpr (is_channel_v<M>) {
                     // invisible observable — no widget, but still drained every tick since

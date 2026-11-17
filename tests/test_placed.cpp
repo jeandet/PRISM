@@ -131,4 +131,41 @@ TEST_CASE("the check says nothing about a skipped value, and still names a forgo
     CHECK(said.find("selected") == std::string::npos);
     CHECK(said.find("forgotten") != std::string::npos);
 }
+
+namespace {
+// A model with no view(): its window is built from its members, and skip hides one everywhere.
+struct Shown {
+    Field<int> count{1};
+};
+struct WithHidden {
+    Field<int> count{1};
+    [[=core::skip]] Field<int> secret{2};
+    [[=core::skip]] Derived<int> twice{[this] { return count.get() * 2; }};
+    [[=core::skip]] Shared<int> feed{0};
+    [[=core::skip]] Channel<int> events;
+    [[=core::skip]] Shown nested;
+};
+} // namespace
+
+TEST_CASE("a member marked skip gets no widget in a window built from the struct") {
+    Shown plain;
+    WithHidden m;
+    WidgetTree plain_tree{plain};
+    WidgetTree tree{m};
+    CHECK(tree.leaf_count() == plain_tree.leaf_count());
+}
+
+TEST_CASE("a skipped Shared or Channel is still delivered: hidden, not cut off") {
+    WithHidden m;
+    WidgetTree tree{m};
+    int seen = 0;
+    m.feed.observe([&](const int& v) { seen = v; });
+    int heard = 0;
+    m.events.observe([&](const int& v) { heard = v; });
+    m.feed.set(5);
+    m.events.send(7);
+    tree.drain_shared();
+    CHECK(seen == 5);
+    CHECK(heard == 7);
+}
 #endif
