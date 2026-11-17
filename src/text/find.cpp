@@ -23,8 +23,9 @@ void matches_in(std::string_view text, std::size_t block, std::size_t n, const S
         const auto [from, to] = searcher(it, text.end());
         if (from == text.end()) break;
         const auto at = static_cast<std::size_t>(from - text.begin());
-        if (!whole_word || whole_word_at(text, at, n)) out.push_back({{block, at}, {block, at + n}});
-        it = from + 1;
+        if (whole_word && !whole_word_at(text, at, n)) { it = from + 1; continue; }
+        out.push_back({{block, at}, {block, at + n}});
+        it = to;   // after the match: matches never overlap, so each can be replaced
     }
 }
 

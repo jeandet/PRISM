@@ -52,12 +52,6 @@ TEST_CASE("stats count lines and characters, not bytes") {
     CHECK(notes::stats("a\n").lines == 1);
 }
 
-TEST_CASE("find_all returns every match position") {
-    CHECK(notes::find_all("abcabc", "bc") == std::vector<std::size_t>{1, 4});
-    CHECK(notes::find_all("aaaa", "aa") == std::vector<std::size_t>{0, 2});   // non-overlapping
-    CHECK(notes::find_all("abc", "").empty());
-}
-
 TEST_CASE("the status line says what is open, whether it changed, and the search result") {
     CHECK(notes::status_line("a.txt", {2, 7}, false, std::nullopt) == "a.txt  |  2 lines, 7 characters");
     CHECK(notes::status_line("a.txt", {2, 7}, true, 3) == "a.txt (modified)  |  2 lines, 7 characters  |  3 matches");

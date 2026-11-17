@@ -1,6 +1,6 @@
 #pragma once
 
-// The notes editor's logic without any UI: file I/O, statistics and search. Tested in
+// The notes editor's logic without any UI: file I/O and statistics. Tested in
 // tests/test_notes_logic.cpp; the app (model_notes.cpp) only wires these to widgets.
 
 #include <prism/core/utf8.hpp>
@@ -54,15 +54,6 @@ inline Stats stats(std::string_view text) {
     auto newlines = static_cast<std::size_t>(std::ranges::count(text, '\n'));
     bool open_last_line = text.back() != '\n';
     return {newlines + (open_last_line ? 1 : 0), prism::core::utf8::count(text)};
-}
-
-// Byte offsets of every non-overlapping occurrence of `query`.
-inline std::vector<std::size_t> find_all(std::string_view text, std::string_view query) {
-    std::vector<std::size_t> hits;
-    if (query.empty()) return hits;
-    for (auto pos = text.find(query); pos != std::string_view::npos; pos = text.find(query, pos + query.size()))
-        hits.push_back(pos);
-    return hits;
 }
 
 inline std::string status_line(const std::string& name, Stats s, bool modified,

@@ -45,3 +45,10 @@ TEST_CASE("replace_all replaces every match as one undo step, keeping spans in p
     CHECK(doc.text() == "cat and cat\ndog and cat");
     CHECK(replace_all(doc, "zzz", "y") == 0);
 }
+
+TEST_CASE("matches do not overlap: the next search starts after a match") {
+    Document doc{"aaaa"};
+    auto hits = find_all(doc, "aa");
+    REQUIRE(hits.size() == 2);
+    CHECK(hits[1] == Range{{0, 2}, {0, 4}});
+}

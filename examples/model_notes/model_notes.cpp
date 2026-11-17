@@ -3,6 +3,7 @@
 // way a dashboard never does. Logic lives in notes_logic.hpp (tested); this file only wires it.
 #include <prism/prism.hpp>
 #include <prism/app/settings.hpp>
+#include <prism/text/find.hpp>
 #include "file_tree_source.hpp"
 #include "../showcase/showcase_common.hpp"
 #include "notes_logic.hpp"
@@ -223,20 +224,15 @@ struct NotesApp {
     // Highlights every match of the search text in the editor (its .highlights field), then
     // refreshes the status line.
     void update_matches() {
-        const auto& query = value(search);
-        std::vector<text::Range> hits;
-        for (auto pos : notes::find_all(body.text(), query))
-            hits.push_back({body.position_at(pos), body.position_at(pos + query.size())});
-        matches.set(std::move(hits));
+        matches.set(text::find_all(body, value(search)));
         refresh_status();
     }
 
     void refresh_status() {
         const auto text = body.text();
-        auto query = value(search);
-        std::optional<std::size_t> matches;
-        if (!query.empty()) matches = notes::find_all(text, query).size();
-        auto line = notes::status_line(current.filename().string(), notes::stats(text), text != saved, matches);
+        std::optional<std::size_t> hits;
+        if (!value(search).empty()) hits = value(matches).size();
+        auto line = notes::status_line(current.filename().string(), notes::stats(text), text != saved, hits);
         status.set({error.empty() ? line : error});
         modified.set(!current.empty() && text != saved);
     }

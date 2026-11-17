@@ -31,8 +31,8 @@ It shows three things:
 
 <p align="center"><img src="diagrams/flow.svg" alt="One thread: a key, a click or a menu item changes a field, whose on_change connections set status and modified (which repaint the status bar and the Save entries), and a Derived in the Statistics window recomputes from the same body field." width="900"/></p>
 
-The PRISM part is `model_notes.cpp`, 272 lines. `notes_logic.hpp` (77 lines) loads, saves,
-searches and counts with no widget in it, and `file_tree_source.hpp` (92 lines) shows a directory
+The PRISM part is `model_notes.cpp`, 268 lines. `notes_logic.hpp` (68 lines) loads, saves and
+counts with no widget in it, and `file_tree_source.hpp` (92 lines) shows a directory
 to the tree widget.
 
 One thread, and one pass from a change to a repaint:
@@ -48,7 +48,7 @@ One thread, and one pass from a change to a repaint:
 
 ## Walkthrough
 
-Read the files in this order. `model_notes.cpp` (272 lines) wires the widgets; `notes_logic.hpp`
+Read the files in this order. `model_notes.cpp` (268 lines) wires the widgets; `notes_logic.hpp`
 (73 lines) is the logic and `file_tree_source.hpp` (92 lines) is the tree. About 445 lines in all.
 
 ### The document, and its search hits
@@ -68,18 +68,15 @@ reach the undo history.
 
 ```cpp
 void update_matches() {
-    const auto& query = value(search);
-    std::vector<text::Range> hits;
-    for (auto pos : notes::find_all(body.text(), query))
-        hits.push_back({body.position_at(pos), body.position_at(pos + query.size())});
-    matches.set(std::move(hits));
+    matches.set(text::find_all(body, value(search)));   // Boyer-Moore-Horspool, block by block
     refresh_status();
 }
 ```
 
 ### Logic with no window in it
 
-`notes_logic.hpp` loads, saves, searches and counts, and knows nothing about widgets:
+`notes_logic.hpp` loads, saves and counts, and knows nothing about widgets (searching is
+`text::find_all` on the document):
 
 ```cpp
 inline Stats stats(std::string_view text) {
