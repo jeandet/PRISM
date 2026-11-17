@@ -139,7 +139,12 @@ inline void place_group(ViewBuilder& vb, const Place& where, const DockNode& nod
             },
             .close = [names, &state = where.state, &layout = where.layout](std::size_t i) {
                 if (i < names.size()) layout.set(close_panel(fitted(layout.get(), state.names), names[i]));
-            }});
+            },
+            .detach = where.tree.can_open_windows()
+                ? std::function<void(std::size_t)>{[names, &state = where.state, &layout = where.layout](std::size_t i) {
+                      if (i < names.size()) layout.set(float_panel(fitted(layout.get(), state.names), names[i]));
+                  }}
+                : nullptr});
     });
 }
 

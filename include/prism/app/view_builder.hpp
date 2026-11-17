@@ -902,6 +902,7 @@ public:
         std::function<void(const std::any&, std::size_t)> drop{};   // ... dropped before tab i (count: after the last)
         std::function<bool(std::size_t)> closable{};          // tab i has a close button (none: all, with close)
         std::function<void(std::size_t)> close{};             // its button, or a middle click on it
+        std::function<void(std::size_t)> detach{};            // a double click, or the bar's button (shown tab)
     };
     void tabs(Field<TabBar<>>& field, std::invocable auto&& builder, TabActions drag) {
         switched_pages(field, builder, true, std::move(drag));
@@ -1009,8 +1010,9 @@ private:
             auto bar_build = bar.build_widget;
             auto names_ptr = state->tab_names;
             bar.build_widget = [bar_build, names_ptr, closable = std::move(drag.closable),
-                                close = std::move(drag.close)](WidgetNode& wn) {
+                                close = std::move(drag.close), detach = std::move(drag.detach)](WidgetNode& wn) {
                 wn.tab_names = names_ptr;
+                if (detach) wn.get_or_create<TabBarEditState>().detach = detach;
                 if (close) {
                     auto& es = wn.get_or_create<TabBarEditState>();
                     es.close = close;

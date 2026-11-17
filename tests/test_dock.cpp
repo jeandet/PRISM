@@ -660,6 +660,65 @@ TEST_CASE("a tab dropped outside the window floats its panel in a window of its 
     CHECK(text_at(*snap, "Search"));
 }
 
+namespace {
+// The float button at the right end of the tab bar showing `title`: the rightmost small outline.
+std::optional<Point> float_button(const SceneSnapshot& snap, std::string_view title) {
+    for (auto& dl : snap.draw_lists) {
+        bool bar = false;
+        for (auto& c : dl->commands)
+            if (auto* t = std::get_if<TextCmd>(&c); t && t->text == title) bar = true;
+        if (!bar) continue;
+        std::optional<Rect> best;
+        for (auto& c : dl->commands)
+            if (auto* r = std::get_if<RectOutline>(&c); r && r->rect.extent.w.raw() < 16.f
+                && (!best || r->rect.origin.x.raw() > best->origin.x.raw()))
+                best = r->rect;
+        if (best) return Point{best->origin.x + DX{best->extent.w.raw() / 2.f}, best->origin.y + DY{best->extent.h.raw() / 2.f}};
+    }
+    return std::nullopt;
+}
+} // namespace
+
+TEST_CASE("a double click on a tab floats its panel in a window of its own") {
+    Ide model;
+    WidgetTree tree{model};
+    Windows windows;
+    windows.install(tree);
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto tab = text_at(*snap, "Search");
+    REQUIRE(tab);
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, true, 0, 1});
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, false, 0, 1});
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, true, 0, 2});
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, false, 0, 2});
+    CHECK(model.layout.get().floating == std::vector<std::string>{"search"});
+}
+
+TEST_CASE("the float button at the end of a tab bar floats the panel shown") {
+    Ide model;
+    WidgetTree tree{model};
+    Windows windows;
+    windows.install(tree);
+    auto snap = tree.build_snapshot(600, 400, 1);
+    auto button = float_button(*snap, "Editor");
+    REQUIRE(button);
+    CHECK(button->x.raw() > 500.f);   // at the bar's right end, past its tabs
+    route_event(tree, snap.get(), MouseButton{*button, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{*button, buttons::left, false});
+    CHECK(model.layout.get().floating == std::vector<std::string>{"editor"});
+}
+
+TEST_CASE("with no window to open, no float button, and a double click floats nothing") {
+    Ide model;
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    CHECK_FALSE(float_button(*snap, "Editor"));
+    auto tab = text_at(*snap, "Search");
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, true, 0, 2});
+    route_event(tree, snap.get(), MouseButton{*tab, buttons::left, false, 0, 2});
+    CHECK(model.layout.get().floating.empty());
+}
+
 TEST_CASE("docking a floating panel from code closes its window; no opener keeps it docked") {
     Ide model;
     model.layout.set(float_panel(model.layout.get(), "search"));

@@ -420,6 +420,10 @@ struct TabBarEditState {
     std::function<void(size_t)> close{};
     std::vector<std::pair<X, X>> close_x_ranges{};
     bool close_hovered = false;
+    // Detaching (a dock's tab into a window of its own): a double click on a tab, or the button
+    // drawn at the bar's right end for the tab shown.
+    std::function<void(size_t)> detach{};
+    std::pair<X, X> detach_x_range{};
 };
 
 // Type-erased ephemeral widget state stored in WidgetNode::edit_state.

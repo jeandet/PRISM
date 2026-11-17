@@ -18,6 +18,14 @@ void draw_close(DrawList& dl, X x0, bool hovered, Color ink, const Theme& t) {
     dl.line(Point{X{cx - arm}, Y{cy - arm}}, Point{X{cx + arm}, Y{cy + arm}}, ink, 1.5f);
     dl.line(Point{X{cx - arm}, Y{cy + arm}}, Point{X{cx + arm}, Y{cy - arm}}, ink, 1.5f);
 }
+constexpr float detach_w = 20.f, detach_margin = 6.f;
+
+// A detach button: a window with a smaller one stepping out of its corner.
+void draw_detach(DrawList& dl, X x0, Color ink) {
+    const float y0 = (tab_h.raw() - 10.f) / 2.f;
+    dl.rect_outline(Rect{Point{x0 + DX{3.f}, Y{y0 + 3.f}}, Size{Width{9.f}, Height{9.f}}}, ink, 1.f);
+    dl.rect_outline(Rect{Point{x0 + DX{8.f}, Y{y0 - 1.f}}, Size{Width{9.f}, Height{9.f}}}, ink, 1.f);
+}
 } // namespace
 
 void tabs_record(DrawList& dl, WidgetNode& node,
@@ -68,6 +76,12 @@ void tabs_record(DrawList& dl, WidgetNode& node,
         x += DX{w.raw()};
     }
 
+    if (es.detach) {
+        const X x0{std::max(total_w.raw(), delegate_detail::widget_w(node).raw() - detach_w - detach_margin)};
+        es.detach_x_range = {x0, x0 + DX{detach_w}};
+        draw_detach(dl, x0, t.tab_text);
+    }
+
     if (vs.focused)
         delegate_detail::draw_focus_ring(dl, total_w, tab_h, t);
 }
@@ -112,6 +126,14 @@ bool tabs_handle_input(const InputEvent& ev, WidgetNode& node,
             }
         }
         if (mb->button != buttons::left) return false;
+        if (es.detach && mx >= es.detach_x_range.first && mx < es.detach_x_range.second && count > 0) {
+            es.detach(selected);
+            return true;
+        }
+        if (auto i = tab_at(node, mx); i && mb->clicks == 2 && es.detach) {
+            es.detach(*i);
+            return true;
+        }
         for (size_t i = 0; i < es.header_x_ranges.size(); ++i) {
             auto [x0, x1] = es.header_x_ranges[i];
             if (mx >= x0 && mx < x1 && i != selected) {
