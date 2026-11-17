@@ -128,6 +128,31 @@ void run_view(std::size_t lines) {
     fmt::print("{:>7} {:>8.1f} {:>8} {:>8.2f}+{:<8.2f} {:>17} {:>8.2f}+{:<8.2f}\n", lines, first, "", median(type_in),
                median(type_pub), "", wheel.input, wheel.publish);
 }
+// The same text in vb.code_editor(doc, "cpp"): the first jump to the end highlights every line
+// above it (the states carry from line to line), then a key costs one line again.
+struct CodePage {
+    text::Document doc;
+    explicit CodePage(std::size_t lines) : doc{lines_of_code(lines)} {}
+    void view(WidgetTree::ViewBuilder& vb) { vb.code_editor(doc, "cpp"); }
+};
+
+void run_code(std::size_t lines) {
+    CodePage page(lines);
+    WidgetTree tree{page};
+    uint64_t version = 0;
+    auto snap = tree.build_snapshot(win_w, win_h, ++version);
+    tree.clear_dirty();
+    const core::Point inside{core::X{200}, core::Y{100}};
+    app::widget_detail::route_event(tree, snap.get(), input::MouseButton{inside, input::buttons::left, true});
+    app::widget_detail::route_event(tree, snap.get(), input::MouseButton{inside, input::buttons::left, false});
+    auto t0 = std::chrono::steady_clock::now();
+    app::widget_detail::route_event(tree, snap.get(), input::KeyPress{input::keys::end, input::mods::ctrl});
+    snap = tree.build_snapshot(win_w, win_h, ++version);
+    tree.clear_dirty();
+    const double to_end = ms_since(t0);
+    const Cost type = median_cost(tree, version, 15, input::TextInput{"x"});
+    fmt::print("{:>7} {:>16.2f} {:>8.2f}+{:<8.2f}\n", lines, to_end, type.input, type.publish);
+}
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -139,4 +164,6 @@ int main(int argc, char* argv[]) {
     for (auto n : sizes) run(n);
     fmt::print("text::Document in vb.text_view, same text (type: an insert in one block):\n");
     for (auto n : sizes) run_view(n);
+    fmt::print("vb.code_editor(doc, \"cpp\"): Ctrl+End the first time (highlights all above), then a key:\n");
+    for (auto n : sizes) run_code(n);
 }

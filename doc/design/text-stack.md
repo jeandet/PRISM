@@ -213,6 +213,10 @@ Each step ends with something visible, tested, and shown in the gallery and the 
 
    Typing and scrolling no longer depend on the document's length; the first publish is the
    height map's estimates, O(n) and cheap.
+
+   `vb.code_editor(doc, "cpp")` on the same text: the first Ctrl+End highlights every line above
+   the end (states carry from line to line) once: 0.9 ms at 1,000 lines, 6.7 ms at 10,000, 71 ms
+   at 100,000. A key then costs 0.03 ms. Highlighting in idle time would hide the first jump.
 2. **Fonts**: `FontStyle`, bold and italic faces on desktop and web, the theme's style table.
 3. **Document + layout + `TextView`**, with Markdown into a document. Read-only first: it proves
    the document, styled runs, caching and visible-only layout without any editing. Visible
