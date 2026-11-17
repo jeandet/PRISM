@@ -18,7 +18,8 @@ widget_gallery_sources = files(
   'docking_tab.cpp',
   'document_tab.cpp',
   'code_tab.cpp',
-  'build_your_own_tab.cpp'
+  'build_your_own_tab.cpp',
+  'orbit_tab.cpp'
 )
 
 gallery_cpp_args = ['-DGALLERY_ICON_DIR="' + gallery_icon_dir + '"']

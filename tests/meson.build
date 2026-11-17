@@ -145,6 +145,7 @@ headless_tests = {
   'tree_reflect' : files('test_tree_reflect.cpp'),
   'file_tree_source' : files('test_file_tree_source.cpp'),
   'proc_metrics' : files('test_proc_metrics.cpp'),
+  'orbit' : files('test_orbit.cpp'),
   'notes_logic' : files('test_notes_logic.cpp'),
   'lab_bench' : files('test_lab_bench.cpp'),
   'synth_rack' : files('test_synth_rack.cpp'),

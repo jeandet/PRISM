@@ -1,10 +1,10 @@
 # Widget Gallery
 
-Every PRISM widget in one window: ten tabs under a menu bar, from text fields and a date picker to
+Every PRISM widget in one window: eleven tabs under a menu bar, from text fields and a date picker to
 a 10 000-row table and a dockable layout. Each tab is a plain struct of fields, and this app only
 arranges them. It is where you try a widget, then read the line of C++ that makes it.
 
-<p align="center"><img src="../../doc/screenshots/widget_gallery.svg" alt="A gallery window with a menu bar and toolbar above ten tabs; the Catalog tab shows a tree of widget names on the left and the selected widget's documentation, code and a live sample on the right" width="700"/></p>
+<p align="center"><img src="../../doc/screenshots/widget_gallery.svg" alt="A gallery window with a menu bar and toolbar above eleven tabs; the Catalog tab shows a tree of widget names on the left and the selected widget's documentation, code and a live sample on the right" width="700"/></p>
 
 It shows three things:
 
@@ -46,7 +46,7 @@ Two mechanisms, one file each, and a tab's knobs tying them together:
 
 Read the files in this order. The PRISM part is `knob.hpp` (161 lines) and
 `build_your_own_tab.hpp` + `.cpp` (114 and 65), with `main.cpp` (126 lines) arranging the rest. The
-ten tabs are a header and a `.cpp` each, about 1 550 lines together: one tab's `view()` compiles in
+eleven tabs are a header and a `.cpp` each, about 1 800 lines together: one tab's `view()` compiles in
 its own file, so editing a tab recompiles one file.
 
 ### A value type with no drawing in it
@@ -139,7 +139,7 @@ Those fields are the tab; `main.cpp` gives it a page and places it:
 ```
 
 `vb.tab` records a name and the content builder, and runs that builder each time the page is shown,
-after clearing the previous page's widgets: ten tabs cost one tab's widgets. `vb.block(tab)` hands
+after clearing the previous page's widgets: eleven tabs cost one tab's widgets. `vb.block(tab)` hands
 the struct to the tree, which calls its `view()` — the same call any hand-written widget code makes,
 one level up the tree.
 
@@ -207,6 +207,7 @@ The tabs, in the order they appear:
 | Popups | Dialogs, a popover, a context menu and the platform's file dialogs, each opened by a button. |
 | Docking | Four panels in a dock. Drag a panel's tab onto another panel: the guide puts it in that panel's tabs, beside it, or along a side; let it go outside the window to float it, or double-click its tab. Drag a tab along its bar to reorder it; List and Log have a × to close them, and a button reopens them. A floating panel is its own window on the desktop and a card over the dock in the browser; let a card go on a guide button and it docks there. The arrangement is a preference. |
 | Build your own | Three knobs from `knob.hpp`, the file itself, then eight `ChannelStrip`s and a master. Drag a knob; the meter under it follows. |
+| Orbit | A small game on a canvas. Drag back from the probe and let go: the planets bend its path into the ring, four levels. Move the Gravity slider while it flies and the path bends with it. The flight runs on the app clock, which ticks only while the probe flies. |
 
 Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.
 
@@ -214,7 +215,7 @@ Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.
 
 | File | What it is |
 | --- | --- |
-| `main.cpp` | The window: menus, toolbar, the ten tabs, settings, `main()`. |
+| `main.cpp` | The window: menus, toolbar, the eleven tabs, settings, `main()`. |
 | `knob.hpp` | The rotary control: a `Knob` value type, its geometry, one `Widget<Knob>`. |
 | `build_your_own_tab.*` | The tab that shows the knob file, then eight `ChannelStrip` blocks. |
 | `catalog_tab.*` | The catalog: one `Entry` per widget, and the page built from it. |
@@ -224,6 +225,8 @@ Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.
 | `plot_tab.*` | The plot, refilled from two sliders and a checkbox, and a hand-drawn canvas. |
 | `popups_tab.*` | Dialogs, popovers, context menus, file dialogs, drops. |
 | `docking_tab.*` | A dock layout, and the widgets around it. |
+| `orbit.hpp` | The game's physics: gravity, a fixed-timestep flight, the levels. No widget in it; `tests/test_orbit.cpp` tests it. |
+| `orbit_tab.*` | The game: the canvas that draws it, the drag that aims, the clock that flies it. |
 | `gallery_icons.hpp` | Loads the toolbar icons, marked symbolic so they follow the text colour. |
 | `icons/` | The SVG icons the toolbar and the catalog use. |
 | `meson.build` | The target, one translation unit per tab, the icon path, the SVG capture. |

@@ -15,10 +15,10 @@ order. Each one ends by pointing at the app below that does the same thing at sc
 <tr>
 <td><a href="widget_gallery/">widget_gallery</a></td>
 <td><img src="../doc/screenshots/widget_gallery.svg" width="180"/></td>
-<td>Every widget, in ten tabs: controls with tooltips, text in several scripts (right to left
+<td>Every widget, in eleven tabs: controls with tooltips, text in several scripts (right to left
 too), a code editor in six languages with find and replace (and a 100,000-line file to type in),
 Markdown edited as rich text, a table, tree and list, a plot and a canvas, menus, dialogs (one holding a form), a popover,
-file dialogs, drag and drop, and a dock whose panels the user rearranges. Pick a widget here.</td>
+file dialogs, drag and drop, a dock whose panels the user rearranges, and Orbit, a small game on a canvas. Pick a widget here.</td>
 </tr>
 <tr>
 <td><a href="model_notes/">model_notes</a></td>

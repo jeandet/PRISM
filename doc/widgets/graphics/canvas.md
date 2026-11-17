@@ -92,6 +92,48 @@ struct Pad {
 `input::InputEvent` is a variant: `MouseMove`, `MouseButton`, `MouseScroll`, `KeyPress`,
 `KeyRelease`, `TextInput` and others. Positions are in the canvas's coordinates.
 
+## Animation
+
+To move something on its own, add a function to the app's clock. It is called again and again on
+the logic thread, with the time, until it returns `false`. The clock ticks only while a function
+is added, so a still canvas costs nothing. Get the clock in the block's `attach`:
+
+```cpp
+struct Bounce {
+    core::Field<float> y{0.f};   // the ball's height, 0 to 1
+    ui::AnimationClock* clock = nullptr;
+    std::optional<ui::AnimationClock::time_point> start;
+
+    void attach(app::AppContext& ctx) { clock = &ctx.clock(); }
+
+    void drop() {   // call it from a button
+        start.reset();
+        clock->add([this](ui::AnimationClock::time_point now) {
+            if (!start) start = now;
+            float t = std::chrono::duration<float>(now - *start).count();
+            y = std::abs(std::cos(3.f * t)) * std::exp(-0.6f * t);
+            return t < 6.f;   // false: stop ticking
+        });
+    }
+
+    void canvas(render::DrawList& dl, core::Rect r, const ui::WidgetNode& node) {
+        float h = r.extent.h.raw();
+        dl.circle(core::Point{core::X{r.extent.w.raw() / 2}, core::Y{h - 12.f - y.get() * (h - 24.f)}}, 12.f,
+                  node.theme->accent);
+    }
+    void view(app::ViewBuilder& vb) { vb.canvas(*this).depends_on(y); }
+};
+```
+
+The clock may tick more often than the screen redraws. Compute from the time you are given, as
+above, or step a simulation in fixed slices of time (a fixed-timestep loop), never one step per
+tick: then the speed does not depend on how often it ticks.
+
+The gallery's **Orbit** tab is a whole game built this way: drag to aim
+(`handle_canvas_input`), a flight on the clock, and a gravity slider read at every tick, so moving
+it bends a path in flight. Its physics is plain functions with tests of their own
+([`examples/widget_gallery/orbit.hpp`](../../../examples/widget_gallery/orbit.hpp)).
+
 ## See also
 
 - [Plot](plot.md): a canvas PRISM ships.

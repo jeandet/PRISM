@@ -55,12 +55,12 @@ The rest is ordinary C++: a DSP library, SQL, a process runner.
 
 ### Widget gallery
 
-Every widget, in ten tabs: a code editor in six languages, Markdown edited as rich text, a
-100,000-row table, docking, drag and drop, and a custom widget built in the open.
+Every widget, in eleven tabs: a code editor in six languages, Markdown edited as rich text, a
+100,000-row table, docking, drag and drop, a custom widget built in the open, and a small game drawn on a canvas.
 Come here to pick a widget and copy its line of code.
 [`examples/widget_gallery/`](../../examples/widget_gallery/)
 
-<img src="../screenshots/widget_gallery.svg" alt="The widget gallery: a menu bar, a toolbar and ten tabs; the Catalog tab lists widgets on the left and shows one on the right" width="700"/>
+<img src="../screenshots/widget_gallery.svg" alt="The widget gallery: a menu bar, a toolbar and eleven tabs; the Catalog tab lists widgets on the left and shows one on the right" width="700"/>
 
 ### Notes
 
