@@ -66,6 +66,7 @@ struct Theme {
     Color syntax_comment  = Color::rgba(140, 146, 158);
     Color syntax_preprocessor = Color::rgba(224, 108, 117);
     Color syntax_function = Color::rgba(97, 175, 239);
+    Color current_line    = Color::rgba(255, 255, 255, 14);   // a code editor's caret line
 
     // Dropdown popup
     Color popup_bg        = Color::rgba(50, 50, 62);
@@ -121,7 +122,7 @@ inline Theme light_theme() {
     t.link = c(0, 88, 190);               t.code_bg = c(224, 226, 233);
     t.syntax_keyword = c(150, 30, 150);   t.syntax_type = c(140, 90, 0);       t.syntax_string = c(40, 110, 40);
     t.syntax_number = c(160, 70, 0);      t.syntax_comment = c(95, 100, 110);  t.syntax_preprocessor = c(190, 20, 60);
-    t.syntax_function = c(0, 90, 190);
+    t.syntax_function = c(0, 90, 190);       t.current_line = c(0, 0, 0, 12);
     t.primary = c(30, 100, 190);          t.primary_hover = c(40, 112, 205);    t.primary_active = c(22, 86, 168);
     t.primary_outline = c(60, 130, 220);
     t.accent = c(0, 120, 190);            t.accent_hover = c(0, 135, 210);      t.accent_active = c(0, 105, 170);

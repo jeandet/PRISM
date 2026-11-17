@@ -409,6 +409,13 @@ Node text_editor_node(text::Document& doc, text::EditorOptions options, WidgetId
 
 } // namespace
 
+ViewBuilder::LeafHandle ViewBuilder::code_editor(text::Document& doc, std::string_view language) {
+    return text_editor(doc, {.view = {.family = render::FontRole::Mono,
+                                      .highlighter = language.empty() ? nullptr : &text::language(language),
+                                      .line_numbers = true, .current_line = true},
+                             .tab_inserts = true, .auto_indent = true, .match_brackets = true});
+}
+
 ViewBuilder::LeafHandle ViewBuilder::text_editor(text::Document& doc, text::EditorOptions options) {
     current_parent().children.push_back(text_editor_node(doc, std::move(options), tree_.next_id_));
     return {current_parent().children.back(), placed_};

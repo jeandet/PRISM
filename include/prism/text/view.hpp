@@ -5,6 +5,7 @@
 #include <prism/core/types.hpp>
 #include <prism/render/draw_list.hpp>
 #include <prism/text/document.hpp>
+#include <prism/text/highlight.hpp>
 #include <prism/text/layout.hpp>
 #include <prism/ui/context.hpp>
 
@@ -12,6 +13,7 @@
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
 // A document drawn into a rectangle (doc/design/text-stack.md): only the blocks in sight are laid
 // out, each once per version, and a height map (a SumTree of block heights, estimated until a block
@@ -23,6 +25,9 @@ struct ViewOptions {
     render::FontRole family = render::FontRole::Ui;   // Ui: prose with spaced paragraphs. Mono: code
     bool wrap = true;
     float padding = 8.f;
+    const Highlighter* highlighter = nullptr;   // code: its colors (text/highlight.hpp)
+    bool line_numbers = false;                  // a gutter numbering the blocks
+    bool current_line = false;                  // the caret's line shaded
 };
 
 class View {
@@ -44,6 +49,7 @@ public:
     struct Marks {
         Position caret;
         Position anchor;
+        std::vector<Range> highlights{};   // drawn behind the text: matching brackets, search hits
     };
     std::optional<Marks> marks;
 
@@ -70,12 +76,28 @@ private:
     struct HeightOf {
         Heights operator()(float h) const { return {1, h}; }
     };
+    // A layout depends on the block and on the state its highlighting starts in.
+    struct Key {
+        std::uint64_t version;
+        Highlighter::State before;
+        bool operator==(const Key&) const = default;
+    };
+    struct KeyHash {
+        std::size_t operator()(const Key& k) const { return std::hash<std::uint64_t>{}(k.version * 31 + k.before); }
+    };
+    static constexpr Highlighter::State unknown = ~Highlighter::State{0};
 
     Document& doc_;
     ViewOptions options_;
     LayoutStyle style_{};        // what the cache and the estimates were made with
     core::SumTree<float, Heights, HeightOf> heights_;
-    std::unordered_map<std::uint64_t, BlockLayout> cache_;   // by block version
+    std::unordered_map<Key, BlockLayout, KeyHash> cache_;
+    // Highlighting: each block's end state, right for blocks before valid_. Past an edit (blocks
+    // before edit_end_), a block ending as it did before means every later one does too.
+    std::vector<Highlighter::State> ends_;
+    std::size_t valid_ = 0;
+    std::size_t edit_end_ = 0;
+    float gutter_ = 0.f;
     std::size_t first_drawn_ = 0;
     std::uint64_t layouts_made_ = 0;
     core::Connection follow_;
@@ -84,12 +106,15 @@ private:
     void reset_heights();
     void follow(const Change& c);
     const BlockLayout& layout(std::size_t i);
+    Highlighter::State state_before(std::size_t i);
+    void follow_states(const Change& c);
+    float text_left(const BlockLayout& l) const { return options_.padding + gutter_ + l.indent; }
     float block_top(std::size_t i) const { return heights_.prefix(i).height; }   // in content coordinates
     static std::size_t line_of(const BlockLayout& l, std::size_t byte);
     void draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, float width,
                     const ui::Theme& theme) const;
-    void draw_selection(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top,
-                        const ui::Theme& theme) const;
+    void draw_range(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, Range r,
+                    render::Color color, bool with_newline) const;
 };
 
 } // namespace prism::text

@@ -8,6 +8,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 // A document edited: a caret and a selection, moved and changed by keys, typed text, pastes and
 // the mouse (doc/design/text-stack.md). The view draws them; this keeps them and edits the
@@ -17,8 +18,9 @@
 // Shift to select, Backspace/Delete (Ctrl: a word), Enter, Ctrl+A/C/X/Z/Y, Ctrl+Shift+Z; Tab and
 // Shift+Tab indent when tab_inserts. Mouse: click, Shift+click, drag, double click (a word), triple
 // click (a line).
-// simplify: an input method's composition is not shown until committed, and undo leaves the caret
-// where it was (clamped), not at the change. Each when an editor needs it.
+// simplify: an input method's composition is not shown until committed, undo leaves the caret
+// where it was (clamped), not at the change, and a bracket inside a string or a comment still
+// counts. Each when an editor needs it.
 namespace prism::text {
 
 struct EditorOptions {
@@ -26,6 +28,7 @@ struct EditorOptions {
     bool read_only = false;       // selectable and copyable, not changed
     bool tab_inserts = false;     // Tab types an indent (code) instead of moving the focus on
     bool auto_indent = false;     // Enter keeps the line's leading whitespace (code)
+    bool match_brackets = false;  // the bracket at the caret and its match highlighted (code)
     std::string indent = "    ";
 };
 
@@ -70,6 +73,7 @@ private:
     Position next_word(Position p) const;
     Position prev_word(Position p) const;
     Range word_at(Position p) const;
+    std::vector<Range> bracket_pair() const;
     void move(Position to, bool extend);   // a caret jump: the next typing starts a new undo step
     void show();                           // the view's marks follow the caret, and it scrolls to it
 };

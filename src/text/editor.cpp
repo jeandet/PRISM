@@ -26,7 +26,7 @@ Editor::Editor(Document& doc, EditorOptions options) : view(doc, options.view), 
     follow_ = doc_.on_change().connect([this](const Change&) {
         caret_ = clamp(caret_);
         anchor_ = clamp(anchor_);
-        view.marks = View::Marks{caret_, anchor_};
+        view.marks = View::Marks{caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{}};
     });
     show();
 }
@@ -76,8 +76,45 @@ Range Editor::word_at(Position p) const {
 }
 
 void Editor::show() {
-    view.marks = View::Marks{caret_, anchor_};
+    view.marks = View::Marks{caret_, anchor_, options_.match_brackets ? bracket_pair() : std::vector<Range>{}};
     view.reveal(caret_);
+}
+
+// The bracket at the caret (else just before it) and its match, counting nesting across blocks.
+// simplify: gives up after a fixed number of blocks, as editors do on huge files.
+std::vector<Range> Editor::bracket_pair() const {
+    constexpr std::string_view open = "([{", close = ")]}";
+    constexpr std::size_t max_blocks = 5000;
+    for (const Position p : {caret_, prev_char(caret_)}) {
+        const auto& t = doc_[p.block].text;
+        if (p.byte >= t.size()) continue;
+        const char c = t[p.byte];
+        const auto o = open.find(c), cl = close.find(c);
+        if (o == std::string_view::npos && cl == std::string_view::npos) continue;
+        const bool forward = o != std::string_view::npos;
+        const char mine = c, other = forward ? close[o] : open[cl];
+        int depth = 0;
+        Position q = p;
+        for (std::size_t blocks = 0; blocks < max_blocks;) {
+            const auto& s = doc_[q.block].text;
+            if (q.byte < s.size()) {
+                if (s[q.byte] == mine) ++depth;
+                else if (s[q.byte] == other && --depth == 0)
+                    return {{p, {p.block, p.byte + 1}}, {q, {q.block, q.byte + 1}}};
+            }
+            if (forward) {
+                if (q.byte + 1 < s.size()) ++q.byte;
+                else if (q.block + 1 < doc_.size()) { q = {q.block + 1, 0}; ++blocks; }
+                else break;
+            } else {
+                if (q.byte > 0) --q.byte;
+                else if (q.block > 0) { --q.block; q.byte = doc_[q.block].text.empty() ? 0 : doc_[q.block].text.size() - 1; ++blocks; }
+                else break;
+            }
+        }
+        return {};
+    }
+    return {};
 }
 
 void Editor::set_caret(Position p, bool extend) {

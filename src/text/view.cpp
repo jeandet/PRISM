@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace prism::text {
@@ -24,6 +25,7 @@ constexpr std::size_t cache_cap = 4096;
 View::View(Document& doc, ViewOptions options) : doc_(doc), options_(options) {
     style_ = {.size = options_.size, .width = 0.f, .family = options_.family, .wrap = options_.wrap};
     reset_heights();
+    if (options_.highlighter) ends_.assign(doc_.size(), unknown);
     follow_ = doc_.on_change().connect([this](const Change& c) { follow(c); });
 }
 
@@ -52,14 +54,49 @@ void View::follow(const Change& c) {
     std::vector<float> fresh;
     for (std::size_t i = c.first; i < c.first + c.inserted; ++i) fresh.push_back(estimate(doc_[i]));
     heights_.insert(c.first, fresh.begin(), fresh.end());
+    if (options_.highlighter) follow_states(c);
+}
+
+// The changed blocks' states are unknown, and so is everything after the first of them until a
+// block past the edit is found to end as it did.
+void View::follow_states(const Change& c) {
+    ends_.erase(ends_.begin() + static_cast<std::ptrdiff_t>(c.first),
+                ends_.begin() + static_cast<std::ptrdiff_t>(c.first + c.removed));
+    ends_.insert(ends_.begin() + static_cast<std::ptrdiff_t>(c.first), c.inserted, unknown);
+    if (edit_end_ > c.first + c.removed) edit_end_ = edit_end_ + c.inserted - c.removed;
+    else if (edit_end_ > c.first) edit_end_ = c.first + c.inserted;
+    edit_end_ = std::max(edit_end_, c.first + c.inserted);
+    valid_ = std::min(valid_, c.first);
+}
+
+// The state block i's highlighting starts in. Brings the end states up to date from the first
+// one an edit made unknown; stops early once a block past the edit ends as it did before.
+// simplify: on the logic thread, all the way to i: opening a long file at its end highlights it
+// once there. VS Code does this part in idle time; add that when a file shows the wait.
+Highlighter::State View::state_before(std::size_t i) {
+    if (!options_.highlighter || i == 0) return 0;
+    std::vector<Span> scratch;
+    while (valid_ < i) {
+        const std::size_t k = valid_;
+        scratch.clear();
+        const Highlighter::State end = options_.highlighter->highlight(doc_[k].text, k == 0 ? 0 : ends_[k - 1], scratch);
+        if (k >= edit_end_ && end == ends_[k]) { valid_ = ends_.size(); break; }
+        ends_[k] = end;
+        valid_ = k + 1;
+    }
+    if (valid_ >= ends_.size()) edit_end_ = 0;
+    return ends_[i - 1];
 }
 
 const BlockLayout& View::layout(std::size_t i) {
     const Block& b = doc_[i];
-    auto it = cache_.find(b.version);
+    const Key key{b.version, state_before(i)};
+    auto it = cache_.find(key);
     if (it == cache_.end()) {
         if (cache_.size() >= cache_cap) cache_.clear();
-        it = cache_.emplace(b.version, layout_block(b, {}, style_)).first;
+        std::vector<Span> colors;
+        if (options_.highlighter) options_.highlighter->highlight(b.text, key.before, colors);
+        it = cache_.emplace(key, layout_block(b, colors, style_)).first;
         ++layouts_made_;
     }
     if (heights_[i] != it->second.height) heights_.modify(i, [&](float& h) { h = it->second.height; });
@@ -68,7 +105,12 @@ const BlockLayout& View::layout(std::size_t i) {
 
 void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
     const float pad = options_.padding;
-    const float width = size.w.raw() - 2.f * pad;
+    gutter_ = 0.f;
+    if (options_.line_numbers) {
+        const float digit = ui::text_width(theme.measurer, "0", options_.size, render::FontRole::Mono);
+        gutter_ = (static_cast<float>(std::to_string(doc_.size()).size()) + 1.5f) * digit;
+    }
+    const float width = size.w.raw() - 2.f * pad - gutter_;
     if (width != style_.width || &theme != style_.theme || theme.measurer != style_.measurer) {
         style_.width = width;
         style_.theme = &theme;
@@ -105,8 +147,19 @@ void View::draw(render::DrawList& dl, Size size, const ui::Theme& theme) {
 void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, float width,
                       const ui::Theme& theme) const {
     const Block& b = doc_[i];
-    const float left = options_.padding;
-    const float text_x = left + l.indent;
+    const float left = options_.padding + gutter_;
+    const float text_x = text_left(l);
+    const bool caret_here = marks && marks->caret.block == i;
+    if (options_.current_line && caret_here)
+        dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{width}, Height{l.height}}}, theme.current_line);
+    if (options_.line_numbers) {
+        const std::string number = std::to_string(i + 1);
+        const float digit = ui::text_width(style_.measurer, "0", style_.size, render::FontRole::Mono);
+        const float w = ui::text_width(style_.measurer, number, style_.size, render::FontRole::Mono);
+        dl.text(number, Point{X{left - 0.75f * digit - w}, Y{top + l.lines.front().y}}, style_.size,
+                caret_here ? theme.text : theme.text_muted, 0.f, render::TextAnchor::TopLeft,
+                render::FontStyle{render::FontRole::Mono});
+    }
     if (l.background) dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{width}, Height{l.height}}}, *l.background);
     if (l.quote_bar) dl.filled_rect(Rect{Point{X{left}, Y{top}}, Size{Width{3.f}, Height{l.height}}}, theme.divider);
     if (l.rule) dl.filled_rect(Rect{Point{X{left}, Y{top + l.height / 2.f}}, Size{Width{width}, Height{1.f}}}, theme.divider);
@@ -115,7 +168,11 @@ void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l,
         dl.text(l.marker, Point{X{text_x - w - 0.4f * style_.size}, Y{top + l.lines.front().y}}, style_.size,
                 theme.text_muted, 0.f, render::TextAnchor::TopLeft, render::FontStyle{style_.family});
     }
-    draw_selection(dl, i, l, top, theme);
+    if (marks) {
+        for (const Range& h : marks->highlights) draw_range(dl, i, l, top, h, theme.text_match, false);
+        draw_range(dl, i, l, top, {std::min(marks->caret, marks->anchor), std::max(marks->caret, marks->anchor)},
+                   theme.text_selection, true);
+    }
     for (const Line& line : l.lines) {
         const float line_top = top + line.y;
         for (const Run& r : line.runs) {
@@ -131,26 +188,23 @@ void View::draw_block(render::DrawList& dl, std::size_t i, const BlockLayout& l,
     }
 }
 
-// The part of the selection on block i, line by line, behind the text. A selection that goes on
-// past the block's end covers a space's width there: the newline it holds.
-void View::draw_selection(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top,
-                          const ui::Theme& theme) const {
-    if (!marks || marks->caret == marks->anchor) return;
-    const Position from = std::min(marks->caret, marks->anchor), to = std::max(marks->caret, marks->anchor);
-    if (i < from.block || i > to.block) return;
+// The part of range r on block i, line by line, behind the text. With `with_newline`, a range
+// that goes on past the block's end covers a space's width there: the newline it holds.
+void View::draw_range(render::DrawList& dl, std::size_t i, const BlockLayout& l, float top, Range r,
+                      render::Color color, bool with_newline) const {
+    if (r.empty() || i < r.begin.block || i > r.end.block) return;
     const Block& b = doc_[i];
-    const std::size_t a = i == from.block ? from.byte : 0;
-    const std::size_t z = i == to.block ? to.byte : b.text.size();
-    const float text_x = options_.padding + l.indent;
-    const float newline = i < to.block ? 0.5f * style_.size : 0.f;
+    const std::size_t a = i == r.begin.block ? r.begin.byte : 0;
+    const std::size_t z = i == r.end.block ? r.end.byte : b.text.size();
+    const float text_x = text_left(l);
+    const float newline = with_newline && i < r.end.block ? 0.5f * style_.size : 0.f;
     for (std::size_t k = 0; k < l.lines.size(); ++k) {
         const Line& line = l.lines[k];
         const bool last = k + 1 == l.lines.size();
         const std::size_t la = std::max(a, line.begin), lz = std::min(z, line.end);
         if (la > lz || (la == lz && !(last && newline > 0.f && la == b.text.size()))) continue;
         const float x0 = text::x_of(b, line, la, style_), x1 = text::x_of(b, line, lz, style_) + (last ? newline : 0.f);
-        dl.filled_rect(Rect{Point{X{text_x + x0}, Y{top + line.y}}, Size{Width{x1 - x0}, Height{line.height}}},
-                       theme.text_selection);
+        dl.filled_rect(Rect{Point{X{text_x + x0}, Y{top + line.y}}, Size{Width{x1 - x0}, Height{line.height}}}, color);
     }
 }
 
@@ -171,7 +225,7 @@ Position View::hit(Point p) {
     const float local = y - block_top(at.index);
     std::size_t k = 0;
     while (k + 1 < l.lines.size() && l.lines[k + 1].y <= local) ++k;
-    const float x = p.x.raw() - pad - l.indent;
+    const float x = p.x.raw() - text_left(l);
     return {at.index, text::byte_at(doc_[at.index], l.lines[k], x, style_)};
 }
 
@@ -184,7 +238,7 @@ Rect View::caret_rect(Position p) {
     const BlockLayout& l = layout(p.block);
     const Line& line = l.lines[line_of(l, p.byte)];
     const float pad = options_.padding;
-    const float x = pad + l.indent + text::x_of(doc_[p.block], line, p.byte, style_);
+    const float x = text_left(l) + text::x_of(doc_[p.block], line, p.byte, style_);
     const float y = pad + block_top(p.block) + line.y - scroll.raw();
     return Rect{Point{X{x}, Y{y}}, Size{Width{0.f}, Height{line.height}}};
 }
