@@ -19,6 +19,17 @@ public:
         inserted_.emit(items_.size() - 1, items_.back());
     }
 
+    // Puts `item` at `index` (size() appends); what was there and after moves down one.
+    void insert(size_t index, T item) {
+        auto at = items_.insert(items_.begin() + static_cast<ptrdiff_t>(index), std::move(item));
+        inserted_.emit(index, *at);
+    }
+
+    // Removes every item, last first, each with its on_remove().
+    void clear() {
+        while (!items_.empty()) erase(items_.size() - 1);
+    }
+
     void erase(size_t index) {
         items_.erase(items_.begin() + static_cast<ptrdiff_t>(index));
         removed_.emit(index);

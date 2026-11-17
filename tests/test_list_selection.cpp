@@ -144,3 +144,12 @@ TEST_CASE("Up from a selection past the end lands on the last row") {
     f.key(keys::up);
     CHECK(f.m.selected.get() == std::optional<std::size_t>{3});
 }
+
+TEST_CASE("an insert before the selection keeps it on the same item") {
+    Fixture f;
+    f.m.selected.set(1);   // 20
+    f.m.items.insert(0, 5);
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{2});   // still 20
+    f.m.items.insert(3, 25);   // after it: no change
+    CHECK(f.m.selected.get() == std::optional<std::size_t>{2});
+}

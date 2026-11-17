@@ -35,7 +35,9 @@ Each call notifies once. Logic thread only.
 | Member | Meaning | Signal |
 |---|---|---|
 | `push_back(v)` | adds `v` at the end | `on_insert` (index, value) |
+| `insert(i, v)` | puts `v` at row `i`; the rows from `i` on move down one (`i == size()` appends) | `on_insert` (index, value) |
 | `erase(i)` | removes row `i` | `on_remove` (index) |
+| `clear()` | removes every row, last first | `on_remove` for each |
 | `set(i, v)` | replaces row `i` | `on_update` (index, value) |
 | `move(from, to)` | moves a row; `to` is its index after the move | `on_update` for each shifted row, then `on_move` (from, to) |
 | `replace_all(range)` | the list becomes `range`: rows past its end removed or added, rows in both updated only if they differ | the signals of those changes |
@@ -74,7 +76,5 @@ See [Widgets](../../widgets/data.md) for each.
 
 ## Pitfalls
 
-- **There is no `insert(i, v)` or `clear()`.** Use `push_back` then `move`, and
-  `replace_all(std::vector<T>{})`.
 - **Rows are values.** A row holding `Field`s is not watched field by field: change a row with `set`.
 - **`replace_all` compares rows** with `==` when `T` has it; without it, every row in both is updated.

@@ -151,3 +151,13 @@ TEST_CASE("an item added to the list gets its tab") {
     snap = tree.build_snapshot(600, 400, 2);
     CHECK(text_at(*snap, "e.cpp"));
 }
+
+TEST_CASE("an item inserted before the shown tab keeps the same item shown") {
+    Files model;
+    model.current.set({.selected = 1});
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(600, 400, 1);
+    const auto shown = model.names()[1];
+    model.open.insert(0, "new.cpp");
+    CHECK(model.names()[model.current.get().selected] == shown);
+}

@@ -170,3 +170,28 @@ TEST_CASE("List::replace_all leaves equal items alone: no update for what did no
     list.replace_all(std::vector<int>{1, 20, 3});
     CHECK(updated == std::vector<size_t>{1});
 }
+
+TEST_CASE("List::insert puts an item at a place and notifies with it") {
+    prism::List<std::string> list;
+    list.push_back("a");
+    list.push_back("c");
+    size_t at = 999;
+    std::string what;
+    auto conn = list.on_insert().connect([&](size_t i, const std::string& s) { at = i; what = s; });
+    list.insert(1, "b");
+    CHECK(std::vector<std::string>(list.begin(), list.end()) == std::vector<std::string>{"a", "b", "c"});
+    CHECK(at == 1);
+    CHECK(what == "b");
+    list.insert(3, "d");   // at the end: as push_back
+    CHECK(list[3] == "d");
+}
+
+TEST_CASE("List::clear removes every item, each with its notification") {
+    prism::List<int> list;
+    for (int v : {1, 2, 3}) list.push_back(v);
+    int removals = 0;
+    auto conn = list.on_remove().connect([&](size_t) { ++removals; });
+    list.clear();
+    CHECK(list.empty());
+    CHECK(removals == 3);
+}

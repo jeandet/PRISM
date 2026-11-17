@@ -219,7 +219,11 @@ struct ListTabDrag {
 template <typename T>
 auto follow_list_tabs(List<T>& items, Field<TabBar<>>& selected, std::shared_ptr<std::uint64_t> version) {
     return std::make_shared<std::array<Connection, 4>>(std::array{
-        items.on_insert().connect([version](std::size_t, const T&) { ++*version; }),
+        items.on_insert().connect([version, &items, &selected](std::size_t at, const T&) {
+            ++*version;
+            const std::size_t s = selected.get().selected;
+            if (items.size() > 1 && at <= s) selected.set({.selected = s + 1});
+        }),
         items.on_remove().connect([version, &items, &selected](std::size_t gone) {
             ++*version;
             const std::size_t s = selected.get().selected;
@@ -758,7 +762,10 @@ public:
             placed.insert(&selected);
             // simplify: each placement follows the list on its own, so two lists sharing one
             // selection field shift it twice; share one follower per field if that comes up.
-            auto follow = std::make_shared<std::array<Connection, 2>>(std::array{
+            auto follow = std::make_shared<std::array<Connection, 3>>(std::array{
+                items.on_insert().connect([&selected](std::size_t at, const auto&) {
+                    if (auto s = selected.get(); s && at <= *s) selected.set(*s + 1);
+                }),
                 items.on_remove().connect([&selected](std::size_t gone) {
                     auto s = selected.get();
                     if (!s || *s < gone) return;
