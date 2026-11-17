@@ -48,6 +48,22 @@ std::string SoftwareBackend::mono_font_path() const {
                      PRISM_MONO_FONT_INSTALL_PATH);
 }
 
+std::shared_ptr<const ui::TextMeasurer> headless_text_measurer() {
+    struct TtfSession {   // TTF needs no display
+        TtfSession() { TTF_Init(); }
+        ~TtfSession() { TTF_Quit(); }
+    };
+    struct Owned {
+        TtfSession ttf;   // declared first: quits after the measurer closed its fonts
+        SdlTextMeasurer measurer;
+        Owned(std::string ui, std::string mono) : measurer(std::move(ui), std::move(mono)) {}
+    };
+    auto owned = std::make_shared<Owned>(
+        find_font(nullptr, PRISM_UI_FONT_PATH, backend_library_dir(), PRISM_UI_FONT_INSTALL_PATH),
+        find_font(nullptr, PRISM_MONO_FONT_PATH, backend_library_dir(), PRISM_MONO_FONT_INSTALL_PATH));
+    return {owned, &owned->measurer};
+}
+
 SoftwareBackend::SoftwareBackend(RenderConfig cfg)
     : render_config_(cfg)
 {

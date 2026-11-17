@@ -243,9 +243,9 @@ inline std::string to_svg(const SceneSnapshot& snap) {
 }
 
 // Viewport-aware overload: uses explicit width/height for viewBox and adds
-// a background rect so the SVG matches the actual window appearance.
-inline std::string to_svg(const SceneSnapshot& snap, float width, float height,
-                          Color bg = Color::rgba(30, 30, 30)) {
+// a background rect, the window's own (from the theme), so the SVG matches the window.
+inline std::string to_svg(const SceneSnapshot& snap, float width, float height) {
+    Color bg = snap.window.background;
     svg_detail::SvgEmitter e;
     e.out << "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 "
           << svg_detail::fmt_float(width) << " "

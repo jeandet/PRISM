@@ -1295,3 +1295,17 @@ TEST_CASE("while an app runs, only its logic thread may change the model") {
     CHECK_FALSE(from_worker);                 // a Field::set there would be a data race
     CHECK(prism::core::may_change_model());   // the app is over: the model is the caller's again
 }
+
+#include <prism/app/capturing_backend.hpp>
+
+// The showcase screenshots are captured headless: without a real measurer, text widths were
+// estimates and a tab's close button landed on its title.
+TEST_CASE("CapturingBackend measures text with the measurer it is given") {
+    struct Fixed : prism::ui::TextMeasurer {
+        float width(std::string_view s, float, prism::render::FontStyle) const override { return 10.f * static_cast<float>(s.size()); }
+        float line_height(float, prism::render::FontStyle) const override { return 20.f; }
+    } fixed;
+    std::shared_ptr<const prism::SceneSnapshot> snap;
+    prism::app::CapturingBackend backend{snap, &fixed};
+    CHECK(backend.text_measurer() == &fixed);
+}

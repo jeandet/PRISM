@@ -232,3 +232,10 @@ TEST_CASE("an image is embedded as a PNG, not a placeholder") {
     CHECK(svg.find("width=\"16\"") != std::string::npos);
     CHECK(svg.find("rgba(128,128,128,0.5)") == std::string::npos);
 }
+
+TEST_CASE("a sized SVG of a snapshot is filled with the snapshot's own background") {
+    prism::SceneSnapshot snap;
+    snap.window.background = prism::Color::rgba(240, 240, 245);   // a light theme's window
+    auto svg = prism::to_svg(snap, 100.f, 50.f);
+    CHECK(svg.find("<rect width=\"100\" height=\"50\" fill=\"rgba(240,240,245,1)\"/>") != std::string::npos);
+}

@@ -22,7 +22,9 @@ int showcase(int argc, char* argv[], Model& model, int w, int h,
     }
 
     std::shared_ptr<const prism::render::SceneSnapshot> snap;
-    auto backend = prism::app::Backend{std::make_unique<prism::app::CapturingBackend>(snap)};
+    // The bundled fonts' real widths for the layout, not estimates.
+    auto fonts = prism::backends::headless_text_measurer();
+    auto backend = prism::app::Backend{std::make_unique<prism::app::CapturingBackend>(snap, fonts.get())};
     auto& window = backend.create_window({.title = "showcase", .width = w, .height = h});
     prism::app::model_app(backend, window, model, setup);
 
