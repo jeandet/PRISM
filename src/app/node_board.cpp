@@ -65,11 +65,19 @@ void node_header(ViewBuilder& vb, NodeBoardParts& parts, const nodes::NodeOption
     });
 }
 
+// A node without a view (pure math, no controls): its inputs, then its outputs, in ports() order.
+void default_ports(ViewBuilder& vb, const nodes::Graph& graph, nodes::NodeId id) {
+    for (const auto dir : {nodes::Dir::In, nodes::Dir::Out})
+        for (std::size_t i = 0; auto* port = graph.port({id, i}); ++i)
+            if (port->dir() == dir) vb.port(*port);
+}
+
 void node_card(ViewBuilder& vb, NodeBoardParts& parts, const nodes::Graph& graph, nodes::NodeId id) {
     parts.card_ports.clear();
     const auto card = vb.card([&] {
         node_header(vb, parts, graph.options(id));
         if (const auto& view = graph.view(id)) view(vb);
+        else default_ports(vb, graph, id);
     });
     for (auto& [port, place] : parts.card_ports) {
         place.card = card;

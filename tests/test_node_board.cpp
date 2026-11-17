@@ -188,3 +188,28 @@ TEST_CASE("moving a node or adding a wire asks for a frame") {
     REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
     CHECK(f.tree.any_dirty());
 }
+
+namespace {
+struct Add {   // no view: the board places its ports
+    nodes::In<double> x{"x", 0.0};
+    nodes::In<double> y{"y", 0.0};
+    nodes::Out<double> sum{"sum", [this] { return x.get() + y.get(); }};
+    std::vector<nodes::Port*> ports() { return {&sum, &x, &y}; }
+};
+}
+
+TEST_CASE("a node without a view shows its ports and its wires") {
+    Fixture f;
+    Add add;
+    auto c = f.m.graph.add(add, {.title = "Add", .family = "math", .at = P(200, 300)});
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {c, 1}).has_value());
+    REQUIRE(f.m.graph.connect({c, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    auto x = f.text_at("x"), y = f.text_at("y"), sum = f.text_at("sum");
+    REQUIRE((x && y && sum));
+    CHECK(x->y.raw() < y->y.raw());     // inputs first, in ports() order
+    CHECK(y->y.raw() < sum->y.raw());   // then the outputs
+    CHECK(f.all<Polyline>().size() == 2);
+    f.m.graph.remove(c);
+    f.frame();
+}
