@@ -41,6 +41,9 @@ using namespace prism::render;
     for (auto& [wid, rect] : snap.geometry) {
         if (wid == id) return rect;
     }
+    for (auto& [wid, rect] : snap.overlay_placed) {
+        if (wid == id) return rect;
+    }
     for (auto& [wid, rect] : snap.overlay_geometry) {
         if (wid == id) return rect;
     }

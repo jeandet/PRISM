@@ -100,8 +100,10 @@ inline void flatten_popup(PopupLayout& p, SceneSnapshot& snap, const Theme& them
             for (const auto& cmd : content.draw_lists[idx]->commands) snap.overlay.commands.push_back(cmd);
     for (std::size_t i = 0; i < content.geometry.size(); ++i) {
         const Rect& visible = content.visible[i];   // already cut to the card
-        if (const WidgetId id = content.geometry[i].first; id != 0 && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
+        if (const WidgetId id = content.geometry[i].first; id != 0 && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0) {
             snap.overlay_geometry.push_back({id, visible});
+            snap.overlay_placed.push_back(content.geometry[i]);
+        }
     }
     for (const auto& cmd : content.overlay.commands) snap.overlay.commands.push_back(cmd);
     for (auto& g : content.overlay_geometry) snap.overlay_geometry.push_back(g);

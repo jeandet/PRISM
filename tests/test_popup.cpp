@@ -455,3 +455,49 @@ TEST_CASE("a non-modal popup in a scrolled area opens next to where its anchor i
     // Right below the button, where the popup is declared; not where the button was before scrolling.
     CHECK(card->origin.y.raw() == doctest::Approx(button_bottom).epsilon(0.05));
 }
+
+TEST_CASE("a widget partly scrolled out of a scroll area inside a popup takes clicks in its own coordinates") {
+    struct Sketch {   // gives the row beside it a height
+        void canvas(DrawList& dl, Rect r, const WidgetNode&) { dl.filled_rect(r, Color::rgba(0, 0, 0)); }
+    };
+    struct Pad {
+        Field<Popup> pop{{.open = false, .modal = true}};
+        Field<Label<>> header{{"Notes"}};
+        Field<TextArea<>> text{{.rows = 3}};
+        Sketch sketch;
+        WidgetId text_id = 0;
+        void view(WidgetTree::ViewBuilder& vb) {
+            vb.popup(pop, [&](WidgetTree::ViewBuilder& p) {
+                p.widget(header);
+                p.hstack([&] {   // a row gives the scroll area the canvas's height
+                    p.scroll(ScrollBarPolicy::Auto, [&] { text_id = p.widget(text).node_ref.id; });
+                    p.canvas(sketch).min_size(Height{150});
+                });
+            });
+        }
+    } model;
+    std::string lines;
+    for (int i = 0; i < 40; ++i) lines += "l" + std::to_string(i) + "\n";
+    model.text.set({.value = lines, .rows = 40});
+    WidgetTree tree{model};
+    auto snap = tree.build_snapshot(500, 300, 1);
+    model.pop.set({.open = true, .modal = true});
+    snap = tree.build_snapshot(500, 300, 2);
+    tree.scroll_to(*tree.parent_of(model.text_id), DY{100});
+    snap = tree.build_snapshot(500, 300, 3);
+
+    auto whole = tree.laid_out_at(model.text_id);
+    auto shown = std::ranges::find_if(snap->overlay_geometry, [&](auto& g) { return g.first == model.text_id; });
+    REQUIRE(whole);
+    REQUIRE(shown != snap->overlay_geometry.end());
+    REQUIRE(shown->second.origin.y.raw() > whole->origin.y.raw() + 50.f);   // its top is scrolled out
+
+    auto routed = find_widget_rect(*snap, model.text_id);
+    REQUIRE(routed);
+    CHECK(routed->origin == whole->origin);
+    const Point on_shown{shown->second.origin.x + DX{30}, shown->second.origin.y + DY{2}};
+    route_event(tree, snap.get(), MouseButton{on_shown, buttons::left, true});
+    route_event(tree, snap.get(), MouseButton{on_shown, buttons::left, false});
+    route_event(tree, snap.get(), TextInput{"X"});
+    CHECK(model.text.get().value.substr(0, 4) == "l0\nl");   // the caret is not on the first line
+}

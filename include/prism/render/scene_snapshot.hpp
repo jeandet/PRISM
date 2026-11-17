@@ -42,6 +42,9 @@ struct SceneSnapshot {
     std::vector<uint32_t> z_order; // uint32_t: a uint16_t silently wraps past 65535 entries
     DrawList overlay;  // rendered last, on top of everything, no clip
     std::vector<std::pair<WidgetId, Rect>> overlay_geometry;  // hit-test regions for overlays
+    // The whole rect of each widget of an open popup (its overlay_geometry entry is only the
+    // visible part): where its own coordinates start.
+    std::vector<std::pair<WidgetId, Rect>> overlay_placed;
     // Scrollbar tracks (also in overlay_geometry): only a press here starts a thumb drag. Kept
     // apart because a popup's widgets are in overlay_geometry too.
     std::vector<std::pair<WidgetId, Rect>> scrollbar_geometry;
