@@ -42,8 +42,8 @@ void CodeTab::search() {
         hits[k].set(k == i ? prism::text::find_all(docs[k], value(find), {.case_sensitive = value(match_case)})
                            : std::vector<prism::text::Range>{});
     const std::string found = value(find).empty() ? std::string{} : fmt::format("  ·  {} matches", value(hits[i]).size());
-    status.set({fmt::format("{}  ·  {} lines{}  ·  Tab indents, Ctrl+Z undoes, the caret beside a bracket shows its "
-                            "match, long lines scroll sideways, drag the minimap to scroll",
+    status.set({fmt::format("{}  ·  {} lines{}  ·  Type a word or Ctrl+Space to complete, Tab indents, Ctrl+Z undoes, "
+                            "the caret beside a bracket shows its match, drag the minimap to scroll",
                             code_samples[i].tab, docs[i].size(), found)});
 }
 

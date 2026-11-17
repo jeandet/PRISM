@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <memory>
 #include <set>
 #include <type_traits>
@@ -291,6 +292,7 @@ public:
         Node& node_ref;
         std::set<const void*>& placed_ref;
         std::shared_ptr<text::View> view;
+        std::shared_ptr<text::Editor> editor{};   // null for a text_view
         TextHandle&& rows(int n) && {
             node_ref.canvas_min_height = static_cast<float>(n) * text_line_estimate + 2.f * text_padding;
             return std::move(*this);
@@ -304,6 +306,17 @@ public:
             return std::move(*this);
         }
         TextHandle&& focus_on_open() && { node_ref.focus_on_open = true; return std::move(*this); }
+        // Completion (text/complete.hpp): a list under the caret as a word is typed, or on
+        // Ctrl+Space, ranked against it. `source` lists what could go at the caret; or always
+        // these words. An editor's only: a text_view is not typed in.
+        TextHandle&& complete(text::Completer source) && {
+            assert(editor && ".complete() is for an editor, not a text_view");
+            if (editor) editor->set_completer(std::move(source));
+            return std::move(*this);
+        }
+        TextHandle&& complete(std::vector<std::string> words) && {
+            return std::move(*this).complete(text::from_list(std::move(words)));
+        }
         // The default text's line height (1.4 x 14 pt) and padding, before any font is measured.
         static constexpr float text_line_estimate = 1.4f * 14.f;
         static constexpr float text_padding = 8.f;
@@ -648,7 +661,8 @@ public:
     // A code editor: mono, long lines scrolled sideways (not wrapped), line numbers, the caret's
     // line shaded, `language`'s colors
     // (text::language: "cpp", "python", "sql", "json", "toml", "shell"...), Tab to indent, Enter
-    // keeping the indent, brackets matched. text_editor with options for anything else.
+    // keeping the indent, brackets matched, and completing the file's words and the language's
+// keywords. text_editor with options for anything else.
     TextHandle code_editor(text::Document& doc, std::string_view language = {});
 
     // Code shown, not edited: `language`'s colors, selectable and copyable, no gutter or minimap

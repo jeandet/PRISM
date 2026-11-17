@@ -414,8 +414,11 @@ Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor,
             a.role = Role::MultilineTextInput;
             return a;
         };
-        if (editor->options().tab_inserts)
-            wn.keeps_keys = [](const KeyPress& k) { return k.key == keys::tab; };
+        // Tab indents code; with the completions open, every key is theirs first (Tab takes one).
+        wn.keeps_keys = [editor](const KeyPress& k) {
+            return editor->completing() || (k.key == keys::tab && editor->options().tab_inserts)
+                || (k.key == keys::space && (k.mods & mods::ctrl) && editor->options().complete);
+        };
         wn.record = [editor](WidgetNode& node) {
             static const Theme fallback{};
             node.draws.clear();
@@ -423,6 +426,9 @@ Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor,
             if (!node.visual_state.focused) editor->view.marks.reset();   // no caret or selection unfocused
             editor->view.draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
             editor->view.marks = marks;
+            node.overlay_draws.clear();
+            if (node.visual_state.focused) editor->draw_completions(node.overlay_draws, node.theme ? *node.theme : fallback);
+            else editor->close_completion();
             publish_inner_scroll(node, editor->view);
             highlight_in_idle_time(node, editor->view);
         };
@@ -442,7 +448,8 @@ ViewBuilder::TextHandle ViewBuilder::code_editor(text::Document& doc, std::strin
     return text_editor(doc, {.view = {.family = render::FontRole::Mono, .wrap = false,
                                       .highlighter = language.empty() ? nullptr : &text::language(language),
                                       .line_numbers = true, .current_line = true, .minimap = true},
-                             .tab_inserts = true, .auto_indent = true, .match_brackets = true});
+                             .tab_inserts = true, .auto_indent = true, .match_brackets = true,
+                             .complete = text::document_words(language.empty() ? nullptr : &text::language(language))});
 }
 
 ViewBuilder::TextHandle ViewBuilder::code_view(text::Document& doc, std::string_view language) {
@@ -454,7 +461,7 @@ ViewBuilder::TextHandle ViewBuilder::code_view(text::Document& doc, std::string_
 ViewBuilder::TextHandle ViewBuilder::text_editor(text::Document& doc, text::EditorOptions options) {
     auto editor = std::make_shared<text::Editor>(doc, std::move(options));
     current_parent().children.push_back(text_editor_node(doc, editor, tree_.next_id_));
-    return {current_parent().children.back(), placed_, std::shared_ptr<text::View>(editor, &editor->view)};
+    return {current_parent().children.back(), placed_, std::shared_ptr<text::View>(editor, &editor->view), editor};
 }
 
 ViewBuilder::TextHandle ViewBuilder::text_view(text::Document& doc, text::ViewOptions options) {

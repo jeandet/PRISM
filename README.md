@@ -553,6 +553,10 @@ save("README.md", text::to_markdown(notes));     // and back, tables included
   on ahead between frames, so a jump to the end of a long file finds it done.
 - **Editing:** selection, clipboard, undo that puts the caret back at the change, input methods,
   matching brackets, auto-indent; `.rows(10)` makes an editor ten lines tall inside a scroll area.
+- **Completion:** typing a word, or Ctrl+Space, opens a list under the caret, ranked as in VS
+  Code (`gw` finds `get_widget`). A code editor completes its language's keywords and the file's
+  words; any editor takes a list or a function: `.complete(table_names)`,
+  `.complete([&](const text::Document& d, text::Position at) { ... })`.
 - **Find and replace:** `text::find_all(doc, "word")` and `replace_all` (one undo step). Ranges the
   app highlights, such as search hits or an error's position, go in a field: `.highlights(hits)`.
 - **Rich text:** headings, lists, quotes, code blocks, tables, bold, italic and links, in real Noto

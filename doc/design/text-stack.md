@@ -178,6 +178,7 @@ The choices below follow what current editors do, each picked for what PRISM alr
 | Formatting that behaves at its edges | **Spans with an expand rule**: typing at the end of bold continues bold, at the end of a link does not | Peritext ([paper](https://www.inkandswitch.com/peritext/)), the rich-text CRDT | The same model later supports editing by several people (a CRDT), without changing what a span is. |
 | Undo that feels right | **Inverse operations, grouped**: typing merges until a pause, a word boundary or a caret jump; the selection is restored with the text | every editor | Free from the document's edit records. |
 | Find in a large document | **Boyer-Moore-Horspool** over the blocks (`std::boyer_moore_horspool_searcher`); a regex engine later | standard | No dependency for plain search. `std::regex` is too slow for this; a regex comes with its own step. |
+| Completion that finds what was meant | **Fuzzy subsequence ranking**: every typed letter in order; a match at the start, then at a word's start (`_`, camelCase), then a run of letters, scores more | VS Code's fuzzy matcher, fzf | Sources only list candidates; one ranking in the editor (`text/complete.hpp`). Greedy for now; fzf's best alignment if it misranks. |
 | Markdown | **cmark-gfm**, GitHub's spec-compliant CommonMark with tables | GitHub | On WrapDB; one walk turns its tree into blocks and spans. |
 
 simplify: one block holds a whole line. A single huge line (a minified file) is then laid out at
@@ -244,6 +245,11 @@ Each step ends with something visible, tested, and shown in the gallery and the 
   bars in their colors from the same highlighter states, a band over what is in sight, scrolling
   along on a long file. Its band is grabbed and dragged like a scrollbar's thumb (line for line
   while the file fits, across the whole file otherwise); a press elsewhere jumps there first.
+- Completion (`text/complete.hpp`, `EditorOptions::complete`, `.complete(...)` on the handle): a
+  source lists candidates, the editor ranks them against the word at the caret and shows the
+  best in a list under it (above when there is no room). Up/Down, Page Up/Down, Enter or Tab,
+  Escape; a click takes a row. `vb.code_editor` completes keywords, types and the file's words
+  within 2000 lines of the caret.
 - Python: `prism.document(text, markdown=False)` with `vb.text_editor`, `code_editor`,
   `text_view` (`python/src/text_bound.hpp`, example 19). Markdown is compiled into the extension.
 - Also: `text::find_all`, `find_next`, `replace_all` (Boyer-Moore-Horspool, non-overlapping
@@ -257,6 +263,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
     after the caret rather than pushing it along; highlighting past a table's columns sized from all its rows (they
     are equal today);
     the layout cache trimmed least-recently-used;
+  - completion: a source answers at once (a language server's slow answers need an async
+    source), no snippets with placeholders, the file's words from a window around the caret;
   - stepping by character rescans the block (ui::next_grapheme), so a click or a wrap in one very
     long paragraph is quadratic in its length; per-block grapheme marks, cached with the layout,
     when a long paragraph shows it.

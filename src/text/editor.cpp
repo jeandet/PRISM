@@ -31,6 +31,7 @@ Editor::Editor(Document& doc, EditorOptions options) : view(doc, options.view), 
     follow_ = doc_.on_change().connect([this](const Change&) {
         caret_ = clamp(caret_);
         anchor_ = clamp(anchor_);
+        completing_.reset();   // the editor's own typing opens it again, for the new word
         view.marks = marks();
     });
     show();
@@ -344,10 +345,19 @@ bool Editor::mouse_button(const input::MouseButton& b) {
 }
 
 bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard) {
-    if (auto* k = std::get_if<input::KeyPress>(&ev)) return key(*k, clipboard);
+    if (auto* k = std::get_if<input::KeyPress>(&ev)) {
+        if (k->key == keys::space && (k->mods & mods::ctrl) && options_.complete) { complete(true); return true; }
+        if (completing_ && completion_key(*k)) return true;
+        const bool narrowing = completing_ && k->key == keys::backspace && !(k->mods & mods::ctrl);
+        completing_.reset();
+        const bool changed = key(*k, clipboard);
+        if (narrowing) complete(false);
+        return changed || narrowing;
+    }
     if (auto* t = std::get_if<input::TextInput>(&ev)) {
         preedit_.clear();
         type(t->text);
+        if (!t->text.empty() && is_word_byte(t->text.back())) complete(false);
         show();
         return !options_.read_only;
     }
@@ -368,7 +378,11 @@ bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard)
         doc_.break_undo_group();
         return !options_.read_only;
     }
-    if (auto* b = std::get_if<input::MouseButton>(&ev)) return mouse_button(*b);
+    if (auto* b = std::get_if<input::MouseButton>(&ev)) {
+        if (completion_click(*b)) return true;
+        completing_.reset();
+        return mouse_button(*b);
+    }
     if (auto* w = std::get_if<input::MouseScroll>(&ev); w && w->dx.raw() != 0.f && !options_.view.wrap) {
         view.scroll_sideways(-w->dx.raw() * sideways_step);   // up and down: the tree scrolls the view
         return true;
@@ -383,6 +397,103 @@ bool Editor::handle(const input::InputEvent& ev, const ui::Clipboard* clipboard)
         return true;
     }
     return false;
+}
+
+Position Editor::word_start() const {
+    const auto& t = doc_[caret_.block].text;
+    std::size_t a = caret_.byte;
+    while (a > 0 && is_word_byte(t[a - 1])) --a;
+    return {caret_.block, a};
+}
+
+void Editor::complete(bool asked) {
+    completing_.reset();
+    if (!options_.complete || options_.read_only || caret_ != anchor_) return;
+    const Position from = word_start();
+    const std::string typed = doc_[caret_.block].text.substr(from.byte, caret_.byte - from.byte);
+    if (typed.empty() && !asked) return;
+    auto items = rank(options_.complete(doc_, caret_), typed);
+    if (items.empty()) return;
+    completing_ = Completing{std::move(items)};
+    list_first_ = 0;
+}
+
+constexpr std::size_t list_rows = 8;   // shown at once; the list scrolls to keep the pick in sight
+
+// Up and Down go round, Page Up/Down jump a list's height; Enter and Tab take, Escape closes.
+bool Editor::completion_key(const input::KeyPress& k) {
+    auto& c = *completing_;
+    const std::size_t n = c.items.size();
+    switch (k.key) {
+    case keys::down: c.selected = (c.selected + 1) % n; return true;
+    case keys::up: c.selected = (c.selected + n - 1) % n; return true;
+    case keys::page_down: c.selected = std::min(n - 1, c.selected + list_rows); return true;
+    case keys::page_up: c.selected = c.selected > list_rows ? c.selected - list_rows : 0; return true;
+    case keys::enter:
+    case keys::tab: take(c.selected); return true;
+    case keys::escape: completing_.reset(); return true;
+    default: return false;
+    }
+}
+
+// The word typed so far gives way to the completion: one undo step of its own.
+void Editor::take(std::size_t item) {
+    const Completion c = std::move(completing_->items[item]);
+    completing_.reset();
+    doc_.break_undo_group();
+    caret_ = anchor_ = doc_.replace({word_start(), caret_}, c.insert.empty() ? c.label : c.insert);
+    doc_.break_undo_group();
+    column_x_ = -1.f;
+    show();
+}
+
+bool Editor::completion_click(const input::MouseButton& b) {
+    if (!completing_ || !list_.contains(b.position)) return false;
+    if (b.pressed && b.button == input::buttons::left) {
+        const auto row = static_cast<std::size_t>((b.position.y.raw() - list_.origin.y.raw()) / completion_row_height());
+        if (list_first_ + row < completing_->items.size()) take(list_first_ + row);
+    }
+    return true;
+}
+
+void Editor::draw_completions(render::DrawList& dl, const ui::Theme& theme) {
+    if (!completing_) return;
+    const auto& c = *completing_;
+    const float size = options_.view.size, row = completion_row_height(), pad = 8.f;
+    const render::FontStyle label_font{options_.view.family};
+    const float detail_size = 0.85f * size;
+    const std::size_t rows = std::min(list_rows, c.items.size());
+    list_first_ = std::clamp(list_first_, c.selected + 1 > rows ? c.selected + 1 - rows : 0, c.selected);
+    float label_w = 0.f, detail_w = 0.f;
+    for (const auto& item : c.items) {
+        label_w = std::max(label_w, ui::text_width(theme.measurer, item.label, size, label_font));
+        detail_w = std::max(detail_w, ui::text_width(theme.measurer, item.detail, detail_size, render::FontRole::Ui));
+    }
+    const float w = std::max(120.f, label_w + (detail_w > 0.f ? detail_w + 3.f * pad : 0.f) + 2.f * pad);
+    const float h = row * static_cast<float>(rows);
+    const core::Rect word = view.caret_rect(word_start());
+    const float below = word.origin.y.raw() + word.extent.h.raw();
+    const float room = view.viewport_h.raw() + 2.f * options_.view.padding;
+    const float top = below + h > room && word.origin.y.raw() >= h ? word.origin.y.raw() - h : below;
+    list_ = core::Rect{core::Point{word.origin.x, core::Y{top}}, core::Size{core::Width{w}, core::Height{h}}};
+
+    dl.filled_rect(list_, theme.popup_bg);
+    dl.rect_outline(list_, theme.popup_border, 1.f);
+    const float text_dy = (row - ui::line_height(theme.measurer, size, label_font)) / 2.f;
+    for (std::size_t i = 0; i < rows; ++i) {
+        const auto& item = c.items[list_first_ + i];
+        const bool picked = list_first_ + i == c.selected;
+        const core::Y y{top + row * static_cast<float>(i)};
+        const core::X x = word.origin.x;
+        if (picked) dl.filled_rect(core::Rect{core::Point{x, y}, core::Size{core::Width{w}, core::Height{row}}}, theme.popup_highlight);
+        dl.text(item.label, core::Point{x + core::DX{pad}, y + core::DY{text_dy}}, size,
+                picked ? theme.text_on_primary : theme.text, 0.f, render::TextAnchor::TopLeft, label_font);
+        if (item.detail.empty()) continue;
+        const float dw = ui::text_width(theme.measurer, item.detail, detail_size, render::FontRole::Ui);
+        const float ddy = (row - ui::line_height(theme.measurer, detail_size, render::FontRole::Ui)) / 2.f;
+        dl.text(item.detail, core::Point{x + core::DX{w - pad - dw}, y + core::DY{ddy}}, detail_size,
+                picked ? theme.text_on_primary : theme.text_muted);
+    }
 }
 
 } // namespace prism::text

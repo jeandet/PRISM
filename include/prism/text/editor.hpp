@@ -2,10 +2,12 @@
 
 #include <prism/core/connection.hpp>
 #include <prism/input/input_event.hpp>
+#include <prism/text/complete.hpp>
 #include <prism/text/document.hpp>
 #include <prism/text/view.hpp>
 #include <prism/ui/clipboard.hpp>
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -17,7 +19,8 @@
 // Keys: arrows (Ctrl: by word), Home/End (the visual line; Ctrl: the document), Page Up/Down,
 // Shift to select, Backspace/Delete (Ctrl: a word), Enter, Ctrl+A/C/X/Z/Y, Ctrl+Shift+Z; Tab and
 // Shift+Tab indent when tab_inserts. Mouse: click, Shift+click, drag, double click (a word), triple
-// click (a line).
+// click (a line). With a completer: typing a word, or Ctrl+Space, opens a list of completions
+// under the caret (text/complete.hpp); Up/Down pick, Enter or Tab take, Escape closes it.
 // simplify: a bracket inside a string or a comment still counts; add when a language's rules
 // track them.
 namespace prism::text {
@@ -34,6 +37,7 @@ struct EditorOptions {
     // on an empty item; Backspace at a block's start makes it a paragraph again.
     bool rich = false;
     std::string indent = "    ";
+    Completer complete{};         // what could go at the caret; empty: no completion
 };
 
 class Editor {
@@ -55,6 +59,19 @@ public:
     void set_caret(Position p, bool extend = false);
     void select_all();
 
+    // The completions open under the caret, best first, and the one picked.
+    struct Completing {
+        std::vector<Completion> items;
+        std::size_t selected = 0;
+    };
+    [[nodiscard]] const std::optional<Completing>& completing() const { return completing_; }
+    void set_completer(Completer source) { options_.complete = std::move(source); }
+    void close_completion() { completing_.reset(); }
+    // The open list, in the view's coordinates: under the word's line, or above it when the view
+    // has no room below. A click on a row takes it.
+    void draw_completions(render::DrawList& dl, const ui::Theme& theme);
+    [[nodiscard]] float completion_row_height() const { return 1.5f * options_.view.size; }
+
 private:
     Document& doc_;
     EditorOptions options_;
@@ -65,6 +82,9 @@ private:
     std::string preedit_;          // an input method's composition, shown at the caret
     std::size_t preedit_caret_ = 0;
     core::Connection follow_;
+    std::optional<Completing> completing_;
+    core::Rect list_{};             // where the list was drawn
+    std::size_t list_first_ = 0;    // its first row shown
 
     bool key(const input::KeyPress& k, const ui::Clipboard* clipboard);
     bool mouse_button(const input::MouseButton& b);
@@ -88,6 +108,11 @@ private:
     void move(Position to, bool extend);   // a caret jump: the next typing starts a new undo step
     void show();                           // the view's marks follow the caret, and it scrolls to it
     View::Marks marks() const;
+    Position word_start() const;          // where the word ending at the caret starts
+    void complete(bool asked);            // the list for the word at the caret (asked: even for none)
+    bool completion_key(const input::KeyPress& k);
+    void take(std::size_t item);
+    bool completion_click(const input::MouseButton& b);
 };
 
 } // namespace prism::text
