@@ -192,6 +192,13 @@ struct PyModel {
         slots.push_back(s);
         return {s, p};
     }
+    std::pair<std::shared_ptr<SlotBase>, prism::text::Document*> add_document_slot(prism::text::Document doc) {
+        auto s = std::make_shared<SlotDocument>(std::move(doc));
+        auto* p = &s->doc;
+        std::lock_guard<std::mutex> lk(slots_mutex);
+        slots.push_back(s);
+        return {s, p};
+    }
     std::pair<std::shared_ptr<SlotBase>, List<int>*> add_list_int_slot(std::vector<int> v) {
         auto s = std::make_shared<SlotList<int>>(std::move(v));
         auto* p = &s->list;

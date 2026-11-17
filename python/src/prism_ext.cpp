@@ -6,6 +6,7 @@
 #include "tree_table.hpp"
 #include "bound_handles.hpp"
 #include "plot_bound.hpp"
+#include "text_bound.hpp"
 #include "py_view.hpp"
 #include "py_model.hpp"
 
@@ -236,6 +237,28 @@ static void bind_handles(nb::module_& m) {
 }
 
 static void bind_plot(nb::module_& m) {
+    nb::class_<BoundDocument>(m, "BoundDocument", nb::dynamic_attr(), nb::is_weak_referenceable(),
+                              "Bound handle for a Model's document field (prism.document()). Any "
+                              "thread: reads block until the logic thread answers, edits are posted.")
+        .def_prop_ro("text", &BoundDocument::text, "The whole text, lines joined by newlines.")
+        .def("set_text", &BoundDocument::set_text, nb::arg("text"), nb::arg("markdown") = false,
+             "Replace the text, as a file opened: no undo back to what was there. markdown=True "
+             "reads it as Markdown (headings, lists, emphasis...).")
+        .def("to_markdown", &BoundDocument::to_markdown, "The document written as Markdown.")
+        .def("find_all", &BoundDocument::find_all, nb::arg("needle"), nb::arg("case_sensitive") = true,
+             nb::arg("whole_word") = false, "Byte offsets (start, end) of every match, in order.")
+        .def("replace_all", &BoundDocument::replace_all, nb::arg("needle"), nb::arg("with_"),
+             nb::arg("case_sensitive") = true, nb::arg("whole_word") = false,
+             "Replace every match, as one undo step. Returns how many.")
+        .def("observe", [](nb::object self, nb::callable cb) {
+            return keep_connection(self, nb::cast<BoundDocument&>(self).observe(cb), cb);
+        }, nb::arg("callback"), kObserveDoc);
+#ifdef PRISM_PYTHON_MARKDOWN
+    m.attr("has_markdown") = true;
+#else
+    m.attr("has_markdown") = false;
+#endif
+
     nb::class_<BoundPlot>(m, "BoundPlot", nb::dynamic_attr(), nb::is_weak_referenceable(),
                           "Bound handle for a Model's plot field. All mutation methods may "
                           "be called from any thread — each is one posted operation on the "
@@ -459,6 +482,25 @@ static void bind_view(nb::module_& m) {
              "read and set through handle.selected (None: no row). follow_tail: rows appended while "
              "the last row shows scroll to the new last row, as in a terminal; scrolling up "
              "stops that until the user scrolls back down.")
+        .def("text_editor", [](ViewBuilder& vb, nb::object h, bool rich, bool read_only, int rows) {
+                auto handle = vb.text_editor(as_document(h, "ViewBuilder.text_editor").bound(),
+                                             {.read_only = read_only, .rich = rich});
+                if (rows > 0) std::move(handle).rows(rows);
+            }, nb::arg("handle"), nb::arg("rich") = false, nb::arg("read_only") = false, nb::arg("rows") = 0,
+             "Edit a document field (prism.document()): a caret, selection, undo, the mouse. rich: "
+             "Ctrl+B/I/E style the selection, \"# \" or \"- \" at a line's start makes a heading or a "
+             "list item. rows: so many lines tall (inside a scroll area); 0 fills the space.")
+        .def("code_editor", [](ViewBuilder& vb, nb::object h, std::string language, int rows) {
+                auto handle = vb.code_editor(as_document(h, "ViewBuilder.code_editor").bound(), language);
+                if (rows > 0) std::move(handle).rows(rows);
+            }, nb::arg("handle"), nb::arg("language") = "", nb::arg("rows") = 0,
+             "Edit a document field as code: line numbers, the language's colors (\"python\", "
+             "\"cpp\", \"sql\", \"json\", \"toml\", \"shell\"), Tab to indent, matching brackets.")
+        .def("text_view", [](ViewBuilder& vb, nb::object h, int rows) {
+                auto handle = vb.text_view(as_document(h, "ViewBuilder.text_view").bound());
+                if (rows > 0) std::move(handle).rows(rows);
+            }, nb::arg("handle"), nb::arg("rows") = 0,
+             "Show a document field, read-only: only the lines in sight are laid out.")
         .def("canvas", [](ViewBuilder& vb, nb::object h){ py_canvas_dispatch(vb, h); }, nb::arg("handle"),
              "Add a canvas widget for a bound plot handle (plot_field()).")
         .def("tree", [](ViewBuilder& vb, nb::object h){ py_tree_dispatch(vb, h); }, nb::arg("handle"),
@@ -743,6 +785,10 @@ static void bind_model(nb::module_& m) {
                 auto [owner, p] = self.add_list_str_slot(std::move(vec));
                 BoundList<std::string> h; h.selected = &static_cast<SlotList<std::string>&>(*owner).selected; h.owner = std::move(owner); h.list = p; return h;
             }, nb::arg("values") = nb::list())
+        .def("_add_document_internal", [](PyModel& self, std::string text, bool markdown) {
+                auto [owner, p] = self.add_document_slot(document_from(text, markdown));
+                BoundDocument h; h.owner = std::move(owner); h.doc = p; return h;
+            }, nb::arg("text") = "", nb::arg("markdown") = false)
         .def("_add_plot_internal", [](PyModel& self){
                 auto [owner, p] = self.add_plot_slot();
                 BoundPlot h; h.owner = std::move(owner); h.plot = p; return h;

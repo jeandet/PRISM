@@ -5038,3 +5038,69 @@ def test_data_studio_query_round_trip_and_errors():
         assert truncated
     finally:
         db.close()
+
+
+def test_document_text_set_observe_find_replace():
+    """prism.document(): a text::Document field; reads and edits are dispatched to the logic thread."""
+
+    class M(Model):
+        doc = prism.document("one cat\ntwo cats")
+
+        def view(self, vb):
+            vb.code_editor(self.doc, "python")
+
+    m = M()
+    assert m.doc.text == "one cat\ntwo cats"
+    seen = []
+    conn = m.doc.observe(lambda: seen.append(m.doc.text))
+    with prism.headless(m) as app:
+        assert m.doc.find_all("cat") == [(4, 7), (12, 15)]
+        assert m.doc.replace_all("cat", "dog") == 2
+        assert m.doc.text == "one dog\ntwo dogs"
+        m.doc.set_text("new file")
+        app.wait_until(lambda: m.doc.text == "new file")
+        app.wait_until(lambda: seen and seen[-1] == "new file")
+    conn.disconnect()
+
+
+def test_document_views_build_headless():
+    class M(Model):
+        notes = prism.document("plain notes")
+        source = prism.document("SELECT 1")
+
+        def view(self, vb):
+            vb.text_editor(self.notes, rich=True, rows=5)
+            vb.code_editor(self.source, "sql", rows=4)
+            vb.text_view(self.notes)
+
+    m = M()
+    with prism.headless(m) as app:
+        app.wait_until(lambda: m.notes.text == "plain notes")
+
+
+def test_document_markdown_in_and_out():
+    if not prism.has_markdown:
+        pytest.skip("built without prism-markdown")
+
+    class M(Model):
+        doc = prism.document("# Title\n\nSome **bold** text.", markdown=True)
+
+    m = M()
+    assert m.doc.text == "Title\nSome bold text."
+    assert m.doc.to_markdown() == "# Title\n\nSome **bold** text.\n"
+
+
+def test_markdown_notes_example_runs_headless(monkeypatch):
+    module = _load_example("19_markdown_notes")
+    monkeypatch.setattr(sys, "argv", [sys.argv[0], "--headless"])
+    module.main()
+
+
+def test_markdown_notes_rendering_follows_the_source():
+    module = _load_example("19_markdown_notes")
+    notes = module.Notes()
+    with prism.headless(notes) as app:
+        notes.source.set_text("# Changed\n\nnew *text*")
+        expected = "Changed\nnew text" if prism.has_markdown else "# Changed\n\nnew *text*"
+        app.wait_until(lambda: notes.rendered.text == expected)
+        assert notes.status.value.startswith("4 words")

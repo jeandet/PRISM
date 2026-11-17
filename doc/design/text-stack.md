@@ -239,6 +239,8 @@ Each step ends with something visible, tested, and shown in the gallery and the 
   Document tab edits Markdown and rich text side by side; its Text tab's code sample is a code
   editor; the data studio's query editor is `vb.code_editor(text, "sql")` with its error mark as
   highlights; the notes app edits a `Document`, its search hits as highlights.
+- Python: `prism.document(text, markdown=False)` with `vb.text_editor`, `code_editor`,
+  `text_view` (`python/src/text_bound.hpp`, example 19). Markdown is compiled into the extension.
 - Also: `text::find_all`, `find_next`, `replace_all` (Boyer-Moore-Horspool, non-overlapping
   matches, one undo step), undo and redo putting the caret at the change, an input method's
   composition shown at the caret.

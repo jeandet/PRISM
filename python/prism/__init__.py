@@ -51,6 +51,8 @@ from ._prism_ext import (
     ListFloat,
     ListStr,
     BoundPlot,
+    BoundDocument,
+    has_markdown,
     PlotHandle,
     BoundTree,
     TreeHandle,
@@ -186,6 +188,8 @@ __all__ = [
     "on_change",
     "transaction",
     "list_field",
+    "document",
+    "has_markdown",
     "plot_field",
     "tree_field",
     "TreeSource",
@@ -1215,6 +1219,44 @@ def list_field(default=None):
     incompatible with the List signal — so values read back as ints.
     """
     return _ListDescriptor(default)
+
+
+class _DocumentDescriptor(_Descriptor):
+    def __init__(self, text="", markdown=False):
+        super().__init__()
+        self.text = text
+        self.markdown = markdown
+
+    def _allocate(self, instance):
+        cache, h = self._cached(instance)
+        if h is not None:
+            return h
+        h = instance._add_document_internal(self.text, self.markdown)  # type: ignore[attr-defined]
+        cache[self.name] = h
+        return h
+
+
+def document(text="", *, markdown=False):
+    """A text document: lines or paragraphs edited in place, with undo, however long.
+
+    Show it with ``vb.text_editor(h)``, ``vb.code_editor(h, "python")`` or ``vb.text_view(h)``;
+    without a ``view()`` it shows as a text editor. ``markdown=True`` reads *text* as Markdown
+    (headings, lists, emphasis, code blocks) when PRISM was built with it (``prism.has_markdown``).
+
+    The handle: ``.text`` (read), ``.set_text(text, markdown=False)`` (a load: no undo back),
+    ``.to_markdown()``, ``.find_all(needle)`` (byte offsets), ``.replace_all(needle, with_)`` (one
+    undo step), ``.observe(callback)`` (called with no argument after each change). Any thread:
+    reads wait for the logic thread, edits are posted to it.
+
+    Usage::
+
+        class Editor(prism.Model):
+            source = prism.document("print('hello')")
+
+            def view(self, vb):
+                vb.code_editor(self.source, "python")
+    """
+    return _DocumentDescriptor(text, markdown)
 
 
 class _PlotDescriptor(_Descriptor):

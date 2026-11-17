@@ -34,6 +34,7 @@ PYTHONPATH=builddir/python python3 python/examples/15_docking_and_drag.py
 PYTHONPATH=builddir/python python3 python/examples/16_lab_instrument.py
 PYTHONPATH=builddir/python python3 python/examples/17_task_runner.py
 PYTHONPATH=builddir/python python3 python/examples/18_data_studio.py
+PYTHONPATH=builddir/python python3 python/examples/19_markdown_notes.py
 ```
 
 Each opens a window (`prism.run` blocks, releases the GIL). Close the window to exit.
@@ -74,6 +75,7 @@ PYTHONPATH=builddir/python python3 python/examples/12_asyncio_bridge.py --headle
 | `16_lab_instrument.py` | the lab bench's counterpart: captioned sliders (`label=`, `unit=`, `step=`), `derived()` readouts, a worker feeding `shared()` frames and `channel()` events, a plot as the scope |
 | `17_task_runner.py` | `subprocess` runs (or generated ones) streamed through `channel()` into a `list_field` shown with `vb.list(..., follow_tail=True)`, progress parsed from the output, Stop |
 | `18_data_studio.py` | the stdlib `sqlite3` on a worker thread, results in a `table_field`, a chart of the result, status and errors |
+| `19_markdown_notes.py` | `document()` fields: Markdown in a `code_editor`, rendered in a `text_view` as you type (`set_text(markdown=True)`), `find_all` in a status line |
 
 ## Notes
 

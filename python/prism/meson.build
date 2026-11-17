@@ -18,9 +18,19 @@ if python3.found()
     # process abort in std::ios_base::Init ("pointer being freed was not allocated").
     prism_link_args = []
 
+    # Markdown: the one source compiled into the extension beside the static cmark-gfm, so a wheel
+    # carries no prism-markdown library of its own.
+    python_markdown = []
+    python_markdown_deps = []
+    if prism_markdown_dep.found()
+      python_markdown = [meson.project_source_root() / 'src' / 'text' / 'markdown.cpp']
+      python_markdown_deps = [cmark_dep.as_system('system')]
+      prism_cpp_args += ['-DPRISM_PYTHON_MARKDOWN']
+    endif
+
     _prism_ext = python3.extension_module('_prism_ext',
-      '../src/prism_ext.cpp',
-      dependencies : [prism_dep, nanobind_dep, python3.dependency()],
+      '../src/prism_ext.cpp', python_markdown,
+      dependencies : [prism_dep, nanobind_dep, python3.dependency()] + python_markdown_deps,
       link_args : prism_link_args,
       cpp_args : prism_cpp_args,
       subdir : 'prism',

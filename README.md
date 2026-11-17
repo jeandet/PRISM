@@ -935,6 +935,7 @@ with prism.transaction():                       # one publish for both changes
 | `prism.channel(type_hint)` | `Channel<T>` | lossless, ordered |
 | `prism.derived(fn)` | `Derived<T>` | follows what `fn` reads; `prism.derived(fn, *deps)` lists them |
 | `prism.list_field([...])` | `List<T>` | `push` / `erase` / `observe_*` |
+| `prism.document(text, markdown=False)` + `vb.text_editor` / `code_editor(h, "python")` / `text_view` | `text::Document` + the same | `.text`, `set_text`, `to_markdown`, `find_all`, `replace_all`, `observe` |
 | `prism.transaction()` | `prism::transaction([]{...})` | coalesced publish |
 | `prism.run(model)` | `app::run(model, {.title})` | |
 
