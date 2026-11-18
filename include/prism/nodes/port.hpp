@@ -31,7 +31,7 @@ template <> struct PortType<std::vector<double>> { static constexpr std::string_
 TypeKey type_key(std::string_view name);
 std::string_view type_name(TypeKey key);
 
-// The wire colour slot a type is drawn in: built-ins fixed, other types in registration order.
+// The wire colour slot a type is drawn in: built-ins fixed, every other type the neutral last one.
 inline constexpr std::size_t wire_slots = 6;
 std::size_t wire_slot(TypeKey key);
 

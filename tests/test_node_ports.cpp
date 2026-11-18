@@ -93,19 +93,14 @@ TEST_CASE("on_change fires when the value changes") {
     CHECK(calls == 1);
 }
 
-TEST_CASE("built-in types hold their slot and app types take the next ones in order") {
+TEST_CASE("built-in types hold their slot and every app type takes the neutral last one") {
     CHECK(wire_slot(type_key<std::vector<double>>()) == 0);
     CHECK(wire_slot(type_key<double>()) == 1);
     CHECK(wire_slot(type_key<bool>()) == 2);
     CHECK(wire_slot(type_key<int>()) == 3);
     CHECK(wire_slot(type_key<std::string>()) == 4);
-
-    // Relative, not absolute: another test may have registered app types before these two.
-    const auto first = type_key<Tesla>();
-    const auto second = type_key<Weber>();
-    CHECK(wire_slot(first) < wire_slots);
-    CHECK(wire_slot(second) < wire_slots);
-    CHECK(wire_slot(second) == (wire_slot(first) + 1) % wire_slots);
+    CHECK(wire_slot(type_key<Tesla>()) == wire_slots - 1);
+    CHECK(wire_slot(type_key<Weber>()) == wire_slots - 1);
 }
 
 TEST_CASE("an app type without a format member names itself as probe text") {

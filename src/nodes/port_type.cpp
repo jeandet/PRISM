@@ -26,7 +26,6 @@ struct Registry {
     std::mutex mutex;
     KeyMap keys;
     std::vector<Node*> by_key;
-    std::size_t app_types = 0;
 };
 
 Registry& registry() {
@@ -97,9 +96,7 @@ std::function<std::string(const std::any&)> builtin_formatter(std::string_view n
 }
 
 TypeKey register_type(Registry& r, std::string_view name) {
-    std::size_t slot = 0;
-    if (const auto builtin = builtin_slot(name)) slot = *builtin;
-    else slot = (wire_slots - 1 + r.app_types++) % wire_slots;
+    const std::size_t slot = builtin_slot(name).value_or(wire_slots - 1);
 
     const auto key = static_cast<TypeKey>(r.by_key.size() + 1);
     auto it = r.keys.emplace(std::string(name), Entry{key, slot, builtin_formatter(name)}).first;
