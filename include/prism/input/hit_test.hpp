@@ -1,5 +1,6 @@
 #pragma once
 
+#include <prism/input/input_event.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
 #include <cassert>
@@ -33,14 +34,8 @@ using namespace prism::render;
     return std::nullopt;
 }
 
-// Where a widget is drawn, and at what zoom (a zoomed board's cards): its own coordinates
-// start at rect's origin, scaled by `scale`.
-struct Placed {
-    Rect rect;
-    float scale = 1.f;
-};
-
 [[nodiscard]] inline float scale_of(const SceneSnapshot& snap, std::size_t i) {
+    assert(snap.scale.empty() || snap.scale.size() == snap.geometry.size());
     return snap.scale.empty() ? 1.f : snap.scale[i];
 }
 

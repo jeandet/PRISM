@@ -622,10 +622,8 @@ inline std::optional<Rect> find_rect(const LayoutNode& node, WidgetId id) {
 inline std::optional<Rect> board_rect_of(const LayoutNode& board, WidgetId id) {
     for (std::size_t i = 0; i < board.children.size(); ++i)
         if (auto r = find_rect(board.children[i], id)) {
-            const float s = i == 0 ? 1.f : board.board_scale;
-            return Rect{Point{X{(r->origin.x.raw() - board.allocated.origin.x.raw()) * s},
-                              Y{(r->origin.y.raw() - board.allocated.origin.y.raw()) * s}},
-                        Size{Width{r->extent.w.raw() * s}, Height{r->extent.h.raw() * s}}};
+            const input::Placed cards{Rect{}, i == 0 ? 1.f : board.board_scale};
+            return cards.to_window(Rect{Point{} + (r->origin - board.allocated.origin), r->extent});
         }
     return std::nullopt;
 }

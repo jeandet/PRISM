@@ -26,9 +26,6 @@ C scaled(C cmd) {
 TEST_CASE("a transform zooms points and rects about its origin") {
     CHECK(half.apply(pt(300, 250)) == pt(200, 150));
     CHECK(half.apply(rect(300, 250, 80, 40)) == rect(200, 150, 40, 20));
-    CHECK(half.invert(half.apply(pt(17, -3))) == pt(17, -3));
-    CHECK(ViewTransform{}.identity());
-    CHECK_FALSE(half.identity());
 }
 
 TEST_CASE("scaling a draw list scales every command's geometry") {

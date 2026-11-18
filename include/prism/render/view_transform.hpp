@@ -12,8 +12,6 @@ struct ViewTransform {
 
     core::Point apply(core::Point q) const;
     core::Rect apply(core::Rect r) const;      // origin mapped, extent × scale
-    core::Point invert(core::Point p) const;   // apply's inverse
-    bool identity() const { return scale == 1.f; }
 };
 
 // Every command of `dl` through `t`: points, rect origins and extents, circle radii, line and

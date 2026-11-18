@@ -214,7 +214,7 @@ TEST_CASE("Click selects row via hit_test in multi-widget layout") {
         .position = prism::Point{prism::X{50.f}, prism::Y{abs_y}},
         .button = 1, .pressed = true};
     prism::InputEvent ev{click};
-    auto localized = prism::localize_mouse(ev, *table_rect);
+    auto localized = prism::localize_mouse(ev, prism::input::Placed{*table_rect});
     tree.dispatch(table_node->id, localized);
 
     CHECK(ts.selected_row.get().has_value());

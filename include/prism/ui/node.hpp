@@ -40,9 +40,8 @@ struct DropPlace {
 
 // A drop at `p` (window coordinates) in the target's own coordinates: where it is drawn, at its zoom.
 inline DropPlace drop_place_in(const input::Placed& target, Point p) {
-    const float s = target.scale;
-    return {Point{X{(p.x.raw() - target.rect.origin.x.raw()) / s}, Y{(p.y.raw() - target.rect.origin.y.raw()) / s}},
-            Size{Width{target.rect.extent.w.raw() / s}, Height{target.rect.extent.h.raw() / s}}};
+    const Rect local = target.to_local(target.rect);
+    return {target.to_local(p), local.extent};
 }
 
 // Where a container taking drops is, in the window: `rect` places drops in its coordinates,
@@ -52,6 +51,8 @@ struct DropArea {
     Rect rect;
     Rect visible;
     float scale = 1.f;   // its zoom (a zoomed board's card): its coordinates are rect's, divided by it
+
+    [[nodiscard]] input::Placed place() const { return {rect, scale}; }
 };
 
 // What a widget does in a drag inside the app (doc/design/drag-and-docking.md). The value is

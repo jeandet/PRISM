@@ -93,11 +93,22 @@ namespace buttons {
     inline constexpr uint32_t left_mask = 1u << (left - 1);   // matches SDL_BUTTON_LMASK
 }
 
-inline InputEvent localize_mouse(const InputEvent& ev, Rect widget_rect, float scale = 1.f) {
+// Where a widget is drawn, and at what zoom (a zoomed board's cards): its own coordinates
+// start at rect's origin, scaled by `scale`. Every conversion between the window and a widget's
+// own coordinates goes through here.
+struct Placed {
+    Rect rect;
+    float scale = 1.f;
+
+    [[nodiscard]] Point to_local(Point window) const { return Point{} + (window - rect.origin) / scale; }
+    [[nodiscard]] Rect to_local(Rect window) const { return {to_local(window.origin), window.extent / scale}; }
+    [[nodiscard]] Point to_window(Point local) const { return rect.origin + (local - Point{}) * scale; }
+    [[nodiscard]] Rect to_window(Rect local) const { return {to_window(local.origin), local.extent * scale}; }
+};
+
+inline InputEvent localize_mouse(const InputEvent& ev, const Placed& at) {
     return std::visit([&](auto e) -> InputEvent {
-        if constexpr (requires { e.position; })
-            e.position = Point{X{(e.position.x.raw() - widget_rect.origin.x.raw()) / scale},
-                               Y{(e.position.y.raw() - widget_rect.origin.y.raw()) / scale}};
+        if constexpr (requires { e.position; }) e.position = at.to_local(e.position);
         return e;
     }, ev);
 }

@@ -34,8 +34,8 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
     return mm->position - *press;
 }
 
-// Every conversion between the graph's positions, the board's coordinates, the window's and a
-// widget's own: a zoom changes this one place.
+// Every conversion between the graph's positions, the board's coordinates and the window's (a
+// widget's own goes through ui::place_of): a zoom changes this one place.
 namespace board_coords {
 
 // Where the graph's point `at` lies on the board at zoom 1 (the engine zooms the cards from there).
@@ -55,19 +55,11 @@ std::optional<core::Point> board_to_window(const NodeBoardParts& parts, core::Po
     return board ? std::optional{board->origin + (on_board - core::Point{})} : std::nullopt;
 }
 
-core::Point to_window(const ui::WidgetNode& n, core::Point local) {
-    return {n.absolute_x + core::DX{local.x.raw() * n.view_scale}, n.absolute_y + core::DY{local.y.raw() * n.view_scale}};
-}
-
-core::Point to_local(const ui::WidgetNode& n, core::Point window) {
-    return {core::X{(window.x.raw() - n.absolute_x.raw()) / n.view_scale},
-            core::Y{(window.y.raw() - n.absolute_y.raw()) / n.view_scale}};
-}
 
 // Where `local`, a point in widget n's coordinates, is from the board's top-left, in the window.
 std::optional<core::Offset> from_board_origin(const NodeBoardParts& parts, const ui::WidgetNode& n, core::Point local) {
     const auto board = parts.tree->laid_out_at(parts.board_id);
-    return board ? std::optional{to_window(n, local) - board->origin} : std::nullopt;
+    return board ? std::optional{ui::place_of(n).to_window(local) - board->origin} : std::nullopt;
 }
 
 // Where the board's widgets lie, in the window.
@@ -182,7 +174,7 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
         pan_at_press = graph.view().pan;
     } else if (track_press(press, ev)) {
         pan_button = input::buttons::left;
-        const core::Point at = board_coords::to_window(n, *press);
+        const core::Point at = ui::place_of(n).to_window(*press);
         if (dot_near(*parts, at, any_port)) return press.reset();   // it draws a wire (dot_drag)
         pan_at_press = graph.view().pan;
         set_selection(*parts, n, {.wire = wire_at(*parts, at), .node = {}});
@@ -347,7 +339,7 @@ std::optional<nodes::PortRef> port_under(const NodeBoardParts& parts, core::Poin
 ui::DragRole dot_drag(NodeBoardParts& parts) {
     ui::DragRole role = wire_drag(parts);
     role.source = [&parts](const ui::WidgetNode& self, core::Point at) {
-        const auto port = port_under(parts, board_coords::to_window(self, at));
+        const auto port = port_under(parts, ui::place_of(self).to_window(at));
         return port ? pick_up(*parts.graph, *port) : std::any{};
     };
     return role;
@@ -375,7 +367,7 @@ ui::DragRole dot_target(NodeBoardParts& parts) {
         return p && dot_taking(parts, v, *p);
     };
     role.slot = [&parts](const ui::WidgetNode& self, core::Point at) {
-        const auto port = dot_near(parts, board_coords::to_window(self, at), any_port);
+        const auto port = dot_near(parts, ui::place_of(self).to_window(at), any_port);
         const auto it = std::ranges::find_if(parts.ports, [&](const auto& kv) { return port && kv.second.ref == *port; });
         return static_cast<std::size_t>(std::distance(parts.ports.begin(), it));
     };
@@ -385,7 +377,7 @@ ui::DragRole dot_target(NodeBoardParts& parts) {
         const auto row = parts.tree->laid_out_at(place.row);
         const auto end = wire_end(parts, port, board_coords::window_rects(parts));
         if (!row || !end) return core::Rect{};
-        return core::Rect{board_coords::to_local(self, core::Point{core::X{end->x.raw() - bar / 2}, row->origin.y}),
+        return core::Rect{ui::place_of(self).to_local(core::Point{core::X{end->x.raw() - bar / 2}, row->origin.y}),
                           core::Size{core::Width{bar}, row->extent.h}};
     };
     role.drop = [&parts](const std::any& v, ui::DropPlace place) {

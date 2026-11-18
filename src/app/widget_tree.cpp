@@ -380,14 +380,14 @@ bool WidgetTree::start_drag_at(Point p) {
     auto it = index_.find(id);
     if (it == index_.end() || !it->second->drag.takes_at) return true;
     const DropArea* a = drop_area(id);
-    return !a || it->second->drag.takes_at(value, drop_place_in(input::Placed{a->rect, a->scale}, p));
+    return !a || it->second->drag.takes_at(value, drop_place_in(a->place(), p));
 }
 
 [[nodiscard]] WidgetId WidgetTree::claiming_drop_area(Point p, const std::any& value) const {
     for (auto& a : drop_areas_) {
         auto it = index_.find(a.id);
         if (it == index_.end() || !it->second->drag.claims || !a.visible.contains(p) || !takes(a.id, value)) continue;
-        if (it->second->drag.claims(drop_place_in(input::Placed{a.rect, a.scale}, p))) return a.id;
+        if (it->second->drag.claims(drop_place_in(a.place(), p))) return a.id;
     }
     return 0;
 }

@@ -34,10 +34,6 @@ core::Rect ViewTransform::apply(core::Rect r) const {
     return {apply(r.origin), {core::Width{r.extent.w.raw() * scale}, core::Height{r.extent.h.raw() * scale}}};
 }
 
-core::Point ViewTransform::invert(core::Point p) const {
-    return {core::X{about(origin.x.raw(), p.x.raw(), 1.f / scale)}, core::Y{about(origin.y.raw(), p.y.raw(), 1.f / scale)}};
-}
-
 void scale_draw_list(DrawList& dl, const ViewTransform& t) {
     for (auto& cmd : dl.commands) scale_cmd(cmd, t);
 }

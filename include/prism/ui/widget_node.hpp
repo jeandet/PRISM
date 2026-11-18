@@ -199,9 +199,11 @@ struct WidgetNode {
 
 // Where the last layout drew `n` in the window, zoom included.
 inline Rect laid_out_rect(const WidgetNode& n) {
-    return {Point{n.absolute_x, n.absolute_y},
-            Size{Width{n.arranged_extent.w.raw() * n.view_scale}, Height{n.arranged_extent.h.raw() * n.view_scale}}};
+    return {Point{n.absolute_x, n.absolute_y}, n.arranged_extent * n.view_scale};
 }
+
+// Where the last layout drew `n`, and at what zoom: its own coordinates in the window.
+inline input::Placed place_of(const WidgetNode& n) { return {laid_out_rect(n), n.view_scale}; }
 
 // A node whose children are made at publish time (WidgetTree::materialize_all_virtual_lists).
 inline bool builds_children(const WidgetNode& n) {

@@ -362,12 +362,11 @@ public:
         WidgetId target = 0;    // the widget under the pointer that takes the value, or 0
     };
 
-    // `source_rect`: where the source is drawn, at `scale` (a zoomed board's card).
-    void arm_drag(WidgetId id, Point at, Rect source_rect, float scale = 1.f) {
+    // `source`: where the source is drawn, and at what zoom (a zoomed board's card).
+    void arm_drag(WidgetId id, Point at, const input::Placed& source) {
         auto it = index_.find(id);
         if (it == index_.end() || !it->second->drag.source || !is_enabled(*it->second)) return;
-        const Offset d = at - source_rect.origin;
-        drag_ = DragState{.source = id, .press = at, .grab = Offset{DX{d.dx.raw() / scale}, DY{d.dy.raw() / scale}},
+        drag_ = DragState{.source = id, .press = at, .grab = source.to_local(at) - Point{},
                           .value = {}, .pointer = at, .target = 0};
     }
     [[nodiscard]] bool dragging() const { return drag_ && drag_->value.has_value(); }

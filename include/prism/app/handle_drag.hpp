@@ -40,7 +40,7 @@ inline std::optional<DY> scrollbar_drag_offset(const ScrollbarDrag& d, Y mouse_y
     Height track_range = d.viewport_h - d.thumb_h;
     if (track_range.raw() <= 0) return std::nullopt;
     DY max_off = max_scroll(d.content_h, d.viewport_h);
-    DY dy_pixels{(mouse_y - d.anchor_y).raw() / d.scale};
+    DY dy_pixels = (mouse_y - d.anchor_y) / d.scale;
     float new_offset = std::clamp(
         d.anchor_offset.raw() + dy_pixels.raw() * max_off.raw() / track_range.raw(),
         0.f, max_off.raw());
