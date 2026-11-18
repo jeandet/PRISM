@@ -16,3 +16,7 @@ executable('bench_table_sort', 'table_sort.cpp',
 executable('bench_text_scale', 'text_scale.cpp',
   dependencies : [prism_core_dep, fmt_dep],
 )
+
+executable('bench_node_board_scale', 'node_board_scale.cpp',
+  dependencies : [prism_core_dep, fmt_dep],
+)

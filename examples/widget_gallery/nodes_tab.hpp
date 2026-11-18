@@ -8,6 +8,8 @@
 #include <prism/nodes/graph.hpp>
 #include <prism/prism.hpp>
 
+#include <format>
+#include <string>
 #include <vector>
 
 namespace gallery {
@@ -58,9 +60,10 @@ struct ScopeNode {
 
 struct NodesTab {
     core::Field<ui::Label<>> title{{.value = "Nodes", .heading = true}};
-    core::Field<ui::Label<>> intro{{.value = "Drag a header to move a block, the empty board to pan. Drag from a "
-                                             "port to another to wire them; drag a wire off an input to unplug "
-                                             "it. Click a wire, then Delete. Move a slider: the scopes follow.",
+    core::Field<ui::Label<>> intro{{.value = "Drag a header to move a block, the empty board to pan. Ctrl+wheel "
+                                             "zooms; a middle drag pans too. Drag from a port to another to wire "
+                                             "them; drag a wire off an input to unplug it. Click a wire, then "
+                                             "Delete. Move a slider: the scopes follow.",
                                     .wrap = true}};
     SineNode sine;
     NoiseNode noise;
@@ -69,6 +72,13 @@ struct NodesTab {
     ScopeNode raw;
     ScopeNode smooth;
     nodes::Graph graph;   // after the nodes: it is destroyed before them
+    core::Field<ui::Button> fit{{.text = "Fit", .primary = false}};
+    core::Field<ui::Button> actual_size{{.text = "100 %", .primary = false}};
+    core::Derived<std::string> zoom_label{[this] {
+        static_cast<void>(graph.layout.get());
+        return std::format("{:.0f} %", graph.view().zoom * 100.f);
+    }};
+    core::Wiring wire;
 
     NodesTab();
     void view(app::ViewBuilder& vb);
