@@ -3,6 +3,7 @@
 #include <prism/core/connection.hpp>
 #include <prism/ui/delegate.hpp>
 #include <prism/ui/frame.hpp>
+#include <prism/input/hit_test.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
 #include <cstdint>
@@ -35,6 +36,13 @@ struct DropPlace {
     Size size;
     std::size_t slot = 0;   // between which of the target's items (DragRole::slot), when it has them
 };
+
+// A drop at `p` (window coordinates) in the target's own coordinates: where it is drawn, at its zoom.
+inline DropPlace drop_place_in(const input::Placed& target, Point p) {
+    const float s = target.scale;
+    return {Point{X{(p.x.raw() - target.rect.origin.x.raw()) / s}, Y{(p.y.raw() - target.rect.origin.y.raw()) / s}},
+            Size{Width{target.rect.extent.w.raw() / s}, Height{target.rect.extent.h.raw() / s}}};
+}
 
 // Where a container taking drops is, in the window: `rect` places drops in its coordinates,
 // `visible` (what the scroll views and boards around it leave) is where a drop can land.

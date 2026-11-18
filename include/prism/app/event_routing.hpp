@@ -18,13 +18,6 @@ inline InputEvent local_to(const SceneSnapshot& snap, WidgetId id, const InputEv
     return place ? localize_mouse(ev, place->rect, place->scale) : ev;
 }
 
-// A drop at `p` (window coordinates) in the target's own coordinates.
-inline DropPlace drop_place_in(const Placed& target, Point p) {
-    const float s = target.scale;
-    return {Point{X{(p.x.raw() - target.rect.origin.x.raw()) / s}, Y{(p.y.raw() - target.rect.origin.y.raw()) / s}},
-            Size{Width{target.rect.extent.w.raw() / s}, Height{target.rect.extent.h.raw() / s}}};
-}
-
 // --- popup layer: while a popup is open it gets all input first ---
 
 // A rect in a widget's own coordinates, in the window: where it is drawn, at its zoom.

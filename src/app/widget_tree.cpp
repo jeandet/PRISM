@@ -369,29 +369,18 @@ bool WidgetTree::start_drag_at(Point p) {
     return value.type() == typeid(std::string) && edits_text(n);
 }
 
-namespace {
-
-// A drop at `p` (window coordinates) in the area's own coordinates, at its zoom.
-DropPlace drop_place_in(const DropArea& a, Point p) {
-    const float s = a.scale;
-    return {Point{X{(p.x.raw() - a.rect.origin.x.raw()) / s}, Y{(p.y.raw() - a.rect.origin.y.raw()) / s}},
-            Size{Width{a.rect.extent.w.raw() / s}, Height{a.rect.extent.h.raw() / s}}};
-}
-
-} // namespace
-
 [[nodiscard]] bool WidgetTree::takes_at(WidgetId id, const std::any& value, Point p) const {
     auto it = index_.find(id);
     if (it == index_.end() || !it->second->drag.takes_at) return true;
     const DropArea* a = drop_area(id);
-    return !a || it->second->drag.takes_at(value, drop_place_in(*a, p));
+    return !a || it->second->drag.takes_at(value, drop_place_in(input::Placed{a->rect, a->scale}, p));
 }
 
 [[nodiscard]] WidgetId WidgetTree::claiming_drop_area(Point p, const std::any& value) const {
     for (auto& a : drop_areas_) {
         auto it = index_.find(a.id);
         if (it == index_.end() || !it->second->drag.claims || !a.visible.contains(p) || !takes(a.id, value)) continue;
-        if (it->second->drag.claims(drop_place_in(a, p))) return a.id;
+        if (it->second->drag.claims(drop_place_in(input::Placed{a.rect, a.scale}, p))) return a.id;
     }
     return 0;
 }

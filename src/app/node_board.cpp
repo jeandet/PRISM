@@ -427,12 +427,16 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
 }
 
 // A fit asked for is made once the board knows its size: not at its first layout.
+// simplify: a fit asked before the board's first layout waits for the next frame, which only
+// something else asks for (this hook runs mid-publish and cannot); request a frame from here if
+// a fit at startup must show on the first frames.
 void fit_if_asked(nodes::Graph& graph, const NodeBoardParts& parts) {
     const auto board = parts.tree->laid_out_at(parts.board_id);
     if (!graph.fit_requested() || !board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
     std::vector<core::Rect> cards;
     for (const auto& [id, card] : parts.cards)
         if (const auto size = parts.tree->arranged_extent(card)) cards.push_back({graph.position(id), *size});
+    // Sets the view during this layout, which uses it now: the `layout` bump only costs one more relayout.
     graph.fit(cards, board->extent);
 }
 

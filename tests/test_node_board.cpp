@@ -1026,3 +1026,53 @@ TEST_CASE("at zoom 0.5 a node's context menu opens at the pointer, and a click o
     CHECK(f.tree.popup_owner() == 0);
     CHECK(f.m.node.menu.get().chosen == std::optional<std::size_t>{1});
 }
+
+namespace {
+struct Options {   // a node with a button and a popup holding a checkbox
+    Field<Button> more{{"more"}};
+    Field<Popup> pop{{.open = false, .modal = false}};
+    Field<Checkbox> loud{{.checked = false, .label = "loud"}};
+    WidgetId loud_id = 0;
+    std::vector<nodes::Port*> ports() { return {}; }
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.widget(more);
+        vb.popup(pop, [&](WidgetTree::ViewBuilder& p) { loud_id = p.widget(loud).node_ref.id; });
+    }
+};
+
+struct OptionsBoard {
+    Options node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Options", .family = "math", .at = P(200, 100)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+}
+
+TEST_CASE("at zoom 0.5 a popup in a node opens next to its anchor's zoomed place, and its widgets take clicks") {
+    BasicFixture<OptionsBoard> f;
+    at_zoom(f, 0.5f);
+    f.m.node.pop.set({.open = true, .modal = false});
+    f.frame();
+    REQUIRE(f.tree.popup_node());
+    const Rect anchor = laid_out(f, f.tree.popup_node()->id);
+    const auto card = f.tree.popup_card();
+    REQUIRE(card);
+    CHECK(card->origin.x.raw() == doctest::Approx(anchor.origin.x.raw()));
+    CHECK(card->origin.y.raw() == doctest::Approx(anchor.origin.y.raw()));
+    const auto area = app::widget_detail::popup_area(f.tree, *f.snap);
+    REQUIRE(area);
+    CHECK(area->origin == card->origin);
+
+    Rect box{};
+    for (auto& [id, r] : f.snap->overlay_geometry)
+        if (id == f.m.node.loud_id) box = r;
+    REQUIRE(box.extent.w.raw() > 0.f);
+    REQUIRE(card->contains(box.origin));
+    const Point on_box = box.origin + Offset{DX{box.extent.w.raw() / 2}, DY{box.extent.h.raw() / 2}};
+    f.press(on_box);
+    f.release(on_box);
+    CHECK(f.m.node.loud.get().checked);
+    CHECK(f.m.node.pop.get().open);
+    REQUIRE(f.tree.popup_card());
+    CHECK(f.tree.popup_card()->origin == card->origin);   // it stays where it opened
+}
