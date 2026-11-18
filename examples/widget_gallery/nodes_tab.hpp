@@ -75,7 +75,6 @@ struct NodesTab {
     core::Field<ui::Button> fit{{.text = "Fit", .primary = false}};
     core::Field<ui::Button> actual_size{{.text = "100 %", .primary = false}};
     core::Derived<std::string> zoom_label{[this] {
-        static_cast<void>(graph.layout.get());
         return std::format("{:.0f} %", graph.view().zoom * 100.f);
     }};
     core::Wiring wire;

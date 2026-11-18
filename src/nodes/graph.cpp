@@ -137,13 +137,13 @@ core::Point Graph::position(NodeId id) const { return nodes_.at(id).options.at; 
 
 void Graph::pan_by(core::DX dx, core::DY dy) {
     if (dx.raw() == 0.f && dy.raw() == 0.f) return;
-    set_view({view_.pan + core::Offset{dx, dy}, view_.zoom});
+    set_view({view().pan + core::Offset{dx, dy}, view().zoom});
 }
 
 void Graph::set_view(BoardView v) {
     v.zoom = clamp_zoom(v.zoom);
-    if (v == view_) return;
-    view_ = v;
+    if (v == view()) return;
+    view_.set(v);
     layout.set(layout.get() + 1);
 }
 
@@ -155,6 +155,17 @@ void Graph::request_fit() {
 void Graph::fit(std::span<const core::Rect> cards, core::Size board) {
     fit_requested_ = false;
     set_view(fit_all(cards, board));
+}
+
+void Graph::request_zoom(float zoom) {
+    zoom_requested_ = zoom;
+    layout.set(layout.get() + 1);
+}
+
+void Graph::zoom_centred(core::Size board) {
+    if (!zoom_requested_) return;
+    const float zoom = *std::exchange(zoom_requested_, std::nullopt);
+    set_view(zoomed_about(view(), core::Offset{core::DX{board.w.raw() / 2}, core::DY{board.h.raw() / 2}}, zoom));
 }
 
 } // namespace prism::nodes

@@ -79,13 +79,22 @@ public:
     core::Point position(NodeId) const;
     // Shifts the whole board's view of the nodes, in board units; their positions stay as they are.
     void pan_by(core::DX, core::DY);
-    BoardView view() const { return view_; }
+    // The view is a field the app may observe (a Derived reading view() follows it) and save,
+    // like a dock layout; set_view restores it, its zoom clamped.
+    BoardView view() const { return view_.get(); }
+    const core::Field<BoardView>& view_field() const { return view_; }
     void set_view(BoardView);
     // Asks the board to show every card at its next layout, which calls fit() once it knows its size.
     void request_fit();
     bool fit_requested() const { return fit_requested_; }
     // Shows every card (natural size, at its graph position) in a board of `board`'s size.
     void fit(std::span<const core::Rect> cards, core::Size board);
+    // Asks the board to zoom to `zoom` (clamped) about its centre at its next layout, which calls
+    // zoom_centred() once it knows its size.
+    void request_zoom(float zoom);
+    std::optional<float> zoom_requested() const { return zoom_requested_; }
+    // Zooms as asked about the centre of a board of `board`'s size.
+    void zoom_centred(core::Size board);
 
     core::Field<std::uint64_t> structure{0};
     core::Field<std::uint64_t> layout{0};
@@ -112,8 +121,9 @@ private:
 
     std::map<NodeId, Entry> nodes_;
     std::map<EdgeId, std::unique_ptr<Edge>> edges_;
-    BoardView view_{};
+    core::Field<BoardView> view_{};
     bool fit_requested_ = false;
+    std::optional<float> zoom_requested_;
     NodeId next_node_ = 1;
     EdgeId next_edge_ = 1;
 };

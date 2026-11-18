@@ -66,7 +66,7 @@ NodesTab::NodesTab() {
     static_cast<void>(graph.connect({m, 2}, {f, 0}));
     static_cast<void>(graph.connect({f, 1}, {o, 0}));
     wire.on(fit, [this](const ui::Button&) { graph.request_fit(); });
-    wire.on(actual_size, [this](const ui::Button&) { graph.set_view({graph.view().pan, 1.f}); });
+    wire.on(actual_size, [this](const ui::Button&) { graph.request_zoom(1.f); });
 }
 
 void NodesTab::view(app::ViewBuilder& vb) {

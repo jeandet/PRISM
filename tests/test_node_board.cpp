@@ -1213,7 +1213,6 @@ namespace {
 // The gallery's Nodes tab: a label showing the zoom, read from the graph's view.
 struct ZoomShown : Editor {
     Derived<std::string> zoom_label{[this] {
-        static_cast<void>(graph.layout.get());
         return std::to_string(static_cast<int>(graph.view().zoom * 100.f + 0.5f)) + " %";
     }};
     void view(WidgetTree::ViewBuilder& vb) {
@@ -1293,4 +1292,17 @@ TEST_CASE("at zoom 2 a tab dragged along a node's bar shows the insertion bar be
     f.release(to);
     CHECK(std::vector<std::string>(f.m.node.open.begin(), f.m.node.open.end())
           == std::vector<std::string>{"one", "three", "two"});
+}
+
+TEST_CASE("a zoom asked for is made about the board's centre at its next layout") {
+    Fixture f;
+    f.m.graph.set_view({.pan = {}, .zoom = 0.5f});
+    f.frame();
+    const Rect board = laid_out(f, *f.tree.parent_of(f.card_of(f.m.sink.in_label)));
+    f.m.graph.request_zoom(1.f);
+    f.frame();
+    CHECK(f.m.graph.view().zoom == 1.f);
+    const float cx = board.extent.w.raw() / 2, cy = board.extent.h.raw() / 2;   // was graph point (2cx, 2cy)
+    CHECK(f.m.graph.view().pan.x.raw() == doctest::Approx(cx - 2 * cx));
+    CHECK(f.m.graph.view().pan.y.raw() == doctest::Approx(cy - 2 * cy));
 }

@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
+#include <prism/core/derived.hpp>
 #include <prism/nodes/graph.hpp>
 
 using namespace prism::nodes;
@@ -219,4 +220,32 @@ TEST_CASE("a fit is asked for, then made: every card shows in the board") {
     CHECK_FALSE(g.fit_requested());
     CHECK(g.view() == fit_all(cards, board));
     CHECK(g.view().zoom == doctest::Approx(0.5f));
+}
+
+TEST_CASE("the view is a field: what is derived from it follows set_view, pan_by and fit, zoom clamped") {
+    using prism::core::DX; using prism::core::DY; using prism::core::X; using prism::core::Y;
+    Graph g;
+    prism::core::Derived<float> zoom{[&] { return g.view().zoom; }};
+    prism::core::Derived<float> pan_x{[&] { return g.view_field().get().pan.x.raw(); }};
+    g.set_view({.pan = {}, .zoom = 0.5f});
+    CHECK(zoom.get() == 0.5f);
+    g.set_view({.pan = {}, .zoom = 10.f});
+    CHECK(zoom.get() == max_zoom);
+    g.pan_by(DX{5}, DY{0});
+    CHECK(pan_x.get() == 5.f);
+}
+
+TEST_CASE("a zoom asked for is made about the board's centre once its size is known") {
+    using prism::core::Size; using prism::core::Width; using prism::core::Height; using prism::core::X; using prism::core::Y;
+    Graph g;
+    g.set_view({.pan = {}, .zoom = 0.5f});
+    const auto l = g.layout.get();
+    g.request_zoom(1.f);
+    CHECK(g.zoom_requested() == std::optional{1.f});
+    CHECK(g.layout.get() == l + 1);   // the board lays out again, and zooms there
+    g.zoom_centred(Size{Width{800}, Height{600}});
+    CHECK_FALSE(g.zoom_requested());
+    CHECK(g.view().zoom == 1.f);
+    // The graph point under the centre, (800, 600) at zoom 0.5, is still there.
+    CHECK(g.view().pan == Point{X{-400}, Y{-300}});
 }

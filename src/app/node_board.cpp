@@ -460,14 +460,16 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
     return true;
 }
 
-// A fit asked for is made once the board knows its size: not at its first layout pass. The
+// A zoom or a fit asked for is made once the board knows its size: not at its first layout pass. The
 // first publish lays out again once the cards' labels are measured, so a fit asked at startup
 // lands there.
-// simplify: a board with no size at all (zero-size) keeps the request until a frame finds it
+// simplify: a board with no size at all (zero-size) keeps the requests until a frame finds it
 // sized; nothing asks for that frame, so a resize or an input brings it.
-void fit_if_asked(nodes::Graph& graph, const NodeBoardParts& parts) {
+void view_as_asked(nodes::Graph& graph, const NodeBoardParts& parts) {
     const auto board = parts.tree->laid_out_at(parts.board_id);
-    if (!graph.fit_requested() || !board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
+    if (!board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
+    if (graph.zoom_requested()) graph.zoom_centred(board->extent);
+    if (!graph.fit_requested()) return;
     std::vector<core::Rect> cards;
     for (const auto& [id, card] : parts.cards)
         if (const auto size = parts.tree->arranged_extent(card)) cards.push_back({graph.position(id), *size});
@@ -477,7 +479,7 @@ void fit_if_asked(nodes::Graph& graph, const NodeBoardParts& parts) {
 }
 
 std::vector<core::Point> places(nodes::Graph& graph, const NodeBoardParts& parts) {
-    fit_if_asked(graph, parts);
+    view_as_asked(graph, parts);
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
     for (const auto id : parts.built) out.push_back(board_coords::on_board(graph, graph.position(id)));
