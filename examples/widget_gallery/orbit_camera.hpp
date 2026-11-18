@@ -27,50 +27,35 @@ struct Box {
     Vec low{}, high{};
 };
 
-// The field and the probe, a margin around both.
+// The field and the probe, a margin around both, cut to the lost square: what is past it is lost
+// anyway, and the view stays on what can still be won back.
 inline Box shown_box(const std::optional<Vec>& probe) {
     Vec low{0, 0}, high{field_width, field_height};
     if (probe) {
         low = {std::min(low.x, probe->x), std::min(low.y, probe->y)};
         high = {std::max(high.x, probe->x), std::max(high.y, probe->y)};
     }
-    return {.low = low - Vec{camera_margin, camera_margin},
-            .high = high + Vec{camera_margin, camera_margin}};
+    const Vec margin{camera_margin, camera_margin};
+    const Vec reach = Vec{lost_reach, lost_reach} * field_diagonal();
+    const Vec lost_low = field_centre() - reach, lost_high = field_centre() + reach;
+    return {.low = {std::max(low.x - margin.x, lost_low.x), std::max(low.y - margin.y, lost_low.y)},
+            .high = {std::min(high.x + margin.x, lost_high.x), std::min(high.y + margin.y, lost_high.y)}};
 }
 
-// The narrowest view of `aspect` that holds the box, never past the lost box: at a portrait aspect
-// the height is the tighter of the two, so the width budget follows the aspect.
+// The narrowest view of `aspect` that holds the box.
 inline double view_width(const Box& box, double aspect) {
-    const double need = std::max(box.high.x - box.low.x, (box.high.y - box.low.y) * aspect);
-    const double room = 2 * lost_reach * field_diagonal();
-    return std::min(need, std::min(room, room * aspect));
-}
-
-// `value` moved into `[low, high]`. A narrow aspect makes the view taller than it is wide, so its
-// height can pass the lost box; the range is clamped rather than trusted to be ordered.
-inline double pushed_into(double value, double low, double high) {
-    return std::min(std::max(value, low), high);
-}
-
-// The box's centre, moved just enough for the whole view to stay in the lost box.
-inline Vec view_centre(const Box& box, double width, double aspect) {
-    const Vec middle = (box.low + box.high) * 0.5;
-    const Vec lost = field_centre();
-    const double reach = lost_reach * field_diagonal();
-    const double half = width / 2, half_height = width / aspect / 2;
-    return {pushed_into(middle.x, lost.x - reach + half, lost.x + reach - half),
-            pushed_into(middle.y, lost.y - reach + half_height, lost.y + reach - half_height)};
+    return std::max(box.high.x - box.low.x, (box.high.y - box.low.y) * aspect);
 }
 
 } // namespace camera_detail
 
-// Where the camera wants to be: the field and the probe, plus a margin, in the smallest rectangle of
-// `aspect` that holds them, never past the lost box. A canvas not yet laid out counts as square.
+// Where the camera wants to be: the field and the probe, plus a margin, cut to the lost square, in
+// the smallest rectangle of `aspect` that holds them, centred on them. A canvas not yet laid out
+// counts as square.
 inline View wanted_view(const std::optional<Vec>& probe, double aspect) {
-    const double shape = aspect > 0 ? aspect : 1;
     const camera_detail::Box box = camera_detail::shown_box(probe);
-    const double width = camera_detail::view_width(box, shape);
-    return {.centre = camera_detail::view_centre(box, width, shape), .width = width};
+    return {.centre = (box.low + box.high) * 0.5,
+            .width = camera_detail::view_width(box, aspect > 0 ? aspect : 1)};
 }
 
 // One frame of `seconds` of easing from `now` toward `wanted`, centre and width alike: each closes

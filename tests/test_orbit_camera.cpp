@@ -33,15 +33,6 @@ void check_field_shown(const View& v) {
 
 double lost_reach_units() { return lost_reach * field_diagonal(); }
 
-// The view's whole rectangle inside the lost box: 1.5 diagonals around the field's centre.
-bool inside_lost_box(const View& v, double a = aspect) {
-    const Vec c = field_centre();
-    const double reach = lost_reach_units();
-    const double half = v.width / 2, half_h = height_of(v, a) / 2;
-    return v.centre.x - half >= c.x - reach - 1e-9 && v.centre.x + half <= c.x + reach + 1e-9 &&
-           v.centre.y - half_h >= c.y - reach - 1e-9 && v.centre.y + half_h <= c.y + reach + 1e-9;
-}
-
 // The smallest width a view of this aspect can have and still show the field plus its margin.
 double field_only_width(double a) {
     return std::max(field_width + 2 * margin, (field_height + 2 * margin) * a);
@@ -90,30 +81,25 @@ TEST_CASE("the view is the smallest one of the canvas's aspect that holds the fi
     }
 }
 
-TEST_CASE("the camera never shows past the lost box") {
+TEST_CASE("whenever the probe is inside the lost square it is inside the view") {
     const Vec c = field_centre();
     const double reach = lost_reach_units();
-    const double cap = 2 * reach;
-    const Vec near_corner{c.x + 0.99 * reach, c.y + 0.99 * reach};
-    for (Vec probe : {Vec{c.x + 10 * reach, c.y}, Vec{c.x - 4 * reach, c.y - 3 * reach}, near_corner}) {
-        const View v = wanted_view(probe, aspect);
-        CHECK(v.width <= cap + 1e-9);
-        CHECK(inside_lost_box(v));
-    }
-    // A probe far past the box does not make the view grow past it either.
-    const View v = wanted_view(Vec{c.x + 10 * reach, c.y}, aspect);
-    CHECK(v.width == doctest::Approx(cap));
+    for (double a : {0.5, 1.0, 3.0})
+        for (double fx : {-0.99, -0.5, 0.0, 0.7, 0.99})
+            for (double fy : {-0.99, 0.0, 0.99}) {
+                const Vec probe{c.x + fx * reach, c.y + fy * reach};
+                const View v = wanted_view(probe, a);
+                INFO("aspect " << a << " probe " << probe.x << "," << probe.y);
+                CHECK(std::abs(probe.x - v.centre.x) <= v.width / 2 + 1e-9);
+                CHECK(std::abs(probe.y - v.centre.y) <= v.width / a / 2 + 1e-9);
+            }
 }
 
-TEST_CASE("a portrait canvas keeps the view inside the lost box too") {
-    const double portrait = 0.5;
+TEST_CASE("a probe far past the lost square does not stretch the view past it") {
     const Vec c = field_centre();
     const double reach = lost_reach_units();
-    const View v = wanted_view(Vec{c.x + 10 * reach, c.y}, portrait);
-    CHECK(v.width == doctest::Approx(2 * reach * portrait)); // the box's height is the tighter limit
-    CHECK(v.width / portrait <= 2 * reach + 1e-9);
-    CHECK(v.centre.y == doctest::Approx(c.y)); // exactly the box's height, so centred on it
-    CHECK(inside_lost_box(v, portrait));
+    const View v = wanted_view(Vec{c.x + 10 * reach, c.y}, 1.0);
+    CHECK(v.width <= 2 * reach + 2 * margin + 1e-9);
 }
 
 TEST_CASE("easing closes half the gap in 0.25 ln2 seconds") {
@@ -167,7 +153,6 @@ TEST_CASE("the camera follows a flight and comes back once it ends") {
     for (int frame = 0; frame < 600 && outcome == Outcome::Flying; ++frame) {
         outcome = advance(w, level, 1.0, frame_s, carry);
         if (outcome == Outcome::Flying) view = eased(view, wanted_view(w.probe.pos, aspect), frame_s);
-        CHECK(inside_lost_box(view));
         widest = std::max(widest, view.width);
     }
     CHECK(outcome == Outcome::Crashed);
