@@ -1,4 +1,4 @@
-// Widget Gallery: every PRISM widget in one window, in eleven tabs, under a menu bar with Alt
+// Widget Gallery: every PRISM widget in one window, in twelve tabs, under a menu bar with Alt
 // shortcuts. The tabs are plain model structs (controls_tab.hpp, ...); this file arranges them.
 #include "build_your_own_tab.hpp"
 #include "catalog_tab.hpp"
@@ -7,6 +7,7 @@
 #include "data_tab.hpp"
 #include "docking_tab.hpp"
 #include "orbit_tab.hpp"
+#include "nodes_tab.hpp"
 #include "document_tab.hpp"
 #include "plot_tab.hpp"
 #include "popups_tab.hpp"
@@ -22,14 +23,14 @@
 using namespace prism;
 
 struct Gallery {
-    static constexpr std::array<const char*, 11> tab_names{
-        "Controls", "Catalog", "Text", "Code", "Document", "Data", "Plot", "Popups", "Docking", "Build your own", "Orbit"};
+    static constexpr std::array<const char*, 12> tab_names{
+        "Controls", "Catalog", "Text", "Code", "Document", "Data", "Plot", "Popups", "Docking", "Build your own", "Orbit", "Nodes"};
 
     core::Field<ui::Menu> file_menu{{.title = "&File", .items = {
         {.text = "&Open…", .shortcut = {ui::keys::o, ui::mods::ctrl}, .icon = gallery::icon("folder.svg")},
         {.text = "&Save as…", .shortcut = {ui::keys::s, ui::mods::ctrl | ui::mods::shift}, .icon = gallery::icon("save.svg")},
     }}};
-    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"Cod&e"}, {"Doc&ument"}, {"&Data"}, {"&Plot"}, {"P&opups"}, {"Doc&king"}, {"&Build your own"}, {"O&rbit"}}}};
+    core::Field<ui::Menu> view_menu{{.title = "&View", .items = {{"&Controls"}, {"C&atalog"}, {"&Text"}, {"Cod&e"}, {"Doc&ument"}, {"&Data"}, {"&Plot"}, {"P&opups"}, {"Doc&king"}, {"&Build your own"}, {"O&rbit"}, {"&Nodes"}}}};
     core::Field<ui::Menu> help_menu{{.title = "&Help", .items = {{"&About PRISM"}}}};
     core::Field<ui::Dialog> about{{.title = "PRISM Widget Gallery",
                                    .message = "A C++26 GUI framework: model structs, persistent widgets, "
@@ -53,6 +54,7 @@ struct Gallery {
     gallery::DockingTab docking{prefs.layout};
     gallery::BuildYourOwnTab build_your_own;
     gallery::OrbitTab orbit;
+    gallery::NodesTab nodes;
     core::Wiring wire;   // captures `this`: the gallery never moves
 
     Gallery() {
@@ -98,6 +100,7 @@ struct Gallery {
             vb.tab(tab_names[8], [&](app::ViewBuilder& t) { t.block(docking); });
             vb.tab(tab_names[9], [&](app::ViewBuilder& t) { t.scroll([&] { t.block(build_your_own); }); });
             vb.tab(tab_names[10], [&](app::ViewBuilder& t) { t.block(orbit); });
+            vb.tab(tab_names[11], [&](app::ViewBuilder& t) { t.block(nodes); });
         });
         vb.status_bar([&] { vb.widget(status); vb.spacer(); });
         vb.dialog(about);
