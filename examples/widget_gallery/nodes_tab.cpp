@@ -101,7 +101,7 @@ NodesTab::NodesTab() {
     const auto low_pass = add("Low-pass", 610, 160);
     const auto scope = add("Scope", 900, 20);
     const auto filtered = add("Scope", 900, 220);
-    const auto gained = add("Scope", 610, 300);
+    const auto gained = add("Scope", 900, 420);
 
     const std::pair<nodes::PortRef, nodes::PortRef> wires[]{
         {{sine, 0}, {mixer, 0}},        {{noise, 0}, {mixer, 1}},

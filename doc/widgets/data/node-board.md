@@ -224,7 +224,7 @@ gets:
 | `bool` (boolean) | 2 | `#5fd38d` |
 | `int` (integer) | 3 | `#a98bff` |
 | `std::string` (text) | 4 | `#eef1f7` |
-| your types | 5, 0, 1, … in the order they are first used | `#9aa1b2` for the first |
+| your types | 5 | `#9aa1b2`, the neutral colour, shared |
 
 A type of your own is a name and, if you want one, a formatter:
 
