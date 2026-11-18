@@ -24,6 +24,31 @@ namespace {
 
 Point P(float x, float y) { return {X{x}, Y{y}}; }
 
+// The rounded squares drawn centred on `at`: a port's dot and the ring of board around it.
+std::vector<RoundedRect> centred_on(const std::vector<RoundedRect>& rects, Point at) {
+    std::vector<RoundedRect> out;
+    for (const auto& r : rects)
+        if (r.rect.origin.x.raw() + r.rect.extent.w.raw() / 2.f == doctest::Approx(at.x.raw())
+            && r.rect.origin.y.raw() + r.rect.extent.h.raw() / 2.f == doctest::Approx(at.y.raw()))
+            out.push_back(r);
+    return out;
+}
+
+// The wire leaving the dot at `from`: the polyline starting there.
+std::optional<Polyline> leaving(const std::vector<Polyline>& wires, Point from) {
+    for (const auto& w : wires)
+        if (w.points.front().x.raw() == doctest::Approx(from.x.raw())
+            && w.points.front().y.raw() == doctest::Approx(from.y.raw()))
+            return w;
+    return std::nullopt;
+}
+
+// `c` at a fraction of its own alpha: how a wire's ports fade while it is dragged.
+Color faded(Color c, float by) {
+    c.a = static_cast<std::uint8_t>(float(c.a) * by + 0.5f);
+    return c;
+}
+
 struct Source {
     nodes::Out<double> out{"out", [] { return 1.0; }};
     WidgetId out_label = 0;
@@ -179,17 +204,20 @@ TEST_CASE("a wire is drawn from the output's card edge to the input's") {
 
     auto wires = f.all<Polyline>();
     REQUIRE(wires.size() == 1);
-    CHECK(wires[0].color == f.tree.theme().accent);
+    CHECK(wires[0].color == f.tree.theme().node_wires[nodes::wire_slot(f.m.source.out.type())]);
     auto first = wires[0].points.front(), last = wires[0].points.back();
     CHECK(first.x.raw() == doctest::Approx(right(*out_card)));
     CHECK(first.y.raw() == doctest::Approx(middle_y(*out_row)));
     CHECK(last.x.raw() == doctest::Approx(in_card->origin.x.raw()));
     CHECK(last.y.raw() == doctest::Approx(middle_y(*in_row)));
 
-    auto dots = f.all<Circle>();
-    CHECK(std::ranges::count_if(dots, [](const Circle& c) { return c.radius == 5.f; }) == 2);
-    CHECK(std::ranges::any_of(dots, [&](const Circle& c) {
-        return c.center.x.raw() == doctest::Approx(first.x.raw()) && c.center.y.raw() == doctest::Approx(first.y.raw());
+    // A dot on each end of it, in the port's colour.
+    const Color number = f.tree.theme().node_wires[nodes::wire_slot(f.m.source.out.type())];
+    CHECK(std::ranges::any_of(centred_on(f.all<RoundedRect>(), first), [&](const RoundedRect& r) {
+        return r.color == number && r.thickness == 0.f;
+    }));
+    CHECK(std::ranges::any_of(centred_on(f.all<RoundedRect>(), last), [&](const RoundedRect& r) {
+        return r.color == number && r.thickness == 0.f;
     }));
 }
 
@@ -465,7 +493,8 @@ TEST_CASE("dragging from an output onto a compatible input connects them") {
     for (auto& c : f.snap->overlay.commands)
         if (auto* p = std::get_if<Polyline>(&c)) trails.push_back(*p);
     REQUIRE(trails.size() == 1);
-    CHECK(trails[0].color == f.tree.theme().accent);
+    CHECK(trails[0].color == f.tree.theme().node_wires[nodes::wire_slot(f.m.source.out.type())]);
+    CHECK(trails[0].thickness == doctest::Approx(2.f));   // a number wire's, at zoom 1
     CHECK(trails[0].points.front().x.raw() == doctest::Approx(right(*out_card)));
     CHECK(trails[0].points.front().y.raw() == doctest::Approx(middle_y(*out_row)));
     CHECK(trails[0].points.back() == half_way);
@@ -528,8 +557,10 @@ TEST_CASE("click a wire, press Delete: it is gone") {
     f.drag(on_wire, on_wire + Offset{DX{20.f}, DY{0.f}});
     CHECK(f.m.graph.view().pan == P(0, 0));   // a press on a wire selects it, it does not pan
     wires = f.all<Polyline>();
-    REQUIRE(wires.size() == 1);
-    CHECK(wires[0].thickness == 4.f);    // selected: drawn thicker
+    REQUIRE(wires.size() == 2);          // the wire, and the faint wider stroke under it
+    CHECK(wires[0].thickness == doctest::Approx(9.f));
+    CHECK(wires[0].color == Color::rgba(wires[1].color.r, wires[1].color.g, wires[1].color.b, 64));
+    CHECK(wires[1].thickness == doctest::Approx(2.f));   // selected: the wire itself stays thin
     key(f, keys::delete_);
     CHECK(f.m.graph.edges().empty());
 
@@ -876,11 +907,12 @@ TEST_CASE("at zoom 0.5 a wire runs between the zoomed cards' edges, and a drag f
     CHECK(wires[0].points.back().x.raw() == doctest::Approx(in_dot.x.raw()));
     CHECK(wires[0].points.back().y.raw() == doctest::Approx(in_dot.y.raw()));
     CHECK(wires[0].thickness == 1.f);   // 2 px at zoom 1
-    auto dots = f.all<Circle>();
-    CHECK(std::ranges::count_if(dots, [](const Circle& c) { return c.radius == 3.f; }) == 2);   // 2.5, floored at 3
-    CHECK(std::ranges::any_of(dots, [&](const Circle& c) {
-        return c.center.x.raw() == doctest::Approx(in_dot.x.raw()) && c.center.y.raw() == doctest::Approx(in_dot.y.raw());
-    }));
+    const auto squares = centred_on(f.all<RoundedRect>(), in_dot);
+    const auto face = std::ranges::find_if(squares, [](const RoundedRect& r) {
+        return r.thickness == 0.f && r.radius == doctest::Approx(1.5f);
+    });
+    REQUIRE(face != squares.end());
+    CHECK(face->rect.extent.w.raw() == doctest::Approx(6.f));   // 12 px at zoom 1
 
     f.m.graph.disconnect(*f.m.graph.edge_into({f.m.b, 0}));
     f.frame();
@@ -1552,4 +1584,116 @@ TEST_CASE("switching the theme repaints the board in the other look, keeping eve
     family = f.text_cmd("SOURCE");
     REQUIRE(family);
     CHECK(family->color == mix(light.text, family_color(light, "source"), 0.6f));
+}
+
+namespace {
+// A waveform port, next to the number ones the rest of the file uses.
+struct WaveSource {
+    nodes::Out<std::vector<double>> out{"wave", [] { return std::vector<double>{0.5, -0.5, 0.25}; }};
+    WidgetId out_label = 0;
+    std::vector<nodes::Port*> ports() { return {&out}; }
+    void view(WidgetTree::ViewBuilder& vb) { out_label = vb.port(out).node_ref.id; }
+};
+
+struct WaveSink {
+    nodes::In<std::vector<double>> in{"in", std::vector<double>{}};
+    WidgetId in_label = 0;
+    std::vector<nodes::Port*> ports() { return {&in}; }
+    void view(WidgetTree::ViewBuilder& vb) { in_label = vb.port(in).node_ref.id; }
+};
+
+// One board holding a waveform node and a number one, each with its own wire.
+struct MixedBoard {
+    WaveSource wave;
+    WaveSink spectrum;
+    Source number;
+    Sink sink;
+    nodes::Graph graph;
+    nodes::NodeId w = graph.add(wave, {.title = "Wave", .family = "source", .at = P(20, 30)});
+    nodes::NodeId s = graph.add(spectrum, {.title = "Spectrum", .family = "display", .at = P(380, 30)});
+    nodes::NodeId n = graph.add(number, {.title = "Number", .family = "source", .at = P(20, 300)});
+    nodes::NodeId k = graph.add(sink, {.title = "Sink", .family = "math", .at = P(380, 300)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+using MixedFixture = BasicFixture<MixedBoard>;
+}
+
+TEST_CASE("a wire is drawn in its type's colour, and a waveform is the thicker one") {
+    MixedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.w, 0}, {f.m.s, 0}).has_value());
+    REQUIRE(f.m.graph.connect({f.m.n, 0}, {f.m.k, 0}).has_value());
+    f.frame();
+    const Theme& t = f.tree.theme();
+    const auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 2);
+
+    // The slots are the registry's: the first is the waveform, the second the number.
+    CHECK(nodes::wire_slot(f.m.wave.out.type()) == 0);
+    CHECK(nodes::wire_slot(f.m.number.out.type()) == 1);
+    const Color wave = t.node_wires[0], number = t.node_wires[1];
+
+    const auto drawn_wave = leaving(wires, dot_of(f, f.m.wave.out_label, true));
+    REQUIRE(drawn_wave);
+    CHECK(drawn_wave->color == wave);
+    CHECK(drawn_wave->thickness == doctest::Approx(3.f));
+
+    const auto drawn_number = leaving(wires, dot_of(f, f.m.number.out_label, true));
+    REQUIRE(drawn_number);
+    CHECK(drawn_number->color == number);
+    CHECK(drawn_number->thickness == doctest::Approx(2.f));
+}
+
+TEST_CASE("a port's dot is a rounded square in its type's colour, in a ring of the board's") {
+    MixedFixture f;
+    const Theme& t = f.tree.theme();
+    const Point at = dot_of(f, f.m.wave.out_label, true);
+    const Color wave = t.node_wires[nodes::wire_slot(f.m.wave.out.type())];
+    const auto here = centred_on(f.all<RoundedRect>(), at);
+
+    const auto face = std::ranges::find_if(here, [&](const RoundedRect& r) {
+        return r.color == wave && r.thickness == 0.f;
+    });
+    REQUIRE(face != here.end());
+    CHECK(face->rect.extent.w.raw() == doctest::Approx(12.f));
+    CHECK(face->rect.extent.h.raw() == doctest::Approx(12.f));
+    CHECK(face->radius == doctest::Approx(3.f));
+
+    const auto ring = std::ranges::find_if(here, [&](const RoundedRect& r) {
+        return r.color == t.node_board_bg && r.thickness == 0.f;
+    });
+    REQUIRE(ring != here.end());
+    CHECK(ring->rect.extent.w.raw() == doctest::Approx(18.f));   // 3 px of board on every side
+    CHECK(ring->radius == doctest::Approx(6.f));
+}
+
+TEST_CASE("while a wire is dragged, a port that cannot take it fades, and the trail takes its colour") {
+    MixedFixture f;
+    const Theme& t = f.tree.theme();
+    const Point from = dot_of(f, f.m.wave.out_label, true);
+    const Point takes_it = dot_of(f, f.m.spectrum.in_label, false);
+    const Point refuses = dot_of(f, f.m.sink.in_label, false);
+    f.press(from);
+    f.move_to(P((from.x.raw() + takes_it.x.raw()) / 2, (from.y.raw() + takes_it.y.raw()) / 2));
+
+    const Color wave = t.node_wires[nodes::wire_slot(f.m.wave.out.type())];
+    const Color number = t.node_wires[nodes::wire_slot(f.m.number.out.type())];
+
+    // The wire following the pointer is the dragged type's too.
+    std::vector<Polyline> trails;
+    for (auto& c : f.snap->overlay.commands)
+        if (auto* p = std::get_if<Polyline>(&c)) trails.push_back(*p);
+    REQUIRE(trails.size() == 1);
+    CHECK(trails[0].color == wave);
+    CHECK(trails[0].thickness == doctest::Approx(3.f));
+
+    // A port taking it is drawn as ever; one that cannot is drawn at 35 %.
+    const auto compatible = centred_on(f.all<RoundedRect>(), takes_it);
+    CHECK(std::ranges::any_of(compatible, [&](const RoundedRect& r) { return r.color == wave; }));
+
+    const auto incompatible = centred_on(f.all<RoundedRect>(), refuses);
+    CHECK(std::ranges::any_of(incompatible, [&](const RoundedRect& r) {
+        return r.color == faded(number, 0.35f);
+    }));
+    CHECK(std::ranges::none_of(incompatible, [&](const RoundedRect& r) { return r.color == number; }));
 }

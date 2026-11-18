@@ -7,6 +7,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 
 namespace prism::app {
@@ -272,12 +273,48 @@ std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Po
 
 namespace {
 
-constexpr float wire_thickness = 2.f;
-constexpr float selected_wire_thickness = wire_thickness + 2.f;
-constexpr float dot_radius = 5.f;
+constexpr float thin_wire = 2.f;
+constexpr float thick_wire = 3.f;   // a waveform's: it carries a curve, not a scalar
+constexpr float wire_under = 9.f;   // the soft stroke drawn under a selected wire
+constexpr float wire_under_alpha = 0.25f;
+constexpr float dot_side = 12.f;
+constexpr float dot_side_floor = 4.f;
+constexpr float dot_ring = 3.f;     // of the board's own colour, around a dot
+constexpr float faded_port_alpha = 0.35f;
 
 // A size drawn to the cards' zoom, never below `floor` px: a wire or a dot zoomed far out stays seen.
 float zoomed(float size, float scale, float floor) { return std::max(size * scale, floor); }
+
+// `c` at a fraction of its own alpha: a selected wire's under-stroke, a port a drag cannot take.
+Color faded(Color c, float by) {
+    c.a = static_cast<std::uint8_t>(float(c.a) * by + 0.5f);
+    return c;
+}
+
+// A port's colour: the theme's wire colour for its type's slot.
+Color port_color(const ui::Theme& t, const nodes::Port& port) {
+    return t.node_wires[nodes::wire_slot(port.type())];
+}
+
+// A wire's stroke: a waveform is drawn thicker than the scalars are.
+float wire_width(const nodes::Port& port) {
+    return nodes::type_name(port.type()) == "waveform" ? thick_wire : thin_wire;
+}
+
+// `side` square, centred on `at`.
+core::Rect square_at(core::Point at, float side) {
+    return {core::Point{core::X{at.x.raw() - side / 2.f}, core::Y{at.y.raw() - side / 2.f}},
+            core::Size{core::Width{side}, core::Height{side}}};
+}
+
+// How opaque a port's dot is: while a wire is dragged, the dots it cannot be dropped on fade.
+float port_alpha(const NodeBoardParts& parts, nodes::PortRef port) {
+    const auto* drag = parts.tree->drag();
+    if (!drag || !drag->value.has_value()) return 1.f;
+    const auto* wire = std::any_cast<PortDrag>(&drag->value);
+    if (!wire || wire->graph != parts.graph) return 1.f;
+    return parts.graph->can_connect(wire->from, port) ? 1.f : faded_port_alpha;
+}
 
 // Wakes the board on either change: the next frame rebuilds it if its nodes changed and lays it
 // out again in any case.
@@ -294,21 +331,37 @@ std::function<core::Connection(std::function<void()>)> on_either(core::Field<std
 }
 
 void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
-                Color color) {
+                const ui::Theme& t) {
     const nodes::Graph& graph = *parts.graph;
     for (const auto id : graph.edges()) {
         const auto* e = graph.edge(id);
-        const auto from = wire_end(parts, graph.port(e->from), rect_of);
+        const auto* port = graph.port(e->from);
+        if (!port) continue;
+        const auto from = wire_end(parts, port, rect_of);
         const auto to = wire_end(parts, graph.port(e->to), rect_of);
-        const float thickness = parts.selected.wire == id ? selected_wire_thickness : wire_thickness;
-        if (from && to) dl.polyline(nodes::polyline(nodes::wire_curve(*from, *to)), color, zoomed(thickness, scale, 1.f));
+        if (!from || !to) continue;
+        const Color color = port_color(t, *port);
+        const auto curve = nodes::polyline(nodes::wire_curve(*from, *to));
+        if (parts.selected.wire == id)
+            dl.polyline(curve, faded(color, wire_under_alpha), zoomed(wire_under, scale, 1.f));
+        dl.polyline(curve, color, zoomed(wire_width(*port), scale, 1.f));
     }
 }
 
+// A port's dot: a rounded square in its type's colour, ringed in the board's so it reads where it
+// sits on a card's edge.
+void draw_dot(render::DrawList& dl, core::Point at, float side, Color color, const ui::Theme& t) {
+    const float corner = std::max(side / 4.f, 1.f);
+    dl.rounded_rect(square_at(at, side + 2.f * dot_ring), t.node_board_bg, corner + dot_ring);
+    dl.rounded_rect(square_at(at, side), color, corner);
+}
+
 void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
-               Color color) {
+               const ui::Theme& t) {
+    const float side = zoomed(dot_side, scale, dot_side_floor);
     for (const auto& [port, place] : parts.ports)
-        if (const auto at = wire_end(parts, port, rect_of)) dl.circle(*at, zoomed(dot_radius, scale, 3.f), color);
+        if (const auto at = wire_end(parts, port, rect_of))
+            draw_dot(dl, *at, side, faded(port_color(t, *port), port_alpha(parts, place.ref)), t);
 }
 
 // `r` grown by `by` on every side: the selected card's ring sits outside its border.
@@ -327,14 +380,17 @@ void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, co
     dl.rounded_rect(*r, t.node_border_selected, ui::node_card_radius, 2.f);
 }
 
-// A wire being drawn: from the fixed end's port to the pointer (window coordinates).
+// A wire being drawn: from the fixed end's port to the pointer (window coordinates), in the
+// dragged port's own colour.
 void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRef from, core::Point pointer,
-                Color color) {
+                const ui::Theme& t) {
     const nodes::Port* port = parts.graph->port(from);
+    if (!port) return;
     const auto end = wire_end(parts, port, board_coords::window_rects(parts));
     if (!end) return;
     const auto curve = port->dir() == nodes::Dir::Out ? nodes::wire_curve(*end, pointer) : nodes::wire_curve(pointer, *end);
-    dl.polyline(nodes::polyline(curve), color, zoomed(wire_thickness, parts.graph->view().zoom, 1.f));
+    dl.polyline(nodes::polyline(curve), port_color(t, *port),
+                zoomed(wire_width(*port), parts.graph->view().zoom, 1.f));
 }
 
 // What a drag from port `at` carries (a PortDrag). From an input with a wire, it picks the wire
@@ -363,7 +419,7 @@ const PortDrag* port_drag_of(const nodes::Graph* graph, const std::any& v) {
 ui::DragRole wire_drag(NodeBoardParts& parts) {
     ui::DragRole role;
     role.trail = [&parts, &theme = parts.tree->theme()](render::DrawList& dl, const std::any& v, core::Point pointer) {
-        draw_trail(dl, parts, std::any_cast<const PortDrag&>(v).from, pointer, theme.accent);
+        draw_trail(dl, parts, std::any_cast<const PortDrag&>(v).from, pointer, theme);
     };
     role.hint_targets = true;
     return role;
@@ -590,10 +646,10 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     b.board_scale = [&graph] { return graph.view().zoom; };
     b.claims = [parts](const input::InputEvent& ev) { return board_claims(*parts, ev); };
     b.board_under = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
-        draw_wires(dl, *parts, rect_of, scale, theme.accent);
+        draw_wires(dl, *parts, rect_of, scale, theme);
     };
     b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
-        draw_dots(dl, *parts, rect_of, scale, theme.accent);
+        draw_dots(dl, *parts, rect_of, scale, theme);
         outline_selected_node(dl, *parts, rect_of, theme);
     };
     current_parent().children.push_back(std::move(b));
