@@ -346,3 +346,16 @@ TEST_CASE("scroll_to sets absolute offset") {
     tree.scroll_at(ids[0], DY{50});
     CHECK(tree.any_dirty());
 }
+
+TEST_CASE("a scrollbar drawn at zoom 0.5 scrolls as far for 10 window px as one at zoom 1 for 20") {
+    using prism::app::widget_detail::scrollbar_drag_offset;
+    using prism::app::widget_detail::ScrollbarDrag;
+    ScrollbarDrag d{.scroll_id = 1, .anchor_y = Y{50}, .anchor_offset = DY{0}, .viewport_h = Height{100},
+                    .content_h = Height{400}, .thumb_h = Height{25}};
+    const auto at_one = scrollbar_drag_offset(d, Y{70});
+    d.scale = 0.5f;
+    const auto at_half = scrollbar_drag_offset(d, Y{60});
+    REQUIRE((at_one && at_half));
+    CHECK(at_one->raw() > 0.f);
+    CHECK(at_half->raw() == doctest::Approx(at_one->raw()));
+}

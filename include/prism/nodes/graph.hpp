@@ -13,6 +13,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,11 @@ public:
     void pan_by(core::DX, core::DY);
     BoardView view() const { return view_; }
     void set_view(BoardView);
+    // Asks the board to show every card at its next layout, which calls fit() once it knows its size.
+    void request_fit();
+    bool fit_requested() const { return fit_requested_; }
+    // Shows every card (natural size, at its graph position) in a board of `board`'s size.
+    void fit(std::span<const core::Rect> cards, core::Size board);
 
     core::Field<std::uint64_t> structure{0};
     core::Field<std::uint64_t> layout{0};
@@ -107,6 +113,7 @@ private:
     std::map<NodeId, Entry> nodes_;
     std::map<EdgeId, std::unique_ptr<Edge>> edges_;
     BoardView view_{};
+    bool fit_requested_ = false;
     NodeId next_node_ = 1;
     EdgeId next_edge_ = 1;
 };

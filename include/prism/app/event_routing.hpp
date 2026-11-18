@@ -27,16 +27,31 @@ inline DropPlace drop_place_in(const Placed& target, Point p) {
 
 // --- popup layer: while a popup is open it gets all input first ---
 
+// A rect in a widget's own coordinates, in the window: where it is drawn, at its zoom.
+inline Rect in_window(const Placed& owner, Rect local) {
+    const float s = owner.scale;
+    return {Point{owner.rect.origin.x + DX{local.origin.x.raw() * s}, owner.rect.origin.y + DY{local.origin.y.raw() * s}},
+            Size{Width{local.extent.w.raw() * s}, Height{local.extent.h.raw() * s}}};
+}
+
 // The open popup's area in window coordinates (its owner stores it in its own coordinates).
 inline std::optional<Rect> popup_area(const WidgetTree& tree, const SceneSnapshot& snap) {
     if (tree.open_content_popup()) return tree.popup_card();
     const WidgetNode* owner = tree.popup_node();
     if (!owner || !owner->popup_area) return std::nullopt;
-    auto origin = find_widget_rect(snap, owner->id);
-    if (!origin) return std::nullopt;
-    Rect r = *owner->popup_area;
-    r.origin = Point{X{r.origin.x.raw() + origin->origin.x.raw()}, Y{r.origin.y.raw() + origin->origin.y.raw()}};
-    return r;
+    auto place = find_widget_place(snap, owner->id);
+    if (!place) return std::nullopt;
+    return in_window(*place, *owner->popup_area);
+}
+
+// Where the popup's owner has its own coordinates in the window, read from the popup's `area`
+// (window coordinates) and its own popup_area.
+inline Placed popup_owner_place(const SceneSnapshot& snap, const WidgetNode& owner, Rect area) {
+    const float s = find_widget_place(snap, owner.id).transform([](const Placed& p) { return p.scale; }).value_or(1.f);
+    return {Rect{Point{area.origin.x - DX{owner.popup_area->origin.x.raw() * s},
+                       area.origin.y - DY{owner.popup_area->origin.y.raw() * s}},
+                 Size{Width{0}, Height{0}}},
+            s};
 }
 
 // Whether `pos` (window coordinates) is on the open popup: its area, or more of it outside
@@ -47,11 +62,8 @@ inline bool on_popup(const WidgetTree& tree, const SceneSnapshot& snap, Point po
     if (area->contains(pos)) return true;
     const WidgetNode* owner = tree.popup_node();
     if (!owner || !owner->popup_area) return false;
-    DX dx = area->origin.x - owner->popup_area->origin.x;   // owner -> window
-    DY dy = area->origin.y - owner->popup_area->origin.y;
-    return std::ranges::any_of(owner->popup_more, [&](const Rect& r) {
-        return Rect{Point{r.origin.x + dx, r.origin.y + dy}, r.extent}.contains(pos);
-    });
+    const Placed at = popup_owner_place(snap, *owner, *area);
+    return std::ranges::any_of(owner->popup_more, [&](const Rect& r) { return in_window(at, r).contains(pos); });
 }
 
 inline void dispatch_to_popup(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev) {
@@ -145,8 +157,8 @@ inline bool route_drag_release(WidgetTree& tree, const SceneSnapshot& snap, Poin
     WidgetId target = drop_target_at(tree, snap, p, tree.drag()->value);
     tree.move_drag(p, target);
     auto place = target ? find_widget_place(snap, target) : std::nullopt;
-    if (target && !place)   // a container: its recorded area
-        place = tree.drop_area_rect(target).transform([](Rect r) { return Placed{r}; });
+    if (const DropArea* area = target && !place ? tree.drop_area(target) : nullptr)   // a container: its recorded area
+        place = Placed{area->rect, area->scale};
     tree.end_drag(place ? std::optional{drop_place_in(*place, p)} : std::nullopt);
     return true;
 }
@@ -191,18 +203,14 @@ inline void keep_popup_in_window(WidgetTree& tree, const SceneSnapshot& snap) {
     auto area = popup_area(tree, snap);
     if (!area || snap.viewport.w.raw() <= 0.f) return;
     const WidgetNode* owner = tree.popup_node();
+    if (!owner->popup_area) return;   // a popup holding widgets, closed by the app since the last frame
+    const Placed at = popup_owner_place(snap, *owner, *area);
     Rect inside = clamp_into(*area, snap.viewport);
-    if (owner->popup_opened_from) {
-        DX ox = area->origin.x - owner->popup_area->origin.x;   // owner -> window
-        DY oy = area->origin.y - owner->popup_area->origin.y;
-        Rect anchor{Point{owner->popup_opened_from->origin.x + ox, owner->popup_opened_from->origin.y + oy},
-                    owner->popup_opened_from->extent};
-        inside = place_popup(area->extent, anchor, snap.viewport);
-    }
+    if (owner->popup_opened_from) inside = place_popup(area->extent, in_window(at, *owner->popup_opened_from), snap.viewport);
     if (inside.origin == area->origin) return;
-    DX dx = inside.origin.x - area->origin.x;
-    DY dy = inside.origin.y - area->origin.y;
-    Rect local = *tree.popup_node()->popup_area;
+    DX dx{(inside.origin.x - area->origin.x).raw() / at.scale};
+    DY dy{(inside.origin.y - area->origin.y).raw() / at.scale};
+    Rect local = *owner->popup_area;
     tree.move_popup(Rect{Point{local.origin.x + dx, local.origin.y + dy}, local.extent});
 }
 
@@ -242,12 +250,12 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
         tree.set_pressed(cid, false);
     } else if (id) {
         tree.set_pressed(*id, mb.pressed, mb.button);
-        auto rect = find_widget_rect(snap, *id);
+        auto place = find_widget_place(snap, *id);
         if (mb.pressed) {
             if (*id != tree.focused_id())
                 tree.close_overlays();
             tree.set_focused(*id);
-            if (mb.button == buttons::left && rect) tree.arm_drag(*id, mb.position, *rect);
+            if (mb.button == buttons::left && place) tree.arm_drag(*id, mb.position, place->rect, place->scale);
         }
         tree.dispatch(*id, local_to(snap, *id, ev));
     } else if (mb.pressed) {

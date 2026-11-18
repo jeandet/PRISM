@@ -189,9 +189,18 @@ struct WidgetNode {
     std::shared_ptr<std::vector<std::string>> tab_names;
     Height viewport_height{0};   // the window's size, set after each layout
     Width viewport_width{0};
+    // Where the last layout drew it in the window, and at what zoom (a zoomed board's cards: its
+    // own coordinates are scaled by view_scale there; arranged_extent stays at zoom 1).
     X absolute_x{0};
     Y absolute_y{0};
+    float view_scale = 1.f;
 };
+
+// Where the last layout drew `n` in the window, zoom included.
+inline Rect laid_out_rect(const WidgetNode& n) {
+    return {Point{n.absolute_x, n.absolute_y},
+            Size{Width{n.arranged_extent.w.raw() * n.view_scale}, Height{n.arranged_extent.h.raw() * n.view_scale}}};
+}
 
 // A node whose children are made at publish time (WidgetTree::materialize_all_virtual_lists).
 inline bool builds_children(const WidgetNode& n) {

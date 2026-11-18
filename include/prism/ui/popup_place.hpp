@@ -20,14 +20,16 @@ inline float place_on_axis(float size, float anchor_start, float anchor_end, flo
 
 // Where a `size` popup opening at a widget goes, in the widget's own coordinates: below it (or
 // above, see place_on_axis), starting at its left edge but slid left to stay inside the window.
-// `node` is a WidgetNode: its position in the window and the window's size, as of the last layout.
+// `node` is a WidgetNode: its position in the window, its zoom there and the window's size, as of
+// the last layout.
 template <typename Node>
 core::Point popup_origin(const Node& node, core::Size size, float anchor_h) {
     if (node.viewport_height.raw() <= 0) return core::Point{core::X{0}, core::Y{anchor_h}};
+    const float s = node.view_scale;
     float left = node.absolute_x.raw(), top = node.absolute_y.raw();
-    float x = std::clamp(left, 0.f, std::max(0.f, node.viewport_width.raw() - size.w.raw()));
-    float y = place_on_axis(size.h.raw(), top, top + anchor_h, node.viewport_height.raw());
-    return core::Point{core::X{x - left}, core::Y{y - top}};
+    float x = std::clamp(left, 0.f, std::max(0.f, node.viewport_width.raw() - size.w.raw() * s));
+    float y = place_on_axis(size.h.raw() * s, top, top + anchor_h * s, node.viewport_height.raw());
+    return core::Point{core::X{(x - left) / s}, core::Y{(y - top) / s}};
 }
 
 // A popup of `size` next to `anchor` (window coordinates): below it, or above when only that

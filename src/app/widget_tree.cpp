@@ -127,7 +127,7 @@ void WidgetTree::close_popup() {
 
 [[nodiscard]] const WidgetNode& WidgetTree::container_at(const WidgetNode& n, Point p) const {
     for (const auto& c : n.children)
-        if (c.is_container && Rect{Point{c.absolute_x, c.absolute_y}, c.arranged_extent}.contains(p))
+        if (c.is_container && laid_out_rect(c).contains(p))
             return container_at(c, p);
     return n;
 }
@@ -252,6 +252,7 @@ void WidgetTree::begin_scrollbar_drag(WidgetId id, Y mouse_y) {
         .viewport_h = sv->viewport_h,
         .content_h = sv->content_h,
         .thumb_h = scrollbar::thumb_height(sv->viewport_h, sv->content_h),
+        .scale = it->second->view_scale,
     };
     captured_id_ = id;
     captured_button_ = input::buttons::left;
@@ -368,20 +369,29 @@ bool WidgetTree::start_drag_at(Point p) {
     return value.type() == typeid(std::string) && edits_text(n);
 }
 
+namespace {
+
+// A drop at `p` (window coordinates) in the area's own coordinates, at its zoom.
+DropPlace drop_place_in(const DropArea& a, Point p) {
+    const float s = a.scale;
+    return {Point{X{(p.x.raw() - a.rect.origin.x.raw()) / s}, Y{(p.y.raw() - a.rect.origin.y.raw()) / s}},
+            Size{Width{a.rect.extent.w.raw() / s}, Height{a.rect.extent.h.raw() / s}}};
+}
+
+} // namespace
+
 [[nodiscard]] bool WidgetTree::takes_at(WidgetId id, const std::any& value, Point p) const {
     auto it = index_.find(id);
     if (it == index_.end() || !it->second->drag.takes_at) return true;
-    auto r = drop_area_rect(id);
-    if (!r) return true;
-    return it->second->drag.takes_at(value, DropPlace{Point{X{p.x.raw() - r->origin.x.raw()}, Y{p.y.raw() - r->origin.y.raw()}}, r->extent});
+    const DropArea* a = drop_area(id);
+    return !a || it->second->drag.takes_at(value, drop_place_in(*a, p));
 }
 
 [[nodiscard]] WidgetId WidgetTree::claiming_drop_area(Point p, const std::any& value) const {
-    for (auto& [id, r, visible] : drop_areas_) {
-        auto it = index_.find(id);
-        if (it == index_.end() || !it->second->drag.claims || !visible.contains(p) || !takes(id, value)) continue;
-        Point at{X{p.x.raw() - r.origin.x.raw()}, Y{p.y.raw() - r.origin.y.raw()}};
-        if (it->second->drag.claims(DropPlace{at, r.extent})) return id;
+    for (auto& a : drop_areas_) {
+        auto it = index_.find(a.id);
+        if (it == index_.end() || !it->second->drag.claims || !a.visible.contains(p) || !takes(a.id, value)) continue;
+        if (it->second->drag.claims(drop_place_in(a, p))) return a.id;
     }
     return 0;
 }
@@ -723,8 +733,8 @@ void WidgetTree::draw_drop_hints(SceneSnapshot& snap) const {
         if (const WidgetId id = snap.geometry[i].first; id != 0 && hinted(id))
             if (const Rect seen = input::hit_area(snap, i); seen.extent.w.raw() > 0 && seen.extent.h.raw() > 0)
                 drag_draw::hint(snap.overlay, seen, theme_.accent);
-    for (auto& [id, rect, visible] : drop_areas_)
-        if (hinted(id)) drag_draw::hint(snap.overlay, visible, theme_.accent);
+    for (auto& a : drop_areas_)
+        if (hinted(a.id)) drag_draw::hint(snap.overlay, a.visible, theme_.accent);
 }
 
 // The innermost dock group under the pointer that takes the dragged value, but elsewhere in it

@@ -41,6 +41,9 @@ inline WidgetNode* find_open_popup(WidgetNode& node) {
 
 // Where the widget is on screen: its place in the layout, moved up by every scrolled
 // container above it, as layout_flatten draws it.
+// simplify: not zoomed: a popup holding widgets (ui::Popup) whose anchor is in a zoomed board's
+// card opens where the anchor would be at zoom 1. Map through the board's zoom (as
+// layout_writeback's child_view does) once such a popup is wanted in a node.
 inline std::optional<Point> anchor_origin(const LayoutNode& node, WidgetId id) {
     if (node.id == id) return node.allocated.origin;
     for (auto& c : node.children)

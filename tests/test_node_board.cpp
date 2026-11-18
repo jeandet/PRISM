@@ -784,3 +784,245 @@ TEST_CASE("a click in a text field in a node at zoom 2 puts the caret between th
     route_event(f.tree, f.snap.get(), TextInput{"X"});
     CHECK(f.m.node.name.get().value == "abcXdef");
 }
+
+namespace {
+template <class F>
+F& at_zoom(F& f, float zoom) {
+    f.m.graph.set_view({.pan = {}, .zoom = zoom});
+    f.frame();
+    return f;
+}
+
+float bottom(Rect r) { return r.origin.y.raw() + r.extent.h.raw(); }
+
+template <class F>
+Rect laid_out(const F& f, WidgetId id) {
+    auto r = f.tree.laid_out_at(id);
+    REQUIRE(r);
+    return *r;
+}
+
+// Where a port's wires end, from where its card and row were laid out.
+template <class F>
+Point dot_of(const F& f, WidgetId label, bool output) {
+    const Rect card = laid_out(f, f.card_of(label));
+    const Rect row = laid_out(f, *f.tree.parent_of(label));
+    return P(output ? right(card) : card.origin.x.raw(), middle_y(row));
+}
+}
+
+TEST_CASE("at zoom 0.5 a card at graph point (200, 100) is laid out at (100, 50), at half its size") {
+    Fixture f;
+    f.m.graph.move(f.m.b, P(200, 100));
+    f.frame();
+    const WidgetId card = f.card_of(f.m.sink.in_label);
+    const Rect natural = laid_out(f, card);
+    REQUIRE(natural.origin == P(200, 100));   // the board is at the window's origin
+    at_zoom(f, 0.5f);
+    const Rect zoomed_card = laid_out(f, card);
+    CHECK(zoomed_card.origin.x.raw() == doctest::Approx(100));
+    CHECK(zoomed_card.origin.y.raw() == doctest::Approx(50));
+    CHECK(zoomed_card.extent.w.raw() == doctest::Approx(natural.extent.w.raw() / 2));
+    CHECK(zoomed_card.extent.h.raw() == doctest::Approx(natural.extent.h.raw() / 2));
+    auto drawn = f.allocated(card);   // where the snapshot draws it
+    REQUIRE(drawn);
+    CHECK(drawn->origin.x.raw() == doctest::Approx(zoomed_card.origin.x.raw()));
+    CHECK(drawn->extent.w.raw() == doctest::Approx(zoomed_card.extent.w.raw()));
+}
+
+TEST_CASE("at zoom 0.5 a wire runs between the zoomed cards' edges, and a drag from dot to dot connects") {
+    Fixture f;
+    at_zoom(f, 0.5f);
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    const Point out_dot = dot_of(f, f.m.source.out_label, true);
+    const Point in_dot = dot_of(f, f.m.sink.in_label, false);
+    auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    CHECK(wires[0].points.front().x.raw() == doctest::Approx(out_dot.x.raw()));
+    CHECK(wires[0].points.front().y.raw() == doctest::Approx(out_dot.y.raw()));
+    CHECK(wires[0].points.back().x.raw() == doctest::Approx(in_dot.x.raw()));
+    CHECK(wires[0].points.back().y.raw() == doctest::Approx(in_dot.y.raw()));
+    CHECK(wires[0].thickness == 1.f);   // 2 px at zoom 1
+    auto dots = f.all<Circle>();
+    CHECK(std::ranges::count_if(dots, [](const Circle& c) { return c.radius == 3.f; }) == 2);   // 2.5, floored at 3
+    CHECK(std::ranges::any_of(dots, [&](const Circle& c) {
+        return c.center.x.raw() == doctest::Approx(in_dot.x.raw()) && c.center.y.raw() == doctest::Approx(in_dot.y.raw());
+    }));
+
+    f.m.graph.disconnect(*f.m.graph.edge_into({f.m.b, 0}));
+    f.frame();
+    f.drag(out_dot + Offset{DX{2.f}, DY{0.f}}, in_dot + Offset{DX{-3.f}, DY{1.f}});
+    CHECK(f.m.graph.view().pan == P(0, 0));
+    auto e = f.m.graph.edge_into({f.m.b, 0});
+    REQUIRE(e);
+    CHECK(f.m.graph.edge(*e)->from == nodes::PortRef{f.m.a, 0});
+}
+
+TEST_CASE("at zoom 0.5 a port's whole row takes a wire, from it and onto it") {
+    Fixture f;
+    at_zoom(f, 0.5f);
+    const Rect out = laid_out(f, f.m.source.out_label);
+    const Rect in = laid_out(f, f.m.sink.in_label);
+    const Rect in_row = laid_out(f, *f.tree.parent_of(f.m.sink.in_label));
+    const Point from = P(out.origin.x.raw() - 10, middle_y(out));   // beside the name, in the card
+    const Point to = P(right(in) + 10, middle_y(in));
+    REQUIRE(to.x.raw() < right(in_row));
+    f.press(from);
+    f.move_to(to);
+    CHECK(hinted(f, f.m.sink.in_label));   // the row's zoomed rect
+    f.release(to);
+    auto e = f.m.graph.edge_into({f.m.b, 0});
+    REQUIRE(e);
+    CHECK(f.m.graph.edge(*e)->from == nodes::PortRef{f.m.a, 0});
+}
+
+TEST_CASE("zooming out and back keeps every widget, its state and the focus: nothing is rebuilt") {
+    LevelFixture f;
+    const auto ids = f.tree.leaf_ids();
+    const Point name = centre(f, f.m.node.name_id);
+    f.press(name);
+    f.release(name);
+    REQUIRE(f.tree.focused_id() == f.m.node.name_id);
+    f.m.node.level.set({.value = 0.75});
+    f.frame();
+    at_zoom(f, 0.5f);
+    CHECK(f.tree.leaf_ids() == ids);
+    at_zoom(f, 1.f);
+    CHECK(f.tree.leaf_ids() == ids);
+    CHECK(f.tree.focused_id() == f.m.node.name_id);
+    CHECK(f.m.node.level.get().value == 0.75);
+}
+
+TEST_CASE("at zoom 0.5 dragging the empty board by 40 px pans by 80 board units") {
+    Fixture f;
+    at_zoom(f, 0.5f);
+    f.drag(empty_spot, empty_spot + Offset{DX{40.f}, DY{0.f}});
+    CHECK(f.m.graph.view().pan == P(80, 0));
+    CHECK(f.m.graph.view().zoom == 0.5f);
+}
+
+TEST_CASE("at zoom 0.5 dragging a header by 40 px moves its node by 80") {
+    Fixture f;
+    at_zoom(f, 0.5f);
+    auto title = f.text_at("Source");
+    REQUIRE(title);
+    const Point grab = *title + Offset{DX{2.f}, DY{2.f}};
+    f.drag(grab, grab + Offset{DX{40.f}, DY{0.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(100));
+    CHECK(f.m.graph.position(f.m.a).y.raw() == doctest::Approx(30));
+}
+
+TEST_CASE("a fit asked for shows every card inside the board") {
+    Fixture f;
+    f.m.graph.move(f.m.b, P(1500, 1000));
+    f.frame();
+    f.m.graph.request_fit();
+    f.frame();
+    CHECK_FALSE(f.m.graph.fit_requested());
+    CHECK(f.m.graph.view().zoom < 1.f);
+    for (const WidgetId label : {f.m.source.out_label, f.m.sink.in_label}) {
+        const WidgetId card = f.card_of(label);
+        const Rect board = laid_out(f, *f.tree.parent_of(card));
+        const Rect r = laid_out(f, card);
+        CHECK(board.contains(r.origin));
+        CHECK(board.contains(P(right(r) - 1, bottom(r) - 1)));
+    }
+}
+
+TEST_CASE("a fit asked for before the board was ever laid out waits for its size") {
+    Editor m;
+    m.graph.move(m.b, P(1500, 1000));
+    m.graph.request_fit();
+    WidgetTree tree{m};
+    auto snap = tree.build_snapshot(800, 600, 1);
+    snap = tree.build_snapshot(800, 600, 2);
+    CHECK_FALSE(m.graph.fit_requested());
+    CHECK(m.graph.view().zoom < 1.f);
+}
+
+namespace {
+enum class Wave { Sine, Square, Saw };
+
+struct Shaper {   // a node with a dropdown and a context menu
+    Field<Wave> wave{Wave::Sine};
+    Field<Label<>> note{{"shape"}};
+    Field<ContextMenu> menu{{.items = {{"Copy"}, {"Paste"}, {"Select all"}}}};
+    WidgetId wave_id = 0, note_id = 0;
+    std::vector<nodes::Port*> ports() { return {}; }
+    void view(WidgetTree::ViewBuilder& vb) {
+        wave_id = vb.widget(wave).node_ref.id;
+        note_id = vb.widget(note).node_ref.id;
+        vb.context_menu(menu);
+    }
+};
+
+struct ShaperBoard {
+    Shaper node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Shaper", .family = "math", .at = P(20, 30)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+using ShaperFixture = BasicFixture<ShaperBoard>;
+
+std::optional<Rect> open_list(const ShaperFixture& f) {
+    for (auto& c : f.snap->overlay.commands)
+        if (auto* r = std::get_if<FilledRect>(&c); r && r->color == f.tree.theme().popup_bg) return r->rect;
+    return std::nullopt;
+}
+
+void click(ShaperFixture& f, Point at) {
+    f.press(at);
+    f.release(at);
+}
+}
+
+TEST_CASE("at zoom 0.5 a dropdown in a node opens its list under its box, and a click picks the item there") {
+    ShaperFixture f;
+    at_zoom(f, 0.5f);
+    const Rect box = laid_out(f, f.m.node.wave_id);
+    click(f, centre(f, f.m.node.wave_id));
+    auto list = open_list(f);
+    REQUIRE(list);
+    CHECK(list->origin.x.raw() == doctest::Approx(box.origin.x.raw()));
+    CHECK(list->origin.y.raw() == doctest::Approx(bottom(box)));
+    CHECK(list->extent.w.raw() == doctest::Approx(box.extent.w.raw()));
+    const float row = list->extent.h.raw() / 3;
+    click(f, P(list->origin.x.raw() + 10, list->origin.y.raw() + 1.5f * row));
+    CHECK(f.m.node.wave.get() == Wave::Square);
+}
+
+TEST_CASE("at zoom 0.5 a dropdown near the window's bottom opens below while its zoomed list fits there") {
+    ShaperFixture f;
+    at_zoom(f, 0.5f);
+    const Rect box = laid_out(f, f.m.node.wave_id);
+    const float list_h = 3 * 28.f * 0.5f;
+    const float top = 600.f - list_h - box.extent.h.raw() - 4.f;   // the list just fits below
+    f.m.graph.move(f.m.a, f.m.graph.position(f.m.a) + Offset{DX{0}, DY{(top - box.origin.y.raw()) / 0.5f}});
+    f.frame();
+    const Rect moved = laid_out(f, f.m.node.wave_id);
+    REQUIRE(moved.origin.y.raw() == doctest::Approx(top));
+    click(f, centre(f, f.m.node.wave_id));
+    auto list = open_list(f);
+    REQUIRE(list);
+    CHECK(list->origin.y.raw() == doctest::Approx(bottom(moved)));
+    CHECK(list->extent.h.raw() == doctest::Approx(list_h));
+}
+
+TEST_CASE("at zoom 0.5 a node's context menu opens at the pointer, and a click on its second row chooses it") {
+    ShaperFixture f;
+    at_zoom(f, 0.5f);
+    const Point at = centre(f, f.m.node.note_id);
+    route_event(f.tree, f.snap.get(), MouseButton{at, buttons::right, true});
+    route_event(f.tree, f.snap.get(), MouseButton{at, buttons::right, false});
+    f.frame();
+    REQUIRE(f.tree.popup_owner() != 0);
+    auto area = app::widget_detail::popup_area(f.tree, *f.snap);
+    REQUIRE(area);
+    CHECK(area->origin.x.raw() == doctest::Approx(at.x.raw()));
+    CHECK(area->origin.y.raw() == doctest::Approx(at.y.raw()));
+    click(f, at + Offset{DX{5.f}, DY{(28.f + 10.f) * 0.5f}});
+    CHECK(f.tree.popup_owner() == 0);
+    CHECK(f.m.node.menu.get().chosen == std::optional<std::size_t>{1});
+}

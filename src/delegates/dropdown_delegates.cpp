@@ -36,9 +36,9 @@ void dropdown_record(DrawList& dl, WidgetNode& node,
 
         // Below the box, above it when only that fits, else the roomier side, inside the window.
         Y popup_y{dd_widget_h.raw()};
-        if (node.viewport_height.raw() > 0) {
-            float top = node.absolute_y.raw();
-            popup_y = Y{place_on_axis(popup_h.raw(), top, top + dd_widget_h.raw(), node.viewport_height.raw()) - top};
+        if (node.viewport_height.raw() > 0) {   // in the window's px: a zoomed card draws it at view_scale
+            const float s = node.view_scale, top = node.absolute_y.raw();
+            popup_y = Y{(place_on_axis(popup_h.raw() * s, top, top + dd_widget_h.raw() * s, node.viewport_height.raw()) - top) / s};
         }
 
         node.overlay_draws.filled_rect(

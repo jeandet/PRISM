@@ -201,7 +201,8 @@ void ViewBuilder::wire_split_handles(Node& container) {
             wn.wire = [&tree, container_id, index, vertical](WidgetNode& self) {
                 self.connections.push_back(self.on_input.connect(
                     [&tree, container_id, index, vertical, &self](const InputEvent& ev) {
-                        float origin = vertical ? self.absolute_y.raw() : self.absolute_x.raw();
+                        // In the handle's own units (a zoomed card's): the drag is read as a difference.
+                        float origin = (vertical ? self.absolute_y.raw() : self.absolute_x.raw()) / self.view_scale;
                         if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->button == 1) {
                             float local = vertical ? mb->position.y.raw() : mb->position.x.raw();
                             if (mb->pressed) tree.begin_split_drag(container_id, index, local + origin);

@@ -358,10 +358,13 @@ public:
         WidgetId target = 0;    // the widget under the pointer that takes the value, or 0
     };
 
-    void arm_drag(WidgetId id, Point at, Rect source_rect) {
+    // `source_rect`: where the source is drawn, at `scale` (a zoomed board's card).
+    void arm_drag(WidgetId id, Point at, Rect source_rect, float scale = 1.f) {
         auto it = index_.find(id);
         if (it == index_.end() || !it->second->drag.source || !is_enabled(*it->second)) return;
-        drag_ = DragState{.source = id, .press = at, .grab = at - source_rect.origin, .value = {}, .pointer = at, .target = 0};
+        const Offset d = at - source_rect.origin;
+        drag_ = DragState{.source = id, .press = at, .grab = Offset{DX{d.dx.raw() / scale}, DY{d.dy.raw() / scale}},
+                          .value = {}, .pointer = at, .target = 0};
     }
     [[nodiscard]] bool dragging() const { return drag_ && drag_->value.has_value(); }
     [[nodiscard]] const DragState* drag() const { return drag_ ? &*drag_ : nullptr; }
@@ -386,9 +389,13 @@ public:
     // its groups -- before whatever lies under it takes the drop.
     [[nodiscard]] WidgetId claiming_drop_area(Point p, const std::any& value) const;
     [[nodiscard]] std::optional<Rect> drop_area_rect(WidgetId id) const {
+        const DropArea* a = drop_area(id);
+        return a ? std::optional{a->rect} : std::nullopt;
+    }
+    [[nodiscard]] const DropArea* drop_area(WidgetId id) const {
         for (auto& a : drop_areas_)
-            if (a.id == id) return a.rect;
-        return std::nullopt;
+            if (a.id == id) return &a;
+        return nullptr;
     }
 
     void move_drag(Point p, WidgetId target) {
@@ -429,11 +436,18 @@ public:
         return it != parent_map_.end() ? std::optional{it->second} : std::nullopt;
     }
 
-    // Where the last layout put widget `id`, in window coordinates; none for an unknown id.
+    // Where the last layout drew widget `id`, in window coordinates (a zoomed card's widgets at
+    // their zoomed size); none for an unknown id.
     [[nodiscard]] std::optional<Rect> laid_out_at(WidgetId id) const {
         auto it = index_.find(id);
         if (it == index_.end()) return std::nullopt;
-        return Rect{Point{it->second->absolute_x, it->second->absolute_y}, it->second->arranged_extent};
+        return laid_out_rect(*it->second);
+    }
+    // The size the last layout gave widget `id`, at zoom 1 (a zoomed card's widgets are drawn at
+    // a multiple of it); none for an unknown id.
+    [[nodiscard]] std::optional<Size> arranged_extent(WidgetId id) const {
+        auto it = index_.find(id);
+        return it == index_.end() ? std::nullopt : std::optional{it->second->arranged_extent};
     }
 
     // Whether `id` is `ancestor` or below it.

@@ -618,10 +618,15 @@ inline std::optional<Rect> find_rect(const LayoutNode& node, WidgetId id) {
     return std::nullopt;
 }
 
+// The cards (children after the first) zoomed about the board's origin, as they are drawn.
 inline std::optional<Rect> board_rect_of(const LayoutNode& board, WidgetId id) {
-    for (auto& child : board.children)
-        if (auto r = find_rect(child, id))
-            return Rect{r->origin - Offset{DX{board.allocated.origin.x.raw()}, DY{board.allocated.origin.y.raw()}}, r->extent};
+    for (std::size_t i = 0; i < board.children.size(); ++i)
+        if (auto r = find_rect(board.children[i], id)) {
+            const float s = i == 0 ? 1.f : board.board_scale;
+            return Rect{Point{X{(r->origin.x.raw() - board.allocated.origin.x.raw()) * s},
+                              Y{(r->origin.y.raw() - board.allocated.origin.y.raw()) * s}},
+                        Size{Width{r->extent.w.raw() * s}, Height{r->extent.h.raw() * s}}};
+        }
     return std::nullopt;
 }
 
@@ -629,7 +634,7 @@ inline std::optional<Rect> board_rect_of(const LayoutNode& board, WidgetId id) {
 inline void flatten_board_draw(const LayoutNode& board, const BoardDraw& draw, SceneSnapshot& snap) {
     if (!draw) return;
     DrawList dl;
-    draw(dl, [&board](WidgetId id) { return board_rect_of(board, id); });
+    draw(dl, [&board](WidgetId id) { return board_rect_of(board, id); }, board.board_scale);
     translate_draw_list(dl, DX{board.allocated.origin.x.raw()}, DY{board.allocated.origin.y.raw()});
     push_entry(snap, 0, board.allocated, std::move(dl));
 }

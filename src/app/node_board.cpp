@@ -37,12 +37,16 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
 // widget's own: a zoom changes this one place.
 namespace board_coords {
 
-// Where the graph's point `at` lies on the board.
+// Where the graph's point `at` lies on the board at zoom 1 (the engine zooms the cards from there).
 core::Point on_board(const nodes::Graph& graph, core::Point at) { return at + (graph.view().pan - core::Point{}); }
 
 // Where a point of the graph dragged from `from` (a node's position, the pan) goes when the
-// pointer has moved by `d`.
-core::Point dragged(core::Point from, core::Offset d) { return from + d; }
+// pointer has moved by `d` in widget `n`'s coordinates: to the window by n's zoom, then to the
+// graph by the board's.
+core::Point dragged(const nodes::Graph& graph, const ui::WidgetNode& n, core::Point from, core::Offset d) {
+    const float k = n.view_scale / graph.view().zoom;
+    return from + core::Offset{core::DX{d.dx.raw() * k}, core::DY{d.dy.raw() * k}};
+}
 
 // A point on the board (a drop's place) in the window; none before the board is laid out.
 std::optional<core::Point> board_to_window(const NodeBoardParts& parts, core::Point on_board) {
@@ -51,11 +55,12 @@ std::optional<core::Point> board_to_window(const NodeBoardParts& parts, core::Po
 }
 
 core::Point to_window(const ui::WidgetNode& n, core::Point local) {
-    return {n.absolute_x + core::DX{local.x.raw()}, n.absolute_y + core::DY{local.y.raw()}};
+    return {n.absolute_x + core::DX{local.x.raw() * n.view_scale}, n.absolute_y + core::DY{local.y.raw() * n.view_scale}};
 }
 
 core::Point to_local(const ui::WidgetNode& n, core::Point window) {
-    return {core::X{window.x.raw() - n.absolute_x.raw()}, core::Y{window.y.raw() - n.absolute_y.raw()}};
+    return {core::X{(window.x.raw() - n.absolute_x.raw()) / n.view_scale},
+            core::Y{(window.y.raw() - n.absolute_y.raw()) / n.view_scale}};
 }
 
 // Where the board's widgets lie, in the window.
@@ -129,7 +134,8 @@ void remove_selected(NodeBoardParts& parts) {
 
 } // namespace
 
-// The background never moves, so the pan is simply where it was at the press plus the drag.
+// The background never moves, so the pan is simply where it was at the press plus the drag (in
+// board units: a zoomed-out board pans further for the same drag).
 void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
     nodes::Graph& graph = *parts->graph;
     if (removes_selection(ev)) return remove_selected(*parts);
@@ -141,7 +147,7 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
         if (parts->selected.wire) press.reset();   // a wire clicked is selected, not dragged
     }
     if (const auto d = dragged_by(press, ev, n)) {
-        const core::Point to = board_coords::dragged(pan_at_press, *d);
+        const core::Point to = board_coords::dragged(graph, n, pan_at_press, *d);
         graph.pan_by(to.x - graph.view().pan.x, to.y - graph.view().pan.y);
     }
 }
@@ -160,7 +166,7 @@ void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     if (!d) return;
     auto seen = shown.upper_bound(tree.input_frame());
     if (seen != shown.begin()) --seen;
-    const core::Point to = board_coords::dragged(seen->second, *d);
+    const core::Point to = board_coords::dragged(graph, n, seen->second, *d);
     shown.erase(shown.begin(), seen);   // older frames are not shown any more
     graph.move(id, to);
     shown.insert_or_assign(tree.next_frame_version(), to);
@@ -183,6 +189,9 @@ constexpr float wire_thickness = 2.f;
 constexpr float selected_wire_thickness = wire_thickness + 2.f;
 constexpr float dot_radius = 5.f;
 
+// A size drawn to the cards' zoom, never below `floor` px: a wire or a dot zoomed far out stays seen.
+float zoomed(float size, float scale, float floor) { return std::max(size * scale, floor); }
+
 // Wakes the board on either change: the next frame rebuilds it if its nodes changed and lays it
 // out again in any case.
 std::function<core::Connection(std::function<void()>)> on_either(core::Field<std::uint64_t>& a,
@@ -197,20 +206,22 @@ std::function<core::Connection(std::function<void()>)> on_either(core::Field<std
     };
 }
 
-void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, Color color) {
+void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
+                Color color) {
     const nodes::Graph& graph = *parts.graph;
     for (const auto id : graph.edges()) {
         const auto* e = graph.edge(id);
         const auto from = wire_end(parts, graph.port(e->from), rect_of);
         const auto to = wire_end(parts, graph.port(e->to), rect_of);
         const float thickness = parts.selected.wire == id ? selected_wire_thickness : wire_thickness;
-        if (from && to) dl.polyline(nodes::polyline(nodes::wire_curve(*from, *to)), color, thickness);
+        if (from && to) dl.polyline(nodes::polyline(nodes::wire_curve(*from, *to)), color, zoomed(thickness, scale, 1.f));
     }
 }
 
-void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, Color color) {
+void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
+               Color color) {
     for (const auto& [port, place] : parts.ports)
-        if (const auto at = wire_end(parts, port, rect_of)) dl.circle(*at, dot_radius, color);
+        if (const auto at = wire_end(parts, port, rect_of)) dl.circle(*at, zoomed(dot_radius, scale, 3.f), color);
 }
 
 void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
@@ -227,7 +238,7 @@ void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRe
     const auto end = wire_end(parts, port, board_coords::window_rects(parts));
     if (!end) return;
     const auto curve = port->dir() == nodes::Dir::Out ? nodes::wire_curve(*end, pointer) : nodes::wire_curve(pointer, *end);
-    dl.polyline(nodes::polyline(curve), color, wire_thickness);
+    dl.polyline(nodes::polyline(curve), color, zoomed(wire_thickness, parts.graph->view().zoom, 1.f));
 }
 
 // What a drag from port `at` carries (a PortDrag). From an input with a wire, it picks the wire
@@ -415,7 +426,18 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
     return true;
 }
 
-std::vector<core::Point> places(const nodes::Graph& graph, const NodeBoardParts& parts) {
+// A fit asked for is made once the board knows its size: not at its first layout.
+void fit_if_asked(nodes::Graph& graph, const NodeBoardParts& parts) {
+    const auto board = parts.tree->laid_out_at(parts.board_id);
+    if (!graph.fit_requested() || !board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
+    std::vector<core::Rect> cards;
+    for (const auto& [id, card] : parts.cards)
+        if (const auto size = parts.tree->arranged_extent(card)) cards.push_back({graph.position(id), *size});
+    graph.fit(cards, board->extent);
+}
+
+std::vector<core::Point> places(nodes::Graph& graph, const NodeBoardParts& parts) {
+    fit_if_asked(graph, parts);
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
     for (const auto id : parts.built) out.push_back(board_coords::on_board(graph, graph.position(id)));
@@ -460,11 +482,11 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
     b.board_scale = [&graph] { return graph.view().zoom; };
-    b.board_under = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
-        draw_wires(dl, *parts, rect_of, theme.accent);
+    b.board_under = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
+        draw_wires(dl, *parts, rect_of, scale, theme.accent);
     };
-    b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
-        draw_dots(dl, *parts, rect_of, theme.accent);
+    b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
+        draw_dots(dl, *parts, rect_of, scale, theme.accent);
         outline_selected_node(dl, *parts, rect_of, theme.accent);
     };
     current_parent().children.push_back(std::move(b));

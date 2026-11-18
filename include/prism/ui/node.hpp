@@ -21,10 +21,12 @@ struct WidgetNode;
 struct TableState;
 struct TabsState;
 
-// A board's descendant's rect in the board's coordinates, from the layout just made.
+// A board's descendant's rect in the board's coordinates, from the layout just made, zoomed as
+// it is drawn.
 using BoardRectOf = std::function<std::optional<Rect>(WidgetId)>;
-// Drawn in the board's coordinates; may ask where the board's descendants lie.
-using BoardDraw = std::function<void(DrawList&, const BoardRectOf&)>;
+// Drawn in the board's coordinates; may ask where the board's descendants lie. `scale`: the
+// cards' zoom, for what is drawn to their scale (a wire's thickness).
+using BoardDraw = std::function<void(DrawList&, const BoardRectOf&, float scale)>;
 
 // Where a drop landed, in the target widget's coordinates, and the widget's size: enough to
 // tell before from after, or which row.
@@ -40,6 +42,7 @@ struct DropArea {
     WidgetId id = 0;
     Rect rect;
     Rect visible;
+    float scale = 1.f;   // its zoom (a zoomed board's card): its coordinates are rect's, divided by it
 };
 
 // What a widget does in a drag inside the app (doc/design/drag-and-docking.md). The value is

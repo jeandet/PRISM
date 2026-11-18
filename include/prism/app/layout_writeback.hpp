@@ -2,6 +2,7 @@
 
 #include <prism/app/widget_tree_layout.hpp>
 #include <prism/app/widget_tree_traversal.hpp>
+#include <prism/render/view_transform.hpp>
 #include <prism/ui/layout.hpp>
 #include <prism/ui/widget_node.hpp>
 
@@ -16,6 +17,7 @@
 namespace prism::app::widget_detail {
 using namespace prism::core;
 using namespace prism::ui;
+using render::ViewTransform;
 
 // A following list (VirtualListState::follow_tail) that showed its bottom before rows were
 // appended moves to the new bottom. Returns whether it moved: its rows are for the old offset.
@@ -78,20 +80,32 @@ inline bool clips_children(LayoutNode::Kind k) {
     return k == Scroll || k == VirtualList || k == Table || k == Board;
 }
 
+// The zoom child `i` of `n` is drawn at: a zoomed board's cards are zoomed about its on-screen
+// top-left; anything else is drawn as `n` is.
+// simplify: a board inside a zoomed board's card gets its own zoom only, not composed with the
+// outer one: unsupported until a nested board is needed (see layout_detail::flatten_zoomed_cards).
+inline ViewTransform child_view(const LayoutNode& n, std::size_t i, DY scrolled, const ViewTransform& view) {
+    if (n.kind != LayoutNode::Kind::Board || i == 0 || n.board_scale == 1.f) return view;
+    return {Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.board_scale};
+}
+
 // The screen area of every container that takes drops (a dock group): a drop on its empty
 // space, where no widget is hit, still finds it. Moved up by the scroll areas above it, cut to
 // what they and the boards above it leave visible (`clip`); one wholly hidden is left out.
 // simplify: a table cuts to its whole rect, header included; cut to its body if a container
 // taking drops ever sits in a table row.
-inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::optional<Rect> clip, std::vector<DropArea>& out) {
+// `view`: the zoom of the board card it is in, if any.
+inline void collect_drop_areas(const LayoutNode& n, DY scrolled, std::optional<Rect> clip, std::vector<DropArea>& out,
+                               const ViewTransform& view = {}) {
     if (n.kept) return;
-    const Rect on_screen{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent};
+    const Rect on_screen = view.apply(Rect{Point{n.allocated.origin.x, n.allocated.origin.y - scrolled}, n.allocated.extent});
     const Rect visible = layout_detail::narrow(clip, on_screen);
     if (n.kind != LayoutNode::Kind::Leaf && n.source && n.source->drag.accepts
         && visible.extent.w.raw() > 0 && visible.extent.h.raw() > 0)
-        out.push_back({n.id, on_screen, visible});
+        out.push_back({n.id, on_screen, visible, view.scale});
     const auto inner = clips_children(n.kind) ? std::optional{visible} : clip;
-    for (auto& c : n.children) collect_drop_areas(c, scrolled + n.scroll_offset, inner, out);
+    for (std::size_t i = 0; i < n.children.size(); ++i)
+        collect_drop_areas(n.children[i], scrolled + n.scroll_offset, inner, out, child_view(n, i, scrolled, view));
 }
 
 // Returns whether a split's panes were rescaled to their space: the layout that used them is stale.
@@ -133,21 +147,24 @@ inline bool update_split_state(LayoutNode& layout_node) {
 // Returns whether a widget re-recorded at its new size changed height (a label that wraps):
 // then the layout it was placed by is stale, and the caller lays out again.
 // `scrolled`: how far the scroll views around this node are scrolled; layout positions are in
-// their content, the absolute ones are in the window.
-inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport, DY scrolled = DY{0}) {
+// their content, the absolute ones are in the window. `view`: the zoom of the board card it is
+// in, if any (absolute positions are zoomed, extents are not).
+inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport, DY scrolled = DY{0},
+                                 const ViewTransform& view = {}) {
     // Propagate absolute position and the window size to all indexed widget nodes
     bool window_changed = false;
     if (layout_node.id != 0 && layout_node.source) {
         {
             auto& n = *layout_node.source;
-            Y on_screen_y = layout_node.allocated.origin.y - scrolled;
+            const Point on_screen = view.apply(Point{layout_node.allocated.origin.x, layout_node.allocated.origin.y - scrolled});
             window_changed = n.viewport_height != viewport.h || n.viewport_width != viewport.w
-                          || n.absolute_x != layout_node.allocated.origin.x
-                          || n.absolute_y != on_screen_y;
+                          || n.absolute_x != on_screen.x || n.absolute_y != on_screen.y
+                          || n.view_scale != view.scale;
             bool in_place = !window_changed && n.arranged_extent == layout_node.allocated.extent;
             if (layout_node.kept && in_place) return false;   // and so is all of it, as written last time
-            n.absolute_x = layout_node.allocated.origin.x;
-            n.absolute_y = on_screen_y;
+            n.absolute_x = on_screen.x;
+            n.absolute_y = on_screen.y;
+            n.view_scale = view.scale;
             n.viewport_height = viewport.h;
             n.viewport_width = viewport.w;
             n.arranged_extent = layout_node.allocated.extent;
@@ -190,8 +207,9 @@ inline bool update_canvas_bounds(LayoutNode& layout_node, Size viewport, DY scro
         return false;
     }
     bool changed = false;
-    for (auto& child : layout_node.children)
-        changed |= update_canvas_bounds(child, viewport, scrolled + layout_node.scroll_offset);
+    for (std::size_t i = 0; i < layout_node.children.size(); ++i)
+        changed |= update_canvas_bounds(layout_node.children[i], viewport, scrolled + layout_node.scroll_offset,
+                                        child_view(layout_node, i, scrolled, view));
     return changed;
 }
 

@@ -202,3 +202,21 @@ TEST_CASE("a diamond of nodes is walked without revisits and still refuses its l
     REQUIRE(g.connect({ic, OUT}, {id, 0}));
     CHECK(g.connect({id, OUT}, {ia, 0}).error() == ConnectError::Cycle);
 }
+
+TEST_CASE("a fit is asked for, then made: every card shows in the board") {
+    using prism::core::Rect; using prism::core::Size; using prism::core::X; using prism::core::Y;
+    using prism::core::Width; using prism::core::Height;
+    Graph g;
+    CHECK_FALSE(g.fit_requested());
+    const auto l = g.layout.get();
+    g.request_fit();
+    CHECK(g.fit_requested());
+    CHECK(g.layout.get() == l + 1);   // the board lays out again, and fits there
+    const Rect cards[] = {{Point{X{0}, Y{0}}, Size{Width{100}, Height{50}}},
+                          {Point{X{900}, Y{0}}, Size{Width{100}, Height{50}}}};
+    const Size board{Width{548}, Height{400}};
+    g.fit(cards, board);
+    CHECK_FALSE(g.fit_requested());
+    CHECK(g.view() == fit_all(cards, board));
+    CHECK(g.view().zoom == doctest::Approx(0.5f));
+}

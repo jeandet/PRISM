@@ -125,8 +125,8 @@ TEST_CASE("a card at a negative point or past the edge is placed there, clipped"
 
 TEST_CASE("board_under is drawn above the background and below the cards; board_over above all") {
     auto b = board({P(20, 40)}, {leaf(5, 60, 25)});
-    b.board_under = [](DrawList& dl, const BoardRectOf&) { dl.filled_rect(R(0, 0, 5, 5), under); };
-    b.board_over = [](DrawList& dl, const BoardRectOf&) { dl.filled_rect(R(0, 0, 5, 5), over); };
+    b.board_under = [](DrawList& dl, const BoardRectOf&, float) { dl.filled_rect(R(0, 0, 5, 5), under); };
+    b.board_over = [](DrawList& dl, const BoardRectOf&, float) { dl.filled_rect(R(0, 0, 5, 5), over); };
     lay_out(b);
     SceneSnapshot snap;
     layout_flatten(b, snap);
@@ -141,7 +141,7 @@ TEST_CASE("board_under is drawn above the background and below the cards; board_
 TEST_CASE("rect_of gives a card's descendant's rect in board coordinates") {
     auto b = board({P(20, 40)}, {column(5, {leaf(6, 80, 30), leaf(7, 50, 20)})});
     std::optional<Rect> seen, missing;
-    b.board_over = [&](DrawList& dl, const BoardRectOf& rect_of) {
+    b.board_over = [&](DrawList& dl, const BoardRectOf& rect_of, float) {
         seen = rect_of(7);
         missing = rect_of(99);
         dl.filled_rect(*seen, over);
