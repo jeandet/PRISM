@@ -1,3 +1,5 @@
+#include "node_board_parts.hpp"
+
 #include <prism/app/node_board.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/nodes/wire_geometry.hpp>
@@ -13,56 +15,7 @@
 
 namespace prism::app {
 
-namespace {
-
-constexpr float grid_step = 20.f;      // board units between two grid lines
-constexpr float grid_floor = 8.f;      // on screen, px: closer than this the grid is left out
-constexpr float grid_dot_radius = 1.5f;   // covers its pixel even when it sits on a pixel corner at 1x
-
-// Where the grid's first line falls in the board's own coordinates. The background is unzoomed and
-// a card at `position` sits at zoom * (position + pan), so the grid follows the same pan and zoom.
-float first_line(float moved, float step) {
-    const float rest = std::fmod(moved, step);
-    return rest < 0.f ? rest + step : rest;
-}
-
-// `fn` once per grid line from `first` up to `extent`, `step` apart.
-template <class Fn>
-void for_each_line(float first, float step, float extent, Fn&& fn) {
-    for (int i = 0;; ++i) {
-        const float at = first + static_cast<float>(i) * step;
-        if (at > extent) return;
-        fn(at);
-    }
-}
-
-void draw_grid(render::DrawList& dl, core::Size extent, const ui::Theme& t, const nodes::BoardView& view) {
-    // simplify: one command per dot (or per line), every frame a view or theme change redraws it.
-    // A fine grid on a large board is thousands of commands; a tiled pattern the backend repeats
-    // is the upgrade, once drawing them costs more than it is worth.
-    const float step = grid_step * view.zoom;
-    if (step < grid_floor) return;
-    const float x0 = first_line(view.zoom * view.pan.x.raw(), step);
-    const float y0 = first_line(view.zoom * view.pan.y.raw(), step);
-    if (t.node_grid_dots) {
-        for_each_line(y0, step, extent.h.raw(), [&](float y) {
-            for_each_line(x0, step, extent.w.raw(), [&](float x) {
-                dl.circle(core::Point{core::X{x}, core::Y{y}}, grid_dot_radius, t.node_grid);
-            });
-        });
-        return;
-    }
-    for_each_line(x0, step, extent.w.raw(), [&](float x) {
-        dl.line(core::Point{core::X{x}, core::Y{0.f}}, core::Point{core::X{x}, core::Y{extent.h.raw()}},
-                t.node_grid, 1.f);
-    });
-    for_each_line(y0, step, extent.h.raw(), [&](float y) {
-        dl.line(core::Point{core::X{0.f}, core::Y{y}}, core::Point{core::X{extent.w.raw()}, core::Y{y}},
-                t.node_grid, 1.f);
-    });
-}
-
-} // namespace
+using namespace node_board_detail;
 
 void BoardBackground::canvas(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n) {
     dl.filled_rect(r, n.theme->node_board_bg);
@@ -89,9 +42,11 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
     return mm->position - *press;
 }
 
+} // namespace
+
 // Every conversion between the graph's positions, the board's coordinates and the window's (a
 // widget's own goes through ui::place_of): a zoom changes this one place.
-namespace board_coords {
+namespace node_board_detail::board_coords {
 
 // Where the graph's point `at` lies on the board at zoom 1 (the engine zooms the cards from there).
 core::Point on_board(const nodes::Graph& graph, core::Point at) { return at + (graph.view().pan - core::Point{}); }
@@ -129,7 +84,9 @@ ui::BoardRectOf window_rects(const NodeBoardParts& parts) {
     return [&tree = *parts.tree](ui::WidgetId id) { return tree.laid_out_at(id); };
 }
 
-} // namespace board_coords
+} // namespace node_board_detail::board_coords
+
+namespace {
 
 // The wire within wire_reach of `p` (window coordinates), the nearest if several are.
 std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p) {
@@ -150,26 +107,6 @@ std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p)
     return best;
 }
 
-// The port whose dot is within port_reach of `p` (window coordinates) and that `wanted` takes,
-// the nearest if several are. Generous: a dot is small, and half of it lies off its card.
-std::optional<nodes::PortRef> dot_near(const NodeBoardParts& parts, core::Point p,
-                                       const std::function<bool(nodes::PortRef)>& wanted) {
-    constexpr float port_reach = 10.f;
-    const auto rect_of = board_coords::window_rects(parts);
-    std::optional<nodes::PortRef> best;
-    float nearest = port_reach;
-    for (const auto& [port, place] : parts.ports) {
-        const auto at = wire_end(parts, port, rect_of);
-        if (!at || !wanted(place.ref)) continue;
-        if (const float d = (*at - p).length(); d <= nearest) {
-            nearest = d;
-            best = place.ref;
-        }
-    }
-    return best;
-}
-
-bool any_port(nodes::PortRef) { return true; }
 
 // A change of the probed output redraws the board: the bubble shows its value.
 core::Connection watch_output(NodeBoardParts& parts, nodes::EdgeId edge) {
@@ -305,51 +242,6 @@ std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Po
 
 namespace {
 
-constexpr float thin_wire = 2.f;
-constexpr float thick_wire = 3.f;   // a waveform's: it carries a curve, not a scalar
-constexpr float wire_under = 9.f;   // the soft stroke drawn under a selected wire
-constexpr float wire_under_alpha = 0.25f;
-constexpr float dot_side = 12.f;
-constexpr float dot_side_floor = 4.f;
-constexpr float dot_ring = 3.f;     // of the board's own colour, around a dot
-// How far a dot reaches into its card, from the edge: a port's label starts clear of it.
-constexpr float dot_clearance = dot_side / 2.f + dot_ring + 2.f;
-constexpr float faded_port_alpha = 0.35f;
-
-// A size drawn to the cards' zoom, never below `floor` px: a wire or a dot zoomed far out stays seen.
-float zoomed(float size, float scale, float floor) { return std::max(size * scale, floor); }
-
-// `c` at a fraction of its own alpha: a selected wire's under-stroke, a port a drag cannot take.
-Color faded(Color c, float by) {
-    c.a = static_cast<std::uint8_t>(float(c.a) * by + 0.5f);
-    return c;
-}
-
-// A port's colour: the theme's wire colour for its type's slot.
-Color port_color(const ui::Theme& t, const nodes::Port& port) {
-    return t.node_wires[nodes::wire_slot(port.type())];
-}
-
-// A wire's stroke: a waveform is drawn thicker than the scalars are.
-float wire_width(const nodes::Port& port) {
-    return nodes::type_name(port.type()) == "waveform" ? thick_wire : thin_wire;
-}
-
-// `side` square, centred on `at`.
-core::Rect square_at(core::Point at, float side) {
-    return {core::Point{core::X{at.x.raw() - side / 2.f}, core::Y{at.y.raw() - side / 2.f}},
-            core::Size{core::Width{side}, core::Height{side}}};
-}
-
-// How opaque a port's dot is: while a wire is dragged, the dots it cannot be dropped on fade.
-float port_alpha(const NodeBoardParts& parts, nodes::PortRef port) {
-    const auto* drag = parts.tree->drag();
-    if (!drag || !drag->value.has_value()) return 1.f;
-    const auto* wire = std::any_cast<PortDrag>(&drag->value);
-    if (!wire || wire->graph != parts.graph) return 1.f;
-    return parts.graph->can_connect(wire->from, port) ? 1.f : faded_port_alpha;
-}
-
 // Wakes the board on either change: the next frame rebuilds it if its nodes changed and lays it
 // out again in any case.
 std::function<core::Connection(std::function<void()>)> on_either(core::Field<std::uint64_t>& a,
@@ -362,239 +254,6 @@ std::function<core::Connection(std::function<void()>)> on_either(core::Field<std
             for (auto& l : *links) l.disconnect();
         })};
     };
-}
-
-// The probe, while the pointer is still on the board's background (a card or the window's edge
-// took the hover) and its wire is still there.
-const Probe* shown_probe(const NodeBoardParts& parts) {
-    const bool on_background = parts.tree->hovered_id() == parts.background_id;
-    return on_background && parts.probe && parts.graph->edge(parts.probe->edge) ? &*parts.probe : nullptr;
-}
-
-void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
-                const ui::Theme& t) {
-    const Probe* probe = shown_probe(parts);
-    const nodes::Graph& graph = *parts.graph;
-    for (const auto id : graph.edges()) {
-        const auto* e = graph.edge(id);
-        const auto* port = graph.port(e->from);
-        if (!port) continue;
-        const auto from = wire_end(parts, port, rect_of);
-        const auto to = wire_end(parts, graph.port(e->to), rect_of);
-        if (!from || !to) continue;
-        const Color color = port_color(t, *port);
-        const auto curve = nodes::polyline(nodes::wire_curve(*from, *to));
-        if (parts.selected.wire == id || (probe && probe->edge == id))
-            dl.polyline(curve, faded(color, wire_under_alpha), zoomed(wire_under, scale, 1.f));
-        dl.polyline(curve, color, zoomed(wire_width(*port), scale, 1.f));
-    }
-}
-
-constexpr float probe_text_size = 11.f;
-constexpr float probe_pad_x = 8.f, probe_pad_y = 3.f;
-constexpr float probe_radius = 10.f;
-constexpr float probe_gap = 12.f;   // from the pointer, to the right and up
-
-// `at` moved to keep a box of `box` inside one of `board`'s size.
-core::Point kept_inside(core::Point at, core::Size box, core::Size board) {
-    const auto keep = [](float v, float room) { return std::clamp(v, 0.f, std::max(room, 0.f)); };
-    return {core::X{keep(at.x.raw(), board.w.raw() - box.w.raw())},
-            core::Y{keep(at.y.raw(), board.h.raw() - box.h.raw())}};
-}
-
-// The probe's bubble, at natural size whatever the zoom: the value in the wire's colour-ringed box.
-void draw_probe(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t) {
-    const Probe* probe = shown_probe(parts);
-    const auto board = parts.tree->laid_out_at(parts.board_id);
-    if (!probe || !board) return;
-    const nodes::Port* port = parts.graph->port(parts.graph->edge(probe->edge)->from);
-    if (!port) return;
-    const std::string text = nodes::format_value(port->type(), port->value());
-    const render::FontStyle mono{render::FontRole::Mono};
-    const core::Size box{core::Width{ui::text_width(t.measurer, text, probe_text_size, mono) + 2.f * probe_pad_x},
-                         core::Height{ui::line_height(t.measurer, probe_text_size, mono) + 2.f * probe_pad_y}};
-    const core::Point pointer = core::Point{} + probe->at;
-    const core::Point origin = kept_inside(pointer + core::Offset{core::DX{probe_gap}, core::DY{-probe_gap - box.h.raw()}},
-                                           box, board->extent);
-    const core::Rect rect{origin, box};
-    dl.rounded_rect(rect, t.node_probe_bg, probe_radius);
-    dl.rounded_rect(rect, port_color(t, *port), probe_radius, 1.f);
-    dl.text(text, origin + core::Offset{core::DX{probe_pad_x}, core::DY{probe_pad_y}}, probe_text_size,
-            t.node_probe_text, 0.f, render::TextAnchor::TopLeft, mono);
-}
-
-// A port's dot: a rounded square in its type's colour, ringed in the board's so it reads where it
-// sits on a card's edge.
-void draw_dot(render::DrawList& dl, core::Point at, float side, Color color, const ui::Theme& t) {
-    const float corner = std::max(side / 4.f, 1.f);
-    dl.rounded_rect(square_at(at, side + 2.f * dot_ring), t.node_board_bg, corner + dot_ring);
-    dl.rounded_rect(square_at(at, side), color, corner);
-}
-
-void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
-               const ui::Theme& t) {
-    const float side = zoomed(dot_side, scale, dot_side_floor);
-    for (const auto& [port, place] : parts.ports)
-        if (const auto at = wire_end(parts, port, rect_of))
-            draw_dot(dl, *at, side, faded(port_color(t, *port), port_alpha(parts, place.ref)), t);
-}
-
-// `r` grown by `by` on every side: the selected card's ring sits outside its border.
-core::Rect grown(core::Rect r, float by) {
-    return {core::Point{core::X{r.origin.x.raw() - by}, core::Y{r.origin.y.raw() - by}},
-            core::Size{core::Width{r.extent.w.raw() + 2.f * by}, core::Height{r.extent.h.raw() + 2.f * by}}};
-}
-
-void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
-                           const ui::Theme& t) {
-    const auto card = parts.selected.node ? parts.cards.find(*parts.selected.node) : parts.cards.end();
-    if (card == parts.cards.end()) return;
-    const auto r = rect_of(card->second);
-    if (!r) return;
-    dl.rounded_rect(grown(*r, 2.f), t.node_glow, ui::node_card_radius + 2.f, 2.f);
-    dl.rounded_rect(*r, t.node_border_selected, ui::node_card_radius, 2.f);
-}
-
-// A wire being drawn: from the fixed end's port to the pointer (window coordinates), in the
-// dragged port's own colour.
-void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRef from, core::Point pointer,
-                const ui::Theme& t) {
-    const nodes::Port* port = parts.graph->port(from);
-    if (!port) return;
-    const auto end = wire_end(parts, port, board_coords::window_rects(parts));
-    if (!end) return;
-    const auto curve = port->dir() == nodes::Dir::Out ? nodes::wire_curve(*end, pointer) : nodes::wire_curve(pointer, *end);
-    dl.polyline(nodes::polyline(curve), port_color(t, *port),
-                zoomed(wire_width(*port), parts.graph->view().zoom, 1.f));
-}
-
-// What a drag from port `at` carries (a PortDrag). From an input with a wire, it picks the wire
-// up: the wire goes now, and comes back only where the drag is dropped on a port taking it. A
-// drop refused, or on nothing, leaves it gone, as node editors do. Nothing if the port's node
-// is gone already (the cards are rebuilt on the next frame).
-std::any pick_up(nodes::Graph& graph, nodes::PortRef at) {
-    const nodes::Port* port = graph.port(at);
-    if (!port) return {};
-    if (port->dir() == nodes::Dir::In)
-        if (const auto e = graph.edge_into(at)) {
-            const nodes::PortRef from = graph.edge(*e)->from;
-            graph.disconnect(*e);
-            return PortDrag{&graph, from};
-        }
-    return PortDrag{&graph, at};
-}
-
-const PortDrag* port_drag_of(const nodes::Graph* graph, const std::any& v) {
-    const auto* d = std::any_cast<PortDrag>(&v);
-    return d && d->graph == graph ? d : nullptr;
-}
-
-// What every drag of a wire shares: the wire follows the pointer, and the ports taking it are
-// hinted.
-ui::DragRole wire_drag(NodeBoardParts& parts) {
-    ui::DragRole role;
-    role.trail = [&parts, &theme = parts.tree->theme()](render::DrawList& dl, const std::any& v, core::Point pointer) {
-        draw_trail(dl, parts, std::any_cast<const PortDrag&>(v).from, pointer, theme);
-    };
-    role.hint_targets = true;
-    return role;
-}
-
-// A port's name: dragging it draws a wire from the port.
-ui::DragRole port_source(NodeBoardParts& parts, nodes::PortRef at) {
-    ui::DragRole role = wire_drag(parts);
-    role.source = [graph = parts.graph, at](const ui::WidgetNode&, core::Point) { return pick_up(*graph, at); };
-    return role;
-}
-
-// A port's row: a drop of a wire it can take, anywhere on it, connects it.
-ui::DragRole port_target(nodes::Graph& graph, nodes::PortRef at) {
-    ui::DragRole role;
-    role.accepts = [&graph, at](const std::any& v) {
-        const auto* d = port_drag_of(&graph, v);
-        return d && graph.can_connect(d->from, at);
-    };
-    role.drop = [&graph, at](const std::any& v, ui::DropPlace) {
-        static_cast<void>(graph.connect(std::any_cast<const PortDrag&>(v).from, at));
-    };
-    return role;
-}
-
-// The port whose row holds `p` (window coordinates), or else whose dot is near it.
-std::optional<nodes::PortRef> port_under(const NodeBoardParts& parts, core::Point p) {
-    for (const auto& [port, place] : parts.ports)
-        if (const auto row = parts.tree->laid_out_at(place.row); row && row->contains(p)) return place.ref;
-    return dot_near(parts, p, any_port);
-}
-
-// The background and the cards: a press on a port's row (beside its name) or near its dot
-// draws a wire from it. Half of a dot lies off its card, on the background.
-ui::DragRole dot_drag(NodeBoardParts& parts) {
-    ui::DragRole role = wire_drag(parts);
-    role.source = [&parts](const ui::WidgetNode& self, core::Point at) {
-        const auto port = port_under(parts, ui::place_of(self).to_window(at));
-        return port ? pick_up(*parts.graph, *port) : std::any{};
-    };
-    return role;
-}
-
-// The port whose dot near `p` (window coordinates) takes the drag `v`.
-std::optional<nodes::PortRef> dot_taking(const NodeBoardParts& parts, const std::any& v, core::Point p) {
-    const auto* d = port_drag_of(parts.graph, v);
-    if (!d) return std::nullopt;
-    return dot_near(parts, p, [&](nodes::PortRef to) { return parts.graph->can_connect(d->from, to); });
-}
-
-const PaletteDrag* palette_drag_of(const NodeBoardParts& parts, const std::any& v) {
-    const auto* d = std::any_cast<PaletteDrag>(&v);
-    return d && d->graph == parts.graph ? d : nullptr;
-}
-
-bool carrying_a_node(const NodeBoardParts& parts) {
-    const auto* drag = parts.tree->drag();
-    return drag && drag->value.has_value() && palette_drag_of(parts, drag->value);
-}
-
-// The board: a drop near a dot connects to its port; a palette row dropped anywhere adds its node. It takes drops only there, so it is not
-// hinted whole; the port taking one is marked by a bar on its card's edge (the drop's slot,
-// an index into parts.ports).
-// simplify: the slot, and so the bar, is the nearest dot, as DragRole::slot is not given the
-// dragged value; the drop goes to the nearest dot taking it. They differ only when an
-// incompatible dot is nearer, both within reach. Pass the value to slot() if that shows.
-ui::DragRole dot_target(NodeBoardParts& parts) {
-    constexpr float bar = 3.f;
-    ui::DragRole role;
-    role.accepts = [&parts](const std::any& v) {
-        return port_drag_of(parts.graph, v) != nullptr || palette_drag_of(parts, v) != nullptr;
-    };
-    role.takes_at = [&parts](const std::any& v, ui::DropPlace place) {
-        if (palette_drag_of(parts, v)) return true;
-        const auto p = board_coords::board_to_window(parts, place.at);
-        return p && dot_taking(parts, v, *p);
-    };
-    role.slot = [&parts](const ui::WidgetNode& self, core::Point at) {
-        if (carrying_a_node(parts)) return parts.ports.size();   // no dot: no bar
-        const auto port = dot_near(parts, ui::place_of(self).to_window(at), any_port);
-        const auto it = std::ranges::find_if(parts.ports, [&](const auto& kv) { return port && kv.second.ref == *port; });
-        return static_cast<std::size_t>(std::distance(parts.ports.begin(), it));
-    };
-    role.slot_marker = [&parts](const ui::WidgetNode& self, std::size_t slot) {
-        if (slot >= parts.ports.size()) return core::Rect{};
-        const auto& [port, place] = *std::next(parts.ports.begin(), static_cast<std::ptrdiff_t>(slot));
-        const auto row = parts.tree->laid_out_at(place.row);
-        const auto end = wire_end(parts, port, board_coords::window_rects(parts));
-        if (!row || !end) return core::Rect{};
-        return core::Rect{ui::place_of(self).to_local(core::Point{core::X{end->x.raw() - bar / 2}, row->origin.y}),
-                          core::Size{core::Width{bar}, row->extent.h}};
-    };
-    role.drop = [&parts](const std::any& v, ui::DropPlace place) {
-        if (const auto* node = palette_drag_of(parts, v))
-            return static_cast<void>(node->kind.add(*parts.graph, board_coords::to_graph(*parts.graph, place.at)));
-        const auto p = board_coords::board_to_window(parts, place.at);
-        if (const auto to = p ? dot_taking(parts, v, *p) : std::nullopt)
-            static_cast<void>(parts.graph->connect(std::any_cast<const PortDrag&>(v).from, *to));
-    };
-    return role;
 }
 
 nodes::PortRef ref_of(const NodeBoardParts& parts, const nodes::Port& p) {
