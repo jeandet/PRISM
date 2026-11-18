@@ -71,6 +71,9 @@ The framework needs to know when state has changed to decide whether to re-run t
 
 For Phase 2/3: always re-run. Optimise later if profiling shows it matters.
 
+A field set while a frame is built (a node board's fit, made in its layout) gets the next
+frame: its widgets stay dirty after the publish, and the app publishes again at once.
+
 ## Future: Reflection-Derived UI
 
 With C++26 static reflection, the framework can auto-derive UI from state types:

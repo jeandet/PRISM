@@ -20,6 +20,7 @@ public:
         int width = 0;
         int height = 0;
         uint64_t version = 0;
+        std::size_t republished_in_a_row = 0;   // publishes asked for by the build before (AppRun)
     };
 
     template <typename Model>

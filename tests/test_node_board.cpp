@@ -1306,3 +1306,16 @@ TEST_CASE("a zoom asked for is made about the board's centre at its next layout"
     CHECK(f.m.graph.view().pan.x.raw() == doctest::Approx(cx - 2 * cx));
     CHECK(f.m.graph.view().pan.y.raw() == doctest::Approx(cy - 2 * cy));
 }
+
+TEST_CASE("only what the last build changed is kept dirty: builds not followed by a clear do not pile up") {
+    BasicFixture<ZoomShown> f;
+    f.m.graph.set_view({.pan = {}, .zoom = 0.51f});
+    f.m.graph.request_fit();
+    f.frame();   // the fit is made in this build's layout
+    REQUIRE(f.m.graph.view().zoom == 1.f);
+    CHECK_FALSE(f.tree.clear_dirty().empty());
+    f.m.graph.request_zoom(0.5f);
+    f.frame();   // changes the view in its layout
+    f.frame();   // changes nothing
+    CHECK(f.tree.clear_dirty().empty());
+}

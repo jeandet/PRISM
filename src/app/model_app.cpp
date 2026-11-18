@@ -9,6 +9,7 @@
 #include <prism/ui/context.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <exception>
 #include <utility>
 #include <variant>
@@ -177,6 +178,18 @@ void AppContext::apply_theme(const Theme& t) {
 
 namespace app_run_detail {
 
+namespace {
+// Debug builds: a field set by every build republishes forever; say once which widget shows it.
+void warn_if_built_in_a_loop([[maybe_unused]] std::size_t in_a_row, [[maybe_unused]] const std::vector<WidgetId>& changed) {
+#ifndef NDEBUG
+    static bool warned = false;
+    if (in_a_row > 3 && !changed.empty() && !std::exchange(warned, true))
+        std::fprintf(stderr, "prism: widget %llu changes in every frame's build, so every frame asks for another\n",
+                     static_cast<unsigned long long>(changed.front()));
+#endif
+}
+} // namespace
+
 void AppRun::run(std::function<void(AppContext&)> setup) {
     logic_thread_ = std::thread([this, setup = std::move(setup)] { logic_main(std::move(setup)); });
 
@@ -247,8 +260,13 @@ void AppRun::publish_entry(WindowId id, WindowRegistry::Entry& entry) {
                                     ++entry.version));
     backend_.submit(id, entry.current_snap);
     backend_.wake();
-    entry.tree->clear_dirty();
-    // Changed while it was built (a board's fit, made in its layout): the next frame shows it.
+    // A field set while the frame was built (a board's fit, made in its layout) gets the next
+    // frame, asked for at once.
+    // simplify: unpaced: a field set in every build would publish as fast as the loop turns
+    // (debug builds say which widget). Pace these publishes with the tick if one ever must.
+    const auto changed = entry.tree->clear_dirty();
+    entry.republished_in_a_row = changed.empty() ? 0 : entry.republished_in_a_row + 1;
+    warn_if_built_in_a_loop(entry.republished_in_a_row, changed);
     if (entry.tree->any_dirty()) publish_after_input(std::nullopt);
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     if (id == primary_id_ && debug_controller_)

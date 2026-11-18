@@ -437,6 +437,7 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
 [[nodiscard]] std::unique_ptr<SceneSnapshot> WidgetTree::build_snapshot(float w, float h, uint64_t version) {
     last_built_version_ = version;
     building_ = true;
+    changed_while_building_.clear();   // only this build's: clear_dirty keeps them dirty
     struct Built { bool& building; ~Built() { building = false; } } built{building_};
     auto build_start = std::chrono::steady_clock::now();
     auto window_colors = WindowColors{theme_.canvas_bg, theme_.chrome_bg, theme_.chrome_border,

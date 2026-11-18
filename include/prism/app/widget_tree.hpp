@@ -81,10 +81,13 @@ public:
 
     // What the last publish drew is clean; a field changed while it was being built (a board's
     // fit, set in its layout) is not drawn yet, so its widgets stay dirty for the next one.
-    void clear_dirty() {
+    // Returns those widgets.
+    std::vector<WidgetId> clear_dirty() {
         tooltip_dirty_ = false;
         clear_dirty_impl(root_);
-        for (WidgetId id : std::exchange(changed_while_building_, {})) set_dirty(id);
+        auto changed = std::exchange(changed_while_building_, {});
+        for (WidgetId id : changed) set_dirty(id);
+        return changed;
     }
 
     // Runs each block's attach(ctx) once, the first time it is called after the block was
