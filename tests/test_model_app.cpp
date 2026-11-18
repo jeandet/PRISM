@@ -1385,3 +1385,45 @@ TEST_CASE("a field changed during a publish (a board's fit) gets another publish
     CHECK(raw->seen_half);
     CHECK(shows_text(*raw->last, "100 %"));
 }
+
+namespace {
+struct TidySink {
+    prism::nodes::In<double> in{"in", 0.0};
+    std::vector<prism::nodes::Port*> ports() { return {&in}; }
+};
+
+struct TidyModel {
+    FitSource source;
+    TidySink sink;
+    prism::nodes::Graph graph;
+    prism::nodes::NodeId a = graph.add(source, {.title = "A", .family = "", .at = {prism::X{300}, prism::Y{0}}});
+    prism::nodes::NodeId b = graph.add(sink, {.title = "B", .family = "", .at = {prism::X{0}, prism::Y{0}}});
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+// Lets the app run on its own for a while, with no input at all, then closes the window.
+struct IdleBackend final : public prism::BackendBase {
+    prism::HeadlessWindow window_{0, {}};
+    prism::Window& create_window(prism::WindowConfig cfg) override {
+        window_ = prism::HeadlessWindow{1, cfg};
+        return window_;
+    }
+    void run(std::function<void(const prism::WindowEvent&)> cb) override {
+        std::this_thread::sleep_for(std::chrono::milliseconds(700));
+        cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
+    }
+    void submit(prism::WindowId, std::shared_ptr<const prism::SceneSnapshot>) override {}
+    void wake() override {}
+    void quit() override {}
+};
+}
+
+TEST_CASE("a tidy asked with no input after it still runs to its end") {
+    TidyModel model;
+    auto backend = prism::Backend{std::make_unique<IdleBackend>()};
+    auto& window = backend.create_window({.width = 800, .height = 600});
+    REQUIRE(model.graph.connect({model.a, 0}, {model.b, 0}).has_value());
+    prism::model_app(backend, window, model, [&](prism::AppContext&) { model.graph.request_tidy(); });
+    CHECK_FALSE(model.graph.tidy_requested());
+    CHECK(model.graph.position(model.a).x.raw() < model.graph.position(model.b).x.raw());
+}

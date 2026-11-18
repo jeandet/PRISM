@@ -115,6 +115,7 @@ struct NodeBoardParts {
     // passes at the same size, since a wrapped label above the board settles on a later one.
     std::optional<core::Size> seen_board;
     std::vector<core::Size> seen_cards;
+    int tidy_waits = 0;   // likewise for a tidy waiting for its cards
     int fit_waits = 0;   // passes this fit has waited for, so a size that never settles fits anyway
 
     core::Field<ui::Label<>>& label(std::string text, bool heading = false) {

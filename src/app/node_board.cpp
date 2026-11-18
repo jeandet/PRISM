@@ -418,11 +418,19 @@ void fit_as_asked(nodes::Graph& graph, const std::vector<core::Rect>& cards, cor
 }
 
 // A tidy starts once every card has a size that two passes agree on: a node added in the same
-// turn has no card yet, and a node with no size would be laid out as a point.
-void tidy_as_asked(nodes::Graph& graph, NodeBoardParts& parts, std::size_t cards, bool stable) {
-    if (!graph.take_tidy_request()) return;
-    if (stable && cards == graph.nodes().size()) parts.glide = glide_to_tidy(graph, parts);
-    else graph.request_tidy();
+// turn has no card yet, and a node with no size would be laid out as a point. A card that never
+// comes (after fit_waits_limit passes) is laid out as a point rather than waited for forever.
+// Returns whether the glide started, which then takes its first step in the same pass.
+bool tidy_as_asked(nodes::Graph& graph, NodeBoardParts& parts, std::size_t cards, bool stable) {
+    if (!graph.take_tidy_request()) return false;
+    const bool carded = cards == graph.nodes().size();
+    if (stable && (carded || ++parts.tidy_waits >= fit_waits_limit)) {
+        parts.tidy_waits = 0;
+        parts.glide = glide_to_tidy(graph, parts);
+        return true;
+    }
+    graph.request_tidy();
+    return false;
 }
 
 // Zoom, tidy and fit as asked, once the board knows its size. A fit waits for a tidy's glide to
@@ -436,7 +444,7 @@ void view_as_asked(nodes::Graph& graph, NodeBoardParts& parts) {
     const bool same = same_sizes_as_last_pass(parts, board->extent, cards);
     if (!graph.fit_requested() && !graph.tidy_requested()) return;
     const bool stable = same || ++parts.fit_waits >= fit_waits_limit;
-    tidy_as_asked(graph, parts, cards.size(), stable);
+    if (tidy_as_asked(graph, parts, cards.size(), stable)) glide_on(graph, parts);
     const bool gliding = parts.glide || graph.tidy_requested();
     if (graph.fit_requested() && !gliding) fit_as_asked(graph, cards, board->extent, stable);
     if (stable) parts.fit_waits = 0;
