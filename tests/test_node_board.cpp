@@ -1009,6 +1009,53 @@ TEST_CASE("a fit asked for before the board was ever laid out waits for its size
 }
 
 namespace {
+// A heading that wraps over a narrow window: its height changes once it is measured, so the board
+// below it is a different height on the first layout passes.
+struct Headed {
+    Field<Label<>> heading{{.value = "A sentence long enough to take more than one line in a narrow "
+                                     "window, above the board rather than inside it.",
+                            .wrap = true}};
+    Source source;
+    Sink sink;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(source, {.title = "Source", .family = "source", .at = P(20, 30)});
+    nodes::NodeId b = graph.add(sink, {.title = "Sink", .family = "math", .at = P(300, 250), .removable = true});
+    WidgetId board = 0;
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.vstack([&] {
+            vb.widget(heading);
+            board = vb.node_board(graph);
+        });
+    }
+};
+} // namespace
+
+TEST_CASE("a fit asked for before the first frame waits for the board's size to settle") {
+    Headed m;
+    m.graph.request_fit();
+    WidgetTree tree{m};
+    for (std::uint64_t v = 1; v <= 6; ++v) {
+        auto snap = tree.build_snapshot(240, 400, v);
+        static_cast<void>(snap);   // frames until well past the fit, which waits for a stable size
+    }
+    CHECK_FALSE(m.graph.fit_requested());
+    const Rect board = *tree.laid_out_at(m.board);
+    std::vector<Rect> cards;
+    for (const WidgetId label : {m.source.out_label, m.sink.in_label})
+        cards.push_back(*tree.laid_out_at(*tree.parent_of(*tree.parent_of(label))));
+    const float zoom = m.graph.view().zoom;
+    const auto natural = [&](const Rect& r) { return Size{r.extent.w / zoom, r.extent.h / zoom}; };
+    const float settled_zoom = nodes::fit_all(std::vector<Rect>{{m.graph.position(m.a), natural(cards[0])},
+                                                                 {m.graph.position(m.b), natural(cards[1])}},
+                                              board.extent).zoom;
+    CHECK(zoom == doctest::Approx(settled_zoom));
+    for (const Rect& r : cards) {
+        CHECK(board.contains(r.origin));
+        CHECK(board.contains(Point{X{right(r) - 1.f}, Y{bottom(r) - 1.f}}));
+    }
+}
+
+namespace {
 enum class Wave { Sine, Square, Saw };
 
 struct Shaper {   // a node with a dropdown and a context menu
@@ -1462,6 +1509,24 @@ TEST_CASE("a port's label sits on the card, with no box of its own") {
     const Color box = f.tree.theme().surface;
     const auto fills = f.draws_of<FilledRect>(f.m.source.out_label);
     CHECK(std::ranges::none_of(fills, [&](const FilledRect& r) { return r.color == box; }));
+}
+
+TEST_CASE("a port's label clears the dot that lies over its card's edge") {
+    Fixture f;
+    const Theme& t = f.tree.theme();
+    // Half a dot, its ring, and a little air: what an edge steals from the card at zoom 1.
+    constexpr float dot_clearance = 11.f;
+
+    const auto out = f.text_cmd("out");
+    REQUIRE(out);
+    const Rect out_card = *f.allocated(f.card_of(f.m.source.out_label));
+    const float out_right = out->origin.x.raw() + text_width(t.measurer, out->text, out->size);
+    CHECK(out_right <= right(out_card) - dot_clearance);
+
+    const auto in = f.text_cmd("in");
+    REQUIRE(in);
+    const Rect in_card = *f.allocated(f.card_of(f.m.sink.in_label));
+    CHECK(in->origin.x.raw() >= in_card.origin.x.raw() + dot_clearance);
 }
 
 TEST_CASE("the board paints the theme's board colour, then a dot grid every 20 board units") {

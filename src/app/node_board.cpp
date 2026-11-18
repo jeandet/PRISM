@@ -312,6 +312,8 @@ constexpr float wire_under_alpha = 0.25f;
 constexpr float dot_side = 12.f;
 constexpr float dot_side_floor = 4.f;
 constexpr float dot_ring = 3.f;     // of the board's own colour, around a dot
+// How far a dot reaches into its card, from the edge: a port's label starts clear of it.
+constexpr float dot_clearance = dot_side / 2.f + dot_ring + 2.f;
 constexpr float faded_port_alpha = 0.35f;
 
 // A size drawn to the cards' zoom, never below `floor` px: a wire or a dot zoomed far out stays seen.
@@ -667,25 +669,48 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
     return true;
 }
 
-// A zoom or a fit asked for is made once the board knows its size: not at its first layout pass. The
-// first publish lays out again once the cards' labels are measured, so a fit asked at startup
-// lands there.
+// A zoom or a fit asked for is made once the board knows its size. A fit keeps asking until two
+// passes see the same board and card sizes: a wrapped label above the board settles on a later
+// pass, and a fit made from an earlier pass's size would be off.
 // simplify: a board with no size at all (zero-size) keeps the requests until a frame finds it
 // sized; nothing asks for that frame, so a resize or an input brings it.
-void view_as_asked(nodes::Graph& graph, const NodeBoardParts& parts) {
-    const auto board = parts.tree->laid_out_at(parts.board_id);
-    if (!board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
-    if (graph.zoom_requested()) graph.zoom_centred(board->extent);
-    if (!graph.fit_requested()) return;
+// A fit gives up waiting for the sizes to settle after this many passes: a layout that never
+// settles must not keep asking for publishes.
+constexpr int fit_waits_limit = 3;
+
+std::vector<core::Rect> cards_as_laid_out(const nodes::Graph& graph, const NodeBoardParts& parts) {
     std::vector<core::Rect> cards;
     for (const auto& [id, card] : parts.cards)
         if (const auto size = parts.tree->arranged_extent(card)) cards.push_back({graph.position(id), *size});
-    // Sets the view during this layout, which uses it now. The `layout` bump costs one more
-    // publish (WidgetTree::clear_dirty keeps it), which is what shows the new view elsewhere.
-    graph.fit(cards, board->extent);
+    return cards;
 }
 
-std::vector<core::Point> places(nodes::Graph& graph, const NodeBoardParts& parts) {
+bool same_sizes_as_last_pass(NodeBoardParts& parts, core::Size board, const std::vector<core::Rect>& cards) {
+    std::vector<core::Size> sizes;
+    sizes.reserve(cards.size());
+    for (const auto& card : cards) sizes.emplace_back(card.extent);
+    const bool same = parts.seen_board == board && parts.seen_cards == sizes;
+    parts.seen_board = board;
+    parts.seen_cards = std::move(sizes);
+    return same;
+}
+
+void view_as_asked(nodes::Graph& graph, NodeBoardParts& parts) {
+    const auto board = parts.tree->laid_out_at(parts.board_id);
+    if (!board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
+    if (graph.zoom_requested()) graph.zoom_centred(board->extent);
+    const auto cards = cards_as_laid_out(graph, parts);
+    const bool same = same_sizes_as_last_pass(parts, board->extent, cards);
+    if (!graph.fit_requested()) return;
+    const bool stable = same || ++parts.fit_waits >= fit_waits_limit;
+    // Fits during this layout, which uses the view now; the sizes it read may be an earlier
+    // pass's, so until two passes agree the request stays and asks for the next pass.
+    graph.fit(cards, board->extent);
+    if (stable) parts.fit_waits = 0;
+    else graph.request_fit();
+}
+
+std::vector<core::Point> places(nodes::Graph& graph, NodeBoardParts& parts) {
     view_as_asked(graph, parts);
     std::vector<core::Point> out;
     out.reserve(parts.built.size());
@@ -766,13 +791,16 @@ ViewBuilder::LeafHandle ViewBuilder::port(nodes::Port& p) {
     const bool output = p.dir() == nodes::Dir::Out;
     const nodes::PortRef ref = ref_of(*board_, p);
     const auto row = hstack([&] {
-        if (output) spacer();
+        if (output) spacer();          // the name sits by the dot, on the card's outward edge
+        else gap(dot_clearance);
         widget(board_->label(std::string(p.name()))).node_ref.drag = port_source(*board_, ref);
-        if (!output) spacer();
+        if (output) gap(dot_clearance);
+        else spacer();
     });
     current_parent().children.back().drag = port_target(*board_->graph, ref);
     board_->card_ports.emplace_back(&p, PortPlace{.card = 0, .row = row, .dir = p.dir(), .ref = ref});
-    return {current_parent().children.back().children[output ? 1 : 0], placed_};
+    constexpr std::size_t name_slot = 1;   // between the gap and the spacer, whichever side the dot is
+    return {current_parent().children.back().children[name_slot], placed_};
 }
 
 } // namespace prism::app

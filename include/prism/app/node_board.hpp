@@ -100,6 +100,11 @@ struct NodeBoardParts {
     BoardBackground background;
     ui::WidgetId background_id = 0;
     ui::WidgetId board_id = 0;
+    // The board and card sizes the last layout pass saw: a fit asked for at startup waits for two
+    // passes at the same size, since a wrapped label above the board settles on a later one.
+    std::optional<core::Size> seen_board;
+    std::vector<core::Size> seen_cards;
+    int fit_waits = 0;   // passes this fit has waited for, so a size that never settles fits anyway
 
     core::Field<ui::Label<>>& label(std::string text, bool heading = false) {
         return labels.emplace_back(ui::Label<>{.value = std::move(text), .heading = heading, .wrap = false,
