@@ -101,12 +101,14 @@ NodesTab::NodesTab() {
     const auto low_pass = add("Low-pass", 610, 160);
     const auto scope = add("Scope", 900, 20);
     const auto filtered = add("Scope", 900, 220);
+    const auto gained = add("Scope", 610, 300);
 
     const std::pair<nodes::PortRef, nodes::PortRef> wires[]{
         {{sine, 0}, {mixer, 0}},        {{noise, 0}, {mixer, 1}},
         {{mixer, 2}, {scope, 0}},       {{mixer, 2}, {low_pass, 0}},
         {{low_pass, 1}, {filtered, 0}}, {{square, 0}, {gain, 0}},
-        {{constant, 0}, {gain, 1}},     {{constant, 0}, {number, 0}}};
+        {{constant, 0}, {gain, 1}},     {{constant, 0}, {number, 0}},
+        {{gain, 2}, {gained, 0}}};
     for (const auto& [from, to] : wires)
         if (!graph.connect(from, to)) assert(false && "the starting patch wires what it may connect");
 
