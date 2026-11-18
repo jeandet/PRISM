@@ -6,6 +6,7 @@
 
 #include <any>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -30,8 +31,33 @@ template <> struct PortType<std::vector<double>> { static constexpr std::string_
 TypeKey type_key(std::string_view name);
 std::string_view type_name(TypeKey key);
 
+// The wire colour slot a type is drawn in: built-ins fixed, other types in registration order.
+inline constexpr std::size_t wire_slots = 6;
+std::size_t wire_slot(TypeKey key);
+
+// What a probe on a wire of this type shows; without one registered, the type's name.
+void set_formatter(TypeKey key, std::function<std::string(const std::any&)> formatter);
+std::string format_value(TypeKey key, const std::any& value);
+
+// A PortType<T> carrying `static std::string format(const T&)` registers that formatting the first
+// time its key is asked for, so no static initialiser is needed anywhere.
 template <class T>
-TypeKey type_key() { return type_key(PortType<T>::name); }
+inline constexpr bool formats_probe_text = requires(const T& v) { std::string{PortType<T>::format(v)}; };
+
+template <class T>
+void register_probe_format(TypeKey key) {
+    set_formatter(key, [](const std::any& v) { return PortType<T>::format(std::any_cast<const T&>(v)); });
+}
+
+template <class T>
+TypeKey type_key() {
+    const TypeKey key = type_key(PortType<T>::name);
+    if constexpr (formats_probe_text<T>) {
+        static const bool once = (register_probe_format<T>(key), true);
+        (void)once;
+    }
+    return key;
+}
 
 enum class Dir { In, Out };
 
