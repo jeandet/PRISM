@@ -1,6 +1,7 @@
 #include <prism/app/node_board.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/nodes/wire_geometry.hpp>
+#include <prism/ui/text_metrics.hpp>
 
 #include <algorithm>
 #include <any>
@@ -163,6 +164,29 @@ std::optional<nodes::PortRef> dot_near(const NodeBoardParts& parts, core::Point 
 
 bool any_port(nodes::PortRef) { return true; }
 
+// A change of the probed output redraws the board: the bubble shows its value.
+core::Connection watch_output(NodeBoardParts& parts, nodes::EdgeId edge) {
+    return parts.graph->port(parts.graph->edge(edge)->from)->on_change([&parts] {
+        parts.tree->mark_dirty_by_id(parts.background_id);
+    });
+}
+
+void set_probe(NodeBoardParts& parts, std::optional<Probe> next) {
+    const bool same_wire = parts.probe && next && parts.probe->edge == next->edge;
+    if (!same_wire) {
+        parts.probe_link.disconnect();
+        if (next) parts.probe_link = watch_output(parts, next->edge);
+    }
+    parts.probe = next;
+}
+
+// The pointer rests on a wire, no button held: the probe is there. Anywhere else it is gone.
+void probe_pointer(NodeBoardParts& parts, const ui::WidgetNode& n, const input::MouseMove& mm) {
+    const auto at = board_coords::from_board_origin(parts, n, mm.position);
+    const auto wire = at && mm.buttons == 0 ? wire_at(parts, ui::place_of(n).to_window(mm.position)) : std::nullopt;
+    set_probe(parts, wire ? std::optional{Probe{*wire, *at}} : std::nullopt);
+}
+
 // The selection is drawn by the board: `n`, a widget on it, asks for a frame.
 void set_selection(NodeBoardParts& parts, ui::WidgetNode& n, BoardSelection what) {
     parts.selected = what;
@@ -221,6 +245,7 @@ std::optional<ui::WidgetId> board_claims(const NodeBoardParts& parts, const inpu
 void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
     nodes::Graph& graph = *parts->graph;
     if (removes_selection(ev)) return remove_selected(*parts);
+    if (const auto* mm = std::get_if<input::MouseMove>(&ev)) probe_pointer(*parts, n, *mm);
     if (zooms(ev)) return zoom_by_wheel(*parts, n, std::get<input::MouseScroll>(ev));
     if (other_button_mid_pan(*this, n, ev)) return;
     if (track_press(press, ev, input::buttons::middle)) {
@@ -330,8 +355,16 @@ std::function<core::Connection(std::function<void()>)> on_either(core::Field<std
     };
 }
 
+// The probe, while the pointer is still on the board's background (a card or the window's edge
+// took the hover) and its wire is still there.
+const Probe* shown_probe(const NodeBoardParts& parts) {
+    const bool on_background = parts.tree->hovered_id() == parts.background_id;
+    return on_background && parts.probe && parts.graph->edge(parts.probe->edge) ? &*parts.probe : nullptr;
+}
+
 void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
                 const ui::Theme& t) {
+    const Probe* probe = shown_probe(parts);
     const nodes::Graph& graph = *parts.graph;
     for (const auto id : graph.edges()) {
         const auto* e = graph.edge(id);
@@ -342,10 +375,43 @@ void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::Boa
         if (!from || !to) continue;
         const Color color = port_color(t, *port);
         const auto curve = nodes::polyline(nodes::wire_curve(*from, *to));
-        if (parts.selected.wire == id)
+        if (parts.selected.wire == id || (probe && probe->edge == id))
             dl.polyline(curve, faded(color, wire_under_alpha), zoomed(wire_under, scale, 1.f));
         dl.polyline(curve, color, zoomed(wire_width(*port), scale, 1.f));
     }
+}
+
+constexpr float probe_text_size = 11.f;
+constexpr float probe_pad_x = 8.f, probe_pad_y = 3.f;
+constexpr float probe_radius = 10.f;
+constexpr float probe_gap = 12.f;   // from the pointer, to the right and up
+
+// `at` moved to keep a box of `box` inside one of `board`'s size.
+core::Point kept_inside(core::Point at, core::Size box, core::Size board) {
+    const auto keep = [](float v, float room) { return std::clamp(v, 0.f, std::max(room, 0.f)); };
+    return {core::X{keep(at.x.raw(), board.w.raw() - box.w.raw())},
+            core::Y{keep(at.y.raw(), board.h.raw() - box.h.raw())}};
+}
+
+// The probe's bubble, at natural size whatever the zoom: the value in the wire's colour-ringed box.
+void draw_probe(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t) {
+    const Probe* probe = shown_probe(parts);
+    const auto board = parts.tree->laid_out_at(parts.board_id);
+    if (!probe || !board) return;
+    const nodes::Port* port = parts.graph->port(parts.graph->edge(probe->edge)->from);
+    if (!port) return;
+    const std::string text = nodes::format_value(port->type(), port->value());
+    const render::FontStyle mono{render::FontRole::Mono};
+    const core::Size box{core::Width{ui::text_width(t.measurer, text, probe_text_size, mono) + 2.f * probe_pad_x},
+                         core::Height{ui::line_height(t.measurer, probe_text_size, mono) + 2.f * probe_pad_y}};
+    const core::Point pointer = core::Point{} + probe->at;
+    const core::Point origin = kept_inside(pointer + core::Offset{core::DX{probe_gap}, core::DY{-probe_gap - box.h.raw()}},
+                                           box, board->extent);
+    const core::Rect rect{origin, box};
+    dl.rounded_rect(rect, t.node_probe_bg, probe_radius);
+    dl.rounded_rect(rect, port_color(t, *port), probe_radius, 1.f);
+    dl.text(text, origin + core::Offset{core::DX{probe_pad_x}, core::DY{probe_pad_y}}, probe_text_size,
+            t.node_probe_text, 0.f, render::TextAnchor::TopLeft, mono);
 }
 
 // A port's dot: a rounded square in its type's colour, ringed in the board's so it reads where it
@@ -624,6 +690,9 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     parts->graph = &graph;
     parts->tree = &tree_;
     parts->board_id = b.id;
+    parts->structure_link = graph.structure.on_change().connect([p = parts.get()](std::uint64_t) {
+        if (p->probe && !p->graph->edge(p->probe->edge)) set_probe(*p, std::nullopt);
+    });
     parts->background.parts = parts.get();
     b.build_content = [&graph, parts, &tree = tree_](Node& target) {
         parts->built = graph.nodes();
@@ -651,6 +720,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
         draw_dots(dl, *parts, rect_of, scale, theme);
         outline_selected_node(dl, *parts, rect_of, theme);
+        draw_probe(dl, *parts, theme);
     };
     current_parent().children.push_back(std::move(b));
     return current_parent().children.back().id;

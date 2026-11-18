@@ -2,6 +2,7 @@
 
 // What vb.node_board keeps between its builds (view_builder.hpp declares the builder calls).
 
+#include <prism/core/connection.hpp>
 #include <prism/core/field.hpp>
 #include <prism/nodes/graph.hpp>
 #include <prism/ui/node.hpp>
@@ -40,6 +41,12 @@ struct BoardSelection {
     std::optional<nodes::NodeId> node;
 };
 
+// The wire the pointer rests on, and where: the probe's bubble shows its value there.
+struct Probe {
+    nodes::EdgeId edge = 0;
+    core::Offset at{};   // from the board's top-left
+};
+
 struct NodeBoardParts;
 
 // The empty board: dragging it pans every node, clicking it selects the wire there (or nothing),
@@ -73,6 +80,9 @@ struct NodeBoardParts {
     nodes::Graph* graph = nullptr;
     WidgetTree* tree = nullptr;
     BoardSelection selected;
+    std::optional<Probe> probe;
+    core::Connection probe_link;       // wakes the board when the probed output changes
+    core::Connection structure_link;   // drops the probe when its wire is gone
     std::vector<nodes::NodeId> built;   // the nodes the cards were built for, in board order
     std::map<const nodes::Port*, PortPlace> ports;
     std::map<nodes::NodeId, ui::WidgetId> cards;

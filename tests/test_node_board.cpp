@@ -1697,3 +1697,166 @@ TEST_CASE("while a wire is dragged, a port that cannot take it fades, and the tr
     }));
     CHECK(std::ranges::none_of(incompatible, [&](const RoundedRect& r) { return r.color == number; }));
 }
+
+namespace {
+
+// A number source whose output follows a level the test moves.
+struct Dial {
+    Field<double> level{0.25};
+    nodes::Out<double> out{"out", [this] { return level.get(); }};
+    WidgetId out_label = 0;
+    std::vector<nodes::Port*> ports() { return {&out}; }
+    void view(WidgetTree::ViewBuilder& vb) { out_label = vb.port(out).node_ref.id; }
+};
+
+struct Probed {
+    Dial level;
+    Sink sink;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(level, {.title = "Level", .family = "source", .at = P(20, 30)});
+    nodes::NodeId b = graph.add(sink, {.title = "Sink", .family = "math", .at = P(300, 60)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+using ProbedFixture = BasicFixture<Probed>;
+
+// The pointer moves with no button held, as it does when it only rests on the board.
+void hover(ProbedFixture& f, Point at) {
+    route_event(f.tree, f.snap.get(), MouseMove{at, 0});
+    f.frame();
+}
+
+Point on_the_wire(const ProbedFixture& f) {
+    const auto wires = f.all<Polyline>();
+    return wires.back().points[12];
+}
+
+// The bubble: its text drawn in the theme's probe colour.
+std::optional<TextCmd> bubble_text(const ProbedFixture& f) {
+    const Color c = f.tree.theme().node_probe_text;
+    for (const auto& t : f.all<TextCmd>())
+        if (t.color == c) return t;
+    return std::nullopt;
+}
+
+std::string shown_value(ProbedFixture& f) {
+    return nodes::format_value(f.m.level.out.type(), f.m.level.out.value());
+}
+}
+
+TEST_CASE("hovering a wire shows its value in a bubble, in the theme's probe look") {
+    ProbedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    CHECK_FALSE(bubble_text(f));
+    const Point at = on_the_wire(f);
+    hover(f, at);
+    const auto text = bubble_text(f);
+    REQUIRE(text);
+    CHECK(text->text == shown_value(f));
+    CHECK(text->font == FontStyle{FontRole::Mono});
+    CHECK(text->size == doctest::Approx(11.f));
+
+    const Theme& t = f.tree.theme();
+    const auto boxes = f.all<RoundedRect>();
+    const auto box = *std::ranges::find_if(boxes, [&](const RoundedRect& r) {
+        return r.color == t.node_probe_bg && r.thickness == 0.f;
+    });
+    CHECK(box.radius == doctest::Approx(10.f));
+    CHECK(box.rect.origin.x.raw() == doctest::Approx(at.x.raw() + 12.f));
+    CHECK(box.rect.origin.y.raw() + box.rect.extent.h.raw() == doctest::Approx(at.y.raw() - 12.f));
+    const Color wire = t.node_wires[nodes::wire_slot(f.m.level.out.type())];
+    CHECK(std::ranges::any_of(boxes, [&](const RoundedRect& r) {
+        return r.color == wire && r.thickness == doctest::Approx(1.f) && r.rect.origin == box.rect.origin;
+    }));
+
+    const auto wires = f.all<Polyline>();   // the hovered wire carries the under-stroke
+    REQUIRE(wires.size() == 2);
+    CHECK(wires[0].thickness == doctest::Approx(9.f));
+
+    hover(f, empty_spot);
+    CHECK_FALSE(bubble_text(f));
+    CHECK(f.all<Polyline>().size() == 1);
+}
+
+TEST_CASE("the bubble follows the output while the pointer rests") {
+    ProbedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    hover(f, on_the_wire(f));
+    const std::string before = bubble_text(f)->text;
+    f.m.level.level.set(0.75);
+    f.frame();
+    REQUIRE(bubble_text(f));
+    CHECK(bubble_text(f)->text == shown_value(f));
+    CHECK(bubble_text(f)->text != before);
+}
+
+TEST_CASE("removing the probed wire's source node clears the probe") {
+    ProbedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    hover(f, on_the_wire(f));
+    REQUIRE(bubble_text(f));
+    f.m.graph.remove(f.m.a);
+    f.frame();
+    CHECK_FALSE(bubble_text(f));
+    f.m.level.level.set(0.5);   // nothing is listening any more
+    f.frame();
+    CHECK_FALSE(bubble_text(f));
+    CHECK(f.all<Polyline>().empty());
+}
+
+TEST_CASE("disconnecting the probed wire clears the probe") {
+    ProbedFixture f;
+    const auto e = f.m.graph.connect({f.m.a, 0}, {f.m.b, 0});
+    REQUIRE(e.has_value());
+    f.frame();
+    hover(f, on_the_wire(f));
+    REQUIRE(bubble_text(f));
+    f.m.graph.disconnect(*e);
+    f.frame();
+    CHECK_FALSE(bubble_text(f));
+}
+
+TEST_CASE("hovering a card, or pressing a button, shows no probe") {
+    ProbedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    const Point at = on_the_wire(f);
+    hover(f, at);
+    REQUIRE(bubble_text(f));
+    hover(f, *f.text_at("Sink") + Offset{DX{4.f}, DY{4.f}});
+    CHECK_FALSE(bubble_text(f));
+    route_event(f.tree, f.snap.get(), MouseMove{at, 1});   // a button held: a drag, not a hover
+    f.frame();
+    CHECK_FALSE(bubble_text(f));
+}
+
+TEST_CASE("leaving the window clears the probe") {
+    ProbedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    hover(f, on_the_wire(f));
+    REQUIRE(bubble_text(f));
+    route_event(f.tree, f.snap.get(), MouseLeave{});
+    f.frame();
+    CHECK_FALSE(bubble_text(f));
+}
+
+TEST_CASE("at zoom 0.5 the bubble keeps its natural size") {
+    ProbedFixture f;
+    at_zoom(f, 0.5f);
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    hover(f, on_the_wire(f));
+    const auto text = bubble_text(f);
+    REQUIRE(text);
+    CHECK(text->size == doctest::Approx(11.f));
+    const auto boxes = f.all<RoundedRect>();
+    const auto box = std::ranges::find_if(boxes, [&](const RoundedRect& r) {
+        return r.color == f.tree.theme().node_probe_bg && r.thickness == 0.f;
+    });
+    REQUIRE(box != boxes.end());
+    CHECK(box->rect.extent.h.raw() == doctest::Approx(11.f * 1.4f + 6.f));   // 3 px of padding
+}
