@@ -38,10 +38,12 @@ inline Box shown_box(const std::optional<Vec>& probe) {
             .high = high + Vec{camera_margin, camera_margin}};
 }
 
-// The narrowest view of `aspect` that holds the box, never wider than the lost box.
+// The narrowest view of `aspect` that holds the box, never past the lost box: at a portrait aspect
+// the height is the tighter of the two, so the width budget follows the aspect.
 inline double view_width(const Box& box, double aspect) {
     const double need = std::max(box.high.x - box.low.x, (box.high.y - box.low.y) * aspect);
-    return std::min(need, 2 * lost_reach * field_diagonal());
+    const double room = 2 * lost_reach * field_diagonal();
+    return std::min(need, std::min(room, room * aspect));
 }
 
 // `value` moved into `[low, high]`. A narrow aspect makes the view taller than it is wide, so its

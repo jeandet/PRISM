@@ -17,7 +17,7 @@ constexpr double aspect = 5.0 / 3.0; // the gallery canvas's shape
 constexpr double tau = 0.25;         // the camera's easing time constant, in seconds
 constexpr double frame_s = 1.0 / 60.0;
 
-double height_of(const View& v) { return v.width / aspect; }
+double height_of(const View& v, double a = aspect) { return v.width / a; }
 
 // Whether the view shows `p`, with `pad` field units to spare on every side.
 bool shows(const View& v, Vec p, double pad = 0) {
@@ -34,10 +34,10 @@ void check_field_shown(const View& v) {
 double lost_reach_units() { return lost_reach * field_diagonal(); }
 
 // The view's whole rectangle inside the lost box: 1.5 diagonals around the field's centre.
-bool inside_lost_box(const View& v) {
+bool inside_lost_box(const View& v, double a = aspect) {
     const Vec c = field_centre();
     const double reach = lost_reach_units();
-    const double half = v.width / 2, half_h = height_of(v) / 2;
+    const double half = v.width / 2, half_h = height_of(v, a) / 2;
     return v.centre.x - half >= c.x - reach - 1e-9 && v.centre.x + half <= c.x + reach + 1e-9 &&
            v.centre.y - half_h >= c.y - reach - 1e-9 && v.centre.y + half_h <= c.y + reach + 1e-9;
 }
@@ -103,6 +103,17 @@ TEST_CASE("the camera never shows past the lost box") {
     // A probe far past the box does not make the view grow past it either.
     const View v = wanted_view(Vec{c.x + 10 * reach, c.y}, aspect);
     CHECK(v.width == doctest::Approx(cap));
+}
+
+TEST_CASE("a portrait canvas keeps the view inside the lost box too") {
+    const double portrait = 0.5;
+    const Vec c = field_centre();
+    const double reach = lost_reach_units();
+    const View v = wanted_view(Vec{c.x + 10 * reach, c.y}, portrait);
+    CHECK(v.width == doctest::Approx(2 * reach * portrait)); // the box's height is the tighter limit
+    CHECK(v.width / portrait <= 2 * reach + 1e-9);
+    CHECK(v.centre.y == doctest::Approx(c.y)); // exactly the box's height, so centred on it
+    CHECK(inside_lost_box(v, portrait));
 }
 
 TEST_CASE("easing closes half the gap in 0.25 ln2 seconds") {
