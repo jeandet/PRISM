@@ -37,6 +37,11 @@ std::size_t wire_slot(TypeKey key);
 
 // What a probe on a wire of this type shows; without one registered, the type's name.
 void set_formatter(TypeKey key, std::function<std::string(const std::any&)> formatter);
+
+// A formatter that only takes hold when the key has none yet: the type's own formatting, which an
+// app's set_formatter overrides whichever of the two came first.
+void set_default_formatter(TypeKey key, std::function<std::string(const std::any&)> formatter);
+
 std::string format_value(TypeKey key, const std::any& value);
 
 // A PortType<T> carrying `static std::string format(const T&)` registers that formatting the first
@@ -46,7 +51,10 @@ inline constexpr bool formats_probe_text = requires(const T& v) { std::string{Po
 
 template <class T>
 void register_probe_format(TypeKey key) {
-    set_formatter(key, [](const std::any& v) { return PortType<T>::format(std::any_cast<const T&>(v)); });
+    set_default_formatter(key, [](const std::any& v) -> std::string {
+        const auto* value = std::any_cast<T>(&v);
+        return value ? PortType<T>::format(*value) : std::string(PortType<T>::name);
+    });
 }
 
 template <class T>

@@ -52,11 +52,20 @@ std::optional<std::size_t> builtin_slot(std::string_view name) {
     return std::nullopt;
 }
 
+// The byte offset just past `count` code points of `text`, so a cut never splits a character.
+std::size_t utf8_prefix(const std::string& text, std::size_t count) {
+    std::size_t at = 0;
+    for (std::size_t seen = 0; seen < count && at < text.size(); ++seen) {
+        const auto lead = static_cast<unsigned char>(text[at]);
+        at += lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1;
+    }
+    return std::min(at, text.size());
+}
+
 std::string quote_and_cut(const std::string& text) {
     constexpr std::size_t shown = 24;
-    if (text.size() <= shown) return '"' + text + '"';
-    std::size_t cut = shown;
-    while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;
+    const std::size_t cut = utf8_prefix(text, shown);
+    if (cut == text.size()) return '"' + text + '"';
     return '"' + text.substr(0, cut) + "…";
 }
 
@@ -68,12 +77,22 @@ std::string waveform_text(const std::vector<double>& samples) {
     return std::format("{} samples · peak {:.2f}", samples.size(), peak);
 }
 
+// A value of another type shows the fallback: a probe never throws.
+template <class T, class Fn>
+std::function<std::string(const std::any&)> guarded(std::string fallback, Fn fn) {
+    return [fallback = std::move(fallback), fn](const std::any& v) -> std::string {
+        const auto* value = std::any_cast<T>(&v);
+        return value ? fn(*value) : fallback;
+    };
+}
+
 std::function<std::string(const std::any&)> builtin_formatter(std::string_view name) {
-    if (name == "number") return [](const std::any& v) { return std::format("{:.3g}", std::any_cast<double>(v)); };
-    if (name == "integer") return [](const std::any& v) { return std::format("{}", std::any_cast<int>(v)); };
-    if (name == "boolean") return [](const std::any& v) { return std::string(std::any_cast<bool>(v) ? "true" : "false"); };
-    if (name == "text") return [](const std::any& v) { return quote_and_cut(std::any_cast<const std::string&>(v)); };
-    if (name == "waveform") return [](const std::any& v) { return waveform_text(std::any_cast<const std::vector<double>&>(v)); };
+    const std::string fallback{name};
+    if (name == "number") return guarded<double>(fallback, [](double n) { return std::format("{:.3g}", n); });
+    if (name == "integer") return guarded<int>(fallback, [](int n) { return std::format("{}", n); });
+    if (name == "boolean") return guarded<bool>(fallback, [](bool b) { return std::string(b ? "true" : "false"); });
+    if (name == "text") return guarded<std::string>(fallback, quote_and_cut);
+    if (name == "waveform") return guarded<std::vector<double>>(fallback, waveform_text);
     return {};
 }
 
@@ -115,6 +134,13 @@ void set_formatter(TypeKey key, std::function<std::string(const std::any&)> form
     auto& r = registry();
     std::lock_guard lock(r.mutex);
     if (Node* node = node_at(r, key)) node->second.formatter = std::move(formatter);
+}
+
+void set_default_formatter(TypeKey key, std::function<std::string(const std::any&)> formatter) {
+    auto& r = registry();
+    std::lock_guard lock(r.mutex);
+    Node* node = node_at(r, key);
+    if (node && !node->second.formatter) node->second.formatter = std::move(formatter);
 }
 
 std::string format_value(TypeKey key, const std::any& value) {
