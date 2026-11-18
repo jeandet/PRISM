@@ -26,8 +26,7 @@ bool being_dragged(const NodeBoardParts& parts, nodes::NodeId id) {
 
 Glide glide_to_tidy(const nodes::Graph& graph, const NodeBoardParts& parts) {
     std::map<nodes::NodeId, core::Size> sizes;
-    for (const auto& [id, card] : parts.cards)
-        if (const auto size = parts.tree->arranged_extent(card)) sizes.emplace(id, *size);
+    for (const auto& [id, rect] : card_rects(parts)) sizes.emplace(id, rect.extent);
     const auto start = parts.tree->now();
     Glide glide{.start = start, .next_step = start, .legs = {}};
     for (const auto& [id, to] : nodes::tidy_layout(graph, sizes))

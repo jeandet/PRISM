@@ -13,32 +13,24 @@ constexpr float snap_reach_px = 6.f;
 
 std::vector<core::Rect> other_cards(const NodeBoardParts& parts, nodes::NodeId dragged) {
     std::vector<core::Rect> out;
-    for (const auto& [id, card] : parts.cards)
-        if (id != dragged && std::ranges::contains(parts.graph->nodes(), id))
-            if (const auto size = parts.tree->arranged_extent(card)) out.push_back({parts.graph->position(id), *size});
+    for (const auto& [id, rect] : card_rects(parts))
+        if (id != dragged) out.push_back(rect);
     return out;
 }
 
-// A port's row centre below its card's top, in graph units (rows are laid out at the board's zoom).
-std::optional<core::DY> centre_from_top(const NodeBoardParts& parts, nodes::PortRef ref) {
-    const auto place = parts.ports.find(parts.graph->port(ref));
-    if (place == parts.ports.end()) return std::nullopt;
-    const auto row = parts.tree->laid_out_at(place->second.row);
-    const auto card = parts.tree->laid_out_at(place->second.card);
-    if (!row || !card) return std::nullopt;
-    const float below = row->origin.y.raw() + row->extent.h.raw() / 2.f - card->origin.y.raw();
-    return core::DY{below / parts.graph->view().zoom};
+// Where a wire ends on `ref`'s port, in graph units.
+std::optional<core::Point> wire_end_in_graph(const NodeBoardParts& parts, nodes::PortRef ref) {
+    const auto end = wire_end(parts, parts.graph->port(ref), board_coords::window_rects(parts));
+    return end ? board_coords::window_to_graph(parts, *end) : std::nullopt;
 }
 
-// Where a wire ends on `ref`'s card, in graph units: its outputs on the right edge, its inputs on the left.
-std::optional<core::Point> wire_end_in_graph(const NodeBoardParts& parts, nodes::PortRef ref) {
-    const auto card = parts.cards.find(ref.node);
-    const auto below = centre_from_top(parts, ref);
-    const auto size = card == parts.cards.end() ? std::nullopt : parts.tree->arranged_extent(card->second);
-    if (!below || !size) return std::nullopt;
-    const core::Point at = parts.graph->position(ref.node);
-    const float right = parts.graph->port(ref)->dir() == nodes::Dir::Out ? size->w.raw() : 0.f;
-    return core::Point{core::X{at.x.raw() + right}, at.y + *below};
+// A port's wire end below its card's top, in graph units: it stays put while the card is moved.
+std::optional<core::DY> centre_from_top(const NodeBoardParts& parts, nodes::PortRef ref) {
+    const auto place = parts.ports.find(parts.graph->port(ref));
+    const auto card = place == parts.ports.end() ? std::nullopt : parts.tree->laid_out_at(place->second.card);
+    const auto end = wire_end_in_graph(parts, ref);
+    const auto top = card ? board_coords::window_to_graph(parts, card->origin) : std::nullopt;
+    return end && top ? std::optional{(*end - *top).dy} : std::nullopt;
 }
 
 std::optional<nodes::LevelWith> level_with(const NodeBoardParts& parts, nodes::PortRef mine, nodes::PortRef theirs) {

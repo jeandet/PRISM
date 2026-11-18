@@ -25,7 +25,11 @@ core::Point to_graph(const nodes::Graph& graph, core::Point on_board);
 std::optional<core::Point> board_to_window(const NodeBoardParts& parts, core::Point on_board);
 std::optional<core::Offset> from_board_origin(const NodeBoardParts& parts, const ui::WidgetNode& n, core::Point local);
 ui::BoardRectOf window_rects(const NodeBoardParts& parts);
+std::optional<core::Point> window_to_graph(const NodeBoardParts& parts, core::Point window);
 } // namespace board_coords
+
+// Where each card with a size lies, in graph units: those the graph still has, in id order.
+std::map<nodes::NodeId, core::Rect> card_rects(const NodeBoardParts& parts);
 
 // A fit or a tidy gives up waiting for the sizes to settle after this many passes: a layout that never
 // settles must not keep asking for publishes.

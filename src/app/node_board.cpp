@@ -83,7 +83,26 @@ ui::BoardRectOf window_rects(const NodeBoardParts& parts) {
     return [&tree = *parts.tree](ui::WidgetId id) { return tree.laid_out_at(id); };
 }
 
+// Where a point of the window is on the graph; none before the board is laid out.
+std::optional<core::Point> window_to_graph(const NodeBoardParts& parts, core::Point window) {
+    const auto board = parts.tree->laid_out_at(parts.board_id);
+    return board ? std::optional{to_graph(*parts.graph, core::Point{} + (window - board->origin))} : std::nullopt;
+}
+
 } // namespace node_board_detail::board_coords
+
+namespace node_board_detail {
+
+std::map<nodes::NodeId, core::Rect> card_rects(const NodeBoardParts& parts) {
+    const auto alive = parts.graph->nodes();
+    std::map<nodes::NodeId, core::Rect> out;
+    for (const auto& [id, card] : parts.cards)
+        if (std::ranges::contains(alive, id))
+            if (const auto size = parts.tree->arranged_extent(card)) out.emplace(id, core::Rect{parts.graph->position(id), *size});
+    return out;
+}
+
+} // namespace node_board_detail
 
 namespace {
 
@@ -354,10 +373,10 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
 // pass, and a fit made from an earlier pass's size would be off.
 // simplify: a board with no size at all (zero-size) keeps the requests until a frame finds it
 // sized; nothing asks for that frame, so a resize or an input brings it.
-std::vector<core::Rect> cards_as_laid_out(const nodes::Graph& graph, const NodeBoardParts& parts) {
+std::vector<core::Rect> cards_as_laid_out(const NodeBoardParts& parts) {
+    const auto rects = card_rects(parts);
     std::vector<core::Rect> cards;
-    for (const auto& [id, card] : parts.cards)
-        if (const auto size = parts.tree->arranged_extent(card)) cards.push_back({graph.position(id), *size});
+    for (const auto& [id, rect] : rects) cards.push_back(rect);
     return cards;
 }
 
@@ -385,7 +404,7 @@ void view_as_asked(nodes::Graph& graph, NodeBoardParts& parts) {
     if (!board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
     if (graph.zoom_requested()) graph.zoom_centred(board->extent);
     glide_on(graph, parts);
-    const auto cards = cards_as_laid_out(graph, parts);
+    const auto cards = cards_as_laid_out(parts);
     const bool same = same_sizes_as_last_pass(parts, board->extent, cards);
     if (!graph.fit_requested() && !graph.tidy_requested()) return;
     const bool stable = same || ++parts.fit_waits >= fit_waits_limit;
