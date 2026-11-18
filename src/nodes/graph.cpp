@@ -19,6 +19,8 @@ Graph::Graph() = default;
 
 Graph::~Graph() {
     for (auto& [id, e] : edges_) e->link.disconnect();
+    edges_.clear();
+    nodes_.clear();
 }
 
 NodeId Graph::add_entry(Entry entry) {

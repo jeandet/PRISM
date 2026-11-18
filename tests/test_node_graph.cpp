@@ -249,3 +249,60 @@ TEST_CASE("a zoom asked for is made about the board's centre once its size is kn
     // The graph point under the centre, (800, 600) at zoom 0.5, is still there.
     CHECK(g.view().pan == Point{X{-400}, Y{-300}});
 }
+
+namespace {
+
+struct Counted {   // a node the graph owns: it counts its destructions, and the wires left at that moment
+    static inline int destroyed = 0;
+    static inline std::size_t wires_at_death = 99;
+    In<double> v{"v", 0.0};
+    Out<double> out{"out", [this] { return v.get(); }};
+    const Graph* graph;
+    explicit Counted(const Graph* g) : graph(g) {}
+    Counted(const Counted&) = delete;
+    ~Counted() {
+        ++destroyed;
+        wires_at_death = graph ? graph->edges().size() : 0;
+    }
+    std::vector<Port*> ports() { return {&v, &out}; }
+};
+
+}
+
+TEST_CASE("a node the graph owns is destroyed when it is removed, after its wires are gone") {
+    Counted::destroyed = 0;
+    Graph g;
+    const auto a = g.emplace<Counted>(titled("a"), &g);
+    const auto b = g.emplace<Counted>(titled("b"), &g);
+    REQUIRE(g.connect({a, OUT}, {b, 0}));
+    g.remove(a);
+    CHECK(Counted::destroyed == 1);
+    CHECK(Counted::wires_at_death == 0);
+    CHECK(g.nodes() == std::vector{b});
+}
+
+TEST_CASE("a graph destroys the nodes it owns once, and leaves the nodes it references") {
+    Counted::destroyed = 0;
+    Sink referenced;
+    {
+        Graph g;
+        const auto a = g.emplace<Counted>(titled("a"), nullptr);
+        const auto b = g.emplace<Counted>(titled("b"), nullptr);
+        const auto k = g.add(referenced, titled("k"));
+        REQUIRE(g.connect({a, OUT}, {k, 0}));
+        REQUIRE(g.connect({a, OUT}, {b, 0}));
+        CHECK(Counted::destroyed == 0);
+    }
+    CHECK(Counted::destroyed == 2);
+}
+
+TEST_CASE("removing an owned node reverts the input it fed and runs no callback of its own") {
+    Graph g;
+    Sink k;
+    const auto a = g.emplace<Source>(titled("a"));
+    const auto b = g.add(k, titled("k"));
+    REQUIRE(g.connect({a, OUT}, {b, 0}));
+    g.remove(a);
+    CHECK(k.in.get() == -1.0);
+    CHECK(g.edges().empty());
+}

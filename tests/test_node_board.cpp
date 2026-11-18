@@ -5,6 +5,7 @@
 #include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/nodes/graph.hpp>
+#include <prism/nodes/node_kind.hpp>
 
 #include <algorithm>
 
@@ -1859,4 +1860,127 @@ TEST_CASE("at zoom 0.5 the bubble keeps its natural size") {
     });
     REQUIRE(box != boxes.end());
     CHECK(box->rect.extent.h.raw() == doctest::Approx(11.f * 1.4f + 6.f));   // 3 px of padding
+}
+
+namespace {
+
+struct Amp {   // a node a palette makes: no view, its ports shown as they are
+    nodes::In<double> in{"in", 0.0};
+    nodes::Out<double> out{"amp out", [this] { return in.get(); }};
+    std::vector<nodes::Port*> ports() { return {&in, &out}; }
+};
+
+struct Workbench {
+    nodes::Graph graph;
+    std::vector<nodes::NodeKind> kinds{nodes::kind_of<Amp>("Amplifier", "math"), nodes::kind_of<Amp>("Mixer", "sink")};
+    WidgetId palette = 0, board = 0;
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.hstack([&] {
+            palette = vb.node_palette(graph, kinds);
+            board = vb.node_board(graph);
+        });
+    }
+};
+
+using PaletteFixture = BasicFixture<Workbench>;
+
+// What the palette row titled `title` draws: its text sits inside it.
+Point row_of(const PaletteFixture& f, std::string_view title) {
+    const auto t = f.text_cmd(title);
+    REQUIRE(t);
+    return t->origin + Offset{DX{2.f}, DY{2.f}};
+}
+
+void click_twice(PaletteFixture& f, Point at) {
+    for (int i = 0; i < 2; ++i) {
+        route_event(f.tree, f.snap.get(), MouseButton{at, buttons::left, true, 0, static_cast<std::uint8_t>(i + 1)});
+        route_event(f.tree, f.snap.get(), MouseButton{at, buttons::left, false, 0, static_cast<std::uint8_t>(i + 1)});
+        f.frame();
+    }
+}
+
+Point on_board(const PaletteFixture& f, float x, float y) {
+    return laid_out(f, f.m.board).origin + Offset{DX{x}, DY{y}};
+}
+
+}
+
+TEST_CASE("a palette row shows its family's colour and its title") {
+    PaletteFixture f;
+    CHECK(f.text_cmd("Amplifier"));
+    const auto& theme = f.tree.theme();
+    bool found = false;
+    for (WidgetId id : f.tree.leaf_ids())
+        if (f.tree.within(id, f.m.palette))
+            for (const auto& c : f.draws_of<Circle>(id))
+                found = found || c.color == node_family_color(theme, "math");
+    CHECK(found);
+}
+
+TEST_CASE("dragging a palette row onto the board adds a node; at zoom 0.5 its card's top-left is under the drop") {
+    PaletteFixture f;
+    at_zoom(f, 0.5f);
+    const Point drop = on_board(f, 200.f, 100.f);
+    f.drag(row_of(f, "Amplifier"), drop);
+    REQUIRE(f.m.graph.nodes().size() == 1);
+    const auto id = f.m.graph.nodes().front();
+    CHECK(f.m.graph.position(id).x.raw() == doctest::Approx(400));
+    CHECK(f.m.graph.position(id).y.raw() == doctest::Approx(200));
+    CHECK(f.m.graph.options(id).title == "Amplifier");
+    CHECK(f.m.graph.options(id).family == "math");
+    CHECK(f.m.graph.options(id).removable);
+    for (WidgetId leaf : f.tree.leaf_ids())
+        if (f.tree.within(leaf, f.m.board) && !f.draws_of<TextCmd>(leaf).empty()
+            && f.draws_of<TextCmd>(leaf).front().text == "amp out") {
+            const Rect card = laid_out(f, f.tree.parent_of(*f.tree.parent_of(leaf)).value());
+            CHECK(card.origin.x.raw() == doctest::Approx(drop.x.raw()));
+            CHECK(card.origin.y.raw() == doctest::Approx(drop.y.raw()));
+        }
+}
+
+TEST_CASE("a palette row lands where the board is panned to, and dropped off the board adds nothing") {
+    PaletteFixture f;
+    f.m.graph.set_view({.pan = P(-30, -10), .zoom = 1.f});
+    f.frame();
+    f.drag(row_of(f, "Mixer"), on_board(f, 100.f, 50.f));
+    REQUIRE(f.m.graph.nodes().size() == 1);
+    CHECK(f.m.graph.position(f.m.graph.nodes().front()) == P(130, 60));
+    f.drag(row_of(f, "Mixer"), P(1.f, 590.f));
+    CHECK(f.m.graph.nodes().size() == 1);
+}
+
+TEST_CASE("activating a palette row twice adds two nodes 24 units apart, from the board's visible top-left") {
+    PaletteFixture f;
+    f.m.graph.set_view({.pan = P(-30, -10), .zoom = 1.f});
+    f.frame();
+    click_twice(f, row_of(f, "Amplifier"));
+    REQUIRE(f.m.graph.nodes().size() == 1);
+    click_twice(f, row_of(f, "Amplifier"));
+    REQUIRE(f.m.graph.nodes().size() == 2);
+    const auto ids = f.m.graph.nodes();
+    CHECK(f.m.graph.position(ids[0]) == P(30, 10));
+    CHECK(f.m.graph.position(ids[1]) == P(54, 34));
+}
+
+TEST_CASE("a single click on a palette row adds nothing; Enter on the focused row adds one") {
+    PaletteFixture f;
+    const Point at = row_of(f, "Amplifier");
+    route_event(f.tree, f.snap.get(), MouseButton{at, buttons::left, true});
+    route_event(f.tree, f.snap.get(), MouseButton{at, buttons::left, false});
+    f.frame();
+    CHECK(f.m.graph.nodes().empty());
+    key(f, keys::enter);
+    CHECK(f.m.graph.nodes().size() == 1);
+}
+
+TEST_CASE("a node made by the palette is owned by the graph: removing it drops its wires") {
+    PaletteFixture f;
+    click_twice(f, row_of(f, "Amplifier"));
+    click_twice(f, row_of(f, "Mixer"));
+    const auto ids = f.m.graph.nodes();
+    REQUIRE(ids.size() == 2);
+    REQUIRE(f.m.graph.connect({ids[0], 1}, {ids[1], 0}));
+    f.m.graph.remove(ids[0]);
+    CHECK(f.m.graph.edges().empty());
+    CHECK(f.m.graph.nodes() == std::vector{ids[1]});
 }

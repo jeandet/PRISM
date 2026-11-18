@@ -104,6 +104,13 @@ core::Point dragged(const nodes::Graph& graph, const ui::WidgetNode& n, core::Po
     return from + core::Offset{core::DX{d.dx.raw() * k}, core::DY{d.dy.raw() * k}};
 }
 
+// The graph point shown at `on_board`, a point in the board's own coordinates (a drop's place).
+core::Point to_graph(const nodes::Graph& graph, core::Point on_board) {
+    const float k = 1.f / graph.view().zoom;
+    const core::Point unzoomed{core::X{on_board.x.raw() * k}, core::Y{on_board.y.raw() * k}};
+    return unzoomed - (graph.view().pan - core::Point{});
+}
+
 // A point on the board (a drop's place) in the window; none before the board is laid out.
 std::optional<core::Point> board_to_window(const NodeBoardParts& parts, core::Point on_board) {
     const auto board = parts.tree->laid_out_at(parts.board_id);
@@ -536,7 +543,17 @@ std::optional<nodes::PortRef> dot_taking(const NodeBoardParts& parts, const std:
     return dot_near(parts, p, [&](nodes::PortRef to) { return parts.graph->can_connect(d->from, to); });
 }
 
-// The board: a drop near a dot connects to its port. It takes drops only there, so it is not
+const PaletteDrag* palette_drag_of(const NodeBoardParts& parts, const std::any& v) {
+    const auto* d = std::any_cast<PaletteDrag>(&v);
+    return d && d->graph == parts.graph ? d : nullptr;
+}
+
+bool carrying_a_node(const NodeBoardParts& parts) {
+    const auto* drag = parts.tree->drag();
+    return drag && drag->value.has_value() && palette_drag_of(parts, drag->value);
+}
+
+// The board: a drop near a dot connects to its port; a palette row dropped anywhere adds its node. It takes drops only there, so it is not
 // hinted whole; the port taking one is marked by a bar on its card's edge (the drop's slot,
 // an index into parts.ports).
 // simplify: the slot, and so the bar, is the nearest dot, as DragRole::slot is not given the
@@ -545,12 +562,16 @@ std::optional<nodes::PortRef> dot_taking(const NodeBoardParts& parts, const std:
 ui::DragRole dot_target(NodeBoardParts& parts) {
     constexpr float bar = 3.f;
     ui::DragRole role;
-    role.accepts = [&parts](const std::any& v) { return port_drag_of(parts.graph, v) != nullptr; };
+    role.accepts = [&parts](const std::any& v) {
+        return port_drag_of(parts.graph, v) != nullptr || palette_drag_of(parts, v) != nullptr;
+    };
     role.takes_at = [&parts](const std::any& v, ui::DropPlace place) {
+        if (palette_drag_of(parts, v)) return true;
         const auto p = board_coords::board_to_window(parts, place.at);
         return p && dot_taking(parts, v, *p);
     };
     role.slot = [&parts](const ui::WidgetNode& self, core::Point at) {
+        if (carrying_a_node(parts)) return parts.ports.size();   // no dot: no bar
         const auto port = dot_near(parts, ui::place_of(self).to_window(at), any_port);
         const auto it = std::ranges::find_if(parts.ports, [&](const auto& kv) { return port && kv.second.ref == *port; });
         return static_cast<std::size_t>(std::distance(parts.ports.begin(), it));
@@ -565,6 +586,8 @@ ui::DragRole dot_target(NodeBoardParts& parts) {
                           core::Size{core::Width{bar}, row->extent.h}};
     };
     role.drop = [&parts](const std::any& v, ui::DropPlace place) {
+        if (const auto* node = palette_drag_of(parts, v))
+            return static_cast<void>(node->kind.add(*parts.graph, board_coords::to_graph(*parts.graph, place.at)));
         const auto p = board_coords::board_to_window(parts, place.at);
         if (const auto to = p ? dot_taking(parts, v, *p) : std::nullopt)
             static_cast<void>(parts.graph->connect(std::any_cast<const PortDrag&>(v).from, *to));

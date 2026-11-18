@@ -5,6 +5,7 @@
 #include <prism/core/connection.hpp>
 #include <prism/core/field.hpp>
 #include <prism/nodes/graph.hpp>
+#include <prism/nodes/node_kind.hpp>
 #include <prism/ui/node.hpp>
 
 #include <cstdint>
@@ -33,6 +34,12 @@ struct PortPlace {
 struct PortDrag {
     nodes::Graph* graph = nullptr;
     nodes::PortRef from;
+};
+
+// What dragging a palette row carries: the kind to add, to the board of `graph` it is dropped on.
+struct PaletteDrag {
+    nodes::Graph* graph = nullptr;
+    nodes::NodeKind kind;
 };
 
 // What the board has selected (a wire clicked, a node's header clicked): Delete removes it.

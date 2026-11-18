@@ -31,10 +31,11 @@
 #include <cassert>
 #include <memory>
 #include <set>
+#include <span>
 #include <type_traits>
 #include <vector>
 
-namespace prism::nodes { class Graph; class Port; }
+namespace prism::nodes { class Graph; class Port; struct NodeKind; }
 
 namespace prism::app {
 class WidgetTree;
@@ -622,6 +623,11 @@ public:
     // title and family, then its view()), the wires drawn between the cards' port rows. Built
     // again when a node comes or goes; moving one or adding a wire rebuilds no widget.
     WidgetId node_board(nodes::Graph& graph);
+    // The blocks a user can add to a node_board of `graph` (nodes/node_kind.hpp): a row each, with
+    // its family's colour and its title. Dragging one onto the board adds it where it is dropped;
+    // double-clicking it, or Enter on the focused row, adds it at the board's visible top-left,
+    // 24 graph units further down and right on each add so repeats do not stack. The kinds are copied.
+    WidgetId node_palette(nodes::Graph& graph, std::span<const nodes::NodeKind> kinds);
     // A port's row in a node's view: its name, on the left for an input, on the right for an
     // output; the port's wires end at the card's edge level with it. Only inside a node_board.
     LeafHandle port(nodes::Port& p);

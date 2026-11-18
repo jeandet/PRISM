@@ -46,9 +46,10 @@ enum class ConnectError { NotOutputToInput, TypeMismatch, Cycle, UnknownPort };
 
 struct EdgeInfo { PortRef from, to; };
 
-// The model of a node editor: nodes the app owns (referenced here, never owned) and the typed
-// wires between their ports, which the graph owns. Ports must outlive the graph or be removed
-// from it first; the graph's own destructor touches no port.
+// The model of a node editor: nodes the app owns (added by reference, never owned here), nodes
+// the graph owns (emplaced: destroyed on remove, once their wires are gone, and with the graph),
+// and the typed wires between their ports, which the graph owns. An app-owned node's ports must
+// outlive the graph or be removed from it first; the graph's destructor touches none of them.
 class Graph {
 public:
     Graph();
@@ -59,6 +60,14 @@ public:
     template <NodeType N>
     NodeId add(N& node, NodeOptions opt) {
         return add_entry({node.ports(), view_of_node(node), std::move(opt)});
+    }
+
+    // Makes the node in place, a node the graph owns (non-movable is fine): `removable`, as the
+    // options say. Returns its id.
+    template <NodeType N, class... Args>
+    NodeId emplace(NodeOptions opt, Args&&... args) {
+        const auto node = std::make_shared<N>(std::forward<Args>(args)...);
+        return add_entry({node->ports(), view_of_node(*node), std::move(opt), node});
     }
 
     void remove(NodeId);
@@ -105,6 +114,7 @@ private:
         std::vector<Port*> ports;
         std::function<void(app::ViewBuilder&)> view;
         NodeOptions options;
+        std::shared_ptr<void> owned{};   // the node, when the graph owns it
     };
 
     template <class N>
