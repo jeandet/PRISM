@@ -10,6 +10,7 @@
 #include <prism/ui/node.hpp>
 
 #include <cstdint>
+#include <chrono>
 #include <deque>
 #include <map>
 #include <optional>
@@ -83,6 +84,12 @@ struct NodeGrip {
     void handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect r);
 };
 
+// Nodes gliding to where tidy puts them: each from where it was, over `glide_duration`.
+struct Glide {
+    std::chrono::steady_clock::time_point start;
+    std::map<nodes::NodeId, std::pair<core::Point, core::Point>> legs;   // node -> from, to
+};
+
 // Kept for the board's life; the cards' parts are rebuilt with the cards, and the labels are the
 // texts the cards show, so they live as long.
 struct NodeBoardParts {
@@ -100,6 +107,7 @@ struct NodeBoardParts {
     std::vector<std::pair<const nodes::Port*, PortPlace>> card_ports;   // likewise
     std::deque<core::Field<ui::Label<>>> labels;   // a deque: the widgets point at them
     std::deque<NodeGrip> grips;                     // likewise
+    std::optional<Glide> glide;   // a tidy under way
     BoardBackground background;
     ui::WidgetId background_id = 0;
     ui::WidgetId board_id = 0;

@@ -6,6 +6,7 @@
 #include <prism/app/widget_tree.hpp>
 #include <prism/nodes/graph.hpp>
 #include <prism/nodes/node_kind.hpp>
+#include <prism/nodes/tidy.hpp>
 
 #include <prism/ui/text_metrics.hpp>
 
@@ -2261,4 +2262,90 @@ TEST_CASE("with Alt held a header is dragged freely: no snap, no guide") {
     CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(296));
     CHECK(guides_drawn(f).empty());
     f.release(grab + Offset{DX{276.f}, DY{0.f}});
+}
+
+namespace {
+
+using Clock = std::chrono::steady_clock;
+
+// A fixture whose tree runs on a clock the test moves.
+struct Gliding : Fixture {
+    Clock::time_point at = Clock::now();
+    Gliding() {
+        tree.set_clock([this] { return at; });
+        REQUIRE(m.graph.connect({m.a, 0}, {m.b, 0}).has_value());
+        m.graph.move(m.a, P(300, 200));
+        m.graph.move(m.b, P(20, 30));   // the wire runs backwards: tidy swaps them
+        frame();
+    }
+    void after(int ms) { at += std::chrono::milliseconds(ms); frame(); }
+    std::map<nodes::NodeId, Size> card_sizes() {
+        std::map<nodes::NodeId, Size> sizes;
+        sizes.emplace(m.a, laid_out(*this, card_of(m.source.out_label)).extent);
+        sizes.emplace(m.b, laid_out(*this, card_of(m.sink.in_label)).extent);
+        return sizes;
+    }
+};
+
+} // namespace
+
+TEST_CASE("tidy glides every node to its column over 200 ms") {
+    Gliding f;
+    const auto target = nodes::tidy_layout(f.m.graph, f.card_sizes());
+    f.m.graph.request_tidy();
+    f.frame();
+    f.after(100);
+    const float a_x = f.m.graph.position(f.m.a).x.raw();
+    CHECK(a_x < 300.f);                               // on its way
+    CHECK(a_x > target.at(f.m.a).x.raw());            // and not there yet
+    f.after(150);
+    f.after(1);
+    for (const auto id : {f.m.a, f.m.b}) {
+        CHECK(f.m.graph.position(id).x.raw() == doctest::Approx(target.at(id).x.raw()));
+        CHECK(f.m.graph.position(id).y.raw() == doctest::Approx(target.at(id).y.raw()));
+    }
+    CHECK(f.m.graph.position(f.m.b).x.raw() > f.m.graph.position(f.m.a).x.raw());
+}
+
+TEST_CASE("a glide asks the tree for its next frame until it ends") {
+    Gliding f;
+    f.m.graph.request_tidy();
+    f.frame();
+    f.after(50);
+    const auto wake = f.tree.next_wake();
+    REQUIRE(wake);
+    f.tree.tick(*wake);   // the app's timer: it consumes the deadline
+    f.after(300);
+    CHECK_FALSE(f.tree.next_wake());
+}
+
+TEST_CASE("a node grabbed during a glide stops gliding; the others arrive") {
+    Gliding f;
+    const auto target = nodes::tidy_layout(f.m.graph, f.card_sizes());
+    f.m.graph.request_tidy();
+    f.frame();
+    f.after(60);
+    auto title = f.text_at("Source");
+    REQUIRE(title);
+    const Point grab = *title + Offset{DX{2.f}, DY{2.f}};
+    f.press(grab);
+    f.move_to(grab + Offset{DX{10.f}, DY{0.f}});
+    const Point held = f.m.graph.position(f.m.a);
+    f.after(300);
+    f.after(1);
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(held.x.raw()));
+    CHECK(f.m.graph.position(f.m.b).x.raw() == doctest::Approx(target.at(f.m.b).x.raw()));
+}
+
+TEST_CASE("a node removed during a glide is skipped; the others arrive") {
+    Gliding f;
+    const auto target = nodes::tidy_layout(f.m.graph, f.card_sizes());
+    f.m.graph.request_tidy();
+    f.frame();
+    f.after(60);
+    f.m.graph.remove(f.m.b);
+    f.frame();
+    f.after(300);
+    f.after(1);
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(target.at(f.m.a).x.raw()));
 }

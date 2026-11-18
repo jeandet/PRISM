@@ -307,3 +307,13 @@ TEST_CASE("removing an owned node reverts the input it fed and runs no callback 
     CHECK(k.in.get() == -1.0);
     CHECK(g.edges().empty());
 }
+
+TEST_CASE("a tidy is asked for, taken once, and lays the board out again") {
+    Graph g;
+    CHECK_FALSE(g.take_tidy_request());
+    const auto l = g.layout.get();
+    g.request_tidy();
+    CHECK(g.layout.get() == l + 1);
+    CHECK(g.take_tidy_request());
+    CHECK_FALSE(g.take_tidy_request());
+}

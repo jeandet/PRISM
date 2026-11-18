@@ -263,6 +263,15 @@ public:
     // Runs what is due at `now`: shows a tooltip, redraws animating widgets.
     void tick(TooltipState::clock::time_point now);
 
+    // The time animations here run on: the steady clock, unless a test sets its own.
+    [[nodiscard]] TooltipState::clock::time_point now() const { return clock_ ? clock_() : TooltipState::clock::now(); }
+    void set_clock(std::function<TooltipState::clock::time_point()> clock) { clock_ = std::move(clock); }
+
+    // Asks for a frame at `at` with no input (see next_wake) from the widget `id`.
+    void redraw_at(WidgetId id, TooltipState::clock::time_point at) {
+        if (auto it = index_.find(id); it != index_.end()) it->second->redraw_at = at;
+    }
+
     // `button`: the one pressing it, which alone lets go of the capture (see captured_button).
     void set_pressed(WidgetId id, bool pressed, std::uint8_t button = input::buttons::left) {
         flip_visual_flag(id, &WidgetVisualState::pressed, pressed);
@@ -534,6 +543,7 @@ private:
     std::set<const void*> placed_anywhere_;
     std::vector<std::pair<const void*, std::function<void(AppContext&)>>> unattached_;
     std::vector<std::function<void(std::function<void()>)>> waker_binders_;
+    std::function<TooltipState::clock::time_point()> clock_;
 
     void collect_drains(const Node& node);
 

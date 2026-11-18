@@ -113,6 +113,7 @@ NodesTab::NodesTab() {
         if (!graph.connect(from, to)) assert(false && "the starting patch wires what it may connect");
 
     wire.on(fit, [this](const ui::Button&) { graph.request_fit(); });
+    wire.on(tidy, [this](const ui::Button&) { graph.request_tidy(); });
     wire.on(actual_size, [this](const ui::Button&) { graph.request_zoom(1.f); });
     graph.request_fit();   // the whole patch on show, whatever the tab's size
 }
@@ -125,6 +126,7 @@ void NodesTab::view(app::ViewBuilder& vb) {
         vb.vstack([&] {
             vb.hstack([&] {
                 vb.widget(fit);
+                vb.widget(tidy);
                 vb.widget(actual_size);
                 vb.widget(zoom_label);
             });

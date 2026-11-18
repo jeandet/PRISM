@@ -15,6 +15,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace prism::app { class ViewBuilder; }
@@ -98,6 +99,10 @@ public:
     bool fit_requested() const { return fit_requested_; }
     // Shows every card (natural size, at its graph position) in a board of `board`'s size.
     void fit(std::span<const core::Rect> cards, core::Size board);
+    // Asks the board to lay the nodes out in columns (tidy_layout) at its next layout, and to glide
+    // them there; take_tidy_request() says so once, to the board that does it.
+    void request_tidy();
+    bool take_tidy_request() { return std::exchange(tidy_requested_, false); }
     // Asks the board to zoom to `zoom` (clamped) about its centre at its next layout, which calls
     // zoom_centred() once it knows its size.
     void request_zoom(float zoom);
@@ -133,6 +138,7 @@ private:
     std::map<EdgeId, std::unique_ptr<Edge>> edges_;
     core::Field<BoardView> view_{};
     bool fit_requested_ = false;
+    bool tidy_requested_ = false;
     std::optional<float> zoom_requested_;
     NodeId next_node_ = 1;
     EdgeId next_edge_ = 1;

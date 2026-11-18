@@ -2,6 +2,7 @@
 
 #include <prism/app/node_board.hpp>
 #include <prism/app/widget_tree.hpp>
+#include <prism/nodes/tidy.hpp>
 #include <prism/nodes/wire_geometry.hpp>
 #include <prism/ui/text_metrics.hpp>
 
@@ -228,6 +229,7 @@ void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
         mods = std::get<input::MouseButton>(ev).mods;
         shown = {{0, graph.position(id)}};
         set_selection(*parts, n, {.wire = {}, .node = id});
+        if (parts->glide) parts->glide->legs.erase(id);   // grabbed: it stays where the hand puts it
         tree.set_focused(parts->background_id);   // the board takes Delete
     }
     if (!press) return drop_guides(*parts);
@@ -368,10 +370,46 @@ bool same_sizes_as_last_pass(NodeBoardParts& parts, core::Size board, const std:
     return same;
 }
 
+constexpr auto glide_duration = std::chrono::milliseconds(200);
+constexpr auto glide_frame = std::chrono::milliseconds(16);
+
+float ease_out_cubic(float t) {
+    const float rest = 1.f - t;
+    return 1.f - rest * rest * rest;
+}
+
+core::Point between(core::Point from, core::Point to, float t) {
+    return {core::X{from.x.raw() + (to.x.raw() - from.x.raw()) * t},
+            core::Y{from.y.raw() + (to.y.raw() - from.y.raw()) * t}};
+}
+
+Glide glide_to_tidy(const nodes::Graph& graph, const NodeBoardParts& parts) {
+    std::map<nodes::NodeId, core::Size> sizes;
+    for (const auto& [id, card] : parts.cards)
+        if (const auto size = parts.tree->arranged_extent(card)) sizes.emplace(id, *size);
+    Glide glide{.start = parts.tree->now(), .legs = {}};
+    for (const auto& [id, to] : nodes::tidy_layout(graph, sizes)) glide.legs.emplace(id, std::pair{graph.position(id), to});
+    return glide;
+}
+
+// One frame of the glide: every node still gliding goes where `now` puts it. While it lasts the
+// board asks the tree for the next frame, since nothing else would.
+void glide_on(nodes::Graph& graph, NodeBoardParts& parts) {
+    if (!parts.glide) return;
+    const auto now = parts.tree->now();
+    const float t = std::clamp(std::chrono::duration<float>(now - parts.glide->start) / glide_duration, 0.f, 1.f);
+    for (const auto& [id, leg] : parts.glide->legs)
+        if (std::ranges::contains(graph.nodes(), id)) graph.move(id, between(leg.first, leg.second, ease_out_cubic(t)));
+    if (t < 1.f) parts.tree->redraw_at(parts.board_id, now + glide_frame);
+    else parts.glide.reset();
+}
+
 void view_as_asked(nodes::Graph& graph, NodeBoardParts& parts) {
     const auto board = parts.tree->laid_out_at(parts.board_id);
     if (!board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
     if (graph.zoom_requested()) graph.zoom_centred(board->extent);
+    if (graph.take_tidy_request()) parts.glide = glide_to_tidy(graph, parts);
+    glide_on(graph, parts);
     const auto cards = cards_as_laid_out(graph, parts);
     const bool same = same_sizes_as_last_pass(parts, board->extent, cards);
     if (!graph.fit_requested()) return;

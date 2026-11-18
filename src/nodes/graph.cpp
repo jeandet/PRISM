@@ -154,6 +154,11 @@ void Graph::request_fit() {
     layout.set(layout.get() + 1);
 }
 
+void Graph::request_tidy() {
+    tidy_requested_ = true;
+    layout.set(layout.get() + 1);
+}
+
 void Graph::fit(std::span<const core::Rect> cards, core::Size board) {
     fit_requested_ = false;
     set_view(fit_all(cards, board));

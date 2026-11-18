@@ -112,6 +112,7 @@ struct NodesTab {
         nodes::kind_of<LowPassNode>("Low-pass", "filter"), nodes::kind_of<ScopeNode>("Scope", "display"),
         nodes::kind_of<NumberDisplayNode>("Number", "display")};
     core::Field<ui::Button> fit{{.text = "Fit", .primary = false}};
+    core::Field<ui::Button> tidy{{.text = "Tidy", .primary = false}};
     core::Field<ui::Button> actual_size{{.text = "100 %", .primary = false}};
     core::Derived<std::string> zoom_label{[this] {
         return std::format("{:.0f} %", graph.view().zoom * 100.f);

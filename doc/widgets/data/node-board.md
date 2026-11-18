@@ -191,6 +191,7 @@ keep as a member lives as long as your model does, and is not removable unless t
 | drag the background | pans |
 | middle drag | pans, even over a card |
 | Ctrl+wheel | zooms about the pointer; a trackpad pinch arrives as this |
+| `graph.request_tidy()` | lays the nodes out in columns, gliding there |
 | `graph.request_fit()` | shows every card in the board's size, at its next layout |
 
 `request_fit` is what a Fit button calls; a zoom readout is a `Derived` over `graph.view()`:
@@ -201,6 +202,23 @@ core::Derived<std::string> zoom{[this] { return std::format("{:.0f} %", graph.vi
 
 The view is a field (`graph.view_field()`), so it can be saved and restored with `set_view`, like a
 dock layout.
+
+## Arranging nodes
+
+A node dragged by its header snaps: it lines up with the other cards (left, centre or right edge
+against theirs, top, middle or bottom likewise) and levels its ports with the wires it has. A
+guide line shows what it snapped to while the drag lasts. The pull is 6 px on screen, at any zoom.
+Hold Alt while dragging to move freely, with no snapping and no guides.
+
+`graph.request_tidy()` lays the whole graph out in columns, wires running left to right: a node's
+column is its longest chain of nodes feeding it, and nodes with no wires go in the first column
+after the wired ones. The nodes glide there in 200 ms, and a node you grab on the way stays where
+you put it. The result starts where the cards did, so the graph does not jump. A Tidy button
+calls it:
+
+```cpp
+wire.on(tidy, [this](const ui::Button&) { graph.request_tidy(); });
+```
 
 ## Probes
 
