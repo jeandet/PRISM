@@ -1175,3 +1175,16 @@ TEST_CASE("at zoom 0.5 a middle drag by 30 px over a card pans by 60 board units
     CHECK(f.m.graph.view().pan == P(60, 0));
     CHECK(f.m.graph.view().zoom == 0.5f);
 }
+
+TEST_CASE("a middle click in the middle of a left pan does not stop it") {
+    Fixture f;
+    f.press(empty_spot);
+    f.move_to(empty_spot + Offset{DX{-10.f}, DY{0.f}});
+    const Point here = empty_spot + Offset{DX{-10.f}, DY{0.f}};
+    route_event(f.tree, f.snap.get(), MouseButton{here, buttons::middle, true});
+    route_event(f.tree, f.snap.get(), MouseButton{here, buttons::middle, false});
+    f.frame();
+    f.move_to(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
+    CHECK(f.m.graph.view().pan == P(-30, -20));
+    f.release(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
+}

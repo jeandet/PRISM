@@ -48,6 +48,7 @@ struct BoardBackground {
     NodeBoardParts* parts = nullptr;
     std::optional<core::Point> press;   // in the background's coordinates
     core::Point pan_at_press{};
+    std::uint8_t pan_button = input::buttons::left;   // the button panning, while `press` is set
     void canvas(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n);
     void handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect r);
 };

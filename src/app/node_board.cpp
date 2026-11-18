@@ -151,10 +151,17 @@ void zoom_by_wheel(NodeBoardParts& parts, const ui::WidgetNode& n, const input::
         graph.set_view(nodes::zoomed_about(graph.view(), *pointer, nodes::wheel_zoom(graph.view().zoom, ms.dy.raw())));
 }
 
+// Another button pressed or let go during a pan: the pan goes on.
+bool other_button_mid_pan(const BoardBackground& bg, const ui::WidgetNode& n, const input::InputEvent& ev) {
+    auto* mb = std::get_if<input::MouseButton>(&ev);
+    return mb && bg.press && ui::node_vs(n).pressed && mb->button != bg.pan_button;
+}
+
 // The board claims every Ctrl+wheel turn and middle press on its cards for its background, which
 // zooms and pans with them.
-// simplify: desktop pinch gestures (SDL pinch events) are not read; the browser reports a
-// trackpad pinch as Ctrl+wheel, which this handles. Read SDL_EVENT_PINCH_* when desktop users ask.
+// simplify: desktop pinch gestures (SDL pinch events) are not read. In the browser a trackpad
+// pinch arrives as a wheel event with ctrlKey set, which the web backend reports as Ctrl
+// (sdl_platform_web.cpp), so it zooms. Read SDL_EVENT_PINCH_* when desktop users ask.
 std::optional<ui::WidgetId> board_claims(const NodeBoardParts& parts, const input::InputEvent& ev) {
     auto* mb = std::get_if<input::MouseButton>(&ev);
     const bool claimed = zooms(ev) || (mb && mb->button == input::buttons::middle);
@@ -169,9 +176,12 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
     nodes::Graph& graph = *parts->graph;
     if (removes_selection(ev)) return remove_selected(*parts);
     if (zooms(ev)) return zoom_by_wheel(*parts, n, std::get<input::MouseScroll>(ev));
+    if (other_button_mid_pan(*this, n, ev)) return;
     if (track_press(press, ev, input::buttons::middle)) {
+        pan_button = input::buttons::middle;
         pan_at_press = graph.view().pan;
     } else if (track_press(press, ev)) {
+        pan_button = input::buttons::left;
         const core::Point at = board_coords::to_window(n, *press);
         if (dot_near(*parts, at, any_port)) return press.reset();   // it draws a wire (dot_drag)
         pan_at_press = graph.view().pan;
