@@ -208,7 +208,7 @@ dock layout.
 A node dragged by its header snaps: it lines up with the other cards (left, centre or right edge
 against theirs, top, middle or bottom likewise) and levels its ports with the wires it has. A
 guide line shows what it snapped to while the drag lasts. The pull is 6 px on screen, at any zoom.
-Hold Alt while dragging to move freely, with no snapping and no guides.
+Hold Alt as you press the header to move freely, with no snapping and no guides.
 
 `graph.request_tidy()` lays the whole graph out in columns, wires running left to right: a node's
 column is its longest chain of nodes feeding it, and nodes with no wires go in the first column
@@ -219,6 +219,9 @@ calls it:
 ```cpp
 wire.on(tidy, [this](const ui::Button&) { graph.request_tidy(); });
 ```
+
+For an app's own layouts, `nodes::tidy_layout(graph, sizes, spacing)` returns where tidy would put
+each node, and `nodes::snap` does the snapping of a drag; both can be called directly.
 
 ## Probes
 

@@ -48,6 +48,9 @@ Wiring read(const Graph& graph, const std::vector<NodeId>& ids) {
 }
 
 // Kahn's order over the wires: a node's depth is one past its deepest source.
+// simplify: cycles are not broken, so the nodes of one (and all after them) stay at depth 0,
+// stacked in the first column. Graph::connect refuses a cycle, so none arises today; if a graph
+// can ever be loaded with one, drop the DFS back edges before this.
 std::vector<std::size_t> depths(const Wiring& wiring) {
     std::vector<std::size_t> pending(wiring.ins.size());
     for (std::size_t i = 0; i < pending.size(); ++i) pending[i] = wiring.ins[i].size();
