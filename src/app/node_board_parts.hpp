@@ -27,6 +27,15 @@ std::optional<core::Offset> from_board_origin(const NodeBoardParts& parts, const
 ui::BoardRectOf window_rects(const NodeBoardParts& parts);
 } // namespace board_coords
 
+// A fit or a tidy gives up waiting for the sizes to settle after this many passes: a layout that never
+// settles must not keep asking for publishes.
+constexpr int fit_waits_limit = 3;
+
+// A tidy asked for starts its glide once the card sizes settle; returns whether it started.
+bool tidy_as_asked(nodes::Graph& graph, NodeBoardParts& parts, std::size_t cards, bool stable);
+// One frame of a tidy's glide, if one is under way.
+void glide_on(nodes::Graph& graph, NodeBoardParts& parts);
+
 // Where dragging node `dragged` to `to` puts it once it snaps to its neighbours and levels its wires.
 nodes::Snapped snapped_drag(const NodeBoardParts& parts, nodes::NodeId dragged, core::Point to);
 
