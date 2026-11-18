@@ -237,9 +237,9 @@ void drop_guides(NodeBoardParts& parts) {
     parts.tree->mark_dirty_by_id(parts.board_id);
 }
 
-// Alt held at the press: the node goes where the pointer puts it.
+// Ctrl (Cmd on macOS) held as the pointer moves: the node goes where the pointer puts it.
 nodes::Snapped snapped_or_free(const NodeBoardParts& parts, nodes::NodeId id, core::Point to, std::uint16_t mods) {
-    return (mods & input::mods::alt) ? nodes::Snapped{to, {}} : snapped_drag(parts, id, to);
+    return input::mods::shortcut(mods) ? nodes::Snapped{to, {}} : snapped_drag(parts, id, to);
 }
 
 } // namespace
@@ -250,7 +250,6 @@ void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     WidgetTree& tree = *parts->tree;
     if (!std::ranges::contains(graph.nodes(), id)) return drop_guides(*parts);
     if (track_press(press, ev)) {
-        mods = std::get<input::MouseButton>(ev).mods;
         shown = {{0, graph.position(id)}};
         set_selection(*parts, n, {.wire = {}, .node = id});
         if (parts->glide) parts->glide->legs.erase(id);   // grabbed: it stays where the hand puts it
@@ -262,7 +261,7 @@ void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     auto seen = shown.upper_bound(tree.input_frame());
     if (seen != shown.begin()) --seen;
     const core::Point pointer_at = board_coords::dragged(graph, n, seen->second, *d);
-    const auto placed = snapped_or_free(*parts, id, pointer_at, mods);
+    const auto placed = snapped_or_free(*parts, id, pointer_at, std::get<input::MouseMove>(ev).mods);
     shown.erase(shown.begin(), seen);   // older frames are not shown any more
     parts->guides = placed.guides;
     graph.move(id, placed.at);

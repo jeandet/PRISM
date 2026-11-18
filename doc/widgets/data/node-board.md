@@ -208,7 +208,8 @@ dock layout.
 A node dragged by its header snaps: it lines up with the other cards (left, centre or right edge
 against theirs, top, middle or bottom likewise) and levels its ports with the wires it has. A
 guide line shows what it snapped to while the drag lasts. The pull is 6 px on screen, at any zoom.
-Hold Alt as you press the header to move freely, with no snapping and no guides.
+Hold Ctrl (Cmd on macOS) while dragging to move freely, with no snapping and no guides; let go
+of it and the next move snaps again.
 
 `graph.request_tidy()` lays the whole graph out in columns, wires running left to right: a node's
 column is its longest chain of nodes feeding it, and nodes with no wires go in the first column

@@ -473,7 +473,8 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                         }
                         pointer_window_ = wid;
                         pending_motion = WindowEvent{wid, MouseMove{
-                            Point{X{ev.motion.x}, Y{client_y(wid, ev.motion.y)}}, ev.motion.state}};
+                            Point{X{ev.motion.x}, Y{client_y(wid, ev.motion.y)}}, ev.motion.state,
+                            static_cast<uint16_t>(SDL_GetModState())}};
                     }
                     break;
                 }

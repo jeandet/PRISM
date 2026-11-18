@@ -11,7 +11,8 @@ namespace prism::input {
 using namespace prism::core;
 
 
-struct MouseMove   { Point position; uint32_t buttons = 0; };   // buttons: held, as a bitmask
+// buttons: held, as a bitmask. mods: the keys held as it moved (a drag that changes with a key).
+struct MouseMove   { Point position; uint32_t buttons = 0; uint16_t mods = 0; };
 struct MouseButton { Point position; uint8_t button; bool pressed; uint16_t mods = 0; uint8_t clicks = 1; };
 // The wheel, with SDL's signs: dy > 0 turned away from the user (up), dx > 0 to the right.
 // mods: the keys held as it turned (a browser reports a trackpad pinch as Ctrl+wheel).

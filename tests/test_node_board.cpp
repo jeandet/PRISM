@@ -153,7 +153,7 @@ struct BasicFixture {
         return 0;
     }
     void press(Point at) { route_event(tree, snap.get(), MouseButton{at, buttons::left, true}); frame(); }
-    void move_to(Point at) { route_event(tree, snap.get(), MouseMove{at, 1}); frame(); }
+    void move_to(Point at, std::uint16_t held = 0) { route_event(tree, snap.get(), MouseMove{at, 1, held}); frame(); }
     void release(Point at) { route_event(tree, snap.get(), MouseButton{at, buttons::left, false}); frame(); }
     void drag(Point from, Point to) { press(from); move_to(to); release(to); }
     WidgetId card_of(WidgetId label) const { return *tree.parent_of(*tree.parent_of(label)); }
@@ -2181,11 +2181,6 @@ std::vector<Line> guides_drawn(const Fixture& f) {
 
 Point grab_title(const Fixture& f, std::string_view title) { return *f.text_at(title) + Offset{DX{4.f}, DY{4.f}}; }
 
-void alt_press(Fixture& f, Point at) {
-    route_event(f.tree, f.snap.get(), MouseButton{at, buttons::left, true, mods::alt});
-    f.frame();
-}
-
 }
 
 TEST_CASE("a header dragged 4 px from a neighbour's edge snaps to it and shows one guide, none after the release") {
@@ -2255,14 +2250,41 @@ TEST_CASE("a wired input is levelled with the output feeding it") {
     f.release(grab);
 }
 
-TEST_CASE("with Alt held a header is dragged freely: no snap, no guide") {
+TEST_CASE("with Ctrl held a header is dragged freely: no snap, no guide") {
     Fixture f;
     park_sink(f, P(300, 400));
     const Point grab = grab_title(f, "Source");
-    alt_press(f, grab);
-    f.move_to(grab + Offset{DX{276.f}, DY{0.f}});
+    f.press(grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}}, mods::ctrl);
     CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(296));
     CHECK(guides_drawn(f).empty());
+    f.release(grab + Offset{DX{276.f}, DY{0.f}});
+}
+
+TEST_CASE("Ctrl pressed midway frees the drag from that move on; released, it snaps again") {
+    Fixture f;
+    park_sink(f, P(300, 400));
+    const Point grab = grab_title(f, "Source");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(300));
+    f.move_to(grab + Offset{DX{277.f}, DY{0.f}}, mods::ctrl);
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(297));
+    CHECK(guides_drawn(f).empty());
+    f.move_to(grab + Offset{DX{278.f}, DY{0.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(300));
+    CHECK(!guides_drawn(f).empty());
+    f.release(grab + Offset{DX{278.f}, DY{0.f}});
+}
+
+TEST_CASE("Alt does not free a drag: the header still snaps") {
+    Fixture f;
+    park_sink(f, P(300, 400));
+    const Point grab = grab_title(f, "Source");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}}, mods::alt);
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(300));
+    CHECK(!guides_drawn(f).empty());
     f.release(grab + Offset{DX{276.f}, DY{0.f}});
 }
 

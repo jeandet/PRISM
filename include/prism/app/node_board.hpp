@@ -79,7 +79,6 @@ struct NodeGrip {
     nodes::NodeId id = 0;
     std::optional<core::Point> press;            // in the pressed widget's coordinates
     std::map<std::uint64_t, core::Point> shown;   // frame version -> where it first shows the node
-    std::uint16_t mods = 0;                       // the keys held at the press: Alt moves freely
     void canvas(render::DrawList&, core::Rect, const ui::WidgetNode&) {}
     void handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect r);
 };
