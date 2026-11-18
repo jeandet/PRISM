@@ -51,6 +51,16 @@ TEST_CASE("zooming about the pointer keeps the board point under it") {
     CHECK(board_point_under(clamped, pointer).x.raw() == Approx(100.f));
 }
 
+TEST_CASE("graph_point is where a board offset lies in the graph: the inverse of a node's place") {
+    const BoardView v{pt(10, -20), 0.5f};
+    const Point node = pt(100, 40);
+    const Point placed = on_board(v, node);
+    const Point back = graph_point(v, placed - Point{});
+    CHECK(back.x.raw() == Approx(node.x.raw()));
+    CHECK(back.y.raw() == Approx(node.y.raw()));
+    CHECK(graph_point(BoardView{}, Offset{DX{7}, DY{9}}) == pt(7, 9));
+}
+
 TEST_CASE("fit_all shows every card with the margin clear, at the largest such zoom") {
     const std::vector<Rect> cards{rect(0, 0, 200, 100), rect(600, 300, 200, 100)};
     const auto v = fit_all(cards, Size{Width{500}, Height{300}});

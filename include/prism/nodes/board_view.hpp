@@ -23,6 +23,10 @@ float clamp_zoom(float z);
 // the board's top-left) where it is.
 BoardView zoomed_about(BoardView v, core::Offset pointer, float zoom);
 
+// The graph point shown at `on_board`, an offset from the board's top-left: the inverse of a
+// node's place on the board.
+core::Point graph_point(BoardView v, core::Offset on_board);
+
 // The zoom after `notches` wheel notches (fractional from touchpads; > 0 zooms in): zoom × 1.1^notches, clamped.
 float wheel_zoom(float zoom, float notches);
 

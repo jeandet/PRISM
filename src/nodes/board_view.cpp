@@ -28,6 +28,11 @@ BoardView zoomed_about(BoardView v, core::Offset pointer, float zoom) {
     return {v.pan + core::Offset{core::DX{pointer.dx.raw() * shift}, core::DY{pointer.dy.raw() * shift}}, z};
 }
 
+core::Point graph_point(BoardView v, core::Offset on_board) {
+    const core::Point unzoomed{core::X{on_board.dx.raw() / v.zoom}, core::Y{on_board.dy.raw() / v.zoom}};
+    return unzoomed - (v.pan - core::Point{});
+}
+
 float wheel_zoom(float zoom, float notches) { return clamp_zoom(zoom * std::pow(zoom_per_notch, notches)); }
 
 BoardView fit_all(std::span<const core::Rect> cards, core::Size size, float margin) {
