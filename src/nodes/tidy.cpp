@@ -20,6 +20,7 @@ struct Wiring {
 
 struct Columns {
     std::vector<std::vector<std::size_t>> cards; // column → node indices, top to bottom
+    std::vector<std::size_t> wired;              // column → how many of its cards have wires
 };
 
 core::Size size_of(const std::map<NodeId, core::Size>& sizes, NodeId id) {
@@ -71,8 +72,12 @@ Columns columns_of(const Wiring& wiring, const std::vector<std::size_t>& depth) 
     const std::size_t count =
         depth.empty() ? 0 : *std::ranges::max_element(depth) + 1;
     out.cards.resize(count);
+    out.wired.assign(count, 0);
     for (std::size_t i = 0; i < depth.size(); ++i)
-        if (has_wires(wiring, i)) out.cards[depth[i]].push_back(i);
+        if (has_wires(wiring, i)) {
+            out.cards[depth[i]].push_back(i);
+            ++out.wired[depth[i]];
+        }
     for (std::size_t i = 0; i < depth.size(); ++i)
         if (!has_wires(wiring, i)) out.cards[depth[i]].push_back(i);
     return out;
@@ -85,8 +90,10 @@ float median(std::vector<std::size_t> positions) {
     return (static_cast<float>(positions[middle - 1]) + static_cast<float>(positions[middle])) / 2.f;
 }
 
-// Each card's place among `reference`, or its own place when it has no neighbour there.
-std::vector<float> crossings_key(const std::vector<std::size_t>& column,
+// Each card's place among `reference`; a card with no neighbour there keeps its own place.
+// simplify: that own place is a rank here, not among `reference`, so such cards only hold their
+// order against each other; take their key from the other neighbour column if that looks wrong.
+std::vector<float> crossings_key(std::span<const std::size_t> column,
                                  const std::vector<std::size_t>& reference,
                                  const Neighbours& neighbours) {
     std::vector<float> out;
@@ -102,7 +109,7 @@ std::vector<float> crossings_key(const std::vector<std::size_t>& column,
     return out;
 }
 
-void order(std::vector<std::size_t>& column, const std::vector<std::size_t>& reference,
+void order(std::span<std::size_t> column, const std::vector<std::size_t>& reference,
            const Neighbours& neighbours) {
     const std::vector<float> key = crossings_key(column, reference, neighbours);
     std::vector<std::pair<float, std::size_t>> cards;
@@ -113,38 +120,42 @@ void order(std::vector<std::size_t>& column, const std::vector<std::size_t>& ref
 }
 
 void reduce_crossings(Columns& columns, const Wiring& wiring) {
+    // A card with no wires has no place to sort by, so it keeps its place at the column's end.
+    const auto wired = [&](std::size_t c) {
+        return std::span{columns.cards[c]}.first(columns.wired[c]);
+    };
     for (int sweep = 0; sweep < 4; ++sweep) {
         if (sweep % 2 == 0) {
             for (std::size_t c = 1; c < columns.cards.size(); ++c)
-                order(columns.cards[c], columns.cards[c - 1], wiring.ins);
+                order(wired(c), columns.cards[c - 1], wiring.ins);
             continue;
         }
         for (std::size_t c = columns.cards.size() - 1; c > 0; --c)
-            order(columns.cards[c - 1], columns.cards[c], wiring.outs);
+            order(wired(c - 1), columns.cards[c], wiring.outs);
     }
 }
 
-std::vector<float> column_x(const Columns& columns, std::span<const core::Size> sizes,
-                            float gap) {
-    std::vector<float> out(columns.cards.size(), 0.f);
+std::vector<core::X> column_x(const Columns& columns, std::span<const core::Size> sizes,
+                              float gap) {
+    std::vector<core::X> out(columns.cards.size());
     for (std::size_t c = 1; c < out.size(); ++c) {
         float widest = 0.f;
         for (const std::size_t node : columns.cards[c - 1])
             widest = std::max(widest, sizes[node].w.raw());
-        out[c] = out[c - 1] + widest + gap;
+        out[c] = out[c - 1] + core::DX{widest + gap};
     }
     return out;
 }
 
 std::vector<core::Point> places(const Columns& columns, std::span<const core::Size> sizes,
                                 TidySpacing spacing) {
-    const std::vector<float> x = column_x(columns, sizes, spacing.column_gap);
+    const std::vector<core::X> x = column_x(columns, sizes, spacing.column_gap);
     std::vector<core::Point> out(sizes.size());
     for (std::size_t c = 0; c < columns.cards.size(); ++c) {
-        float y = 0.f;
+        core::Y y{};
         for (const std::size_t node : columns.cards[c]) {
-            out[node] = core::Point{core::X{x[c]}, core::Y{y}};
-            y += sizes[node].h.raw() + spacing.row_gap;
+            out[node] = core::Point{x[c], y};
+            y = y + core::DY{sizes[node].h.raw() + spacing.row_gap};
         }
     }
     return out;
@@ -164,6 +175,16 @@ core::Point graph_top_left(const Graph& graph, std::span<const NodeId> ids) {
     return top_left(at);
 }
 
+// Moves the laid-out cards so their bounding box starts where the cards' did.
+std::vector<core::Point> anchored(std::span<const core::Point> placed, core::Point origin) {
+    const core::Point start = top_left(placed);
+    const core::Offset shift{origin.x - start.x, origin.y - start.y};
+    std::vector<core::Point> out;
+    out.reserve(placed.size());
+    for (const core::Point at : placed) out.push_back(at + shift);
+    return out;
+}
+
 } // namespace tidy_detail
 
 std::map<NodeId, core::Point> tidy_layout(const Graph& graph,
@@ -179,15 +200,11 @@ std::map<NodeId, core::Point> tidy_layout(const Graph& graph,
 
     std::vector<core::Size> cards;
     for (const NodeId id : ids) cards.push_back(tidy_detail::size_of(sizes, id));
-    const std::vector<core::Point> placed = tidy_detail::places(columns, cards, spacing);
-
-    // Move the layers so their bounding box starts where the cards' did.
-    const core::Point origin = tidy_detail::graph_top_left(graph, ids);
-    const core::Point laid = tidy_detail::top_left(placed);
-    const core::Offset shift{origin.x - laid.x, origin.y - laid.y};
+    const std::vector<core::Point> placed = tidy_detail::anchored(
+        tidy_detail::places(columns, cards, spacing), tidy_detail::graph_top_left(graph, ids));
 
     std::map<NodeId, core::Point> out;
-    for (std::size_t i = 0; i < ids.size(); ++i) out[ids[i]] = placed[i] + shift;
+    for (std::size_t i = 0; i < ids.size(); ++i) out[ids[i]] = placed[i];
     return out;
 }
 

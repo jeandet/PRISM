@@ -205,3 +205,46 @@ TEST_CASE("an empty graph has nothing to place") {
     Graph graph;
     CHECK(tidy_layout(graph, {}).empty());
 }
+
+TEST_CASE("a card with no wires stays last when the first column is reordered") {
+    Board board;
+    const auto a = board.node("a", 0, 0);
+    const auto b = board.node("b", 0, 200);
+    const auto c = board.node("c", 0, 400);
+    const auto lonely = board.node("lonely", 0, 600);
+    std::vector<NodeId> low;
+    for (int i = 0; i < 8; ++i) low.push_back(board.node("q" + std::to_string(i), 300, 100.f * i));
+    for (int i = 0; i < 6; ++i) board.wire(a, low[i]);
+    board.wire(b, low[6]);
+    board.wire(c, low[7]);
+
+    const auto laid = board.tidy();
+
+    CHECK(y_of(laid, lonely) > y_of(laid, a));
+    CHECK(y_of(laid, lonely) > y_of(laid, b));
+    CHECK(y_of(laid, lonely) > y_of(laid, c));
+}
+
+TEST_CASE("a right-to-left sweep moves the first column to uncross the wires") {
+    Board board;
+    const auto a = board.node("a", 0, 0);
+    const auto b = board.node("b", 0, 200);
+    const auto c = board.node("c", 0, 400);
+    const auto p = board.node("p", 300, 0);
+    const auto q = board.node("q", 300, 200);
+    const auto r = board.node("r", 300, 400);
+    const auto s = board.mix("s", 600, 0);
+    const auto t = board.node("t", 600, 200);
+    board.wire(c, p);
+    board.wire(b, q);
+    board.wire(a, r);
+    board.wire_into(p, OUT, s, MIX_A);
+    board.wire_into(r, OUT, s, MIX_B);
+    board.wire(q, t);
+
+    const auto laid = board.tidy();
+
+    // c feeds p, which ends above q, the card b feeds, so the first column follows.
+    CHECK(y_of(laid, a) < y_of(laid, c));
+    CHECK(y_of(laid, c) < y_of(laid, b));
+}
