@@ -141,12 +141,13 @@ struct Theme {
         Color::rgba(169, 139, 255), Color::rgba(238, 241, 247), Color::rgba(154, 161, 178)};
     Color node_probe_bg   = Color::rgba(31, 36, 51);
     Color node_probe_text = Color::rgba(207, 227, 255);
-    std::vector<NodeFamily> node_families{   // an app appends its own
+    std::vector<NodeFamily> node_families{   // the built-in ones; an app registers its own (set_family_color)
         {"source", Color::rgba(63, 208, 201)},
         {"filter", Color::rgba(169, 139, 255)},
         {"math", Color::rgba(242, 163, 58)},
         {"display", Color::rgba(95, 211, 141)}};
     Color node_family_default = Color::rgba(154, 161, 178);   // a family not in the table
+    bool  dark = true;   // the dark look or the light one: picks an app family's colour (set_family_color)
 
     // How text is measured; set by the widget tree from the backend. Null = monospace estimate.
     // Points at a backend-owned object: do not copy a Theme holding it beyond the backend's
@@ -159,13 +160,6 @@ struct Theme {
 
 inline Theme default_theme() { return {}; }
 
-// A family's colour: the theme's table first, then the colour given to families it does not name.
-inline Color node_family_color(const Theme& t, std::string_view family) {
-    for (const auto& known : t.node_families) {
-        if (known.name == family) return known.color;
-    }
-    return t.node_family_default;
-}
 inline Theme dark_theme() { return {}; }
 
 // Dark text on light surfaces; every text color keeps at least WCAG AA contrast (4.5:1) with
@@ -210,7 +204,17 @@ inline Theme light_theme() {
                        {"math", c(217, 130, 43)},
                        {"display", c(31, 122, 69)}};
     t.node_family_default = c(120, 126, 138);
+    t.dark = false;
     return t;
 }
+
+// An app's own family, in the colour it has on the dark look and on the light one. Registered by
+// name, once, whatever the theme: a theme switch keeps it. A family named here wins over the
+// theme's table. Safe to call from any thread.
+void set_family_color(std::string name, Color dark, Color light);
+
+// A family's colour: the registered ones first, then the theme's table, then the colour given to
+// families neither names.
+Color node_family_color(const Theme& t, std::string_view family);
 
 } // namespace prism::ui

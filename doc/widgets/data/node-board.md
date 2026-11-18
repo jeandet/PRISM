@@ -264,13 +264,15 @@ card's surface, its name upper-cased on the right in the family colour mixed 60 
 and the dot before the title is the colour itself. A family the palette lists is drawn in the same
 colour, so the two ends match.
 
-An app adds a family without touching the board:
+An app adds a family by name, once, with its colour on the dark look and on the light one:
 
 ```cpp
-ui::Theme mine = ui::dark_theme();
-mine.node_families.push_back({"dsp", core::Color::rgba(120, 200, 255)});
-tree.set_theme(std::move(mine));
+ui::set_family_color("dsp", core::Color::rgba(120, 200, 255), core::Color::rgba(20, 110, 190));
 ```
+
+The registry lives beside the theme, so a family keeps its colour through every theme switch, and
+the one that is drawn is the one the current theme's `dark` flag picks. Nothing is registered at
+start-up. A family registered here wins over a theme's own table.
 
 A family the theme does not name uses `theme.node_family_default`.
 
@@ -284,7 +286,7 @@ Every colour the board draws is a role, in both themes:
 | `node_border_selected`, `node_glow` | the selected card's border and its outer ring |
 | `node_wires` | one colour per wire slot |
 | `node_probe_bg`, `node_probe_text` | the probe bubble |
-| `node_families`, `node_family_default` | family colours |
+| `node_families`, `node_family_default`, `dark` | the built-in family colours; which look an app family takes |
 
 `ui::mix(a, b, t)` is the mixing the theme uses; `ui::node_family_color(theme, family)` is the
 lookup the board uses, handy for a widget of yours that wants its node's colour.

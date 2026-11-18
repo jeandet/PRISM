@@ -1677,6 +1677,27 @@ TEST_CASE("switching the theme repaints the board in the other look, keeping eve
 }
 
 namespace {
+struct AppFamily : OneNode {
+    AppFamily() : OneNode("ada-fx") {}
+};
+}
+
+TEST_CASE("an app's family keeps its colour across theme switches, in the look the theme has") {
+    const Color on_dark = Color::rgba(10, 200, 30), on_light = Color::rgba(200, 30, 10);
+    set_family_color("ada-fx", on_dark, on_light);
+    BasicFixture<AppFamily> f;
+    const auto name_color = [&] { return f.text_cmd("ADA-FX")->color; };
+    REQUIRE(f.text_cmd("ADA-FX"));
+    CHECK(name_color() == mix(dark_theme().text, on_dark, 0.6f));
+    f.tree.set_theme(light_theme());
+    f.frame();
+    CHECK(name_color() == mix(light_theme().text, on_light, 0.6f));
+    f.tree.set_theme(dark_theme());
+    f.frame();
+    CHECK(name_color() == mix(dark_theme().text, on_dark, 0.6f));
+}
+
+namespace {
 // A waveform port, next to the number ones the rest of the file uses.
 struct WaveSource {
     nodes::Out<std::vector<double>> out{"wave", [] { return std::vector<double>{0.5, -0.5, 0.25}; }};
