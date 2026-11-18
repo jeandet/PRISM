@@ -1,7 +1,7 @@
 // Perf-lab benchmark: what one frame costs on a big node board (doc/design, node editor zoom plan).
 // 200 nodes (a slider, two inputs, one output each) and 300 wires on a 1600x1000 headless tree.
 // Each case times what model_app does per publish: build_snapshot() then clear_dirty(), averaged
-// over 50 publishes, at zoom 1 and at zoom 0.5.
+// over 50 publishes, at zoom 1, 0.5 and 0.25, and at the view that fits every card (all 200 shown).
 //
 //   ./builddir/benchmarks/bench_node_board_scale
 #include <prism/app/widget_tree.hpp>
@@ -47,7 +47,7 @@ struct Board {
         }
         wire_up();
     }
-    // Each block feeds the next two (wrapping), so every input has one wire and the graph stays acyclic
+    // Each block feeds the next two, so every input has one wire and the graph stays acyclic
     // by never wiring backwards: node i's output goes to i+1 input a and i+2 input b, up to wire_count.
     void wire_up() {
         std::size_t made = 0;
@@ -80,23 +80,23 @@ double mean_frame(WidgetTree& tree, uint64_t& version, Change change) {
     return total / reps;
 }
 
-void report(const char* name, float zoom, double ms) {
-    fmt::print("{:<12} zoom {:.1f}  {:>8.2f} ms{}\n", name, zoom, ms, ms > 16.0 ? "  (over 16 ms)" : "");
+void report(const char* name, const char* at, float zoom, double ms) {
+    fmt::print("{:<12} {:<4} zoom {:.2f}  {:>8.2f} ms{}\n", name, at, zoom, ms, ms > 16.0 ? "  (over 16 ms)" : "");
 }
 
-void run_at(Board& board, WidgetTree& tree, uint64_t& version, float zoom) {
-    board.graph.set_view({{}, zoom});
-    frame(tree, version);
+// The three cases from `view`, already set and drawn.
+void run_at(Board& board, WidgetTree& tree, uint64_t& version, const char* at) {
     const auto view = board.graph.view();
-    report("pan step", zoom, mean_frame(tree, version, [&](int i) {
-               board.graph.set_view({{core::X{static_cast<float>(i) * 4}, core::Y{0}}, zoom});
+    const float zoom = view.zoom;
+    report("pan step", at, zoom, mean_frame(tree, version, [&](int i) {
+               board.graph.set_view({view.pan + core::Offset{core::DX{static_cast<float>(i + 1) * 4}, core::DY{0}}, zoom});
            }));
     board.graph.set_view(view);
-    report("zoom step", zoom, mean_frame(tree, version, [&](int i) {
+    report("zoom step", at, zoom, mean_frame(tree, version, [&](int i) {
                board.graph.set_view({view.pan, zoom * (i % 2 == 0 ? 1.1f : 1.f)});
            }));
     board.graph.set_view(view);
-    report("slider", zoom, mean_frame(tree, version, [&](int i) {
+    report("slider", at, zoom, mean_frame(tree, version, [&](int i) {
                board.blocks[0].level.set({.value = i % 2 == 0 ? 0.25 : 0.75, .min = 0, .max = 1, .step = 0.05, .label = "Level"});
            }));
 }
@@ -109,5 +109,13 @@ int main() {
     frame(tree, version);
     fmt::print("mean ms per publish over {} publishes, {} nodes, {} wires, window {}x{}\n", reps, node_count,
                board.graph.edges().size(), win_w, win_h);
-    for (float zoom : {1.f, 0.5f}) run_at(board, tree, version, zoom);
+    for (float zoom : {1.f, 0.5f, 0.25f}) {
+        board.graph.set_view({{}, zoom});
+        frame(tree, version);
+        run_at(board, tree, version, "");
+    }
+    board.graph.request_fit();
+    frame(tree, version);   // fits in its layout
+    frame(tree, version);   // draws the fitted view
+    run_at(board, tree, version, "fit");
 }
