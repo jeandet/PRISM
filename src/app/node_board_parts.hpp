@@ -41,7 +41,7 @@ void draw_wires(render::DrawList& dl, const NodeBoardParts& parts, const ui::Boa
 void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
                const ui::Theme& t);
 void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
-                           const ui::Theme& t);
+                           float scale, const ui::Theme& t);
 void draw_probe(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t);
 void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRef from, core::Point pointer,
                 const ui::Theme& t);

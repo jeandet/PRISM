@@ -926,6 +926,28 @@ TEST_CASE("at zoom 0.5 a wire runs between the zoomed cards' edges, and a drag f
     CHECK(f.m.graph.edge(*e)->from == nodes::PortRef{f.m.a, 0});
 }
 
+TEST_CASE("at zoom 0.5 the selected node's outline follows the card's own corner radius") {
+    Fixture f;
+    at_zoom(f, 0.5f);
+    const Point header = *f.text_at("Sink") + Offset{DX{2.f}, DY{2.f}};
+    f.press(header);
+    f.release(header);
+    const WidgetId card = f.card_of(f.m.sink.in_label);
+    const Rect drawn = *f.allocated(card);
+    const auto rects = f.all<RoundedRect>();
+    const auto border = std::ranges::find_if(rects, [&](const RoundedRect& o) {
+        return o.color == f.tree.theme().node_border_selected && o.rect.origin == drawn.origin;
+    });
+    REQUIRE(border != rects.end());
+    CHECK(border->radius == doctest::Approx(5.f));   // 10 px at zoom 1
+    const auto ring = std::ranges::find_if(rects, [&](const RoundedRect& o) {
+        return o.color == f.tree.theme().node_glow;
+    });
+    REQUIRE(ring != rects.end());
+    CHECK(ring->radius == doctest::Approx(5.f + 1.f));   // grown by 2 px at zoom 1
+    CHECK(ring->rect.origin.x.raw() == doctest::Approx(drawn.origin.x.raw() - 1.f));
+}
+
 TEST_CASE("at zoom 0.5 a port's whole row takes a wire, from it and onto it") {
     Fixture f;
     at_zoom(f, 0.5f);

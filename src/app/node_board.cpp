@@ -436,7 +436,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     };
     b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
         draw_dots(dl, *parts, rect_of, scale, theme);
-        outline_selected_node(dl, *parts, rect_of, theme);
+        outline_selected_node(dl, *parts, rect_of, scale, theme);
         draw_probe(dl, *parts, theme);
     };
     current_parent().children.push_back(std::move(b));

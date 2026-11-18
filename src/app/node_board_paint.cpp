@@ -69,6 +69,7 @@ constexpr float thick_wire = 3.f;   // a waveform's: it carries a curve, not a s
 constexpr float wire_under = 9.f;   // the soft stroke drawn under a selected wire
 constexpr float wire_under_alpha = 0.25f;
 constexpr float dot_side_floor = 4.f;
+constexpr float selected_ring = 2.f;   // the selected card's border and the glow outside it
 constexpr float faded_port_alpha = 0.35f;
 
 // A size drawn to the cards' zoom, never below `floor` px: a wire or a dot zoomed far out stays seen.
@@ -173,9 +174,9 @@ namespace {
 
 // A port's dot: a rounded square in its type's colour, ringed in the board's so it reads where it
 // sits on a card's edge.
-void draw_dot(render::DrawList& dl, core::Point at, float side, Color color, const ui::Theme& t) {
+void draw_dot(render::DrawList& dl, core::Point at, float side, float ring, Color color, const ui::Theme& t) {
     const float corner = std::max(side / 4.f, 1.f);
-    dl.rounded_rect(square_at(at, side + 2.f * dot_ring), t.node_board_bg, corner + dot_ring);
+    dl.rounded_rect(square_at(at, side + 2.f * ring), t.node_board_bg, corner + ring);
     dl.rounded_rect(square_at(at, side), color, corner);
 }
 } // namespace
@@ -183,9 +184,10 @@ void draw_dot(render::DrawList& dl, core::Point at, float side, Color color, con
 void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of, float scale,
                const ui::Theme& t) {
     const float side = zoomed(dot_side, scale, dot_side_floor);
+    const float ring = zoomed(dot_ring, scale, 1.f);
     for (const auto& [port, place] : parts.ports)
         if (const auto at = wire_end(parts, port, rect_of))
-            draw_dot(dl, *at, side, faded(port_color(t, *port), port_alpha(parts, place.ref)), t);
+            draw_dot(dl, *at, side, ring, faded(port_color(t, *port), port_alpha(parts, place.ref)), t);
 }
 
 namespace {
@@ -198,13 +200,15 @@ core::Rect grown(core::Rect r, float by) {
 } // namespace
 
 void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
-                           const ui::Theme& t) {
+                           float scale, const ui::Theme& t) {
     const auto card = parts.selected.node ? parts.cards.find(*parts.selected.node) : parts.cards.end();
     if (card == parts.cards.end()) return;
     const auto r = rect_of(card->second);
     if (!r) return;
-    dl.rounded_rect(grown(*r, 2.f), t.node_glow, ui::node_card_radius + 2.f, 2.f);
-    dl.rounded_rect(*r, t.node_border_selected, ui::node_card_radius, 2.f);
+    const float ring = zoomed(selected_ring, scale, 1.f);
+    const float radius = ui::node_card_radius * scale;
+    dl.rounded_rect(grown(*r, ring), t.node_glow, radius + ring, ring);
+    dl.rounded_rect(*r, t.node_border_selected, radius, ring);
 }
 
 // A wire being drawn: from the fixed end's port to the pointer (window coordinates), in the
