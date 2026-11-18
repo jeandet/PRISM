@@ -60,3 +60,12 @@ TEST_CASE("a moving body's trail keeps 2 s x (1 + persistence / 5) of its path")
     CHECK(trails[1].front().time >= w.time - 2.0 - fixed_step);
     CHECK(trails[1].back().time == doctest::Approx(w.time));
 }
+
+TEST_CASE("a trail's bands: the count is the number of bands drawn, so the newest keeps full colour") {
+    for (std::size_t band : {2, 3, 7})
+        for (std::size_t size = 2; size <= 60; ++size) {
+            std::size_t drawn = 0;
+            for (std::size_t from = 0; from + 1 < size; from += band) ++drawn;
+            CHECK_MESSAGE(trail_band_count(size, band) == drawn, "size " << size << " band " << band);
+        }
+}

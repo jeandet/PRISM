@@ -5,6 +5,7 @@
 
 #include "../examples/widget_gallery/orbit.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -360,4 +361,23 @@ TEST_CASE("a dead body pulls nothing and is skipped by collisions and crashes") 
     step(c, crossing, 1.0, step_s);
     REQUIRE(c.bodies.size() == 2);
     CHECK(c.bodies[1].alive);   // it flew through a dead body, not into one
+}
+
+TEST_CASE("a moon stays in orbit at any gravity") {
+    for (double gravity : {0.5, 1.0, 2.0}) {
+        Level level{.start = {20, 20}, .target = {980, 580}, .target_radius = 10};
+        level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
+        level.bodies.push_back(orbiting(level.bodies, 0, 120, 0.0, 0.05, 10));
+        World w = launch(level, {0, 0}, gravity);
+        double least = 1e9, most = 0;
+        for (int i = 0; i < 60 * 240; ++i) {
+            step(w, level, gravity, 1.0 / 240.0);
+            const double r = length(w.bodies[1].pos - w.bodies[0].pos);
+            least = std::min(least, r);
+            most = std::max(most, r);
+        }
+        INFO("gravity " << gravity);
+        CHECK(least > 120 * 0.9);
+        CHECK(most < 120 * 1.1);
+    }
 }

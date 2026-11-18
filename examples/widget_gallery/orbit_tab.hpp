@@ -32,11 +32,13 @@ struct OrbitTab {
                                              "path into the ring. Move the sliders while it flies.",
                                     .wrap = true}};
     core::Field<ui::Choice> pick{{.placeholder = "Level"}};
+    core::Field<ui::Label<>> difficulty_label{{.value = "Difficulty"}};
     core::Field<ui::SpinBox<int>> difficulty{{.value = 2, .min = 1, .max = 5, .step = 1}};
     core::Field<ui::Button> new_scene{{.text = "New scene", .primary = false}};
     core::Field<ui::Slider<>> gravity{{.value = 1.0, .min = 0.2, .max = 2.0, .step = 0.05, .label = "Gravity"}};
     core::Field<ui::Slider<>> persistence{{.value = 5, .min = 0, .max = 20, .step = 1, .label = "Persistence"}};
     core::Field<ui::Button> restart{{.text = "Restart", .primary = false}};
+    core::Field<bool> random_scene{false};   // the difficulty only matters then
     core::Field<std::string> scene_name{"Level 1"};
     core::Field<int> launches{0};
     core::Field<std::string> message{"Aim with a drag."};
@@ -61,6 +63,7 @@ private:
     bool on_tick(ui::AnimationClock::time_point now);   // false once nothing moves any more
     void fly(double seconds);
     void land(orbit::Outcome outcome);
+    void finish_win_pause(double seconds);
     void trim_old_trails();
     orbit::View current_view() const;   // the camera: eased while the clock runs, else the field
     orbit::View wanted_now() const;
@@ -70,6 +73,11 @@ private:
     std::size_t index_ = 0;                           // the level shown; one past the last is random
     std::uint64_t seed_ = 0;                          // of the random scene
     orbit::Level level_;
+    struct WinPause {
+        double left;
+        int stars;
+    };
+    std::optional<WinPause> win_pause_;               // the winning path stays up before the next level
     std::vector<int> best_;                           // the best stars per hand-made level, this session
     std::optional<orbit::World> world_;               // set while it flies
     std::optional<orbit::Vec> aim_;                   // where the drag is, in field units

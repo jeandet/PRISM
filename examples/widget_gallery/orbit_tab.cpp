@@ -15,6 +15,7 @@ namespace {
 constexpr double grab_radius = 60;   // how near the probe a drag must start, in field units
 constexpr double settled_distance = 0.5;   // field units; the camera this near its goal stops
 constexpr double longest_tick = 0.05;      // a long pause is not a long jump
+constexpr double win_pause_seconds = 1.5;  // how long a win shows its path before the next level
 
 std::size_t level_count() { return orbit::levels().size(); }
 
@@ -67,7 +68,11 @@ void OrbitTab::open(std::size_t index) {
     index_ = index;
     const bool random = index >= level_count();
     level_ = random ? orbit::random_level(seed_, value(difficulty)) : orbit::levels()[index];
-    scene_name = random ? std::format("Random scene #{}", seed_) : std::format("Level {} of {}", index + 1, level_count());
+    random_scene.set(random);
+    win_pause_.reset();
+    if (random) gravity.update([](ui::Slider<>& s) { s.value = 1.0; });   // scenes are proven at gravity 1
+    scene_name = random ? std::format("Random scene #{} · difficulty {}", seed_, value(difficulty))
+                        : std::format("Level {} of {}", index + 1, level_count());
     world_.reset();
     aim_.reset();
     trail_.clear();
@@ -93,7 +98,7 @@ orbit::View OrbitTab::current_view() const {
 }
 
 void OrbitTab::launch(Vec release) {
-    world_ = orbit::launch(level_, orbit::launch_velocity(level_.start, release));
+    world_ = orbit::launch(level_, orbit::launch_velocity(level_.start, release), value(gravity));
     trail_ = {level_.start};
     body_trails_.clear();
     ++launches;
@@ -114,9 +119,10 @@ bool OrbitTab::on_tick(ui::AnimationClock::time_point now) {
     const double dt = last_tick_ ? std::min(std::chrono::duration<double>(now - *last_tick_).count(), longest_tick) : 0.0;
     last_tick_ = now;
     if (world_) fly(dt);
+    if (win_pause_) finish_win_pause(dt);
     view_ = orbit::eased(view_, wanted_now(), dt);
     ++frame;
-    const bool going = world_ || !near(view_, wanted_now());
+    const bool going = world_ || win_pause_ || !near(view_, wanted_now());
     clock_running_ = going;
     return going;
 }
@@ -143,25 +149,38 @@ std::string OrbitTab::landing_message(int stars, bool next_level) const {
                        next_level ? "Next level." : hand_made ? "That was the last level." : "Press New scene for another.");
 }
 
+void OrbitTab::finish_win_pause(double seconds) {
+    win_pause_->left -= seconds;
+    if (win_pause_->left > 0) return;
+    const int stars = win_pause_->stars;
+    const std::size_t next = index_ + 1;
+    open(next);
+    pick.update([next](ui::Choice& c) { c.selected = next; });
+    message = landing_message(stars, true);
+}
+
 void OrbitTab::land(orbit::Outcome outcome) {
-    old_trails_.push_back(std::move(trail_));
-    trim_old_trails();
+    const bool hit = outcome == orbit::Outcome::Hit;
+    const bool pausing = hit && index_ + 1 < level_count() && clock_;
     world_.reset();
-    trail_.clear();
-    if (outcome != orbit::Outcome::Hit) {
+    body_trails_.clear();
+    if (!pausing) {
+        old_trails_.push_back(std::move(trail_));
+        trim_old_trails();
+        trail_.clear();
+    }
+    if (!hit) {
         message = outcome == orbit::Outcome::Crashed ? "Crashed. Try again." : "Lost in space. Try again.";
         return;
     }
     const int stars = orbit::stars_for(launches.get());
     if (index_ < level_count()) best_[index_] = std::max(best_[index_], stars);
-    const bool next_level = index_ + 1 < level_count();
-    const std::string text = landing_message(stars, next_level);
-    if (next_level) {
-        const std::size_t next = index_ + 1;
-        open(next);
-        pick.update([next](ui::Choice& c) { c.selected = next; });
+    if (pausing) {
+        win_pause_ = WinPause{.left = win_pause_seconds, .stars = stars};
+        message = std::format("Hit! {} of 3 stars", stars);
+        return;
     }
-    message = text;
+    message = landing_message(stars, false);
 }
 
 void OrbitTab::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& node, core::Rect bounds) {
@@ -170,7 +189,7 @@ void OrbitTab::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     if (const auto* mb = std::get_if<input::MouseButton>(&ev); mb && mb->button == input::buttons::left) {
         if (mb->pressed) {
             const Vec at = screen.to_field(mb->position);
-            if (!world_ && orbit::length(at - level_.start) < grab_radius) aim_ = at;
+            if (!world_ && !win_pause_ && orbit::length(at - level_.start) < grab_radius) aim_ = at;
         } else if (aim_) {
             const Vec release = *aim_;
             aim_.reset();
@@ -189,7 +208,9 @@ void OrbitTab::view(app::ViewBuilder& vb) {
     vb.hstack([&] {
         vb.widget(pick).tooltip("A hand-made level, or a random scene");
         vb.gap(8.f);
-        vb.widget(difficulty).tooltip("Difficulty of random scenes, 1 to 5");
+        vb.widget(difficulty_label).enabled(random_scene);
+        vb.gap(4.f);
+        vb.widget(difficulty).enabled(random_scene).tooltip("Difficulty of random scenes, 1 to 5");
         vb.gap(8.f);
         vb.widget(new_scene);
         vb.spacer();

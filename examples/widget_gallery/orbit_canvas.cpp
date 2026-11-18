@@ -69,10 +69,11 @@ void draw_path(render::DrawList& dl, const OrbitScreen& screen, const auto& poin
 
 // A body's trail in a few bands, the oldest the faintest.
 void draw_fading_path(render::DrawList& dl, const OrbitScreen& screen, const std::vector<Vec>& points, core::Color color) {
+    if (points.size() < 2) return;
     const std::size_t band = std::max<std::size_t>(points.size() / trail_bands, 2);
+    const std::size_t count = orbit::trail_band_count(points.size(), band);
     for (std::size_t from = 0, rank = 0; from + 1 < points.size(); from += band, ++rank) {
         const std::size_t to = std::min(from + band + 1, points.size());
-        const std::size_t count = (points.size() + band - 1) / band;
         draw_path(dl, screen, std::vector<Vec>(points.begin() + static_cast<std::ptrdiff_t>(from),
                                                points.begin() + static_cast<std::ptrdiff_t>(to)),
                   with_alpha(color, orbit::fade(count - 1 - rank, count)), 1.5f);
@@ -125,7 +126,7 @@ void OrbitTab::canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetN
     draw_path(dl, screen, trail_, accent_color, 2.f);
     draw_body_trails(dl, screen, body_trails_, moon_rim);
 
-    const orbit::World idle = world_ ? orbit::World{} : orbit::launch(level_, {});
+    const orbit::World idle = world_ ? orbit::World{} : orbit::launch(level_, {}, value(gravity));
     const orbit::World& shown = world_ ? *world_ : idle;
     draw_bodies(dl, screen, shown.bodies);
     const Vec ring = orbit::ring_centre(shown, level_);

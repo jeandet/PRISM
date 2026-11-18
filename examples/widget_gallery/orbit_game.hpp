@@ -21,7 +21,7 @@ inline int stars_for(int launches) { return launches <= 1 ? 3 : launches <= 3 ? 
 // The path `velocity` would take for its first `preview_seconds`, a point every `preview_every`
 // steps from the start; it ends early, on the last position, if the flight does.
 inline std::vector<Vec> preview_path(const Level& level, Vec velocity, double gravity) {
-    World w = launch(level, velocity);
+    World w = launch(level, velocity, gravity);
     std::vector<Vec> path{w.probe.pos};
     const int steps = static_cast<int>(preview_seconds / fixed_step);
     for (int i = 1; i <= steps; ++i) {
@@ -31,6 +31,10 @@ inline std::vector<Vec> preview_path(const Level& level, Vec velocity, double gr
     }
     return path;
 }
+
+// How many bands a trail of `size` points is drawn in when each takes `band` points: one starts at
+// every `band`-th point that has a successor.
+inline std::size_t trail_band_count(std::size_t size, std::size_t band) { return (size - 2) / band + 1; }
 
 // How much of its colour a trail keeps: `rank` 0 is the newest of `count` and keeps all of it, the
 // oldest keeps `oldest_share`, the ones between fall in a straight line.
