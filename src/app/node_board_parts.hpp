@@ -27,6 +27,9 @@ std::optional<core::Offset> from_board_origin(const NodeBoardParts& parts, const
 ui::BoardRectOf window_rects(const NodeBoardParts& parts);
 } // namespace board_coords
 
+// Where dragging node `dragged` to `to` puts it once it snaps to its neighbours and levels its wires.
+nodes::Snapped snapped_drag(const NodeBoardParts& parts, nodes::NodeId dragged, core::Point to);
+
 // The probe, while the pointer is still on the board's background and its wire is still there.
 const Probe* shown_probe(const NodeBoardParts& parts);
 
@@ -42,6 +45,7 @@ void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::Boar
                const ui::Theme& t);
 void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
                            float scale, const ui::Theme& t);
+void draw_guides(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t);
 void draw_probe(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t);
 void draw_trail(render::DrawList& dl, const NodeBoardParts& parts, nodes::PortRef from, core::Point pointer,
                 const ui::Theme& t);

@@ -6,6 +6,7 @@
 #include <prism/core/field.hpp>
 #include <prism/nodes/graph.hpp>
 #include <prism/nodes/node_kind.hpp>
+#include <prism/nodes/snap.hpp>
 #include <prism/ui/node.hpp>
 
 #include <cstdint>
@@ -77,6 +78,7 @@ struct NodeGrip {
     nodes::NodeId id = 0;
     std::optional<core::Point> press;            // in the pressed widget's coordinates
     std::map<std::uint64_t, core::Point> shown;   // frame version -> where it first shows the node
+    std::uint16_t mods = 0;                       // the keys held at the press: Alt moves freely
     void canvas(render::DrawList&, core::Rect, const ui::WidgetNode&) {}
     void handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect r);
 };
@@ -93,6 +95,7 @@ struct NodeBoardParts {
     std::vector<nodes::NodeId> built;   // the nodes the cards were built for, in board order
     std::map<const nodes::Port*, PortPlace> ports;
     std::map<nodes::NodeId, ui::WidgetId> cards;
+    std::vector<nodes::Guide> guides;   // the snap guides of the drag going on, in graph units
     nodes::NodeId card_node = 0;   // the card being built
     std::vector<std::pair<const nodes::Port*, PortPlace>> card_ports;   // likewise
     std::deque<core::Field<ui::Label<>>> labels;   // a deque: the widgets point at them

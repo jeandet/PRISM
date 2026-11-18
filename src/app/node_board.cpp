@@ -209,24 +209,38 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
     }
 }
 
+namespace {
+
+void drop_guides(NodeBoardParts& parts) {
+    if (parts.guides.empty()) return;
+    parts.guides.clear();
+    parts.tree->mark_dirty_by_id(parts.board_id);
+}
+
+} // namespace
+
 // Its node may be gone already: the cards are rebuilt on the next frame.
 void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
     nodes::Graph& graph = *parts->graph;
     WidgetTree& tree = *parts->tree;
     if (!std::ranges::contains(graph.nodes(), id)) return;
     if (track_press(press, ev)) {
+        mods = std::get<input::MouseButton>(ev).mods;
         shown = {{0, graph.position(id)}};
         set_selection(*parts, n, {.wire = {}, .node = id});
         tree.set_focused(parts->background_id);   // the board takes Delete
     }
+    if (!press) return drop_guides(*parts);
     const auto d = dragged_by(press, ev, n);
     if (!d) return;
     auto seen = shown.upper_bound(tree.input_frame());
     if (seen != shown.begin()) --seen;
-    const core::Point to = board_coords::dragged(graph, n, seen->second, *d);
+    const core::Point pointer_at = board_coords::dragged(graph, n, seen->second, *d);
+    const auto placed = (mods & input::mods::alt) ? nodes::Snapped{pointer_at, {}} : snapped_drag(*parts, id, pointer_at);
     shown.erase(shown.begin(), seen);   // older frames are not shown any more
-    graph.move(id, to);
-    shown.insert_or_assign(tree.next_frame_version(), to);
+    parts->guides = placed.guides;
+    graph.move(id, placed.at);
+    shown.insert_or_assign(tree.next_frame_version(), placed.at);
 }
 
 std::optional<core::Point> wire_end(const NodeBoardParts& parts, const nodes::Port* port,
@@ -439,6 +453,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
         draw_dots(dl, *parts, rect_of, scale, theme);
         outline_selected_node(dl, *parts, rect_of, scale, theme);
+        draw_guides(dl, *parts, theme);
         draw_probe(dl, *parts, theme);
     };
     current_parent().children.push_back(std::move(b));

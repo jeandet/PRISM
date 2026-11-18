@@ -305,17 +305,25 @@ TEST_CASE("a node without a view shows its ports and its wires") {
 
 namespace {
 constexpr Point empty_spot{X{700}, Y{500}};   // on the board, under no card
+
+// The sink out of the source's reach: a node dragged near it would snap to it.
+template <class F>
+void park_sink(F& f, Point at = P(700, 500)) {
+    f.m.graph.move(f.m.b, at);
+    f.frame();
+}
 }
 
 TEST_CASE("dragging a header by (30, 20) moves its node by (30, 20)") {
     Fixture f;
+    park_sink(f);
     auto ids = f.tree.leaf_ids();
     auto title = f.text_at("Source");
     REQUIRE(title);
     const Point grab = *title + Offset{DX{4.f}, DY{4.f}};
     f.drag(grab, grab + Offset{DX{30.f}, DY{20.f}});
     CHECK(f.m.graph.position(f.m.a) == P(50, 50));
-    CHECK(f.m.graph.position(f.m.b) == P(300, 60));
+    CHECK(f.m.graph.position(f.m.b) == P(700, 500));
     auto moved = f.text_at("Source");
     REQUIRE(moved);
     CHECK(moved->x.raw() == doctest::Approx(title->x.raw() + 30));
@@ -325,6 +333,7 @@ TEST_CASE("dragging a header by (30, 20) moves its node by (30, 20)") {
 
 TEST_CASE("the header's family label takes the drag too, and a second drag goes on from there") {
     Fixture f;
+    park_sink(f);
     auto family = f.text_at("SOURCE");
     REQUIRE(family);
     const Point grab = *family + Offset{DX{4.f}, DY{4.f}};
@@ -337,6 +346,7 @@ TEST_CASE("the header's family label takes the drag too, and a second drag goes 
 
 TEST_CASE("moves read against a frame that shows the node where it was do not overshoot") {
     Fixture f;
+    park_sink(f);
     const Point grab = *f.text_at("Source") + Offset{DX{4.f}, DY{4.f}};
     f.press(grab);
     route_event(f.tree, f.snap.get(), MouseMove{grab + Offset{DX{10.f}, DY{0.f}}, 1});
@@ -398,6 +408,7 @@ TEST_CASE("Tab never stops on a header's grip or on the background") {
 
 TEST_CASE("a right click in the middle of a drag does not make the node jump") {
     Fixture f;
+    park_sink(f);
     const Point grab = *f.text_at("Source") + Offset{DX{4.f}, DY{4.f}};
     f.press(grab);
     f.move_to(grab + Offset{DX{10.f}, DY{0.f}});
@@ -693,7 +704,9 @@ TEST_CASE("a board away from the window's origin: wires, pans, moves and drops l
     CHECK(panned->y.raw() == doctest::Approx(title->y.raw() - 10));
 
     const Point grab = *panned + Offset{DX{4.f}, DY{4.f}};
+    park_sink(f);
     f.drag(grab, grab + Offset{DX{30.f}, DY{20.f}});
+    park_sink(f, P(300, 60));
     CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(50));   // window to widget: float rounding
     CHECK(f.m.graph.position(f.m.a).y.raw() == doctest::Approx(50));
 
@@ -994,6 +1007,7 @@ TEST_CASE("at zoom 0.5 dragging the empty board by 40 px pans by 80 board units"
 
 TEST_CASE("at zoom 0.5 dragging a header by 40 px moves its node by 80") {
     Fixture f;
+    park_sink(f);
     at_zoom(f, 0.5f);
     auto title = f.text_at("Source");
     REQUIRE(title);
@@ -2151,4 +2165,100 @@ TEST_CASE("a palette row is at least as wide as its title") {
     for (WidgetId id : f.tree.leaf_ids())
         if (f.tree.within(id, f.m.palette)) wide_enough = laid_out(f, id).extent.w.raw() >= text_w;
     CHECK(wide_enough);
+}
+
+namespace {
+
+// The lines drawn in the snap guides' colour: the theme's accent at 60 %.
+std::vector<Line> guides_drawn(const Fixture& f) {
+    const Color guide = faded(f.tree.theme().accent, 0.6f);
+    std::vector<Line> out;
+    for (const auto& l : f.all<Line>())
+        if (l.color == guide) out.push_back(l);
+    return out;
+}
+
+Point grab_title(const Fixture& f, std::string_view title) { return *f.text_at(title) + Offset{DX{4.f}, DY{4.f}}; }
+
+void alt_press(Fixture& f, Point at) {
+    route_event(f.tree, f.snap.get(), MouseButton{at, buttons::left, true, mods::alt});
+    f.frame();
+}
+
+}
+
+TEST_CASE("a header dragged 4 px from a neighbour's edge snaps to it and shows one guide, none after the release") {
+    Fixture f;
+    park_sink(f, P(300, 400));
+    const Point grab = grab_title(f, "Source");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}});   // the card's left edge 4 px short of the sink's
+    CHECK(f.m.graph.position(f.m.a) == P(300, 30));
+    REQUIRE(guides_drawn(f).size() == 1);
+    CHECK(guides_drawn(f)[0].from.x.raw() == doctest::Approx(300));
+    f.release(grab + Offset{DX{276.f}, DY{0.f}});
+    CHECK(guides_drawn(f).empty());
+}
+
+TEST_CASE("a node follows the pointer again once it is dragged past the snap") {
+    Fixture f;
+    park_sink(f, P(300, 400));
+    const Point grab = grab_title(f, "Source");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}});
+    REQUIRE(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(300));
+    f.move_to(grab + Offset{DX{288.f}, DY{0.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(308));
+    f.release(grab + Offset{DX{288.f}, DY{0.f}});
+}
+
+TEST_CASE("at zoom 0.25 5 screen px snap and 7 do not") {
+    Fixture f;
+    const float source_w = f.tree.arranged_extent(f.card_of(f.m.source.out_label))->w.raw();
+    park_sink(f, P(445.2f, 400));   // its left edge 20 graph units right of the source's right edge, once dragged to x = 280
+    REQUIRE(445.2f - 280.f - source_w == doctest::Approx(20.f));
+    at_zoom(f, 0.25f);
+    const Point grab = grab_title(f, "Source");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{65.f}, DY{0.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(300));
+    REQUIRE(!guides_drawn(f).empty());
+    CHECK(guides_drawn(f)[0].from.x.raw() == doctest::Approx(445.2f * 0.25f));
+    f.release(grab + Offset{DX{65.f}, DY{0.f}});
+    f.m.graph.move(f.m.a, P(20, 30));
+    f.frame();
+    const Point again = grab_title(f, "Source");
+    f.press(again);
+    f.move_to(again + Offset{DX{63.f}, DY{0.f}});   // 28 graph units short
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(272));
+    CHECK(guides_drawn(f).empty());
+    f.release(again + Offset{DX{63.f}, DY{0.f}});
+}
+
+TEST_CASE("a wired input is levelled with the output feeding it") {
+    Fixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    const float out_from_top = middle_y(*f.row_of(f.m.source.out_label)) - f.allocated(f.card_of(f.m.source.out_label))->origin.y.raw();
+    const float in_from_top = middle_y(*f.row_of(f.m.sink.in_label)) - f.allocated(f.card_of(f.m.sink.in_label))->origin.y.raw();
+    const float level_y = 30.f + out_from_top - in_from_top;
+    const Point grab = grab_title(f, "Sink");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{0.f}, DY{level_y + 3.f - 60.f}});
+    const auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
+    CHECK(!guides_drawn(f).empty());
+    f.release(grab);
+}
+
+TEST_CASE("with Alt held a header is dragged freely: no snap, no guide") {
+    Fixture f;
+    park_sink(f, P(300, 400));
+    const Point grab = grab_title(f, "Source");
+    alt_press(f, grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}});
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(296));
+    CHECK(guides_drawn(f).empty());
+    f.release(grab + Offset{DX{276.f}, DY{0.f}});
 }
