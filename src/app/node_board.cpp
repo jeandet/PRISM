@@ -349,12 +349,12 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
     return true;
 }
 
-// A zoom or a fit asked for is made once the board knows its size. A fit keeps asking until two
+// A zoom or a fit asked for is made once the board knows its size. A fit or a tidy keeps asking until two
 // passes see the same board and card sizes: a wrapped label above the board settles on a later
 // pass, and a fit made from an earlier pass's size would be off.
 // simplify: a board with no size at all (zero-size) keeps the requests until a frame finds it
 // sized; nothing asks for that frame, so a resize or an input brings it.
-// A fit gives up waiting for the sizes to settle after this many passes: a layout that never
+// A fit or a tidy gives up waiting for the sizes to settle after this many passes: a layout that never
 // settles must not keep asking for publishes.
 constexpr int fit_waits_limit = 3;
 
@@ -397,8 +397,9 @@ Glide glide_to_tidy(const nodes::Graph& graph, const NodeBoardParts& parts) {
     return glide;
 }
 
-// One frame of the glide: every node still gliding goes where `now` puts it. While it lasts the
-// board asks the tree for the next frame, since nothing else would.
+// One frame of the glide: every node still gliding goes where `now` puts it. Each move bumps
+// `layout`, which wakes the board for the next frame; redraw_at is the safety net for a frame
+// that moves nothing (every node grabbed or gone), so the glide still ends.
 void glide_on(nodes::Graph& graph, NodeBoardParts& parts) {
     if (!parts.glide) return;
     const auto now = parts.tree->now();
@@ -409,21 +410,36 @@ void glide_on(nodes::Graph& graph, NodeBoardParts& parts) {
     else parts.glide.reset();
 }
 
+// Fits during this layout, which uses the view now; the sizes it read may be an earlier pass's,
+// so until two passes agree the request stays and asks for the next pass.
+void fit_as_asked(nodes::Graph& graph, const std::vector<core::Rect>& cards, core::Size board, bool stable) {
+    graph.fit(cards, board);
+    if (!stable) graph.request_fit();
+}
+
+// A tidy starts once every card has a size that two passes agree on: a node added in the same
+// turn has no card yet, and a node with no size would be laid out as a point.
+void tidy_as_asked(nodes::Graph& graph, NodeBoardParts& parts, std::size_t cards, bool stable) {
+    if (!graph.take_tidy_request()) return;
+    if (stable && cards == graph.nodes().size()) parts.glide = glide_to_tidy(graph, parts);
+    else graph.request_tidy();
+}
+
+// Zoom, tidy and fit as asked, once the board knows its size. A fit waits for a tidy's glide to
+// end, so it shows the cards where they come to rest.
 void view_as_asked(nodes::Graph& graph, NodeBoardParts& parts) {
     const auto board = parts.tree->laid_out_at(parts.board_id);
     if (!board || board->extent.w.raw() <= 0.f || board->extent.h.raw() <= 0.f) return;
     if (graph.zoom_requested()) graph.zoom_centred(board->extent);
-    if (graph.take_tidy_request()) parts.glide = glide_to_tidy(graph, parts);
     glide_on(graph, parts);
     const auto cards = cards_as_laid_out(graph, parts);
     const bool same = same_sizes_as_last_pass(parts, board->extent, cards);
-    if (!graph.fit_requested()) return;
+    if (!graph.fit_requested() && !graph.tidy_requested()) return;
     const bool stable = same || ++parts.fit_waits >= fit_waits_limit;
-    // Fits during this layout, which uses the view now; the sizes it read may be an earlier
-    // pass's, so until two passes agree the request stays and asks for the next pass.
-    graph.fit(cards, board->extent);
+    tidy_as_asked(graph, parts, cards.size(), stable);
+    const bool gliding = parts.glide || graph.tidy_requested();
+    if (graph.fit_requested() && !gliding) fit_as_asked(graph, cards, board->extent, stable);
     if (stable) parts.fit_waits = 0;
-    else graph.request_fit();
 }
 
 std::vector<core::Point> places(nodes::Graph& graph, NodeBoardParts& parts) {

@@ -2399,3 +2399,73 @@ TEST_CASE("a wired input is levelled at zoom 0.5 too") {
     CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
     f.release(grab);
 }
+
+namespace {
+
+bool overlap(Rect a, Rect b) {
+    return a.origin.x.raw() < right(b) && b.origin.x.raw() < right(a)
+        && a.origin.y.raw() < b.origin.y.raw() + b.extent.h.raw()
+        && b.origin.y.raw() < a.origin.y.raw() + a.extent.h.raw();
+}
+
+struct Growing : Editor {
+    Sink more;
+};
+
+struct Cards {
+    WidgetTree& tree;
+    std::vector<Rect> of(std::initializer_list<WidgetId> labels) const {
+        std::vector<Rect> out;
+        for (const WidgetId label : labels) out.push_back(*tree.laid_out_at(*tree.parent_of(*tree.parent_of(label))));
+        return out;
+    }
+};
+
+} // namespace
+
+TEST_CASE("a tidy asked in the turn a node is added waits for its card: no cards overlap") {
+    Growing m;
+    WidgetTree tree{m};
+    Clock::time_point at = Clock::now();
+    tree.set_clock([&] { return at; });
+    std::uint64_t v = 1;
+    auto snap = tree.build_snapshot(800, 600, v);
+    m.graph.add(m.more, {.title = "More", .family = "math", .at = P(20, 30)});
+    m.graph.request_tidy();
+    for (int i = 0; i < 20; ++i) {
+        at += std::chrono::milliseconds(30);
+        snap = tree.build_snapshot(800, 600, ++v);
+    }
+    const auto cards = Cards{tree}.of({m.source.out_label, m.sink.in_label, m.more.in_label});
+    for (std::size_t i = 0; i < cards.size(); ++i)
+        for (std::size_t j = i + 1; j < cards.size(); ++j) CHECK_FALSE(overlap(cards[i], cards[j]));
+}
+
+TEST_CASE("a tidy asked before the first frame waits for the sizes to settle: no cards overlap") {
+    Headed m;
+    m.graph.request_tidy();
+    WidgetTree tree{m};
+    Clock::time_point at = Clock::now();
+    tree.set_clock([&] { return at; });
+    for (std::uint64_t v = 1; v <= 20; ++v) {
+        at += std::chrono::milliseconds(30);
+        auto snap = tree.build_snapshot(240, 400, v);
+        static_cast<void>(snap);
+    }
+    const auto cards = Cards{tree}.of({m.source.out_label, m.sink.in_label});
+    CHECK_FALSE(overlap(cards[0], cards[1]));
+}
+
+TEST_CASE("a fit asked with a tidy shows the cards where the tidy leaves them") {
+    Gliding f;
+    f.m.graph.request_tidy();
+    f.m.graph.request_fit();
+    for (int i = 0; i < 20; ++i) f.after(30);
+    CHECK_FALSE(f.m.graph.fit_requested());
+    const Rect board = laid_out(f, *f.tree.parent_of(f.card_of(f.m.source.out_label)));
+    for (const WidgetId label : {f.m.source.out_label, f.m.sink.in_label}) {
+        const Rect r = laid_out(f, f.card_of(label));
+        CHECK(board.contains(r.origin));
+        CHECK(board.contains(P(right(r) - 1, bottom(r) - 1)));
+    }
+}

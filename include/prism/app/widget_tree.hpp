@@ -263,7 +263,8 @@ public:
     // Runs what is due at `now`: shows a tooltip, redraws animating widgets.
     void tick(TooltipState::clock::time_point now);
 
-    // The time animations here run on: the steady clock, unless a test sets its own.
+    // The time animations here run on: the steady clock. set_clock exists for tests, which move
+    // time by hand.
     [[nodiscard]] TooltipState::clock::time_point now() const { return clock_ ? clock_() : TooltipState::clock::now(); }
     void set_clock(std::function<TooltipState::clock::time_point()> clock) { clock_ = std::move(clock); }
 

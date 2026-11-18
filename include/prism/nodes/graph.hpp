@@ -102,6 +102,7 @@ public:
     // Asks the board to lay the nodes out in columns (tidy_layout) at its next layout, and to glide
     // them there; take_tidy_request() says so once, to the board that does it.
     void request_tidy();
+    bool tidy_requested() const { return tidy_requested_; }
     bool take_tidy_request() { return std::exchange(tidy_requested_, false); }
     // Asks the board to zoom to `zoom` (clamped) about its centre at its next layout, which calls
     // zoom_centred() once it knows its size.

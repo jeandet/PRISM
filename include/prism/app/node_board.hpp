@@ -9,8 +9,8 @@
 #include <prism/nodes/snap.hpp>
 #include <prism/ui/node.hpp>
 
-#include <cstdint>
 #include <chrono>
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <optional>
@@ -84,7 +84,7 @@ struct NodeGrip {
     void handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect r);
 };
 
-// Nodes gliding to where tidy puts them: each from where it was, over `glide_duration`.
+// Nodes gliding to where tidy puts them: each from where it was, over 200 ms.
 struct Glide {
     std::chrono::steady_clock::time_point start;
     std::map<nodes::NodeId, std::pair<core::Point, core::Point>> legs;   // node -> from, to
