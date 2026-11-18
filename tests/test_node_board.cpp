@@ -1222,3 +1222,55 @@ TEST_CASE("a fit made during a publish leaves the tree dirty, so what shows the 
     publish(f);
     CHECK(f.shows("100 %"));
 }
+
+namespace {
+struct Tabbed {   // a node holding tabs that can be dragged along their bar
+    List<std::string> open;
+    Field<TabBar<>> current;
+    Field<Label<>> body{{"body"}};
+    Tabbed() { for (auto name : {"one", "two", "three"}) open.push_back(name); }
+    std::vector<nodes::Port*> ports() { return {}; }
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.tabs(current, open, [](const std::string& s) { return s; },
+                [this](WidgetTree::ViewBuilder& p, const std::string&) { p.widget(body); })
+            .reorderable();
+    }
+};
+
+struct TabbedBoard {
+    Tabbed node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Tabbed", .family = "math", .at = P(20, 30)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+std::vector<Rect> overlay_rects(const SceneSnapshot& snap, Color c) {
+    std::vector<Rect> out;
+    for (auto& cmd : snap.overlay.commands)
+        if (auto* r = std::get_if<FilledRect>(&cmd); r && r->color == c) out.push_back(r->rect);
+    return out;
+}
+}
+
+TEST_CASE("at zoom 2 a tab dragged along a node's bar shows the insertion bar between the tabs under the pointer, zoomed") {
+    BasicFixture<TabbedBoard> f;
+    at_zoom(f, 2.f);
+    const auto one = f.text_at("one"), two = f.text_at("two"), three = f.text_at("three");
+    REQUIRE((one && two && three));
+    const Point from = *three + Offset{DX{5}, DY{5}};
+    const Point to = *two + Offset{DX{2}, DY{5}};   // the left part of "two": before it
+    f.press(from);
+    f.move_to(from - Offset{DX{20}, DY{0}});
+    f.move_to(to);
+    REQUIRE(f.tree.dragging());
+    const float one_end = one->x.raw() + 2.f * text_width(f.tree.theme().measurer, "one", 14.f);
+    const auto bars = overlay_rects(*f.snap, f.tree.theme().accent);
+    const auto bar = std::ranges::find_if(bars, [](const Rect& r) { return r.extent.w.raw() == doctest::Approx(4.f); });
+    REQUIRE(bar != bars.end());   // 2 px wide at zoom 1
+    const float x = bar->origin.x.raw() + 2.f;
+    CHECK(x > one_end);
+    CHECK(x < two->x.raw());
+    f.release(to);
+    CHECK(std::vector<std::string>(f.m.node.open.begin(), f.m.node.open.end())
+          == std::vector<std::string>{"one", "three", "two"});
+}

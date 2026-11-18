@@ -685,22 +685,18 @@ void WidgetTree::connect_deps_dirty(Node& node, WidgetNode& wn) {
 void WidgetTree::draw_drag(SceneSnapshot& snap) const {
     const auto source = index_.find(drag_->source);
     if (source != index_.end() && source->second->drag.hint_targets) draw_drop_hints(snap);
-    std::optional<Rect> target_rect;
-    for (auto& [id, rect] : snap.geometry)
-        if (id == drag_->target && id != 0) target_rect = rect;
-    if (!target_rect) target_rect = drop_area_rect(drag_->target);
+    auto place = drag_->target ? input::find_widget_place(snap, drag_->target) : std::nullopt;
+    if (const DropArea* area = drag_->target && !place ? drop_area(drag_->target) : nullptr) place = area->place();
+    const std::optional<Rect> target_rect = place ? std::optional{place->rect} : std::nullopt;
     auto target = index_.find(drag_->target);
-    if (target_rect && target != index_.end()) {
+    if (place && target != index_.end()) {
         const auto& role = target->second->drag;
-        const Point local{X{drag_->pointer.x.raw() - target_rect->origin.x.raw()},
-                          Y{drag_->pointer.y.raw() - target_rect->origin.y.raw()}};
         if (!role.slot) {
-            drag_draw::drop_marker(snap.overlay, *target_rect, drag_->pointer, role, theme_.accent);
+            drag_draw::drop_marker(snap.overlay, place->rect, drag_->pointer, role, theme_.accent);
         } else {
-            const Rect m = role.slot_marker(*target->second, role.slot(*target->second, local));
-            snap.overlay.filled_rect(Rect{Point{target_rect->origin.x + DX{m.origin.x.raw()},
-                                                target_rect->origin.y + DY{m.origin.y.raw()}}, m.extent},
-                                     theme_.accent);
+            const Point local = drop_place_in(*place, drag_->pointer).at;
+            const Rect marker = role.slot_marker(*target->second, role.slot(*target->second, local));
+            snap.overlay.filled_rect(place->to_window(marker), theme_.accent);
         }
     }
     if (source != index_.end()) draw_dragged(snap, *source->second);
