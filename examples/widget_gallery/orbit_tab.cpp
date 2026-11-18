@@ -60,7 +60,7 @@ const orbit::Level& OrbitTab::current() const {
 }
 
 void OrbitTab::reset_level() {
-    probe_.reset();
+    world_.reset();
     aim_.reset();
     trail_.clear();
     message = "Aim with a drag.";
@@ -69,7 +69,7 @@ void OrbitTab::reset_level() {
 
 void OrbitTab::launch(Vec release) {
     const auto& lv = current();
-    probe_ = orbit::Probe{.pos = lv.start, .vel = orbit::launch_velocity(lv.start, release)};
+    world_ = orbit::launch(lv, orbit::launch_velocity(lv.start, release));
     trail_ = {lv.start};
     ++attempts;
     message = "Flying...";
@@ -84,17 +84,17 @@ void OrbitTab::launch(Vec release) {
 }
 
 bool OrbitTab::tick(double seconds) {
-    if (!probe_) return false;
+    if (!world_) return false;
     const auto& lv = current();
     // gravity is read every tick: the slider steers a flight in progress
-    if (auto outcome = orbit::advance(*probe_, lv, value(gravity), seconds, carry_); outcome != orbit::Outcome::Flying) {
-        trail_.push_back(probe_->pos);
+    if (auto outcome = orbit::advance(*world_, lv, value(gravity), seconds, carry_); outcome != orbit::Outcome::Flying) {
+        trail_.push_back(world_->probe.pos);
         land(outcome);
         return false;
     }
     // A point per few units, not per tick: the clock ticks far more often than the screen draws.
-    if (trail_.empty() || orbit::length(probe_->pos - trail_.back()) > 4) {
-        trail_.push_back(probe_->pos);
+    if (trail_.empty() || orbit::length(world_->probe.pos - trail_.back()) > 4) {
+        trail_.push_back(world_->probe.pos);
         ++frame;
     }
     return true;
@@ -103,7 +103,7 @@ bool OrbitTab::tick(double seconds) {
 void OrbitTab::land(orbit::Outcome outcome) {
     old_trails_.push_back(std::move(trail_));
     if (old_trails_.size() > kept_trails) old_trails_.erase(old_trails_.begin());
-    probe_.reset();
+    world_.reset();
     trail_.clear();
     if (outcome == orbit::Outcome::Hit) {
         const bool last = level.get() + 1 == static_cast<int>(orbit::levels().size());
@@ -124,7 +124,7 @@ void OrbitTab::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     if (const auto* mb = std::get_if<input::MouseButton>(&ev); mb && mb->button == input::buttons::left) {
         if (mb->pressed) {
             Vec at = tf.to_field(mb->position);
-            if (!probe_ && orbit::length(at - start) < grab_radius) aim_ = at;
+            if (!world_ && orbit::length(at - start) < grab_radius) aim_ = at;
         } else if (aim_) {
             Vec release = *aim_;
             aim_.reset();
@@ -154,14 +154,15 @@ void OrbitTab::canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetN
     for (const auto& t : old_trails_) path(t, core::Color::rgba(theme.accent.r, theme.accent.g, theme.accent.b, 70), 1.5f);
     path(trail_, theme.accent, 2.f);
 
-    for (const auto& p : lv.planets) {
-        dl.circle(tf.to_canvas(p.pos), tf.length(p.radius), planet_fill);
-        dl.circle(tf.to_canvas(p.pos), tf.length(p.radius), planet_rim, 2.f);
+    const auto& bodies = world_ ? world_->bodies : lv.bodies;
+    for (const auto& b : bodies) {
+        dl.circle(tf.to_canvas(b.pos), tf.length(b.radius), planet_fill);
+        dl.circle(tf.to_canvas(b.pos), tf.length(b.radius), planet_rim, 2.f);
     }
     dl.circle(tf.to_canvas(lv.target), tf.length(lv.target_radius), theme.accent, 3.f);
     dl.circle(tf.to_canvas(lv.target), tf.length(lv.target_radius * 0.35), theme.accent);
 
-    const Vec probe_at = probe_ ? probe_->pos : lv.start;
+    const Vec probe_at = world_ ? world_->probe.pos : lv.start;
     if (aim_) {   // the band pulled back, and the way the probe will go
         dl.line(tf.to_canvas(lv.start), tf.to_canvas(*aim_), core::Color::rgba(255, 255, 255, 90), 1.5f);
         Vec v = orbit::launch_velocity(lv.start, *aim_);

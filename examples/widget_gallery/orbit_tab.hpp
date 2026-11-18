@@ -2,7 +2,7 @@
 // its path into the ring. It shows what a canvas can do beyond a chart: input (aim with a drag),
 // animation (the flight runs on the app's clock, which ticks only while the probe flies), and
 // fields steering it live (the gravity slider changes a path in flight). The physics is
-// orbit.hpp, plain functions with tests of their own.
+// orbit_physics.hpp, plain functions with tests of their own; the levels are orbit_levels.hpp.
 #pragma once
 
 #include "orbit.hpp"
@@ -52,7 +52,7 @@ private:
     void reset_level();
 
     ui::AnimationClock* clock_ = nullptr;
-    std::optional<orbit::Probe> probe_;              // set while it flies
+    std::optional<orbit::World> world_;              // set while it flies
     std::optional<orbit::Vec> aim_;                  // where the drag is, in field units
     std::vector<orbit::Vec> trail_;                  // this flight's path
     std::vector<std::vector<orbit::Vec>> old_trails_;   // the last few flights, faded
