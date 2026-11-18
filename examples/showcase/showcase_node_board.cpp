@@ -49,8 +49,8 @@ struct Patch {
     Display display;
     nodes::Graph graph;   // after the nodes: it is destroyed before them
     nodes::NodeId s = graph.add(sine, {.title = "Sine", .family = "source", .at = {core::X{20}, core::Y{50}}});
-    nodes::NodeId g = graph.add(gain, {.title = "Gain", .family = "math", .at = {core::X{260}, core::Y{130}}});
-    nodes::NodeId d = graph.add(display, {.title = "Display", .family = "display", .at = {core::X{500}, core::Y{60}}});
+    nodes::NodeId g = graph.add(gain, {.title = "Gain", .family = "math", .at = {core::X{250}, core::Y{130}}});
+    nodes::NodeId d = graph.add(display, {.title = "Display", .family = "display", .at = {core::X{470}, core::Y{60}}});
 
     Patch() {
         static_cast<void>(graph.connect({s, 0}, {g, 0}));
@@ -62,5 +62,5 @@ struct Patch {
 
 int main(int argc, char* argv[]) {
     Patch model;
-    return showcase(argc, argv, model, 640, 300);
+    return showcase(argc, argv, model, 700, 300);
 }

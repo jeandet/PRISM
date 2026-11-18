@@ -60,7 +60,7 @@ wiring a callback.
 outputs last or keep the order stable — it is part of the node's interface.
 
 `view` lays the card out. `vb.port(p)` is one port row: the dot on the inward or outward edge, the
-port's name, and the value it carries. Everything else is an ordinary widget — `vb.widget(field)`
+port's name. Everything else is an ordinary widget — `vb.widget(field)`
 takes any field, and the type inside it picks the widget, exactly as outside a node. A label inside
 a card usually sets `.flat = true`: the card already draws the surface behind it.
 
@@ -247,9 +247,8 @@ replaces it later — that is how a binding installs a formatter for a type it d
 formatter set that way wins over the type's own.
 
 The wire colour follows the slot: `theme.node_wires[nodes::wire_slot(nodes::type_key<Volts>())]`.
-The five types above hold slots 0 to 4; your own start at the last slot and wrap round, one slot
-each in the order they are first used — the first type you add takes 5, the second 0, the third 1.
-Give the last slot a colour of its own and the first type you add gets it:
+The five types above hold slots 0 to 4; every type of your own takes the last slot, a neutral grey
+in both themes. Give the last slot a colour of your own and all your types share it:
 
 ```cpp
 ui::Theme mine = ui::dark_theme();
@@ -294,4 +293,4 @@ lookup the board uses, handy for a widget of yours that wants its node's colour.
 Switching the theme repaints the board in place — the cards, the grid, the wires, and the probes —
 without rebuilding a single widget, so a hover or a selection survives a light/dark switch.
 
-<img src="../../screenshots/node_board.svg" alt="A node board: three cards wired together, a probe on one wire, the selected card ringed" width="720"/>
+<img src="../../screenshots/node_board.svg" alt="A node board: a Sine, a Gain and a Display card wired together on the dotted grid" width="720"/>
