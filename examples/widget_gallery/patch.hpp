@@ -22,6 +22,24 @@ inline Wave sine(double cycles, double amplitude, double phase) {
     return w;
 }
 
+// The same periods and phase, as a square wave: ±`amplitude`, high where a sine of it is not
+// negative, so it starts high at phase 0.
+inline Wave square(double cycles, double amplitude, double phase) {
+    Wave w(samples);
+    for (int i = 0; i < samples; ++i) {
+        const double turn = 2 * std::numbers::pi * (cycles * i / samples + phase);
+        w[static_cast<std::size_t>(i)] = std::sin(turn) < 0 ? -amplitude : amplitude;
+    }
+    return w;
+}
+
+// Every sample of `wave` scaled by `level`; an unwired wave (empty) stays silent.
+inline Wave gain(const Wave& wave, double level) {
+    Wave w{wave};
+    for (double& v : w) v *= level;
+    return w;
+}
+
 // The same noise at every call (a fixed seed): moving the level only scales it.
 inline Wave noise(double level) {
     std::mt19937 gen(7);
