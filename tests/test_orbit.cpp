@@ -6,6 +6,7 @@
 #include "../examples/widget_gallery/orbit.hpp"
 
 #include <cmath>
+#include <utility>
 #include <vector>
 
 using namespace orbit;
@@ -147,6 +148,30 @@ TEST_CASE("a moon placed by the level helper stays in orbit for a minute") {
     CHECK(length(w.bodies[1].pos - w.bodies[0].pos) == doctest::Approx(200).epsilon(0.10));
 }
 
+TEST_CASE("the moons' order in the bodies vector does not change where they end up") {
+    Level level = empty_level();
+    level.target = {900, 900};   // out of the way
+    level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
+    level.bodies.push_back(orbiting(level.bodies, 0, 200, 0.0, 0.15, 10));
+    level.bodies.push_back(
+        orbiting(level.bodies, 0, 200, 0.5, 0.15, 10));   // opposite the first, near enough to pull on it
+    Level swapped = level;
+    std::swap(swapped.bodies[1], swapped.bodies[2]);
+    World a = launch(level, {0, 0}), b = launch(swapped, {0, 0});
+    run(a, level, 1.0, 10 * 240);   // ten seconds
+    run(b, swapped, 1.0, 10 * 240);
+    REQUIRE(a.bodies.size() == 3);
+    REQUIRE(b.bodies.size() == 3);
+    REQUIRE(length(a.bodies[1].pos - level.bodies[1].pos) > 1);   // the moons really flew, and pulled on each other
+    for (std::size_t i = 1; i <= 2; ++i) {
+        const std::size_t j = 3 - i;   // the same moon's slot in the swapped world
+        CHECK(std::abs(a.bodies[i].pos.x - b.bodies[j].pos.x) < 1e-9);
+        CHECK(std::abs(a.bodies[i].pos.y - b.bodies[j].pos.y) < 1e-9);
+        CHECK(std::abs(a.bodies[i].vel.x - b.bodies[j].vel.x) < 1e-9);
+        CHECK(std::abs(a.bodies[i].vel.y - b.bodies[j].vel.y) < 1e-9);
+    }
+}
+
 TEST_CASE("the same launch twice flies the same way") {
     const Level& level = levels().front();
     Vec v = launch_velocity(level.start, level.start + Vec{-120, 40});
@@ -196,24 +221,26 @@ TEST_CASE("a retry starts from the level's state, and the next launch at that gr
     CHECK(a.probe.pos.y == b.probe.pos.y);
 }
 
-TEST_CASE("a moon that hits an anchor is removed, and the anchor stays") {
+TEST_CASE("a moon that hits an anchor dies where it is, and the anchor stays") {
     Level level = empty_level();
     level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
     level.bodies.push_back({.pos = {380, 300}, .vel = {200, 0}, .mass = 0.5, .radius = 10, .anchor = false});
     World w = launch(level, {0, 0});
-    for (int i = 0; i < 240 && w.bodies.size() > 1; ++i) step(w, level, 1.0, step_s);
-    REQUIRE(w.bodies.size() == 1);
+    for (int i = 0; i < 240 && w.bodies[1].alive; ++i) step(w, level, 1.0, step_s);
+    REQUIRE(w.bodies.size() == 2);   // the dead moon keeps its slot, so the anchor keeps index 0
+    CHECK_FALSE(w.bodies[1].alive);
     CHECK(w.bodies[0].anchor);
     CHECK(w.bodies[0].pos.x == doctest::Approx(500));
 }
 
-TEST_CASE("two moons that hit each other are both removed") {
+TEST_CASE("two moons that hit each other both die") {
     Level level = empty_level();
     level.bodies.push_back({.pos = {450, 300}, .vel = {60, 0}, .mass = 0.5, .radius = 15, .anchor = false});
     level.bodies.push_back({.pos = {550, 300}, .vel = {-60, 0}, .mass = 0.5, .radius = 15, .anchor = false});
     World w = launch(level, {0, 0});
-    for (int i = 0; i < 240 && !w.bodies.empty(); ++i) step(w, level, 1.0, step_s);
-    CHECK(w.bodies.empty());
+    for (int i = 0; i < 240 && (w.bodies[0].alive || w.bodies[1].alive); ++i) step(w, level, 1.0, step_s);
+    CHECK_FALSE(w.bodies[0].alive);
+    CHECK_FALSE(w.bodies[1].alive);
 }
 
 TEST_CASE("a probe that crosses a moon crashes") {
@@ -264,4 +291,73 @@ TEST_CASE("a ring with no body carrying it stays where the level puts it") {
     World w = launch(level, {0, 0});
     CHECK(ring_centre(w, level).x == level.target.x);
     CHECK(ring_centre(w, level).y == level.target.y);
+}
+
+TEST_CASE("a body removed before the carrier leaves the ring on its carrier") {
+    Level level = empty_level();
+    level.target = {100, 560};   // the ring's fallback point, well away from the carrier
+    level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
+    level.bodies.push_back({.pos = {300, 300}, .vel = {200, 0}, .mass = 0.5, .radius = 10, .anchor = false});
+    level.bodies.push_back(orbiting(level.bodies, 0, 200, 0.25, 0.5, 12));   // the carrier
+    level.target_body = 2;
+
+    World w = launch(level, {0, 0});
+    for (int i = 0; i < 240 && w.bodies.size() == 3 && w.bodies[1].alive; ++i)
+        step(w, level, 1.0, step_s);
+    REQUIRE(w.bodies.size() == 3);   // the removed body stays in place, so the carrier keeps index 2
+    CHECK_FALSE(w.bodies[1].alive);
+    CHECK(w.bodies[2].alive);
+
+    const Vec where = ring_centre(w, level);
+    CHECK(where.x == w.bodies[2].pos.x);
+    CHECK(where.y == w.bodies[2].pos.y);
+    CHECK(where.x != level.target.x);   // not the ring's fallback point
+
+    run(w, level, 1.0, 240);
+    CHECK(ring_centre(w, level).x == w.bodies[2].pos.x);
+    CHECK(ring_centre(w, level).y == w.bodies[2].pos.y);
+    CHECK(ring_centre(w, level).x != where.x);   // it rode the moon on instead of freezing
+}
+
+TEST_CASE("the ring stays where its carrier died") {
+    Level level = empty_level();
+    level.target = {100, 560};   // the ring's fallback point, well away from the carrier
+    level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
+    level.bodies.push_back({.pos = {500, 480}, .vel = {0, -300}, .mass = 0.5, .radius = 12, .anchor = false});
+    level.target_body = 1;
+
+    World w = launch(level, {0, 0});
+    for (int i = 0; i < 240 && w.bodies.size() == 2 && w.bodies[1].alive; ++i)
+        step(w, level, 1.0, step_s);
+    REQUIRE(w.bodies.size() == 2);
+    REQUIRE_FALSE(w.bodies[1].alive);
+    const Vec died = w.bodies[1].pos;
+
+    run(w, level, 1.0, 240);
+    CHECK(ring_centre(w, level).x == died.x);
+    CHECK(ring_centre(w, level).y == died.y);
+}
+
+TEST_CASE("a dead body pulls nothing and is skipped by collisions and crashes") {
+    const Body anchor{.pos = {900, 300}, .mass = 1.0, .radius = 40};
+    const Body dead{.pos = {500, 300}, .mass = 5.0, .radius = 40, .anchor = false, .alive = false};
+    const std::vector<Body> live{anchor}, with_dead{anchor, dead};
+    CHECK(acceleration(with_dead, {100, 300}, 1.0).x == acceleration(live, {100, 300}, 1.0).x);
+    CHECK(acceleration(with_dead, {100, 300}, 1.0).y == acceleration(live, {100, 300}, 1.0).y);
+
+    Level level = empty_level();
+    level.target = {100, 560};   // out of the way
+    level.bodies = with_dead;
+    World w = launch(level, {0, 0});
+    w.probe.pos = dead.pos;   // sitting where the dead body is
+    CHECK(probe_outcome(w, level) == Outcome::Flying);
+
+    Level crossing = empty_level();
+    crossing.target = {100, 560};
+    crossing.bodies = {{.pos = {500, 300}, .mass = 5.0, .radius = 40, .anchor = true, .alive = false},
+                       {.pos = {500, 300}, .mass = 0.5, .radius = 10, .anchor = false}};
+    World c = launch(crossing, {0, 0});
+    step(c, crossing, 1.0, step_s);
+    REQUIRE(c.bodies.size() == 2);
+    CHECK(c.bodies[1].alive);   // it flew through a dead body, not into one
 }

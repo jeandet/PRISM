@@ -36,6 +36,7 @@ struct Body {
     Vec pos{}, vel{};   // `vel` is the launch state; an anchor ignores it
     double mass = 1, radius = 30;
     bool anchor = true;   // an anchor never moves, whatever hits it
+    bool alive = true;    // a removed body stays where it died, skipped by the others, so indices hold
 };
 
 struct Probe {
@@ -53,18 +54,19 @@ struct Level {
 };
 
 struct World {
-    std::vector<Body> bodies{};   // as the level left them, then moved by the flight
+    std::vector<Body> bodies{};   // the level's bodies, moved by the flight; a removed one stays dead
     Probe probe{};
     double time = 0;              // seconds flown since the launch
 };
 
 enum class Outcome { Flying, Hit, Crashed, Lost };
 
-// Every body's pull on a point at `at`, scaled by the `gravity` slider. A body feels nothing from
-// itself: its own distance is zero, so its share is zero.
+// Every live body's pull on a point at `at`, scaled by the `gravity` slider. A body feels nothing
+// from itself: its own distance is zero, so its share is zero; a dead body pulls nothing.
 inline Vec acceleration(const std::vector<Body>& bodies, Vec at, double gravity) {
     Vec sum{};
     for (const auto& b : bodies) {
+        if (!b.alive) continue;
         Vec d = b.pos - at;
         double r = std::max(length(d), b.radius);   // never infinite, even at the center
         sum = sum + d * (gravity * gravity_constant * b.mass / (r * r * r));
@@ -72,12 +74,28 @@ inline Vec acceleration(const std::vector<Body>& bodies, Vec at, double gravity)
     return sum;
 }
 
-// One velocity-Verlet step (kick, drift, kick): the acceleration is re-read where the drift lands.
-template <class Accel>
-inline void verlet(Vec& pos, Vec& vel, double dt, const Accel& acceleration_at) {
-    vel = vel + acceleration_at(pos) * (dt / 2);
-    pos = pos + vel * dt;
-    vel = vel + acceleration_at(pos) * (dt / 2);
+// Half a kick: every mover and the probe gain `dt / 2` of pull, all read from the same snapshot.
+template <class Pull>
+inline void half_kick(World& w, double dt, const Pull& pull) {
+    for (auto& b : w.bodies)
+        if (!b.anchor && b.alive) b.vel = b.vel + pull(b.pos) * (dt / 2);
+    w.probe.vel = w.probe.vel + pull(w.probe.pos) * (dt / 2);
+}
+
+// The drift of a step: everyone moves at their new speed, after the first half kick.
+inline void drift(World& w, double dt) {
+    for (auto& b : w.bodies)
+        if (!b.anchor && b.alive) b.pos = b.pos + b.vel * dt;
+    w.probe.pos = w.probe.pos + w.probe.vel * dt;
+}
+
+// Velocity Verlet (half kick, drift, half kick) for a whole world. Each half kick reads every
+// position from one snapshot, so the order of the bodies in their vector changes nothing.
+inline void verlet_step(World& w, double gravity, double dt) {
+    const auto pull = [&](Vec at) { return acceleration(w.bodies, at, gravity); };
+    half_kick(w, dt, pull);
+    drift(w, dt);
+    half_kick(w, dt, pull);
 }
 
 // A fresh flight: the level's bodies as they start, and the probe at the start with `velocity`.
@@ -104,56 +122,49 @@ inline Body orbiting(const std::vector<Body>& bodies, std::size_t around, double
             .anchor = false};
 }
 
-// Where the ring is now: at its fixed point, or on the body carrying it.
+// Where the ring is now: at its fixed point, or on the body carrying it. Bodies keep their index
+// when they die, so the carrier stays the carrier; a dead one leaves the ring where it fell.
 inline Vec ring_centre(const World& w, const Level& level) {
     if (!level.target_body) return level.target;
-    // simplify: the carrier is an index into `bodies`, which collisions renumber, so a scene keeps
-    // its carrier clear of anything that could destroy it; give the ring a body id instead if a
-    // carrier must be able to die.
     const std::size_t i = *level.target_body;
-    return i < w.bodies.size() ? w.bodies[i].pos : level.target;
+    return i < w.bodies.size() ? w.bodies[i].pos : level.target;   // a level can name a body it has not got
 }
 
 // What became of the probe where it is now.
 inline Outcome probe_outcome(const World& w, const Level& level) {
     for (const auto& b : w.bodies)
-        if (length(w.probe.pos - b.pos) < b.radius) return Outcome::Crashed;
+        if (b.alive && length(w.probe.pos - b.pos) < b.radius) return Outcome::Crashed;
     if (length(w.probe.pos - ring_centre(w, level)) < level.target_radius) return Outcome::Hit;
     if (w.time > flight_limit) return Outcome::Lost;
     if (length(w.probe.pos - field_centre()) > lost_reach * field_diagonal()) return Outcome::Lost;
     return Outcome::Flying;
 }
 
-// Which bodies touch another body this step: a moving body that does is gone, an anchor survives.
-inline std::vector<bool> collided(const std::vector<Body>& bodies) {
-    std::vector<bool> gone(bodies.size(), false);
-    for (std::size_t i = 0; i < bodies.size(); ++i)
-        for (std::size_t j = i + 1; j < bodies.size(); ++j)
-            if (length(bodies[i].pos - bodies[j].pos) < bodies[i].radius + bodies[j].radius) {
-                gone[i] = gone[i] || !bodies[i].anchor;
-                gone[j] = gone[j] || !bodies[j].anchor;
-            }
-    return gone;
+// Whether two live bodies are in contact; a dead body is gone and touches nothing.
+inline bool touching(const Body& a, const Body& b) {
+    return a.alive && b.alive && length(a.pos - b.pos) < a.radius + b.radius;
 }
 
-// The bodies left after this step's collisions, in order.
-inline void drop_collided_bodies(std::vector<Body>& bodies) {
-    const std::vector<bool> gone = collided(bodies);
-    std::size_t kept = 0;
+// A body that touches another this step dies where it is; an anchor survives and only kills. The
+// contacts are all read before anything is marked, so a chain of touching bodies all goes.
+inline void mark_collided_bodies(std::vector<Body>& bodies) {
+    std::vector<bool> hit(bodies.size(), false);
     for (std::size_t i = 0; i < bodies.size(); ++i)
-        if (!gone[i]) bodies[kept++] = bodies[i];
-    bodies.resize(kept);
+        for (std::size_t j = i + 1; j < bodies.size(); ++j)
+            if (touching(bodies[i], bodies[j])) {
+                hit[i] = true;
+                hit[j] = true;
+            }
+    for (std::size_t i = 0; i < bodies.size(); ++i)
+        if (hit[i] && !bodies[i].anchor) bodies[i].alive = false;
 }
 
 // One step of `dt` seconds for the moving bodies and the probe, then what became of the probe.
 inline Outcome step(World& w, const Level& level, double gravity, double dt) {
-    const auto pull = [&](Vec at) { return acceleration(w.bodies, at, gravity); };
-    for (auto& b : w.bodies)
-        if (!b.anchor) verlet(b.pos, b.vel, dt, pull);
-    verlet(w.probe.pos, w.probe.vel, dt, pull);
+    verlet_step(w, gravity, dt);
     w.time += dt;
     const Outcome outcome = probe_outcome(w, level);
-    drop_collided_bodies(w.bodies);
+    mark_collided_bodies(w.bodies);
     return outcome;
 }
 
