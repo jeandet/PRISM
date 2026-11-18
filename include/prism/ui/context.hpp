@@ -2,7 +2,12 @@
 
 #include <prism/render/draw_list.hpp>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace prism::ui {
 using namespace prism::render;
@@ -11,6 +16,19 @@ using namespace prism::render;
 struct TextMeasurer;
 struct Clipboard;
 struct UrlOpener;
+
+// How many wire colours a theme names, by wire slot. Matches nodes::wire_slots (a test keeps the
+// two equal) without ui including nodes.
+inline constexpr std::size_t node_wire_slots = 6;
+
+// `t` is the weight of `b` in [0, 1]: mix(a, b, 0) is a, mix(a, b, 1) is b. Every channel mix,
+// alpha included, rounded to nearest.
+inline Color mix(Color a, Color b, float t) {
+    auto channel = [t](std::uint8_t from, std::uint8_t to) {
+        return static_cast<std::uint8_t>(float(from) + (float(to) - float(from)) * t + 0.5f);
+    };
+    return Color::rgba(channel(a.r, b.r), channel(a.g, b.g), channel(a.b, b.b), channel(a.a, b.a));
+}
 
 struct Theme {
     // Surface backgrounds (widget fill)
@@ -102,6 +120,33 @@ struct Theme {
     // Canvas clear color
     Color canvas_bg       = Color::rgba(30, 30, 30);
 
+    // The node board (a graph of cards on a grid, src/app/node_board.cpp). A family is a kind of
+    // node ("source", "math"): its colour tints the card's header and names it on the right.
+    struct NodeFamily {
+        std::string name;
+        Color color;
+        bool operator==(const NodeFamily&) const = default;
+    };
+    Color node_board_bg   = Color::rgba(14, 16, 22);
+    Color node_grid       = Color::rgba(38, 42, 54);
+    bool  node_grid_dots  = true;    // dots (the dark look) or lines (the light one)
+    Color node_surface    = Color::rgba(25, 28, 38);
+    Color node_border     = Color::rgba(42, 47, 61);
+    Color node_border_selected = Color::rgba(58, 66, 88);
+    Color node_glow       = Color::rgba(0, 140, 200, 89);   // accent at 35 %
+    // By wire slot: waveform, number, boolean, integer, text, then app types share the last one.
+    std::array<Color, node_wire_slots> node_wires{
+        Color::rgba(78, 161, 255), Color::rgba(242, 163, 58), Color::rgba(95, 211, 141),
+        Color::rgba(169, 139, 255), Color::rgba(238, 241, 247), Color::rgba(154, 161, 178)};
+    Color node_probe_bg   = Color::rgba(31, 36, 51);
+    Color node_probe_text = Color::rgba(207, 227, 255);
+    std::vector<NodeFamily> node_families{   // an app appends its own
+        {"source", Color::rgba(63, 208, 201)},
+        {"filter", Color::rgba(169, 139, 255)},
+        {"math", Color::rgba(242, 163, 58)},
+        {"display", Color::rgba(95, 211, 141)}};
+    Color node_family_default = Color::rgba(154, 161, 178);   // a family not in the table
+
     // How text is measured; set by the widget tree from the backend. Null = monospace estimate.
     // Points at a backend-owned object: do not copy a Theme holding it beyond the backend's
     // lifetime. Set before the logic thread starts recording; read only on the logic thread.
@@ -112,6 +157,14 @@ struct Theme {
 };
 
 inline Theme default_theme() { return {}; }
+
+// A family's colour: the theme's table first, then the colour given to families it does not name.
+inline Color node_family_color(const Theme& t, std::string_view family) {
+    for (const auto& known : t.node_families) {
+        if (known.name == family) return known.color;
+    }
+    return t.node_family_default;
+}
 inline Theme dark_theme() { return {}; }
 
 // Dark text on light surfaces; every text color keeps at least WCAG AA contrast (4.5:1) with
@@ -126,7 +179,7 @@ inline Theme light_theme() {
     t.syntax_function = c(0, 90, 190);       t.current_line = c(0, 0, 0, 12);       t.gutter = c(0, 0, 0, 9);
     t.primary = c(30, 100, 190);          t.primary_hover = c(40, 112, 205);    t.primary_active = c(22, 86, 168);
     t.primary_outline = c(60, 130, 220);
-    t.accent = c(0, 120, 190);            t.accent_hover = c(0, 135, 210);      t.accent_active = c(0, 105, 170);
+    t.accent = c(47, 111, 222);           t.accent_hover = c(64, 128, 235);     t.accent_active = c(36, 92, 196);
     t.text = c(30, 30, 35);               t.text_muted = c(85, 85, 95);
     t.text_placeholder = c(140, 140, 150); t.text_on_primary = c(255, 255, 255);
     t.border = c(190, 192, 200);          t.border_hover = c(160, 163, 173);    t.focus_ring = c(40, 120, 220);
@@ -145,6 +198,17 @@ inline Theme light_theme() {
     t.chrome_bg = c(232, 233, 238);       t.chrome_border = c(205, 207, 214);
     t.chrome_text = c(40, 40, 48);        t.chrome_icon = c(70, 70, 80);        t.chrome_close = c(196, 43, 28);
     t.canvas_bg = c(250, 250, 252);
+    t.node_board_bg = c(245, 244, 240);   t.node_grid = c(235, 233, 227);      t.node_grid_dots = false;
+    t.node_surface = c(255, 255, 255);    t.node_border = c(20, 22, 30, 31);
+    t.node_border_selected = c(70, 76, 96); t.node_glow = c(47, 111, 222, 89);
+    t.node_wires = {c(47, 111, 222), c(217, 130, 43), c(31, 122, 69),
+                    c(122, 90, 248), c(36, 38, 43), c(94, 99, 110)};
+    t.node_probe_bg = c(255, 255, 255);   t.node_probe_text = c(36, 38, 43);
+    t.node_families = {{"source", c(26, 158, 143)},
+                       {"filter", c(122, 90, 248)},
+                       {"math", c(217, 130, 43)},
+                       {"display", c(31, 122, 69)}};
+    t.node_family_default = c(120, 126, 138);
     return t;
 }
 

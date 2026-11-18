@@ -6,12 +6,62 @@
 #include <any>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <memory>
 
 namespace prism::app {
 
+namespace {
+
+constexpr float grid_step = 20.f;      // board units between two grid lines
+constexpr float grid_floor = 8.f;      // on screen, px: closer than this the grid is left out
+constexpr float grid_dot_radius = 1.5f;   // covers its pixel even when it sits on a pixel corner at 1x
+
+// Where the grid's first line falls in the board's own coordinates. The background is unzoomed and
+// a card at `position` sits at zoom * (position + pan), so the grid follows the same pan and zoom.
+float first_line(float moved, float step) {
+    const float rest = std::fmod(moved, step);
+    return rest < 0.f ? rest + step : rest;
+}
+
+// `fn` once per grid line from `first` up to `extent`, `step` apart.
+template <class Fn>
+void for_each_line(float first, float step, float extent, Fn&& fn) {
+    for (int i = 0;; ++i) {
+        const float at = first + static_cast<float>(i) * step;
+        if (at > extent) return;
+        fn(at);
+    }
+}
+
+void draw_grid(render::DrawList& dl, core::Size extent, const ui::Theme& t, const nodes::BoardView& view) {
+    const float step = grid_step * view.zoom;
+    if (step < grid_floor) return;
+    const float x0 = first_line(view.zoom * view.pan.x.raw(), step);
+    const float y0 = first_line(view.zoom * view.pan.y.raw(), step);
+    if (t.node_grid_dots) {
+        for_each_line(y0, step, extent.h.raw(), [&](float y) {
+            for_each_line(x0, step, extent.w.raw(), [&](float x) {
+                dl.circle(core::Point{core::X{x}, core::Y{y}}, grid_dot_radius, t.node_grid);
+            });
+        });
+        return;
+    }
+    for_each_line(x0, step, extent.w.raw(), [&](float x) {
+        dl.line(core::Point{core::X{x}, core::Y{0.f}}, core::Point{core::X{x}, core::Y{extent.h.raw()}},
+                t.node_grid, 1.f);
+    });
+    for_each_line(y0, step, extent.h.raw(), [&](float y) {
+        dl.line(core::Point{core::X{0.f}, core::Y{y}}, core::Point{core::X{extent.w.raw()}, core::Y{y}},
+                t.node_grid, 1.f);
+    });
+}
+
+} // namespace
+
 void BoardBackground::canvas(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n) {
-    dl.filled_rect(r, n.theme->canvas_bg);
+    dl.filled_rect(r, n.theme->node_board_bg);
+    draw_grid(dl, r.extent, *n.theme, parts->graph->view());
 }
 
 namespace {
@@ -258,11 +308,20 @@ void draw_dots(render::DrawList& dl, const NodeBoardParts& parts, const ui::Boar
         if (const auto at = wire_end(parts, port, rect_of)) dl.circle(*at, zoomed(dot_radius, scale, 3.f), color);
 }
 
+// `r` grown by `by` on every side: the selected card's ring sits outside its border.
+core::Rect grown(core::Rect r, float by) {
+    return {core::Point{core::X{r.origin.x.raw() - by}, core::Y{r.origin.y.raw() - by}},
+            core::Size{core::Width{r.extent.w.raw() + 2.f * by}, core::Height{r.extent.h.raw() + 2.f * by}}};
+}
+
 void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, const ui::BoardRectOf& rect_of,
-                           Color color) {
+                           const ui::Theme& t) {
     const auto card = parts.selected.node ? parts.cards.find(*parts.selected.node) : parts.cards.end();
     if (card == parts.cards.end()) return;
-    if (const auto r = rect_of(card->second)) dl.rect_outline(*r, color, 2.f);
+    const auto r = rect_of(card->second);
+    if (!r) return;
+    dl.rect_outline(grown(*r, 2.f), t.node_glow, 2.f);
+    dl.rect_outline(*r, t.node_border_selected, 2.f);
 }
 
 // A wire being drawn: from the fixed end's port to the pointer (window coordinates).
@@ -417,12 +476,12 @@ void grabs(ui::Node& label, NodeGrip& grip) {
     };
 }
 
-// The title, then the grip stretching like a spacer, then the family.
+// The title, then the grip stretching like a spacer. The family is the header's own chrome, drawn
+// behind both by the frame: a label cannot take a colour, and the theme's is only known when drawn.
 void node_header(ViewBuilder& vb, NodeBoardParts& parts, NodeGrip& grip, const nodes::NodeOptions& opt) {
-    vb.hstack([&] {
+    vb.framed(ui::LayoutKind::Row, {ui::FrameLook::NodeHeader, {}, opt.family}, [&] {
         grabs(vb.widget(parts.label(opt.title, true)).node_ref, grip);
         focus_by(vb.canvas(grip).node_ref, ui::FocusPolicy::none);
-        if (!opt.family.empty()) grabs(vb.widget(parts.label(opt.family)).node_ref, grip);
     });
 }
 
@@ -439,7 +498,7 @@ void node_card(ViewBuilder& vb, ui::Node& board, NodeBoardParts& parts, nodes::N
     parts.card_ports.clear();
     parts.card_node = id;
     auto& grip = parts.grips.emplace_back(NodeGrip{.parts = &parts, .id = id, .press = {}, .shown = {}});
-    const auto card = vb.card([&] {
+    const auto card = vb.framed(ui::LayoutKind::Column, {ui::FrameLook::NodeCard}, [&] {
         node_header(vb, parts, grip, graph.options(id));
         if (const auto& view = graph.view(id)) view(vb);
         else default_ports(vb, graph, id);
@@ -515,7 +574,9 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
         parts->grips.clear();
         ViewBuilder vb{tree, target};
         vb.board_ = parts.get();
-        ui::Node& background = vb.canvas(parts->background).node_ref;
+        // The grid is drawn from the view, and a canvas records its draws only when marked dirty:
+        // every pan and zoom bumps `layout`, so depending on it redraws the grid where it belongs.
+        ui::Node& background = vb.canvas(parts->background).depends_on(graph.layout).node_ref;
         parts->background_id = background.id;
         focus_by(background, ui::FocusPolicy::click);
         background.drag = dot_drag(*parts);
@@ -530,7 +591,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     };
     b.board_over = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
         draw_dots(dl, *parts, rect_of, scale, theme.accent);
-        outline_selected_node(dl, *parts, rect_of, theme.accent);
+        outline_selected_node(dl, *parts, rect_of, theme);
     };
     current_parent().children.push_back(std::move(b));
     return current_parent().children.back().id;

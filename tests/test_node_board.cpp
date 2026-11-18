@@ -92,6 +92,34 @@ struct BasicFixture {
                 if (auto* c = std::get_if<ClipPush>(&snap->draw_lists[i]->commands.front())) return c->rect;
         return std::nullopt;
     }
+    // What widget `id` itself draws, one shape at a time.
+    template <typename Cmd>
+    std::vector<Cmd> draws_of(WidgetId id) const {
+        std::vector<Cmd> out;
+        for (std::size_t i = 0; i < snap->geometry.size(); ++i)
+            if (snap->geometry[i].first == id)
+                for (auto& c : snap->draw_lists[i]->commands)
+                    if (auto* x = std::get_if<Cmd>(&c)) out.push_back(*x);
+        return out;
+    }
+    std::optional<TextCmd> text_cmd(std::string_view text) const {
+        for (auto& t : all<TextCmd>()) if (t.text == text) return t;
+        return std::nullopt;
+    }
+    // Whether widget `id` paints anything of colour `c`, in any of the shapes a grid is drawn in.
+    bool paints(WidgetId id, Color c) const {
+        return std::ranges::any_of(draws_of<Line>(id), [&](const Line& l) { return l.color == c; })
+            || std::ranges::any_of(draws_of<Polyline>(id), [&](const Polyline& p) { return p.color == c; })
+            || std::ranges::any_of(draws_of<FilledRect>(id), [&](const FilledRect& r) { return r.color == c; })
+            || std::ranges::any_of(draws_of<RectOutline>(id), [&](const RectOutline& o) { return o.color == c; })
+            || std::ranges::any_of(draws_of<Circle>(id), [&](const Circle& d) { return d.color == c; });
+    }
+    // The board's background: the canvas it builds before its cards, so the first leaf below it.
+    WidgetId background_of(WidgetId board) const {
+        for (WidgetId id : tree.leaf_ids())
+            if (tree.within(id, board)) return id;
+        return 0;
+    }
     void press(Point at) { route_event(tree, snap.get(), MouseButton{at, buttons::left, true}); frame(); }
     void move_to(Point at) { route_event(tree, snap.get(), MouseMove{at, 1}); frame(); }
     void release(Point at) { route_event(tree, snap.get(), MouseButton{at, buttons::left, false}); frame(); }
@@ -128,7 +156,7 @@ float middle_y(Rect r) { return r.origin.y.raw() + r.extent.h.raw() / 2.f; }
 TEST_CASE("each node is a card with its title and its widgets") {
     Fixture f;
     CHECK(f.shows("Source"));
-    CHECK(f.shows("source"));
+    CHECK(f.shows("SOURCE"));
     CHECK(f.shows("out"));
     CHECK(f.shows("Sink"));
     CHECK(f.shows("in"));
@@ -263,12 +291,12 @@ TEST_CASE("dragging a header by (30, 20) moves its node by (30, 20)") {
 
 TEST_CASE("the header's family label takes the drag too, and a second drag goes on from there") {
     Fixture f;
-    auto family = f.text_at("source");
+    auto family = f.text_at("SOURCE");
     REQUIRE(family);
     const Point grab = *family + Offset{DX{4.f}, DY{4.f}};
     f.drag(grab, grab + Offset{DX{10.f}, DY{0.f}});
     CHECK(f.m.graph.position(f.m.a) == P(30, 30));
-    const Point on_family = *f.text_at("source") + Offset{DX{4.f}, DY{4.f}};
+    const Point on_family = *f.text_at("SOURCE") + Offset{DX{4.f}, DY{4.f}};
     f.drag(on_family, on_family + Offset{DX{0.f}, DY{10.f}});
     CHECK(f.m.graph.position(f.m.a) == P(30, 40));
 }
@@ -521,7 +549,7 @@ TEST_CASE("a node that is not removable stays on Delete") {
     const auto outlined = [&](WidgetId card) {
         auto r = f.allocated(card);
         return r && std::ranges::any_of(f.all<RectOutline>(), [&](const RectOutline& o) {
-            return o.color == f.tree.theme().accent && o.rect.origin == r->origin;
+            return o.color == f.tree.theme().node_border_selected && o.rect.origin == r->origin;
         });
     };
     CHECK(outlined(f.card_of(fixed.out_label)));   // a header click selects its node
@@ -1318,4 +1346,181 @@ TEST_CASE("only what the last build changed is kept dirty: builds not followed b
     f.frame();   // changes the view in its layout
     f.frame();   // changes nothing
     CHECK(f.tree.clear_dirty().empty());
+}
+
+namespace {
+// A board alone in the window, one node in family `family`: the board's background is its first
+// leaf, and the whole of the window is board to look at.
+struct OneNode {
+    explicit OneNode(std::string family_name = "source")
+        : family(std::move(family_name)),
+          a(graph.add(source, {.title = "Node", .family = this->family, .at = P(20, 30)})) {}
+    std::string family;
+    Source source;
+    nodes::Graph graph;
+    nodes::NodeId a;
+    WidgetId board = 0;
+    void view(WidgetTree::ViewBuilder& vb) { board = vb.node_board(graph); }
+};
+
+// The same, in a family the theme's table does not name.
+struct UnknownFamily : OneNode {
+    UnknownFamily() : OneNode("mystery") {}
+};
+
+using OneNodeFixture = BasicFixture<OneNode>;
+using UnknownFamilyFixture = BasicFixture<UnknownFamily>;
+
+Color family_color(const Theme& t, std::string_view name) {
+    for (const auto& f : t.node_families)
+        if (f.name == name) return f.color;
+    return t.node_family_default;
+}
+
+bool inside(Rect outer, Rect inner) {
+    return inner.origin.x.raw() >= outer.origin.x.raw() - 0.5f
+        && inner.origin.y.raw() >= outer.origin.y.raw() - 0.5f
+        && right(inner) <= right(outer) + 0.5f
+        && inner.origin.y.raw() + inner.extent.h.raw() <= outer.origin.y.raw() + outer.extent.h.raw() + 0.5f;
+}
+
+std::vector<Circle> circles_of(const std::vector<Circle>& what, Color c) {
+    std::vector<Circle> out;
+    for (const auto& d : what) if (d.color == c) out.push_back(d);
+    return out;
+}
+
+// Every x a row of dots sits on, in order.
+std::vector<float> columns_of(const std::vector<Circle>& dots) {
+    std::vector<float> xs;
+    for (const auto& d : dots) xs.push_back(d.center.x.raw());
+    std::ranges::sort(xs);
+    xs.erase(std::unique(xs.begin(), xs.end()), xs.end());
+    return xs;
+}
+}
+
+TEST_CASE("the board paints the theme's board colour, then a dot grid every 20 board units") {
+    OneNodeFixture f;
+    const Theme& t = f.tree.theme();
+    const WidgetId bg = f.background_of(f.m.board);
+    REQUIRE(bg != 0);
+
+    const auto fills = f.draws_of<FilledRect>(bg);
+    REQUIRE(!fills.empty());
+    CHECK(fills.front().color == t.node_board_bg);   // the first thing the background draws
+    const auto box = f.allocated(bg);
+    REQUIRE(box);
+    CHECK(fills.front().rect == *box);               // and it covers the whole of it
+
+    const auto dots = circles_of(f.draws_of<Circle>(bg), t.node_grid);
+    REQUIRE(!dots.empty());
+    const auto xs = columns_of(dots);
+    REQUIRE(xs.size() > 2);
+    CHECK(xs[1] - xs[0] == doctest::Approx(20.f));
+    CHECK(xs[xs.size() - 1] - xs[xs.size() - 2] == doctest::Approx(20.f));
+}
+
+TEST_CASE("the grid moves with the board's pan, and is left out when its dots would crowd") {
+    OneNodeFixture f;
+    const Theme& t = f.tree.theme();
+    const WidgetId bg = f.background_of(f.m.board);
+    REQUIRE(bg != 0);
+
+    f.m.graph.set_view({.pan = P(5, 0), .zoom = 1.f});
+    f.frame();
+    const auto xs = columns_of(circles_of(f.draws_of<Circle>(bg), t.node_grid));
+    REQUIRE(xs.size() > 1);
+    CHECK(xs[0] == doctest::Approx(5.f));      // the dot on board x = 0, moved by the pan
+    CHECK(xs[1] == doctest::Approx(25.f));
+
+    f.m.graph.set_view({.pan = {}, .zoom = 0.3f});
+    f.frame();
+    CHECK(circles_of(f.draws_of<Circle>(bg), t.node_grid).empty());   // 20 * 0.3 = 6 px apart
+}
+
+TEST_CASE("a card is the theme's surface, its header the family colour mixed 20 % over it") {
+    Fixture f;
+    const Theme& t = f.tree.theme();
+    const auto card = f.card_of(f.m.source.out_label);
+    const auto rect = f.allocated(card);
+    REQUIRE(rect);
+
+    CHECK(std::ranges::any_of(f.all<RoundedRect>(), [&](const RoundedRect& r) {
+        return r.color == t.node_surface && r.thickness == 0.f && r.radius == doctest::Approx(10.f)
+            && inside(*rect, r.rect);
+    }));
+    CHECK(std::ranges::any_of(f.all<RoundedRect>(), [&](const RoundedRect& r) {
+        return r.color == t.node_border && r.thickness == doctest::Approx(1.f) && inside(*rect, r.rect);
+    }));
+
+    const Color source = family_color(t, "source");
+    const Color band = mix(t.node_surface, source, 0.2f);
+    const auto bands = f.all<RoundedRect>();
+    const auto header = std::ranges::find_if(bands, [&](const RoundedRect& r) {
+        return r.color == band && r.thickness == 0.f;
+    });
+    REQUIRE(header != bands.end());
+    CHECK(inside(*rect, header->rect));
+    CHECK(header->rect.origin.y.raw() == doctest::Approx(rect->origin.y.raw() + 1.f));   // the card's top
+    CHECK(header->rect.extent.h.raw() < rect->extent.h.raw() - 1.f);                     // not all of it
+    CHECK(std::ranges::any_of(f.all<Circle>(), [&](const Circle& d) {
+        return d.color == source && rect->contains(d.center);   // the header's dot, drawn by its frame
+    }));
+
+    const auto family = f.text_cmd("SOURCE");   // upper-cased, on the right
+    REQUIRE(family);
+    CHECK(family->color == mix(t.text, source, 0.6f));
+}
+
+TEST_CASE("a family the theme does not name is drawn in the default family colour") {
+    UnknownFamilyFixture f;
+    const Theme& t = f.tree.theme();
+    const Color def = t.node_family_default;
+
+    CHECK(std::ranges::any_of(f.all<RoundedRect>(), [&](const RoundedRect& r) {
+        return r.color == mix(t.node_surface, def, 0.2f) && r.thickness == 0.f;
+    }));
+    const auto family = f.text_cmd("MYSTERY");
+    REQUIRE(family);
+    CHECK(family->color == mix(t.text, def, 0.6f));
+}
+
+TEST_CASE("switching the theme repaints the board in the other look, keeping every widget") {
+    Fixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    const auto ids = f.tree.leaf_ids();
+    const auto card = f.card_of(f.m.source.out_label);
+    const WidgetId bg = f.background_of(*f.tree.parent_of(card));
+    REQUIRE(bg != 0);
+    const auto card_surface = [&](Color surface) {
+        return std::ranges::any_of(f.all<RoundedRect>(), [&](const RoundedRect& r) {
+            return r.color == surface && r.thickness == 0.f;
+        });
+    };
+    const auto dark = dark_theme();
+    const auto light = light_theme();
+    const auto before = f.draws_of<FilledRect>(bg);
+    REQUIRE(!before.empty());
+    CHECK(before.front().color == dark.node_board_bg);
+    CHECK(card_surface(dark.node_surface));
+    CHECK_FALSE(circles_of(f.draws_of<Circle>(bg), dark.node_grid).empty());   // dots, in look A
+    auto family = f.text_cmd("SOURCE");
+    REQUIRE(family);
+    CHECK(family->color == mix(dark.text, family_color(dark, "source"), 0.6f));
+
+    f.tree.set_theme(light);
+    f.frame();
+
+    CHECK(f.tree.leaf_ids() == ids);   // a repaint, not a rebuild
+    const auto after = f.draws_of<FilledRect>(bg);
+    REQUIRE(!after.empty());
+    CHECK(after.front().color == light.node_board_bg);
+    CHECK(card_surface(light.node_surface));
+    CHECK(f.paints(bg, light.node_grid));                                        // lines, in look B
+    CHECK(circles_of(f.draws_of<Circle>(bg), light.node_grid).empty());
+    family = f.text_cmd("SOURCE");
+    REQUIRE(family);
+    CHECK(family->color == mix(light.text, family_color(light, "source"), 0.6f));
 }

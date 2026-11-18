@@ -643,6 +643,11 @@ public:
     WidgetId group(std::string title, std::invocable auto&& fn) {
         return framed(LayoutKind::Column, {FrameLook::Group, std::move(title)}, fn);
     }
+    // The general form of the four above: a container with a look of its own (a node board's
+    // card and header are made of it too).
+    WidgetId framed(LayoutKind kind, Framing frame, std::invocable auto&& fn) {
+        return push_container(kind, fn, std::move(frame)).id;
+    }
 
 private:
     // Gives the widget just placed a popup built from `content` on each opening. It also runs
@@ -672,10 +677,6 @@ private:
     // Runs `build` once into a scratch node, only to learn which fields it places: content built
     // later (a dock's panels, a section's) counts as placed by the view.
     void probe_placed(const std::function<void(ViewBuilder&)>& build);
-
-    WidgetId framed(LayoutKind kind, Framing frame, std::invocable auto&& fn) {
-        return push_container(kind, fn, std::move(frame)).id;
-    }
 
     // The frame is set before `fn` builds the content: a block placed in a bar reads it.
     Node& push_container(LayoutKind kind, std::invocable auto&& fn, std::optional<Framing> frame = {}) {

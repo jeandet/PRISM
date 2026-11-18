@@ -380,3 +380,47 @@ TEST_CASE("a slider in a node at zoom 0.5 is drawn where it is hit") {
     app::widget_detail::route_event(tree, snap.get(), MouseMove{at - Offset{DX{40}, DY{0}}, 1});
     CHECK(model.node.level.get().value < 0.6);
 }
+
+namespace {
+// A board alone in the window with one node at the top, so the bottom of the board is bare grid.
+struct GridBoard {
+    LevelNode node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Level", .family = "math", .at = Point{X{40}, Y{40}}});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+// Whether logical (x, y) holds a grid dot: a pixel within one of it is nearer the grid's colour
+// than the board's background, however much of the backing it covers after antialiasing.
+bool on_grid(const Frame& f, Color grid, Color bg, int x, int y, int s) {
+    const auto near = [](const std::uint8_t* p, Color c) {
+        return std::abs(p[0] - c.r) + std::abs(p[1] - c.g) + std::abs(p[2] - c.b);
+    };
+    for (int dy = -1; dy <= 1; ++dy)
+        for (int dx = -1; dx <= 1; ++dx) {
+            const std::uint8_t* p = f.at(x * s + dx, y * s + dy);
+            if (near(p, grid) < near(p, bg)) return true;
+        }
+    return false;
+}
+}
+
+TEST_CASE("the board's grid is a dot every 20 units at zoom 1, and every 10 at zoom 0.5") {
+    constexpr int width = 480, height = 320;
+    Rig rig;
+    GridBoard model;
+    WidgetTree tree{model};
+    const Color grid = tree.theme().node_grid, bg = tree.theme().node_board_bg;
+
+    Frame one = rig.render<GridBoard>(tree, 1.f, "grid-at-1", width, height);
+    const int s = std::max(1, one.w / width);
+    CHECK(on_grid(one, grid, bg, 240, 280, s));
+    CHECK_FALSE(on_grid(one, grid, bg, 250, 280, s));   // the half step, with dots 20 px apart
+
+    model.graph.set_view({.pan = {}, .zoom = 0.5f});
+    Frame half = rig.render<GridBoard>(tree, 1.f, "grid-at-0.5", width, height);
+    const int sh = std::max(1, half.w / width);
+    CHECK(on_grid(half, grid, bg, 240, 280, sh));
+    CHECK(on_grid(half, grid, bg, 250, 280, sh));       // dots 10 px apart reach here too
+    CHECK_FALSE(on_grid(half, grid, bg, 245, 280, sh));
+}
