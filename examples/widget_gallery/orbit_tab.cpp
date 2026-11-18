@@ -1,5 +1,7 @@
 #include "orbit_tab.hpp"
 
+#include "orbit_screen.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -10,174 +12,194 @@ namespace gallery {
 using orbit::Vec;
 
 namespace {
-constexpr double grab_radius = 60;           // how near the probe a drag must start, in field units
-constexpr std::size_t kept_trails = 5;
+constexpr double grab_radius = 60;   // how near the probe a drag must start, in field units
+constexpr double settled_distance = 0.5;   // field units; the camera this near its goal stops
+constexpr double longest_tick = 0.05;      // a long pause is not a long jump
 
-// A few fixed stars, the same at every size.
-constexpr Vec stars[] = {{60, 40}, {210, 520}, {330, 90}, {470, 560}, {610, 60}, {760, 540},
-                         {880, 70}, {950, 420}, {140, 250}, {420, 420}, {700, 300}, {980, 200}};
+std::size_t level_count() { return orbit::levels().size(); }
 
-const core::Color space = core::Color::rgba(14, 16, 28);
-const core::Color star = core::Color::rgba(200, 205, 230, 120);
-const core::Color planet_fill = core::Color::rgba(196, 128, 72);
-const core::Color planet_rim = core::Color::rgba(240, 180, 120);
-const core::Color probe_color = core::Color::rgba(245, 245, 250);
+std::vector<std::string> level_names() {
+    std::vector<std::string> names;
+    for (std::size_t i = 0; i < level_count(); ++i) names.push_back(std::format("Level {}", i + 1));
+    names.push_back("Random");
+    return names;
+}
+
+std::uint64_t seed_from_clock() {
+    return static_cast<std::uint64_t>(std::chrono::system_clock::now().time_since_epoch().count()) % 100000;
+}
+
+bool near(const orbit::View& a, const orbit::View& b) {
+    return orbit::length(a.centre - b.centre) < settled_distance && std::abs(a.width - b.width) < settled_distance;
+}
 } // namespace
 
-// The field keeps its shape in any canvas: scaled to fit, centered.
-struct OrbitTab::Transform {
-    float scale, dx, dy;
-    explicit Transform(core::Rect bounds) {
-        scale = static_cast<float>(std::min(bounds.extent.w.raw() / orbit::field_width,
-                                            bounds.extent.h.raw() / orbit::field_height));
-        dx = (bounds.extent.w.raw() - scale * static_cast<float>(orbit::field_width)) / 2;
-        dy = (bounds.extent.h.raw() - scale * static_cast<float>(orbit::field_height)) / 2;
-    }
-    core::Point to_canvas(Vec v) const {
-        return {core::X{dx + scale * static_cast<float>(v.x)}, core::Y{dy + scale * static_cast<float>(v.y)}};
-    }
-    Vec to_field(core::Point p) const {
-        return {(p.x.raw() - dx) / scale, (p.y.raw() - dy) / scale};
-    }
-    float length(double l) const { return scale * static_cast<float>(l); }
-};
-
-OrbitTab::OrbitTab() {
+OrbitTab::OrbitTab() : best_(level_count(), 0) {
+    pick.update([](ui::Choice& c) {
+        c.options = level_names();
+        c.selected = 0;
+    });
+    wire.on(pick, [this](const ui::Choice& c) {
+        if (c.selected && *c.selected != index_) open(*c.selected);
+    });
+    wire.on(new_scene, [this](const ui::Button&) { new_random_scene(); });
+    wire.on(difficulty, [this](const ui::SpinBox<int>&) {
+        if (index_ == level_count()) open(index_);
+    });
     wire.on(restart, [this](const ui::Button&) {
-        level = 0;
-        attempts = 0;
-        old_trails_.clear();
-        reset_level();
+        open(0);
+        pick.update([](ui::Choice& c) { c.selected = 0; });
     });
     wire.on(gravity, [this](const ui::Slider<>&) { ++frame; });
+    wire.on(persistence, [this](const ui::Slider<>&) {
+        trim_old_trails();
+        ++frame;
+    });
+    seed_ = seed_from_clock();
+    open(0);
 }
 
 void OrbitTab::attach(app::AppContext& ctx) { clock_ = &ctx.clock(); }
 
-const orbit::Level& OrbitTab::current() const {
-    const auto& all = orbit::levels();
-    return all[static_cast<std::size_t>(level.get()) % all.size()];
-}
-
-void OrbitTab::reset_level() {
+// simplify: a random scene is generated on the UI thread. It takes ~20 ms on average and 0.3 s at
+// worst natively; move it to a thread (Shared<Level>) if a click ever visibly stalls.
+void OrbitTab::open(std::size_t index) {
+    index_ = index;
+    const bool random = index >= level_count();
+    level_ = random ? orbit::random_level(seed_, value(difficulty)) : orbit::levels()[index];
+    scene_name = random ? std::format("Random scene #{}", seed_) : std::format("Level {} of {}", index + 1, level_count());
     world_.reset();
     aim_.reset();
     trail_.clear();
+    old_trails_.clear();
+    body_trails_.clear();
+    launches = 0;
     message = "Aim with a drag.";
     ++frame;
 }
 
-void OrbitTab::launch(Vec release) {
-    const auto& lv = current();
-    world_ = orbit::launch(lv, orbit::launch_velocity(lv.start, release));
-    trail_ = {lv.start};
-    ++attempts;
-    message = "Flying...";
-    last_tick_.reset();
-    carry_ = 0;
-    if (clock_)
-        clock_->add([this](ui::AnimationClock::time_point now) {
-            double dt = last_tick_ ? std::chrono::duration<double>(now - *last_tick_).count() : 0.0;
-            last_tick_ = now;
-            return tick(std::min(dt, 0.05));   // a long pause is not a long jump
-        });
+void OrbitTab::new_random_scene() {
+    seed_ = seed_from_clock();
+    open(level_count());
+    pick.update([](ui::Choice& c) { c.selected = level_count(); });
 }
 
-bool OrbitTab::tick(double seconds) {
-    if (!world_) return false;
-    const auto& lv = current();
+orbit::View OrbitTab::wanted_now() const {
+    return orbit::wanted_view(world_ ? std::optional<Vec>{world_->probe.pos} : std::nullopt, aspect_);
+}
+
+orbit::View OrbitTab::current_view() const {
+    return clock_running_ ? view_ : orbit::wanted_view(std::nullopt, aspect_);
+}
+
+void OrbitTab::launch(Vec release) {
+    world_ = orbit::launch(level_, orbit::launch_velocity(level_.start, release));
+    trail_ = {level_.start};
+    body_trails_.clear();
+    ++launches;
+    message = "Flying...";
+    carry_ = 0;
+    view_ = current_view();
+    ensure_clock();
+}
+
+void OrbitTab::ensure_clock() {
+    if (!clock_ || clock_running_) return;
+    clock_running_ = true;
+    last_tick_.reset();
+    clock_->add([this](ui::AnimationClock::time_point now) { return on_tick(now); });
+}
+
+bool OrbitTab::on_tick(ui::AnimationClock::time_point now) {
+    const double dt = last_tick_ ? std::min(std::chrono::duration<double>(now - *last_tick_).count(), longest_tick) : 0.0;
+    last_tick_ = now;
+    if (world_) fly(dt);
+    view_ = orbit::eased(view_, wanted_now(), dt);
+    ++frame;
+    const bool going = world_ || !near(view_, wanted_now());
+    clock_running_ = going;
+    return going;
+}
+
+void OrbitTab::fly(double seconds) {
     // gravity is read every tick: the slider steers a flight in progress
-    if (auto outcome = orbit::advance(*world_, lv, value(gravity), seconds, carry_); outcome != orbit::Outcome::Flying) {
-        trail_.push_back(world_->probe.pos);
-        land(outcome);
-        return false;
-    }
+    const auto outcome = orbit::advance(*world_, level_, value(gravity), seconds, carry_);
+    orbit::record_trails(body_trails_, *world_, orbit::trail_seconds(value(persistence)));
     // A point per few units, not per tick: the clock ticks far more often than the screen draws.
-    if (trail_.empty() || orbit::length(world_->probe.pos - trail_.back()) > 4) {
+    if (trail_.empty() || orbit::length(world_->probe.pos - trail_.back()) > 4 || outcome != orbit::Outcome::Flying)
         trail_.push_back(world_->probe.pos);
-        ++frame;
-    }
-    return true;
+    if (outcome != orbit::Outcome::Flying) land(outcome);
+}
+
+void OrbitTab::trim_old_trails() {
+    const auto keep = static_cast<std::size_t>(value(persistence));
+    while (old_trails_.size() > keep) old_trails_.pop_front();
+}
+
+std::string OrbitTab::landing_message(int stars, bool next_level) const {
+    const bool hand_made = index_ < level_count();
+    const auto best = hand_made ? std::format(" (best {})", best_[index_]) : std::string{};
+    return std::format("In the ring! {} of 3 stars{}. {}", stars, best,
+                       next_level ? "Next level." : hand_made ? "That was the last level." : "Press New scene for another.");
 }
 
 void OrbitTab::land(orbit::Outcome outcome) {
     old_trails_.push_back(std::move(trail_));
-    if (old_trails_.size() > kept_trails) old_trails_.erase(old_trails_.begin());
+    trim_old_trails();
     world_.reset();
     trail_.clear();
-    if (outcome == orbit::Outcome::Hit) {
-        const bool last = level.get() + 1 == static_cast<int>(orbit::levels().size());
-        message = last ? std::format("All done in {} launches!", attempts.get()) : "In the ring! Next level.";
-        if (!last) {
-            ++level;
-            old_trails_.clear();
-        }
-    } else {
+    if (outcome != orbit::Outcome::Hit) {
         message = outcome == orbit::Outcome::Crashed ? "Crashed. Try again." : "Lost in space. Try again.";
+        return;
     }
-    ++frame;
+    const int stars = orbit::stars_for(launches.get());
+    if (index_ < level_count()) best_[index_] = std::max(best_[index_], stars);
+    const bool next_level = index_ + 1 < level_count();
+    const std::string text = landing_message(stars, next_level);
+    if (next_level) {
+        const std::size_t next = index_ + 1;
+        open(next);
+        pick.update([next](ui::Choice& c) { c.selected = next; });
+    }
+    message = text;
 }
 
 void OrbitTab::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& node, core::Rect bounds) {
-    const Transform tf{bounds};
-    const Vec start = current().start;
+    aspect_ = OrbitScreen::aspect(bounds);
+    const OrbitScreen screen{bounds, current_view()};
     if (const auto* mb = std::get_if<input::MouseButton>(&ev); mb && mb->button == input::buttons::left) {
         if (mb->pressed) {
-            Vec at = tf.to_field(mb->position);
-            if (!world_ && orbit::length(at - start) < grab_radius) aim_ = at;
+            const Vec at = screen.to_field(mb->position);
+            if (!world_ && orbit::length(at - level_.start) < grab_radius) aim_ = at;
         } else if (aim_) {
-            Vec release = *aim_;
+            const Vec release = *aim_;
             aim_.reset();
             launch(release);
         }
         ++frame;
     } else if (const auto* mm = std::get_if<input::MouseMove>(&ev); mm && aim_ && ui::node_vs(node).pressed) {
-        aim_ = tf.to_field(mm->position);
+        aim_ = screen.to_field(mm->position);
         ++frame;
     }
-}
-
-void OrbitTab::canvas(render::DrawList& dl, core::Rect bounds, const ui::WidgetNode& node) {
-    const Transform tf{bounds};
-    const auto& lv = current();
-    const auto& theme = *node.theme;
-    dl.filled_rect(bounds, space);
-    for (Vec s : stars) dl.circle(tf.to_canvas(s), 1.5f, star);
-
-    auto path = [&](const std::vector<Vec>& pts, core::Color c, float width) {
-        if (pts.size() < 2) return;
-        std::vector<core::Point> out;
-        out.reserve(pts.size());
-        for (Vec p : pts) out.push_back(tf.to_canvas(p));
-        dl.polyline(std::move(out), c, width);
-    };
-    for (const auto& t : old_trails_) path(t, core::Color::rgba(theme.accent.r, theme.accent.g, theme.accent.b, 70), 1.5f);
-    path(trail_, theme.accent, 2.f);
-
-    const auto& bodies = world_ ? world_->bodies : lv.bodies;
-    for (const auto& b : bodies) {
-        dl.circle(tf.to_canvas(b.pos), tf.length(b.radius), planet_fill);
-        dl.circle(tf.to_canvas(b.pos), tf.length(b.radius), planet_rim, 2.f);
-    }
-    dl.circle(tf.to_canvas(lv.target), tf.length(lv.target_radius), theme.accent, 3.f);
-    dl.circle(tf.to_canvas(lv.target), tf.length(lv.target_radius * 0.35), theme.accent);
-
-    const Vec probe_at = world_ ? world_->probe.pos : lv.start;
-    if (aim_) {   // the band pulled back, and the way the probe will go
-        dl.line(tf.to_canvas(lv.start), tf.to_canvas(*aim_), core::Color::rgba(255, 255, 255, 90), 1.5f);
-        Vec v = orbit::launch_velocity(lv.start, *aim_);
-        dl.line(tf.to_canvas(lv.start), tf.to_canvas(lv.start + v * 0.25), theme.accent, 3.f);
-    }
-    dl.circle(tf.to_canvas(probe_at), std::max(tf.length(8), 3.f), probe_color);
 }
 
 void OrbitTab::view(app::ViewBuilder& vb) {
     vb.widget(title);
     vb.widget(intro);
-    vb.canvas(*this).depends_on(frame, level).min_size(core::Height{360});
+    vb.hstack([&] {
+        vb.widget(pick).tooltip("A hand-made level, or a random scene");
+        vb.gap(8.f);
+        vb.widget(difficulty).tooltip("Difficulty of random scenes, 1 to 5");
+        vb.gap(8.f);
+        vb.widget(new_scene);
+        vb.spacer();
+    });
+    vb.canvas(*this).depends_on(frame).min_size(core::Height{360});
     vb.widget(score);
     vb.hstack([&] {
-        vb.widget(gravity).tooltip("Changes the pull of every planet, even mid-flight");
+        vb.widget(gravity).tooltip("Changes the pull of every body, even mid-flight");
+        vb.gap(16.f);
+        vb.widget(persistence).tooltip("How many past flights stay drawn, and how long moving bodies leave a trail");
         vb.gap(16.f);
         vb.widget(restart);
     });

@@ -20,6 +20,7 @@ widget_gallery_sources = files(
   'code_tab.cpp',
   'build_your_own_tab.cpp',
   'orbit_tab.cpp',
+  'orbit_canvas.cpp',
   'nodes_tab.cpp'
 )
 

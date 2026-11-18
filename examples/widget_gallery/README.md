@@ -207,7 +207,7 @@ The tabs, in the order they appear:
 | Popups | Dialogs, a popover, a context menu and the platform's file dialogs, each opened by a button. |
 | Docking | Four panels in a dock. Drag a panel's tab onto another panel: the guide puts it in that panel's tabs, beside it, or along a side; let it go outside the window to float it, or double-click its tab. Drag a tab along its bar to reorder it; List and Log have a × to close them, and a button reopens them. A floating panel is its own window on the desktop and a card over the dock in the browser; let a card go on a guide button and it docks there. The arrangement is a preference. |
 | Build your own | Three knobs from `knob.hpp`, the file itself, then eight `ChannelStrip`s and a master. Drag a knob; the meter under it follows. |
-| Orbit | A small game on a canvas. Drag back from the probe and let go: the planets bend its path into the ring, four levels. Move the Gravity slider while it flies and the path bends with it. The flight runs on the app clock, which ticks only while the probe flies. |
+| Orbit | A small game on a canvas. Drag back from the probe and let go: planets and moons bend its path into the ring. Ten hand-made levels with stars for few launches, a random scene (seeded, difficulty 1-5), a camera that follows the probe, a dotted preview of the aim, and a Persistence slider for past flights and moving bodies' trails. The Gravity slider bends a path in flight. Everything moves on the app clock, which ticks only while something moves. |
 | Nodes | A signal sandbox on a node board: sine, square, noise and constant sources, a gain driven by a constant, a mixer, a low-pass filter, two scopes and a number display, wired together. The palette on the left lists the blocks — drag one onto the board to add a node, click a card or a wire and press Delete to remove it. Drag a header to move a block, the empty board (or the middle button anywhere) to pan, Ctrl+wheel to zoom around the pointer, Fit and 100 % to reset the view, a port to another to wire them; drag a wire off an input to unplug it. Move a slider and the scopes downstream follow. The signal math is `patch.hpp`, plain functions with tests of their own. |
 
 Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.
@@ -226,8 +226,8 @@ Alt+F, Alt+V and Alt+H open the menus, and View switches tabs.
 | `plot_tab.*` | The plot, refilled from two sliders and a checkbox, and a hand-drawn canvas. |
 | `popups_tab.*` | Dialogs, popovers, context menus, file dialogs, drops. |
 | `docking_tab.*` | A dock layout, and the widgets around it. |
-| `orbit.hpp` | The game's physics: gravity, a fixed-timestep flight, the levels. No widget in it; `tests/test_orbit.cpp` tests it. |
-| `orbit_tab.*` | The game: the canvas that draws it, the drag that aims, the clock that flies it. |
+| `orbit_*.hpp` | The game's plain parts, no widget in them: physics, levels, solver and random scenes, camera, stars and preview (`tests/test_orbit*.cpp`). |
+| `orbit_tab.*`, `orbit_canvas.cpp` | The game: the tab that plays it (drag to aim, the clock), and the canvas that draws it through the camera. |
 | `gallery_icons.hpp` | Loads the toolbar icons, marked symbolic so they follow the text colour. |
 | `icons/` | The SVG icons the toolbar and the catalog use. |
 | `meson.build` | The target, one translation unit per tab, the icon path, the SVG capture. |
