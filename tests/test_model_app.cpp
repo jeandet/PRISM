@@ -1421,11 +1421,14 @@ struct IdleBackend final : public prism::BackendBase {
 
 TEST_CASE("a tidy asked with no input after it still runs to its end") {
     TidyModel model;
-    auto backend = prism::Backend{std::make_unique<IdleBackend>()};
+    auto idle = std::make_unique<IdleBackend>();
+    auto* raw = idle.get();
+    auto backend = prism::Backend{std::move(idle)};
     auto& window = backend.create_window({.width = 800, .height = 600});
     REQUIRE(model.graph.connect({model.a, 0}, {model.b, 0}).has_value());
     prism::model_app(backend, window, model, [&](prism::AppContext&) { model.graph.request_tidy(); });
     CHECK_FALSE(model.graph.tidy_requested());
+    CHECK(raw->submits < 40);   // a 200 ms glide at 16 ms a frame, not a publish per move
     CHECK(model.graph.position(model.a).x.raw() < model.graph.position(model.b).x.raw());
 }
 

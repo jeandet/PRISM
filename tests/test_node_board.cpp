@@ -2339,6 +2339,20 @@ TEST_CASE("a node grabbed during a glide stops gliding; the others arrive") {
     CHECK(f.m.graph.position(f.m.b).x.raw() == doctest::Approx(target.at(f.m.b).x.raw()));
 }
 
+TEST_CASE("a tidy asked while a node is held leaves that node under the hand") {
+    Gliding f;
+    const auto grab = *f.text_at("Source") + Offset{DX{2.f}, DY{2.f}};
+    f.press(grab);
+    f.move_to(grab + Offset{DX{10.f}, DY{0.f}});
+    const Point held = f.m.graph.position(f.m.a);
+    f.m.graph.request_tidy();
+    f.frame();
+    f.after(300);
+    f.after(1);
+    CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(held.x.raw()));
+    f.release(grab + Offset{DX{10.f}, DY{0.f}});
+}
+
 TEST_CASE("a node removed during a glide is skipped; the others arrive") {
     Gliding f;
     const auto target = nodes::tidy_layout(f.m.graph, f.card_sizes());

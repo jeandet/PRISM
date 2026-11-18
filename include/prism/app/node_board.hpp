@@ -87,6 +87,7 @@ struct NodeGrip {
 // Nodes gliding to where tidy puts them: each from where it was, over 200 ms.
 struct Glide {
     std::chrono::steady_clock::time_point start;
+    std::chrono::steady_clock::time_point next_step;   // no node moves before this
     std::map<nodes::NodeId, std::pair<core::Point, core::Point>> legs;   // node -> from, to
 };
 
