@@ -38,6 +38,18 @@ bool wins(const Level& level, Vec velocity, double gravity = 1.0) {
     return fly(w, level, gravity) == Outcome::Hit;
 }
 
+// How many of four small slips of the hand (half a degree either way, 2 % of the speed either way)
+// still win.
+int survived_slips(const Level& level, Vec v) {
+    const auto turned = [&](double deg) {
+        const double a = deg * 3.141592653589793 / 180;
+        return Vec{v.x * std::cos(a) - v.y * std::sin(a), v.x * std::sin(a) + v.y * std::cos(a)};
+    };
+    const auto scaled = [&](double k) { return v * std::min(k, max_launch_speed / length(v)); };
+    return wins(level, turned(0.5)) + wins(level, turned(-0.5)) + wins(level, scaled(1.02)) +
+           wins(level, scaled(0.98));
+}
+
 bool same_body(const Body& a, const Body& b) {
     return a.pos.x == b.pos.x && a.pos.y == b.pos.y && a.vel.x == b.vel.x && a.vel.y == b.vel.y &&
            a.mass == b.mass && a.radius == b.radius && a.anchor == b.anchor;
@@ -131,7 +143,9 @@ TEST_CASE("every random scene is winnable at every difficulty") {
             check_scene(scene.level, seed, difficulty);
             CHECK_MESSAGE(scene.launch.has_value(),
                           "seed " << seed << ", difficulty " << difficulty);
-            if (scene.launch) CHECK_MESSAGE(wins(scene.level, *scene.launch), "seed " << seed);
+            if (!scene.launch) continue;
+            CHECK_MESSAGE(wins(scene.level, *scene.launch), "seed " << seed);
+            CHECK_MESSAGE(survived_slips(scene.level, *scene.launch) >= 2, "seed " << seed << ", difficulty " << difficulty);
         }
 }
 

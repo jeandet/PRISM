@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <random>
 #include <vector>
@@ -18,7 +19,7 @@ namespace orbit {
 namespace scene_detail {
 
 inline constexpr double two_pi = 6.283185307179586;
-inline constexpr int grid_directions = 180;   // the solver's directions around the circle
+inline constexpr int grid_directions = 120;   // the solver's directions around the circle
 inline constexpr int grid_speeds = 10;        // its speeds, from 20 % to 100 % of the top speed
 inline constexpr double slowest_share = 0.2;
 inline constexpr int generation_tries = 50;   // scenes drawn before the fallback is used
@@ -31,12 +32,41 @@ inline constexpr int placement_tries = 40;  // draws spent on one body before it
 // A flight's outcome for `velocity` at `gravity`: stepped until it stops flying. The lost rules
 // bound the steps anyway; this cap only keeps the loop finite should they ever not.
 inline Outcome flight_outcome(const Level& level, Vec velocity, double gravity) {
-    World w = launch(level, velocity);
+    World w = launch(level, velocity, gravity);
     constexpr int max_steps = static_cast<int>(flight_limit / fixed_step) + 2;
     for (int i = 0; i < max_steps; ++i)
         if (const Outcome outcome = step(w, level, gravity, fixed_step); outcome != Outcome::Flying)
             return outcome;
     return Outcome::Flying;
+}
+
+// The slips of a player's hand a winning shot must survive: a turn of the direction and a share of
+// the speed.
+struct Slip {
+    double turn_degrees, speed_share;
+};
+inline constexpr Slip slips[] = {{0.5, 1.0}, {-0.5, 1.0}, {0.0, 1.02}, {0.0, 0.98}};
+inline constexpr int slips_to_survive = 2;
+
+inline Vec slipped(Vec velocity, Slip slip) {
+    const double a = slip.turn_degrees * two_pi / 360;
+    const Vec turned{velocity.x * std::cos(a) - velocity.y * std::sin(a),
+                     velocity.x * std::sin(a) + velocity.y * std::cos(a)};
+    const double speed = std::min(length(turned) * slip.speed_share, max_launch_speed);
+    return turned * (speed / length(turned));
+}
+
+// Whether a shot is one a player could repeat: it still hits after at least `slips_to_survive` of
+// the slips.
+inline bool robust(const Level& level, Vec velocity, double gravity) {
+    int hits = 0, misses = 0;
+    for (const Slip slip : slips) {
+        const bool hit = flight_outcome(level, slipped(velocity, slip), gravity) == Outcome::Hit;
+        (hit ? hits : misses) += 1;
+        if (hits >= slips_to_survive) return true;
+        if (misses > static_cast<int>(std::size(slips)) - slips_to_survive) return false;
+    }
+    return false;
 }
 
 // The grid's k-th speed: the slowest share of the top speed, up to the whole of it.
@@ -172,8 +202,9 @@ inline Level bare_scene(std::mt19937_64& rng) {
 } // namespace scene_detail
 
 // A winning launch velocity for `level` at `gravity`, if one is found among a fixed grid of
-// directions × speeds (each simulated to its outcome); nothing when the whole grid fails. The grid
-// starts on the ring, so the shot the level looks like it wants is tried first, then 2° steps
+// directions × speeds (each simulated to its outcome, and a hit counts only if the shot is robust to
+// a small slip of the hand); nothing when the whole grid fails. The grid
+// starts on the ring, so the shot the level looks like it wants is tried first, then 3° steps
 // around the circle; every direction tries the slowest speed first.
 inline std::optional<Vec> solve(const Level& level, double gravity = 1.0) {
     const Vec aim = ring_centre(launch(level, {}), level);
@@ -184,7 +215,8 @@ inline std::optional<Vec> solve(const Level& level, double gravity = 1.0) {
         const Vec heading{std::cos(angle), std::sin(angle)};
         for (int speed = 0; speed < scene_detail::grid_speeds; ++speed) {
             const Vec velocity = heading * scene_detail::grid_speed(speed);
-            if (scene_detail::flight_outcome(level, velocity, gravity) == Outcome::Hit)
+            if (scene_detail::flight_outcome(level, velocity, gravity) == Outcome::Hit &&
+                scene_detail::robust(level, velocity, gravity))
                 return velocity;
         }
     }
@@ -199,6 +231,9 @@ struct Scene {
     std::optional<Vec> launch{};
 };
 
+// simplify: "one seed, one scene everywhere" holds within one maths library: cos, sin, hypot and exp
+// differ in their last bits between glibc, musl/wasm and MSVC, so a borderline scene can differ across
+// platforms. Fine for a game; compare scenes only on one platform.
 // The scene for a seed, with the velocity the generator already won it with, so a replay costs one
 // flight rather than another search.
 inline Scene generated_level(std::uint64_t seed, int difficulty) {
