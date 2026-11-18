@@ -155,6 +155,7 @@ headless_tests = {
   'proc_metrics' : files('test_proc_metrics.cpp'),
   'orbit' : files('test_orbit.cpp'),
   'orbit_scene' : files('test_orbit_scene.cpp'),
+  'orbit_camera' : files('test_orbit_camera.cpp'),
   'view_transform' : files('test_view_transform.cpp'),
   'board_view' : files('test_board_view.cpp'),
   'patch' : files('test_patch.cpp'),
