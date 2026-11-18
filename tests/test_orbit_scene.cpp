@@ -6,19 +6,25 @@
 #include "../examples/widget_gallery/orbit_levels.hpp"
 #include "../examples/widget_gallery/orbit_scene.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <random>
 
 using namespace orbit;
 
 namespace {
 constexpr double step_s = 1.0 / 240.0;   // the fixed step every flight is made of
 
-// Seeds the sweep tries at each difficulty. Every scene costs two full grid searches (the
-// generator proves its own scene, then the test proves it again), and the default build is -O0, so
-// this is the plan's reduced sweep; raise it once the release timings are known.
-constexpr std::uint64_t sweep_seeds = 20;
+// Seeds the sweep tries at each difficulty: the plan's 1-100 in a release build, ten in a debug
+// one, where the grid search runs unoptimised and 500 scenes took 41 s. Shrink the solver's grid in
+// orbit_scene.hpp, not this count, if it grows too slow again.
+#ifdef NDEBUG
+constexpr std::uint64_t sweep_seeds = 100;
+#else
+constexpr std::uint64_t sweep_seeds = 10;
+#endif
 
 // Steps until the probe stops flying, or gives up after `max_steps`.
 Outcome fly(World& w, const Level& level, double gravity, int max_steps = 100'000) {
@@ -52,6 +58,11 @@ bool in_field(Vec p) { return p.x > 0 && p.x < field_width && p.y > 0 && p.y < f
 Vec ring_of(const Level& level) {
     if (!level.target_body || *level.target_body >= level.bodies.size()) return level.target;
     return level.bodies[*level.target_body].pos;
+}
+
+// How many bodies a difficulty's shape asks for in all.
+std::size_t body_count(const scene_detail::Shape& shape) {
+    return std::size_t(shape.anchors + shape.moons + shape.asteroids);
 }
 
 // A scene the generator may offer: everything inside the field, nothing on top of the probe's
@@ -116,10 +127,39 @@ TEST_CASE("different seeds give different scenes") {
 TEST_CASE("every random scene is winnable at every difficulty") {
     for (int difficulty = 1; difficulty <= 5; ++difficulty)
         for (std::uint64_t seed = 1; seed <= sweep_seeds; ++seed) {
-            const Level level = random_level(seed, difficulty);
-            check_scene(level, seed, difficulty);
-            const auto velocity = solve(level);
-            CHECK_MESSAGE(velocity.has_value(), "seed " << seed << ", difficulty " << difficulty);
-            if (velocity) CHECK(wins(level, *velocity));
+            const scene_detail::Scene scene = scene_detail::generated_level(seed, difficulty);
+            check_scene(scene.level, seed, difficulty);
+            CHECK_MESSAGE(scene.launch.has_value(),
+                          "seed " << seed << ", difficulty " << difficulty);
+            if (scene.launch) CHECK_MESSAGE(wins(scene.level, *scene.launch), "seed " << seed);
         }
+}
+
+TEST_CASE("the bare fallback scene can be won") {
+    for (std::uint64_t seed = 1; seed <= 5; ++seed) {
+        std::mt19937_64 rng(seed);
+        const Level fallback = scene_detail::bare_scene(rng);
+        CHECK(fallback.bodies.empty());
+        CHECK(in_field(fallback.start));
+        CHECK(in_field(fallback.target));
+        const auto velocity = solve(fallback);
+        REQUIRE(velocity.has_value());
+        CHECK(wins(fallback, *velocity));
+    }
+}
+
+TEST_CASE("a harder difficulty asks for more bodies") {
+    const scene_detail::Shape hardest = scene_detail::shape_of(5);
+    for (std::uint64_t seed : {1, 2, 3, 42}) {
+        const Level easy = random_level(seed, 1);
+        const Level hard = random_level(seed, 5);
+        CHECK_MESSAGE(hard.bodies.size() > easy.bodies.size(), "seed " << seed);
+        CHECK(hard.bodies.size() <= body_count(hardest));
+        // Nothing was dropped: the hardest scene must have the anchors its shape asks for.
+        if (hard.bodies.size() == body_count(hardest)) {
+            const auto anchors = std::count_if(hard.bodies.begin(), hard.bodies.end(),
+                                               [](const Body& body) { return body.anchor; });
+            CHECK(std::size_t(anchors) == std::size_t(hardest.anchors));
+        }
+    }
 }

@@ -56,7 +56,8 @@ struct Level {
 struct World {
     std::vector<Body> bodies{};   // the level's bodies, moved by the flight; a removed one stays dead
     Probe probe{};
-    double time = 0;              // seconds flown since the launch
+    double time = 0;   // seconds flown since the launch
+    std::vector<bool> contacts{};   // a step's collision marks, kept here so a step allocates nothing
 };
 
 enum class Outcome { Flying, Hit, Crashed, Lost };
@@ -146,17 +147,19 @@ inline bool touching(const Body& a, const Body& b) {
 }
 
 // A body that touches another this step dies where it is; an anchor survives and only kills. The
-// contacts are all read before anything is marked, so a chain of touching bodies all goes.
-inline void mark_collided_bodies(std::vector<Body>& bodies) {
-    std::vector<bool> hit(bodies.size(), false);
-    for (std::size_t i = 0; i < bodies.size(); ++i)
-        for (std::size_t j = i + 1; j < bodies.size(); ++j)
-            if (touching(bodies[i], bodies[j])) {
-                hit[i] = true;
-                hit[j] = true;
+// contacts are all read before anything is marked, so a chain of touching bodies all goes. The marks
+// are the world's, so a step allocates nothing.
+inline void mark_collided_bodies(World& w) {
+    std::vector<bool>& contacts = w.contacts;
+    contacts.assign(w.bodies.size(), false);
+    for (std::size_t i = 0; i < w.bodies.size(); ++i)
+        for (std::size_t j = i + 1; j < w.bodies.size(); ++j)
+            if (touching(w.bodies[i], w.bodies[j])) {
+                contacts[i] = true;
+                contacts[j] = true;
             }
-    for (std::size_t i = 0; i < bodies.size(); ++i)
-        if (hit[i] && !bodies[i].anchor) bodies[i].alive = false;
+    for (std::size_t i = 0; i < w.bodies.size(); ++i)
+        if (contacts[i] && !w.bodies[i].anchor) w.bodies[i].alive = false;
 }
 
 // One step of `dt` seconds for the moving bodies and the probe, then what became of the probe.
@@ -164,7 +167,7 @@ inline Outcome step(World& w, const Level& level, double gravity, double dt) {
     verlet_step(w, gravity, dt);
     w.time += dt;
     const Outcome outcome = probe_outcome(w, level);
-    mark_collided_bodies(w.bodies);
+    mark_collided_bodies(w);
     return outcome;
 }
 

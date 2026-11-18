@@ -78,8 +78,10 @@ inline void place_ends(Level& level, std::mt19937_64& rng) {
     level.target_radius = between(rng, 26, 34);
 }
 
-// Draws until one fits; a body that finds no room in `placement_tries` draws is left out, which
-// keeps generation bounded.
+// Draws until one fits; a body that finds no room in `placement_tries` draws is left out rather
+// than retried forever, which keeps generation bounded.
+// simplify: a dropped body makes a hard scene easier than its shape promises; give placement a
+// retry budget of its own when scenes start to look sparse.
 template <class Place>
 inline bool add_body(Level& level, Place place) {
     for (int attempt = 0; attempt < placement_tries; ++attempt)
@@ -159,6 +161,14 @@ inline Level make_scene(std::mt19937_64& rng, Shape shape) {
     return level;
 }
 
+// Two ends and nothing between them: the fallback when 50 scenes in a row cannot be won. A shot
+// aimed at the ring crosses it at the grid's first speed whatever the ends are.
+inline Level bare_scene(std::mt19937_64& rng) {
+    Level level{};
+    place_ends(level, rng);
+    return level;
+}
+
 } // namespace scene_detail
 
 // A winning launch velocity for `level` at `gravity`, if one is found among a fixed grid of
@@ -181,21 +191,34 @@ inline std::optional<Vec> solve(const Level& level, double gravity = 1.0) {
     return std::nullopt;
 }
 
+namespace scene_detail {
+
+// What the generator hands back: the scene and the launch it was proved winnable with.
+struct Scene {
+    Level level{};
+    std::optional<Vec> launch{};
+};
+
+// The scene for a seed, with the velocity the generator already won it with, so a replay costs one
+// flight rather than another search.
+inline Scene generated_level(std::uint64_t seed, int difficulty) {
+    std::mt19937_64 rng(seed);
+    const Shape shape = shape_of(std::clamp(difficulty, 1, 5));
+    for (int attempt = 0; attempt < generation_tries; ++attempt) {
+        Level level = make_scene(rng, shape);
+        if (auto launch = solve(level)) return {.level = level, .launch = launch};
+    }
+    Level fallback = bare_scene(rng);
+    return {.level = fallback, .launch = solve(fallback)};
+}
+
+} // namespace scene_detail
+
 // The same scene for the same seed; difficulty 1-5 sets how many anchors, moons and asteroids.
 // Only scenes `solve` can win are handed out; after 50 unsolvable tries, the simplest winnable
 // fallback.
 inline Level random_level(std::uint64_t seed, int difficulty) {
-    std::mt19937_64 rng(seed);
-    const scene_detail::Shape shape = scene_detail::shape_of(std::clamp(difficulty, 1, 5));
-    for (int attempt = 0; attempt < scene_detail::generation_tries; ++attempt) {
-        Level level = scene_detail::make_scene(rng, shape);
-        if (solve(level)) return level;
-    }
-    // Two points and nothing between them: a shot aimed at the ring crosses it at the grid's
-    // first speed whatever the ends are, so this fallback is always winnable.
-    Level fallback{};
-    scene_detail::place_ends(fallback, rng);
-    return fallback;
+    return scene_detail::generated_level(seed, difficulty).level;
 }
 
 } // namespace orbit
