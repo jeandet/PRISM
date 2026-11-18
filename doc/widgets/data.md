@@ -1,8 +1,8 @@
 # Data views
 
 Data views show collections: a list of items, a table of rows and columns, a tree of nodes, and a
-board of cards joined by wires. A list and a table build only the rows on screen, so a million rows
-scroll as fast as ten.
+board of cards joined by wires. A list, a table and a tree build only what is on screen, so a
+million rows scroll as fast as ten.
 
 | Widget | Shows | Bound to |
 |---|---|---|

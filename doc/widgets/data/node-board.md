@@ -21,6 +21,8 @@ small forms you can wire together.
 namespace nodes = prism::nodes;
 ```
 
+Snippets here assume `using namespace prism;`, as the examples do.
+
 ## A node
 
 A node is a struct with ports and a `view`:
@@ -131,6 +133,15 @@ without drawing anything — the board fades the ports a wire cannot land on wit
 positions, so a board alone in a window is the window; put it beside a palette in an `hstack` and
 it takes what is left.
 
+An app is the model and `app::run`:
+
+```cpp
+int main() {
+    Sandbox sandbox;
+    return app::run(sandbox, {.title = "Patch"});
+}
+```
+
 ## A palette
 
 A palette lists node kinds; dragging one onto the board adds a node where it is dropped.
@@ -154,7 +165,7 @@ struct, so a node that wants constructor arguments writes its own:
 
 ```cpp
 nodes::NodeKind gain_of(double level) {
-    return {.title = "Gain ×" + std::to_string(level), .family = "math",
+    return {.title = std::format("Gain ×{}", level), .family = "math",
             .add = [level](nodes::Graph& graph, core::Point at) {
                 return graph.emplace<Gain>({.title = "Gain", .family = "math", .at = at, .removable = true},
                                            level);
@@ -185,7 +196,7 @@ keep as a member lives as long as your model does, and is not removable unless t
 `request_fit` is what a Fit button calls; a zoom readout is a `Derived` over `graph.view()`:
 
 ```cpp
-core::Derived<std::string> zoom{[this] { return std::format("{:.0%}", graph.view().zoom); }};
+core::Derived<std::string> zoom{[this] { return std::format("{:.0f} %", graph.view().zoom * 100.f); }};
 ```
 
 The view is a field (`graph.view_field()`), so it can be saved and restored with `set_view`, like a
@@ -213,7 +224,7 @@ gets:
 | `bool` (boolean) | 2 | `#5fd38d` |
 | `int` (integer) | 3 | `#a98bff` |
 | `std::string` (text) | 4 | `#eef1f7` |
-| your types | 5, shared | `#9aa1b2` |
+| your types | 5, 0, 1, … in the order they are first used | `#9aa1b2` for the first |
 
 A type of your own is a name and, if you want one, a formatter:
 
@@ -231,10 +242,14 @@ That is all: the first time a `Volts` port is built, the type is registered unde
 `format` becomes its probe text. Nothing is registered at start-up, so a plugin loaded at run time
 needs no static initialiser.
 
-`nodes::set_formatter(nodes::type_key<Volts>(), fn)` replaces it later — that is how a binding
-installs a formatter for a type it describes by name. The wire colour follows the slot:
-`theme.node_wires[nodes::wire_slot(nodes::type_key<Volts>())]`, which is the last slot for your
-types, so one theme change gives them all a colour of their own:
+`nodes::set_formatter(nodes::type_key<Volts>(), std::function<std::string(const std::any&)>)`
+replaces it later — that is how a binding installs a formatter for a type it describes by name, and a
+formatter set that way wins over the type's own.
+
+The wire colour follows the slot: `theme.node_wires[nodes::wire_slot(nodes::type_key<Volts>())]`.
+The five types above hold slots 0 to 4; your own start at the last slot and wrap round, one slot
+each in the order they are first used — the first type you add takes 5, the second 0, the third 1.
+Give the last slot a colour of its own and the first type you add gets it:
 
 ```cpp
 ui::Theme mine = ui::dark_theme();

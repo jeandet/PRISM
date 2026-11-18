@@ -1,19 +1,11 @@
 #include "nodes_tab.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <string_view>
 #include <utility>
 
 namespace gallery {
-
-namespace {
-
-// A patch node at (x, y) in graph units: the graph owns it, so Delete takes it off the board.
-nodes::NodeOptions placed(float x, float y, std::string title, std::string family) {
-    return {.title = std::move(title), .family = std::move(family),
-            .at = core::Point{core::X{x}, core::Y{y}}, .removable = true};
-}
-
-} // namespace
 
 void SineNode::view(app::ViewBuilder& vb) {
     vb.widget(cycles);
@@ -92,24 +84,32 @@ void NumberDisplayNode::view(app::ViewBuilder& vb) {
 }
 
 NodesTab::NodesTab() {
-    const auto sine = graph.emplace<SineNode>(placed(20, 20, "Sine", "source"));
-    const auto square = graph.emplace<SquareNode>(placed(20, 210, "Square", "source"));
-    const auto noise = graph.emplace<NoiseNode>(placed(300, 140, "Noise", "source"));
-    const auto constant = graph.emplace<ConstantNode>(placed(300, 20, "Constant", "source"));
-    const auto gain = graph.emplace<GainNode>(placed(300, 260, "Gain", "math"));
-    const auto mixer = graph.emplace<MixerNode>(placed(300, 400, "Mixer", "math"));
-    const auto number = graph.emplace<NumberDisplayNode>(placed(610, 20, "Number", "display"));
-    const auto low_pass = graph.emplace<LowPassNode>(placed(610, 160, "Low-pass", "filter"));
-    const auto scope = graph.emplace<ScopeNode>(placed(900, 20, "Scope", "display"));
-    const auto filtered = graph.emplace<ScopeNode>(placed(900, 220, "Scope", "display"));
-    static_cast<void>(graph.connect({sine, 0}, {mixer, 0}));
-    static_cast<void>(graph.connect({noise, 0}, {mixer, 1}));
-    static_cast<void>(graph.connect({mixer, 2}, {scope, 0}));
-    static_cast<void>(graph.connect({mixer, 2}, {low_pass, 0}));
-    static_cast<void>(graph.connect({low_pass, 1}, {filtered, 0}));
-    static_cast<void>(graph.connect({square, 0}, {gain, 0}));
-    static_cast<void>(graph.connect({constant, 0}, {gain, 1}));
-    static_cast<void>(graph.connect({gain, 2}, {number, 0}));
+    // The palette's kinds carry each block's title and family: the starting patch spawns them
+    // through the same `add`, so a block looks the same however it arrives.
+    const auto add = [this](std::string_view block, float x, float y) {
+        const auto kind = std::ranges::find(kinds, block, &nodes::NodeKind::title);
+        assert(kind != kinds.end());
+        return kind->add(graph, core::Point{core::X{x}, core::Y{y}});
+    };
+    const auto sine = add("Sine", 20, 20);
+    const auto square = add("Square", 20, 210);
+    const auto constant = add("Constant", 300, 20);
+    const auto noise = add("Noise", 300, 140);
+    const auto gain = add("Gain", 300, 260);
+    const auto mixer = add("Mixer", 300, 400);
+    const auto number = add("Number", 610, 20);
+    const auto low_pass = add("Low-pass", 610, 160);
+    const auto scope = add("Scope", 900, 20);
+    const auto filtered = add("Scope", 900, 220);
+
+    const std::pair<nodes::PortRef, nodes::PortRef> wires[]{
+        {{sine, 0}, {mixer, 0}},        {{noise, 0}, {mixer, 1}},
+        {{mixer, 2}, {scope, 0}},       {{mixer, 2}, {low_pass, 0}},
+        {{low_pass, 1}, {filtered, 0}}, {{square, 0}, {gain, 0}},
+        {{constant, 0}, {gain, 1}},     {{constant, 0}, {number, 0}}};
+    for (const auto& [from, to] : wires)
+        if (!graph.connect(from, to)) assert(false && "the starting patch wires what it may connect");
+
     wire.on(fit, [this](const ui::Button&) { graph.request_fit(); });
     wire.on(actual_size, [this](const ui::Button&) { graph.request_zoom(1.f); });
     graph.request_fit();   // the whole patch on show, whatever the tab's size
