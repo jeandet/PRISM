@@ -71,6 +71,7 @@ headless_tests = {
   'node_graph' : files('test_node_graph.cpp'),
   'node_board' : files('test_node_board.cpp'),
   'node_snap' : files('test_node_snap.cpp'),
+  'node_tidy' : files('test_node_tidy.cpp'),
   'wire_geometry' : files('test_wire_geometry.cpp'),
   'derived' : files('test_derived.cpp'),
   'derived_sources' : files('test_derived_sources.cpp'),
