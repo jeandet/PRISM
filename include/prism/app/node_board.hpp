@@ -85,7 +85,8 @@ struct NodeBoardParts {
     ui::WidgetId board_id = 0;
 
     core::Field<ui::Label<>>& label(std::string text, bool heading = false) {
-        return labels.emplace_back(ui::Label<>{.value = std::move(text), .heading = heading, .wrap = false});
+        return labels.emplace_back(ui::Label<>{.value = std::move(text), .heading = heading, .wrap = false,
+                                               .flat = true});
     }
 };
 

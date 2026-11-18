@@ -199,11 +199,13 @@ inline void measure_linear(LayoutNode& node, LayoutAxis own_axis, LayoutAxis par
                                                                : ExpandAxis::None;
 }
 
-// A framed container needs its content's size plus the frame's insets.
+// A framed container needs its content's size plus the frame's insets, and the room a look reserves
+// past them for chrome it draws over its content.
 inline void add_frame_insets(LayoutNode& node, LayoutAxis parent_axis) {
     if (!node.frame) return;
     auto in = frame_insets(*node.frame);
-    float across = in.left + in.right, down = in.top + in.bottom;
+    float across = in.left + in.right + frame_reserved_width(*node.frame, node.theme);
+    float down = in.top + in.bottom;
     bool horiz = parent_axis == LayoutAxis::Horizontal;
     node.hint.preferred += horiz ? across : down;
     node.hint.cross += horiz ? down : across;

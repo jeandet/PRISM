@@ -77,6 +77,7 @@ struct Label {
     T value{};
     bool heading = false;   // a title: larger and brighter, with no box behind it
     bool wrap = false;      // breaks into lines to fit its width, and grows as tall as they are
+    bool flat = false;      // no box behind it: it sits on a surface that is already drawn
     bool operator==(const Label&) const = default;
 };
 
@@ -637,9 +638,9 @@ struct Widget<bool> {
 
 namespace delegate_detail {
 // A label laid out in its widget's box: wrapped when asked; a heading is larger, brighter, and
-// has no box behind it. Defined in delegate.cpp.
+// has no box behind it; a flat one draws no box either. Defined in delegate.cpp.
 void draw_label(DrawList& dl, const WidgetNode& node, std::string_view text, float size,
-                bool heading, bool wrap);
+                bool heading, bool wrap, bool flat);
 }
 
 template <StringLike T>
@@ -659,7 +660,7 @@ struct Widget<Label<T>> {
     static void record(DrawList& dl, const Field<Label<T>>& field, WidgetNode& node) {
         const auto& l = field.get();
         delegate_detail::draw_label(dl, node, std::string_view(l.value.data(), l.value.size()), size_of(l),
-                                    l.heading, l.wrap);
+                                    l.heading, l.wrap, l.flat);
     }
 
     static void handle_input(Field<Label<T>>&, const InputEvent&, WidgetNode&) {}

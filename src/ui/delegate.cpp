@@ -64,7 +64,7 @@ void Widget<bool>::handle_input(Field<bool>& field, const InputEvent& ev, Widget
 }
 
 void delegate_detail::draw_label(DrawList& dl, const WidgetNode& node, std::string_view text, float size,
-                                 bool heading, bool wrap) {
+                                 bool heading, bool wrap, bool flat) {
     auto& t = node_theme(node);
     Width w = widget_w(node);
     auto lines = wrap ? wrap_lines(text, Width{std::max(1.f, w.raw() - 8.f)}, t.measurer, size, FontRole::Ui)
@@ -72,8 +72,8 @@ void delegate_detail::draw_label(DrawList& dl, const WidgetNode& node, std::stri
     float line_h = line_height(t.measurer, size);
     float one_line = heading ? 30.f : 24.f;
     Height h{one_line + line_h * static_cast<float>(std::max<std::size_t>(lines.size(), 1) - 1)};
-    // A heading's box is clear: it still gives the widget its height.
-    dl.filled_rect(make_rect(X{0}, Y{0}, w, h), heading ? Color::rgba(0, 0, 0, 0) : t.surface);
+    // A heading's box is clear, and so is a flat label's: both still give the widget its height.
+    dl.filled_rect(make_rect(X{0}, Y{0}, w, h), heading || flat ? Color::rgba(0, 0, 0, 0) : t.surface);
     for (std::size_t i = 0; i < lines.size(); ++i)
         dl.text(std::string(text.substr(lines[i].start, lines[i].length)),
                 make_point(X{4}, Y{4 + line_h * static_cast<float>(i)}), size,

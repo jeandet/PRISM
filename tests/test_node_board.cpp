@@ -17,6 +17,9 @@ using prism::app::WidgetTree;
 using prism::app::widget_detail::route_event;
 namespace nodes = prism::nodes;
 
+// The theme names a colour per wire slot the node registry can give out.
+static_assert(prism::ui::node_wire_slots == prism::nodes::wire_slots);
+
 namespace {
 
 Point P(float x, float y) { return {X{x}, Y{y}}; }
@@ -548,8 +551,9 @@ TEST_CASE("a node that is not removable stays on Delete") {
     f.release(header);
     const auto outlined = [&](WidgetId card) {
         auto r = f.allocated(card);
-        return r && std::ranges::any_of(f.all<RectOutline>(), [&](const RectOutline& o) {
-            return o.color == f.tree.theme().node_border_selected && o.rect.origin == r->origin;
+        return r && std::ranges::any_of(f.all<RoundedRect>(), [&](const RoundedRect& o) {
+            return o.color == f.tree.theme().node_border_selected && o.rect.origin == r->origin
+                && o.thickness > 0.f && o.radius == doctest::Approx(10.f);
         });
     };
     CHECK(outlined(f.card_of(fixed.out_label)));   // a header click selects its node
@@ -1352,10 +1356,12 @@ namespace {
 // A board alone in the window, one node in family `family`: the board's background is its first
 // leaf, and the whole of the window is board to look at.
 struct OneNode {
-    explicit OneNode(std::string family_name = "source")
+    explicit OneNode(std::string family_name = "source", std::string title = "Node")
         : family(std::move(family_name)),
-          a(graph.add(source, {.title = "Node", .family = this->family, .at = P(20, 30)})) {}
+          title_text(std::move(title)),
+          a(graph.add(source, {.title = this->title_text, .family = this->family, .at = P(20, 30)})) {}
     std::string family;
+    std::string title_text;
     Source source;
     nodes::Graph graph;
     nodes::NodeId a;
@@ -1368,8 +1374,14 @@ struct UnknownFamily : OneNode {
     UnknownFamily() : OneNode("mystery") {}
 };
 
+// A long title in a wide family name: the header has to make room for both.
+struct LongTitle : OneNode {
+    LongTitle() : OneNode("display", "Display settings") {}
+};
+
 using OneNodeFixture = BasicFixture<OneNode>;
 using UnknownFamilyFixture = BasicFixture<UnknownFamily>;
+using LongTitleFixture = BasicFixture<LongTitle>;
 
 Color family_color(const Theme& t, std::string_view name) {
     for (const auto& f : t.node_families)
@@ -1398,6 +1410,23 @@ std::vector<float> columns_of(const std::vector<Circle>& dots) {
     xs.erase(std::unique(xs.begin(), xs.end()), xs.end());
     return xs;
 }
+}
+
+TEST_CASE("a long title stops before the header's family badge") {
+    LongTitleFixture f;
+    const auto title = f.text_cmd("Display settings");
+    const auto badge = f.text_cmd("DISPLAY");
+    REQUIRE((title && badge));
+    const float title_right = title->origin.x.raw()
+                            + text_width(f.tree.theme().measurer, title->text, title->size);
+    CHECK(title_right <= badge->origin.x.raw());
+}
+
+TEST_CASE("a port's label sits on the card, with no box of its own") {
+    Fixture f;
+    const Color box = f.tree.theme().surface;
+    const auto fills = f.draws_of<FilledRect>(f.m.source.out_label);
+    CHECK(std::ranges::none_of(fills, [&](const FilledRect& r) { return r.color == box; }));
 }
 
 TEST_CASE("the board paints the theme's board colour, then a dot grid every 20 board units") {

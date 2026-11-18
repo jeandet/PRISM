@@ -35,6 +35,9 @@ void for_each_line(float first, float step, float extent, Fn&& fn) {
 }
 
 void draw_grid(render::DrawList& dl, core::Size extent, const ui::Theme& t, const nodes::BoardView& view) {
+    // simplify: one command per dot (or per line), every frame a view or theme change redraws it.
+    // A fine grid on a large board is thousands of commands; a tiled pattern the backend repeats
+    // is the upgrade, once drawing them costs more than it is worth.
     const float step = grid_step * view.zoom;
     if (step < grid_floor) return;
     const float x0 = first_line(view.zoom * view.pan.x.raw(), step);
@@ -320,8 +323,8 @@ void outline_selected_node(render::DrawList& dl, const NodeBoardParts& parts, co
     if (card == parts.cards.end()) return;
     const auto r = rect_of(card->second);
     if (!r) return;
-    dl.rect_outline(grown(*r, 2.f), t.node_glow, 2.f);
-    dl.rect_outline(*r, t.node_border_selected, 2.f);
+    dl.rounded_rect(grown(*r, 2.f), t.node_glow, ui::node_card_radius + 2.f, 2.f);
+    dl.rounded_rect(*r, t.node_border_selected, ui::node_card_radius, 2.f);
 }
 
 // A wire being drawn: from the fixed end's port to the pointer (window coordinates).
