@@ -533,7 +533,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                     std::lock_guard<std::mutex> lk(windows_mutex_);
                     event_cb(WindowEvent{wid, MouseScroll{
                         Point{X{ev.wheel.mouse_x}, Y{client_y(wid, ev.wheel.mouse_y)}},
-                        DX{ev.wheel.x}, DY{ev.wheel.y}}});
+                        DX{ev.wheel.x}, DY{ev.wheel.y}, static_cast<uint16_t>(SDL_GetModState())}});
                     break;
                 }
                 case SDL_EVENT_KEY_DOWN:

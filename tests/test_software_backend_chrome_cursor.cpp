@@ -372,3 +372,33 @@ TEST_CASE("SoftwareBackend: the files of one drop arrive together, with where th
     REQUIRE(texts.size() == 1);
     CHECK(texts[0].text == "dropped words");
 }
+
+TEST_CASE("SoftwareBackend: a wheel turned with Ctrl held carries Ctrl in its mods") {
+    prism::backends::SoftwareBackend backend{{}};
+    auto& window = backend.create_window({.width = 300, .height = 300});
+    auto& sdl_win = static_cast<prism::backends::SdlWindow&>(window);
+    std::atomic<bool> seen{false};
+    std::atomic<std::uint16_t> mods{0};
+
+    std::thread driver([&] {
+        backend.wait_ready();
+        SDL_SetModState(SDL_KMOD_LCTRL);
+        SDL_Event ev{};
+        ev.type = SDL_EVENT_MOUSE_WHEEL;
+        ev.wheel.windowID = SDL_GetWindowID(sdl_win.sdl_window());
+        ev.wheel.y = 1.f;
+        ev.wheel.mouse_x = 40.f;
+        ev.wheel.mouse_y = 50.f;
+        CHECK(push_until(seen, SDL_GetWindowID(sdl_win.sdl_window()), ev));
+        backend.quit();
+    });
+    backend.run([&](const prism::WindowEvent& we) {
+        if (auto* ms = std::get_if<prism::MouseScroll>(&we.event)) {
+            mods = ms->mods;
+            seen = true;
+        }
+    });
+    driver.join();
+    SDL_SetModState(SDL_KMOD_NONE);
+    CHECK((mods.load() & prism::mods::ctrl) != 0);
+}

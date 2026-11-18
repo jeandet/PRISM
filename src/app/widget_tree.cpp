@@ -132,6 +132,13 @@ void WidgetTree::close_popup() {
     return n;
 }
 
+std::optional<WidgetId> WidgetTree::claimed(WidgetId hit, const input::InputEvent& ev) const {
+    for (auto id = parent_of(hit); id; id = parent_of(*id))
+        if (auto it = index_.find(*id); it != index_.end() && it->second->claims)
+            if (auto to = it->second->claims(ev)) return to;
+    return std::nullopt;
+}
+
 [[nodiscard]] std::optional<WidgetId> WidgetTree::context_menu_for(std::optional<WidgetId> hit, Point p) const {
     WidgetId current = hit.value_or(container_at(root_, p).id);
     while (true) {
@@ -589,6 +596,7 @@ WidgetNode WidgetTree::build_widget_node(Node& node) {
     wn.board_places = node.board_places;
     wn.board_under = node.board_under;
     wn.board_scale = node.board_scale;
+    wn.claims = node.claims;
     wn.board_over = node.board_over;
     wn.keep_key = node.keep_key;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED

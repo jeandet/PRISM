@@ -14,7 +14,8 @@ using namespace prism::core;
 struct MouseMove   { Point position; uint32_t buttons = 0; };   // buttons: held, as a bitmask
 struct MouseButton { Point position; uint8_t button; bool pressed; uint16_t mods = 0; uint8_t clicks = 1; };
 // The wheel, with SDL's signs: dy > 0 turned away from the user (up), dx > 0 to the right.
-struct MouseScroll { Point position; DX dx; DY dy; };
+// mods: the keys held as it turned (a browser reports a trackpad pinch as Ctrl+wheel).
+struct MouseScroll { Point position; DX dx; DY dy; uint16_t mods = 0; };
 struct KeyPress    { int32_t key; uint16_t mods; };
 struct KeyRelease  { int32_t key; uint16_t mods; };
 struct TextInput   { std::string text; };

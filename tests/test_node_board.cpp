@@ -1076,3 +1076,102 @@ TEST_CASE("at zoom 0.5 a popup in a node opens next to its anchor's zoomed place
     REQUIRE(f.tree.popup_card());
     CHECK(f.tree.popup_card()->origin == card->origin);   // it stays where it opened
 }
+
+namespace {
+struct Tally {   // a spin box steps on the wheel
+    Field<SpinBox<int>> count{{.value = 5}};
+    WidgetId count_id = 0;
+    std::vector<nodes::Port*> ports() { return {}; }
+    void view(WidgetTree::ViewBuilder& vb) { count_id = vb.widget(count).node_ref.id; }
+};
+
+struct TallyBoard {
+    Tally node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Tally", .family = "math", .at = P(20, 30)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+template <class F>
+void wheel(F& f, Point at, float notches, std::uint16_t with = 0) {
+    route_event(f.tree, f.snap.get(), MouseScroll{at, DX{0.f}, DY{notches}, with});
+    f.frame();
+}
+
+template <class F>
+void middle_drag(F& f, Point from, Offset by) {
+    route_event(f.tree, f.snap.get(), MouseButton{from, buttons::middle, true});
+    f.frame();
+    route_event(f.tree, f.snap.get(), MouseMove{from + by, 2});
+    f.frame();
+    route_event(f.tree, f.snap.get(), MouseButton{from + by, buttons::middle, false});
+    f.frame();
+}
+}
+
+TEST_CASE("Ctrl+wheel over a node's slider zooms the board about the pointer and leaves the slider alone") {
+    LevelFixture f;
+    const WidgetId id = f.m.node.level_id;
+    const Point p = centre(f, id);
+    const Rect before = laid_out(f, id);
+    wheel(f, p, 1.f, mods::ctrl);
+    CHECK(f.m.graph.view().zoom == doctest::Approx(1.1f));
+    CHECK(f.m.node.level.get().value == 0.25);
+    const Rect after = laid_out(f, id);   // the board is at the window's origin
+    CHECK(after.origin.x.raw() == doctest::Approx(p.x.raw() + (before.origin.x.raw() - p.x.raw()) * 1.1f));
+    CHECK(after.origin.y.raw() == doctest::Approx(p.y.raw() + (before.origin.y.raw() - p.y.raw()) * 1.1f));
+}
+
+TEST_CASE("Ctrl+wheel over the empty board zooms too, about the pointer") {
+    LevelFixture f;
+    const Rect before = laid_out(f, f.m.node.level_id);
+    wheel(f, empty_spot, -1.f, mods::ctrl);
+    CHECK(f.m.graph.view().zoom == doctest::Approx(1.f / 1.1f));
+    const Rect after = laid_out(f, f.m.node.level_id);
+    const Point p = empty_spot;
+    CHECK(after.origin.x.raw() == doctest::Approx(p.x.raw() + (before.origin.x.raw() - p.x.raw()) / 1.1f));
+    CHECK(after.origin.y.raw() == doctest::Approx(p.y.raw() + (before.origin.y.raw() - p.y.raw()) / 1.1f));
+}
+
+TEST_CASE("a wheel without Ctrl steps a node's spin box and zooms nothing; with Ctrl it zooms and steps nothing") {
+    BasicFixture<TallyBoard> f;
+    const Point p = centre(f, f.m.node.count_id);
+    wheel(f, p, 1.f);
+    CHECK(f.m.node.count.get().value == 6);
+    CHECK(f.m.graph.view().zoom == 1.f);
+    wheel(f, centre(f, f.m.node.count_id), 1.f, mods::ctrl);
+    CHECK(f.m.node.count.get().value == 6);
+    CHECK(f.m.graph.view().zoom == doctest::Approx(1.1f));
+}
+
+TEST_CASE("ten Ctrl+wheel notches up end at zoom 2, thirty down at 0.25") {
+    LevelFixture f;
+    for (int i = 0; i < 10; ++i) wheel(f, empty_spot, 1.f, mods::ctrl);
+    CHECK(f.m.graph.view().zoom == 2.f);
+    for (int i = 0; i < 30; ++i) wheel(f, empty_spot, -1.f, mods::ctrl);
+    CHECK(f.m.graph.view().zoom == 0.25f);
+}
+
+TEST_CASE("a middle drag on a node's slider pans the board and leaves the slider; a left drag still moves it") {
+    LevelFixture f;
+    const WidgetId id = f.m.node.level_id;
+    middle_drag(f, centre(f, id), Offset{DX{30.f}, DY{0.f}});
+    CHECK(f.m.graph.view().pan == P(30, 0));
+    CHECK(f.m.node.level.get().value == 0.25);
+    CHECK(f.tree.captured_id() == 0);
+
+    const Point at = centre(f, id);
+    const auto track = find_widget_rect(*f.snap, id);
+    REQUIRE(track);
+    f.drag(at, at + Offset{DX{track->extent.w.raw() / 4}, DY{0.f}});
+    CHECK(f.m.node.level.get().value > 0.5);
+    CHECK(f.m.graph.view().pan == P(30, 0));
+}
+
+TEST_CASE("at zoom 0.5 a middle drag by 30 px over a card pans by 60 board units") {
+    LevelFixture f;
+    zoomed(f, 0.5f);
+    middle_drag(f, centre(f, f.m.node.level_id), Offset{DX{30.f}, DY{0.f}});
+    CHECK(f.m.graph.view().pan == P(60, 0));
+    CHECK(f.m.graph.view().zoom == 0.5f);
+}

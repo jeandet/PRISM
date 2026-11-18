@@ -94,6 +94,7 @@ struct WidgetNode {
     BoardDraw board_under;
     BoardDraw board_over;
     std::function<float()> board_scale;   // see Node::board_scale
+    std::function<std::optional<WidgetId>(const InputEvent&)> claims;   // see Node::claims
     bool content_built = false;   // build_content has run (its content may well be empty)
     std::string keep_key;   // see Node::keep_key
     bool reused = false;    // just put back from the parked subtrees: already wired and subscribed

@@ -219,11 +219,26 @@ inline bool route_other_button(WidgetTree& tree, const SceneSnapshot& snap, cons
     return true;
 }
 
+// A middle press on a widget inside a container claiming it (WidgetNode::claims, a node board
+// panning) goes to the widget the container names, which takes the capture: the moves and the
+// release follow it there.
+inline bool route_claimed_press(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev,
+                                const MouseButton& mb) {
+    if (!mb.pressed || mb.button != buttons::middle || tree.popup_owner() != 0) return false;
+    auto id = hit_test(snap, mb.position);
+    auto to = id ? tree.claimed(*id, ev) : std::nullopt;
+    if (!to) return false;
+    tree.set_pressed(*to, true, mb.button);
+    tree.dispatch(*to, local_to(snap, *to, ev));
+    return true;
+}
+
 inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
                                const InputEvent& ev, const MouseButton& mb) {
     if (!mb.pressed && mb.button == buttons::left && route_drag_release(tree, snap, mb.position)) return;
     if (route_popup_mouse(tree, snap, ev, mb.position, mb.pressed)) return;
     if (route_other_button(tree, snap, ev, mb)) return;
+    if (route_claimed_press(tree, snap, ev, mb)) return;
     if (open_context_menu(tree, snap, ev, mb)) return;
     if (!mb.pressed && tree.in_scrollbar_drag()) {
         tree.end_scrollbar_drag();
@@ -266,7 +281,9 @@ inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
     }
     constexpr float wheel_multiplier = 60.f;
     auto id = hit_test(snap, ms.position);
-    if (id) {
+    if (auto to = id && tree.popup_owner() == 0 ? tree.claimed(*id, ms) : std::nullopt) {   // claimed: a board's Ctrl+wheel
+        tree.dispatch(*to, local_to(snap, *to, ms));
+    } else if (id) {
         tree.dispatch(*id, local_to(snap, *id, ms));
         WidgetId stop = tree.open_content_popup() ? tree.popup_owner() : 0;   // stays in the popup
         tree.scroll_at(*id, DY{-ms.dy.raw() * wheel_multiplier}, stop);   // wheel down: further down

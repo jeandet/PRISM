@@ -4,6 +4,7 @@
 #include <prism/ui/delegate.hpp>
 #include <prism/ui/frame.hpp>
 #include <prism/input/hit_test.hpp>
+#include <prism/input/input_event.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
 #include <cstdint>
@@ -116,6 +117,10 @@ struct Node {
     BoardDraw board_under;
     BoardDraw board_over;
     std::function<float()> board_scale;   // its cards' zoom, read at every layout; unset = 1. Copied.
+    // A container taking some input from the widgets inside it: for a wheel turn, or a middle
+    // press, on a widget inside, the widget it names gets the event instead (and a press's
+    // capture); none: routed as usual. The nearest container claiming wins. Copied.
+    std::function<std::optional<WidgetId>(const input::InputEvent&)> claims;
     // Kept when what holds it is rebuilt (a dock panel moved elsewhere): the built widgets are
     // parked under this key and put back where a node with the same key is built next.
     std::string keep_key;

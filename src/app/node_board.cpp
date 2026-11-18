@@ -16,11 +16,12 @@ void BoardBackground::canvas(render::DrawList& dl, core::Rect r, const ui::Widge
 
 namespace {
 
-// The press point of a left button press, none on its release; untouched by anything else.
-// True on a left press: a drag starts there.
-bool track_press(std::optional<core::Point>& press, const input::InputEvent& ev) {
+// The press point of a `button` press, none on its release; untouched by anything else.
+// True on a press: a drag starts there.
+bool track_press(std::optional<core::Point>& press, const input::InputEvent& ev,
+                 std::uint8_t button = input::buttons::left) {
     auto* mb = std::get_if<input::MouseButton>(&ev);
-    if (!mb || mb->button != input::buttons::left) return false;
+    if (!mb || mb->button != button) return false;
     press = mb->pressed ? std::optional{mb->position} : std::nullopt;
     return mb->pressed;
 }
@@ -61,6 +62,12 @@ core::Point to_window(const ui::WidgetNode& n, core::Point local) {
 core::Point to_local(const ui::WidgetNode& n, core::Point window) {
     return {core::X{(window.x.raw() - n.absolute_x.raw()) / n.view_scale},
             core::Y{(window.y.raw() - n.absolute_y.raw()) / n.view_scale}};
+}
+
+// Where `local`, a point in widget n's coordinates, is from the board's top-left, in the window.
+std::optional<core::Offset> from_board_origin(const NodeBoardParts& parts, const ui::WidgetNode& n, core::Point local) {
+    const auto board = parts.tree->laid_out_at(parts.board_id);
+    return board ? std::optional{to_window(n, local) - board->origin} : std::nullopt;
 }
 
 // Where the board's widgets lie, in the window.
@@ -132,14 +139,39 @@ void remove_selected(NodeBoardParts& parts) {
     if (node_there) graph.remove(*node);
 }
 
+bool zooms(const input::InputEvent& ev) {
+    auto* ms = std::get_if<input::MouseScroll>(&ev);
+    return ms && (ms->mods & input::mods::ctrl);
+}
+
+// A Ctrl+wheel turn on the background: the board zooms, the point under the pointer staying there.
+void zoom_by_wheel(NodeBoardParts& parts, const ui::WidgetNode& n, const input::MouseScroll& ms) {
+    nodes::Graph& graph = *parts.graph;
+    if (const auto pointer = board_coords::from_board_origin(parts, n, ms.position))
+        graph.set_view(nodes::zoomed_about(graph.view(), *pointer, nodes::wheel_zoom(graph.view().zoom, ms.dy.raw())));
+}
+
+// The board claims every Ctrl+wheel turn and middle press on its cards for its background, which
+// zooms and pans with them.
+// simplify: desktop pinch gestures (SDL pinch events) are not read; the browser reports a
+// trackpad pinch as Ctrl+wheel, which this handles. Read SDL_EVENT_PINCH_* when desktop users ask.
+std::optional<ui::WidgetId> board_claims(const NodeBoardParts& parts, const input::InputEvent& ev) {
+    auto* mb = std::get_if<input::MouseButton>(&ev);
+    const bool claimed = zooms(ev) || (mb && mb->button == input::buttons::middle);
+    return claimed && parts.background_id ? std::optional{parts.background_id} : std::nullopt;
+}
+
 } // namespace
 
 // The background never moves, so the pan is simply where it was at the press plus the drag (in
-// board units: a zoomed-out board pans further for the same drag).
+// board units: a zoomed-out board pans further for the same drag). A middle drag only pans.
 void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
     nodes::Graph& graph = *parts->graph;
     if (removes_selection(ev)) return remove_selected(*parts);
-    if (track_press(press, ev)) {
+    if (zooms(ev)) return zoom_by_wheel(*parts, n, std::get<input::MouseScroll>(ev));
+    if (track_press(press, ev, input::buttons::middle)) {
+        pan_at_press = graph.view().pan;
+    } else if (track_press(press, ev)) {
         const core::Point at = board_coords::to_window(n, *press);
         if (dot_near(*parts, at, any_port)) return press.reset();   // it draws a wire (dot_drag)
         pan_at_press = graph.view().pan;
@@ -486,6 +518,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
     b.board_scale = [&graph] { return graph.view().zoom; };
+    b.claims = [parts](const input::InputEvent& ev) { return board_claims(*parts, ev); };
     b.board_under = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of, float scale) {
         draw_wires(dl, *parts, rect_of, scale, theme.accent);
     };

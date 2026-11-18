@@ -431,6 +431,10 @@ public:
         return it != index_.end() && widget_detail::has_open_overlay(*it->second);
     }
 
+    // The widget claiming `ev` that hit `hit`: the first of hit's containers, nearest first,
+    // whose WidgetNode::claims names one; none if nothing claims it.
+    [[nodiscard]] std::optional<WidgetId> claimed(WidgetId hit, const input::InputEvent& ev) const;
+
     [[nodiscard]] std::optional<WidgetId> parent_of(WidgetId id) const {
         auto it = parent_map_.find(id);
         return it != parent_map_.end() ? std::optional{it->second} : std::nullopt;
