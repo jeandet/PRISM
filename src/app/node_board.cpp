@@ -557,7 +557,7 @@ bool carrying_a_node(const NodeBoardParts& parts) {
 // hinted whole; the port taking one is marked by a bar on its card's edge (the drop's slot,
 // an index into parts.ports).
 // simplify: the slot, and so the bar, is the nearest dot, as DragRole::slot is not given the
-// dragged value; the drop itself goes to the nearest dot taking it. They differ only when an
+// dragged value; the drop goes to the nearest dot taking it. They differ only when an
 // incompatible dot is nearer, both within reach. Pass the value to slot() if that shows.
 ui::DragRole dot_target(NodeBoardParts& parts) {
     constexpr float bar = 3.f;
@@ -693,6 +693,15 @@ std::vector<core::Point> places(nodes::Graph& graph, const NodeBoardParts& parts
     return out;
 }
 
+// A node the graph owns is freed when removed, before the board rebuilds: drop what the board
+// keeps of it now, so no paint or hit test in between reaches its ports.
+void forget_removed_nodes(NodeBoardParts& parts) {
+    const auto gone = [&](nodes::NodeId id) { return !std::ranges::contains(parts.graph->nodes(), id); };
+    std::erase_if(parts.ports, [&](const auto& kv) { return gone(kv.second.ref.node); });
+    std::erase_if(parts.cards, [&](const auto& kv) { return gone(kv.first); });
+    if (parts.selected.node && gone(*parts.selected.node)) parts.selected.node.reset();
+}
+
 } // namespace
 
 WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
@@ -714,6 +723,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
     parts->tree = &tree_;
     parts->board_id = b.id;
     parts->structure_link = graph.structure.on_change().connect([p = parts.get()](std::uint64_t) {
+        forget_removed_nodes(*p);
         if (p->probe && !p->graph->edge(p->probe->edge)) set_probe(*p, std::nullopt);
     });
     parts->background.parts = parts.get();

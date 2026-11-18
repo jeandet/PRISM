@@ -286,14 +286,15 @@ TEST_CASE("a graph destroys the nodes it owns once, and leaves the nodes it refe
     Sink referenced;
     {
         Graph g;
-        const auto a = g.emplace<Counted>(titled("a"), nullptr);
-        const auto b = g.emplace<Counted>(titled("b"), nullptr);
+        const auto a = g.emplace<Counted>(titled("a"), &g);
+        const auto b = g.emplace<Counted>(titled("b"), &g);
         const auto k = g.add(referenced, titled("k"));
         REQUIRE(g.connect({a, OUT}, {k, 0}));
         REQUIRE(g.connect({a, OUT}, {b, 0}));
         CHECK(Counted::destroyed == 0);
     }
     CHECK(Counted::destroyed == 2);
+    CHECK(Counted::wires_at_death == 0);
 }
 
 TEST_CASE("removing an owned node reverts the input it fed and runs no callback of its own") {

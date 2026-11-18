@@ -3,6 +3,7 @@
 #include <prism/ui/delegate.hpp>
 #include <prism/ui/text_metrics.hpp>
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -11,13 +12,14 @@ namespace prism::app {
 namespace {
 
 constexpr float row_height = 26.f;
-constexpr float row_width = 160.f;
 constexpr float dot_radius = 5.f;
 constexpr float dot_inset = 14.f;
 constexpr float title_inset = 28.f;
 constexpr float title_size = 14.f;
 constexpr float cascade_step = 24.f;   // graph units between two nodes added in a row
 
+// simplify: the cascade counter lives with the palette's build; a rebuild of the view restarts it
+// at the top-left. Keep it in the app's state if repeated adds across rebuilds must not stack.
 struct Palette {
     nodes::Graph* graph = nullptr;
     std::vector<nodes::NodeKind> kinds;
@@ -41,6 +43,14 @@ void draw_row(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n, const
     if (vs.focused) ui::delegate_detail::draw_focus_ring(dl, r.extent.w, r.extent.h, t);
 }
 
+// Room for the widest title, whatever the theme's font makes of it.
+float widest_row(const ui::Theme& t, const std::vector<nodes::NodeKind>& kinds) {
+    float widest = 0.f;
+    for (const auto& k : kinds) widest = std::max(widest, ui::text_width(t.measurer, k.title, title_size));
+    return title_inset + widest + dot_inset;
+}
+
+// A key release is a KeyRelease, never a KeyPress: Enter held repeats, which adds again, as it should.
 bool activates(const input::InputEvent& ev) {
     if (const auto* mb = std::get_if<input::MouseButton>(&ev))
         return mb->pressed && mb->button == input::buttons::left && mb->clicks == 2;
@@ -68,13 +78,13 @@ void make_row(ui::WidgetNode& wn, const std::shared_ptr<Palette>& palette, std::
     };
 }
 
-ui::Node row_node(ui::WidgetId id, const std::shared_ptr<Palette>& palette, std::size_t i) {
+ui::Node row_node(ui::WidgetId id, float width, const std::shared_ptr<Palette>& palette, std::size_t i) {
     ui::Node n;
     n.id = id;
     n.is_leaf = true;
     n.layout_kind = ui::LayoutKind::Canvas;
     n.canvas_min_height = row_height;
-    n.canvas_min_width = row_width;
+    n.canvas_min_width = width;
     n.drag.source = [palette, i](const ui::WidgetNode&, core::Point) {
         return std::any{PaletteDrag{palette->graph, palette->kinds[i]}};
     };
@@ -86,9 +96,10 @@ ui::Node row_node(ui::WidgetId id, const std::shared_ptr<Palette>& palette, std:
 
 WidgetId ViewBuilder::node_palette(nodes::Graph& graph, std::span<const nodes::NodeKind> kinds) {
     const auto palette = std::make_shared<Palette>(&graph, std::vector<nodes::NodeKind>(kinds.begin(), kinds.end()));
+    const float width = widest_row(tree_.theme(), palette->kinds);
     return vstack([&] {
         for (std::size_t i = 0; i < palette->kinds.size(); ++i)
-            current_parent().children.push_back(row_node(tree_.next_id_++, palette, i));
+            current_parent().children.push_back(row_node(tree_.next_id_++, width, palette, i));
     });
 }
 

@@ -7,6 +7,8 @@
 #include <prism/nodes/graph.hpp>
 #include <prism/nodes/node_kind.hpp>
 
+#include <prism/ui/text_metrics.hpp>
+
 #include <algorithm>
 
 using namespace prism;
@@ -1983,4 +1985,48 @@ TEST_CASE("a node made by the palette is owned by the graph: removing it drops i
     f.m.graph.remove(ids[0]);
     CHECK(f.m.graph.edges().empty());
     CHECK(f.m.graph.nodes() == std::vector{ids[1]});
+}
+
+TEST_CASE("an owned node deleted from the board leaves nothing of its ports for a paint or a hover to read") {
+    PaletteFixture f;
+    f.drag(row_of(f, "Amplifier"), on_board(f, 300.f, 100.f));
+    REQUIRE(f.m.graph.nodes().size() == 1);
+    Point header{};
+    for (const auto& t : f.all<TextCmd>())
+        if (t.text == "Amplifier" && t.origin.x.raw() > laid_out(f, f.m.board).origin.x.raw()) header = t.origin;
+    f.press(header + Offset{DX{2.f}, DY{2.f}});
+    f.release(header + Offset{DX{2.f}, DY{2.f}});
+    key(f, keys::delete_);
+    CHECK(f.m.graph.nodes().empty());
+    f.move_to(on_board(f, 300.f, 110.f));
+    f.move_to(on_board(f, 305.f, 115.f));
+}
+
+TEST_CASE("an owned node removed by the app is gone from the board's hit and paint state before the next frame") {
+    PaletteFixture f;
+    f.drag(row_of(f, "Amplifier"), on_board(f, 300.f, 100.f));
+    REQUIRE(f.m.graph.nodes().size() == 1);
+    f.m.graph.remove(f.m.graph.nodes().front());
+    f.move_to(on_board(f, 300.f, 110.f));
+    f.press(on_board(f, 300.f, 110.f));
+    f.release(on_board(f, 300.f, 110.f));
+    CHECK(f.m.graph.nodes().empty());
+}
+
+namespace {
+constexpr const char* long_title = "A rather long block title for a narrow palette, longer than any fixed row";
+struct LongWorkbench : Workbench {
+    LongWorkbench() { kinds = {nodes::kind_of<Amp>(long_title, "math")}; }
+};
+}
+
+TEST_CASE("a palette row is at least as wide as its title") {
+    BasicFixture<LongWorkbench> f;
+    const auto title = f.text_cmd(long_title);
+    REQUIRE(title);
+    const float text_w = ui::text_width(f.tree.theme().measurer, long_title, title->size);
+    bool wide_enough = false;
+    for (WidgetId id : f.tree.leaf_ids())
+        if (f.tree.within(id, f.m.palette)) wide_enough = laid_out(f, id).extent.w.raw() >= text_w;
+    CHECK(wide_enough);
 }
