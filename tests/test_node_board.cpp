@@ -2339,6 +2339,15 @@ TEST_CASE("a node grabbed during a glide stops gliding; the others arrive") {
     CHECK(f.m.graph.position(f.m.b).x.raw() == doctest::Approx(target.at(f.m.b).x.raw()));
 }
 
+TEST_CASE("a frame asked for keeps the earliest time asked") {
+    Gliding f;
+    const auto id = f.card_of(f.m.source.out_label);
+    f.tree.redraw_at(id, f.at + std::chrono::milliseconds(100));
+    f.tree.redraw_at(id, f.at + std::chrono::milliseconds(50));
+    f.tree.redraw_at(id, f.at + std::chrono::milliseconds(200));
+    CHECK(f.tree.next_wake() == f.at + std::chrono::milliseconds(50));
+}
+
 TEST_CASE("a tidy asked while a node is held leaves that node under the hand") {
     Gliding f;
     const auto grab = *f.text_at("Source") + Offset{DX{2.f}, DY{2.f}};

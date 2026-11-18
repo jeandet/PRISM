@@ -268,9 +268,13 @@ public:
     [[nodiscard]] TooltipState::clock::time_point now() const { return clock_ ? clock_() : TooltipState::clock::now(); }
     void set_clock(std::function<TooltipState::clock::time_point()> clock) { clock_ = std::move(clock); }
 
-    // Asks for a frame at `at` with no input (see next_wake) from the widget `id`.
+    // Asks for a frame at `at` with no input (see next_wake) from the widget `id`; an earlier
+    // time already asked for stays.
     void redraw_at(WidgetId id, TooltipState::clock::time_point at) {
-        if (auto it = index_.find(id); it != index_.end()) it->second->redraw_at = at;
+        const auto it = index_.find(id);
+        if (it == index_.end()) return;
+        auto& due = it->second->redraw_at;
+        due = due ? std::min(*due, at) : at;
     }
 
     // `button`: the one pressing it, which alone lets go of the capture (see captured_button).
