@@ -1309,3 +1309,79 @@ TEST_CASE("CapturingBackend measures text with the measurer it is given") {
     prism::app::CapturingBackend backend{snap, &fixed};
     CHECK(backend.text_measurer() == &fixed);
 }
+
+#include <prism/nodes/graph.hpp>
+#include <condition_variable>
+#include <mutex>
+
+namespace {
+struct FitSource {
+    prism::nodes::Out<double> out{"out", [] { return 1.0; }};
+    std::vector<prism::nodes::Port*> ports() { return {&out}; }
+};
+
+struct FitModel {
+    FitSource a, b;
+    prism::nodes::Graph graph;
+    prism::nodes::NodeId ia = graph.add(a, {.title = "A", .family = "", .at = {}});
+    prism::nodes::NodeId ib = graph.add(b, {.title = "B", .family = "", .at = {}});
+    prism::Derived<std::string> zoom_label{[this] {
+        static_cast<void>(graph.layout.get());
+        return std::to_string(static_cast<int>(graph.view().zoom * 100.f + 0.5f)) + " %";
+    }};
+    void view(prism::WidgetTree::ViewBuilder& vb) {
+        vb.widget(zoom_label);
+        vb.node_board(graph);
+    }
+};
+
+bool shows_text(const prism::SceneSnapshot& snap, std::string_view text) {
+    for (auto& dl : snap.draw_lists)
+        for (auto& c : dl->commands)
+            if (auto* t = std::get_if<prism::TextCmd>(&c); t && t->text == text) return true;
+    return false;
+}
+}
+
+TEST_CASE("a field changed during a publish (a board's fit) gets another publish that shows it") {
+    struct WatchingBackend final : public prism::BackendBase {
+        prism::HeadlessWindow window_{0, {}};
+        std::mutex m;
+        std::condition_variable cv;
+        std::shared_ptr<const prism::SceneSnapshot> last;
+        prism::Window& create_window(prism::WindowConfig cfg) override {
+            window_ = prism::HeadlessWindow{1, cfg};
+            return window_;
+        }
+        void run(std::function<void(const prism::WindowEvent&)> cb) override {
+            {
+                std::unique_lock lock{m};
+                cv.wait_for(lock, std::chrono::seconds(2), [&] { return last && shows_text(*last, "100 %") && seen_half; });
+            }
+            cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
+        }
+        bool seen_half = false;
+        void submit(prism::WindowId, std::shared_ptr<const prism::SceneSnapshot> s) override {
+            std::lock_guard lock{m};
+            last = std::move(s);
+            seen_half |= shows_text(*last, "50 %");
+            cv.notify_all();
+        }
+        void wake() override {}
+        void quit() override {}
+    };
+
+    FitModel model;
+    auto backend_ptr = std::make_unique<WatchingBackend>();
+    auto* raw = backend_ptr.get();
+    auto backend = prism::Backend{std::move(backend_ptr)};
+    auto& window = backend.create_window({.width = 800, .height = 600});
+    prism::model_app(backend, window, model, [&](prism::AppContext&) {
+        model.graph.set_view({.pan = {}, .zoom = 0.5f});   // shown by the next publish...
+        model.graph.request_fit();                          // ...whose layout fits back to 100 %
+    });
+    CHECK(model.graph.view().zoom == 1.f);
+    REQUIRE(raw->last);
+    CHECK(raw->seen_half);
+    CHECK(shows_text(*raw->last, "100 %"));
+}

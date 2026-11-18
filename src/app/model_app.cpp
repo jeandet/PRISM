@@ -248,6 +248,8 @@ void AppRun::publish_entry(WindowId id, WindowRegistry::Entry& entry) {
     backend_.submit(id, entry.current_snap);
     backend_.wake();
     entry.tree->clear_dirty();
+    // Changed while it was built (a board's fit, made in its layout): the next frame shows it.
+    if (entry.tree->any_dirty()) publish_after_input(std::nullopt);
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     if (id == primary_id_ && debug_controller_)
         debug_controller_->update_stats(*entry.current_snap);

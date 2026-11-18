@@ -1188,3 +1188,37 @@ TEST_CASE("a middle click in the middle of a left pan does not stop it") {
     CHECK(f.m.graph.view().pan == P(-30, -20));
     f.release(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
 }
+
+namespace {
+// The gallery's Nodes tab: a label showing the zoom, read from the graph's view.
+struct ZoomShown : Editor {
+    Derived<std::string> zoom_label{[this] {
+        static_cast<void>(graph.layout.get());
+        return std::to_string(static_cast<int>(graph.view().zoom * 100.f + 0.5f)) + " %";
+    }};
+    void view(WidgetTree::ViewBuilder& vb) {
+        vb.widget(zoom_label);
+        vb.node_board(graph);
+    }
+};
+
+// What the app does each frame: build, then clear the marks the frame drew.
+template <class F>
+void publish(F& f) {
+    f.frame();
+    f.tree.clear_dirty();
+}
+}
+
+TEST_CASE("a fit made during a publish leaves the tree dirty, so what shows the view is drawn again") {
+    BasicFixture<ZoomShown> f;
+    f.m.graph.set_view({.pan = {}, .zoom = 0.51f});
+    publish(f);
+    REQUIRE(f.shows("51 %"));
+    f.m.graph.request_fit();
+    publish(f);   // the board fits in this one's layout
+    REQUIRE(f.m.graph.view().zoom == 1.f);
+    CHECK(f.tree.any_dirty());   // the app publishes again
+    publish(f);
+    CHECK(f.shows("100 %"));
+}

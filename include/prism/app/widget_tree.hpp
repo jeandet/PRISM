@@ -29,6 +29,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace prism::app {
@@ -78,9 +79,12 @@ public:
     [[nodiscard]] bool any_dirty() const { return tooltip_dirty_ || check_dirty(root_); }
     [[nodiscard]] std::size_t dirty_count() const { return count_dirty(root_); }
 
+    // What the last publish drew is clean; a field changed while it was being built (a board's
+    // fit, set in its layout) is not drawn yet, so its widgets stay dirty for the next one.
     void clear_dirty() {
         tooltip_dirty_ = false;
         clear_dirty_impl(root_);
+        for (WidgetId id : std::exchange(changed_while_building_, {})) set_dirty(id);
     }
 
     // Runs each block's attach(ctx) once, the first time it is called after the block was
@@ -510,6 +514,8 @@ private:
     TooltipState tooltip_;
     bool tooltip_dirty_ = false;
     std::optional<Rect> popup_card_;   // see popup_card()
+    bool building_ = false;                         // inside build_snapshot
+    std::vector<WidgetId> changed_while_building_;  // see clear_dirty()
     std::optional<LayoutNode> last_layout_;   // the last publish's layout, kept for the next one
     bool swallow_text_ = false;
     std::uint64_t last_built_version_ = 0;
@@ -733,6 +739,7 @@ private:
     void set_dirty(WidgetId id) {
         if (auto it = index_.find(id); it != index_.end())
             it->second->dirty = true;
+        if (building_) changed_while_building_.push_back(id);
     }
 
     void unindex_node(WidgetId id);
