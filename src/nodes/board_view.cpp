@@ -28,6 +28,11 @@ BoardView zoomed_about(BoardView v, core::Offset pointer, float zoom) {
     return {v.pan + core::Offset{core::DX{pointer.dx.raw() * shift}, core::DY{pointer.dy.raw() * shift}}, z};
 }
 
+core::Point board_point(BoardView v, core::Point at) {
+    const core::Point moved = at + (v.pan - core::Point{});
+    return {core::X{moved.x.raw() * v.zoom}, core::Y{moved.y.raw() * v.zoom}};
+}
+
 core::Point graph_point(BoardView v, core::Offset on_board) {
     const core::Point unzoomed{core::X{on_board.dx.raw() / v.zoom}, core::Y{on_board.dy.raw() / v.zoom}};
     return unzoomed - (v.pan - core::Point{});

@@ -2197,6 +2197,8 @@ TEST_CASE("a header dragged 4 px from a neighbour's edge snaps to it and shows o
     CHECK(f.m.graph.position(f.m.a) == P(300, 30));
     REQUIRE(guides_drawn(f).size() == 1);
     CHECK(guides_drawn(f)[0].from.x.raw() == doctest::Approx(300));
+    CHECK(guides_drawn(f)[0].to.x.raw() == doctest::Approx(300));
+    CHECK(guides_drawn(f)[0].to.y.raw() > guides_drawn(f)[0].from.y.raw());   // a vertical line spanning both cards
     f.release(grab + Offset{DX{276.f}, DY{0.f}});
     CHECK(guides_drawn(f).empty());
 }
@@ -2348,4 +2350,52 @@ TEST_CASE("a node removed during a glide is skipped; the others arrive") {
     f.after(300);
     f.after(1);
     CHECK(f.m.graph.position(f.m.a).x.raw() == doctest::Approx(target.at(f.m.a).x.raw()));
+}
+
+TEST_CASE("a guide is drawn where a panned board shows its graph points") {
+    Fixture f;
+    park_sink(f, P(300, 400));
+    f.m.graph.set_view({.pan = P(10, -20), .zoom = 1.f});
+    f.frame();
+    const Point grab = grab_title(f, "Source");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{276.f}, DY{0.f}});
+    REQUIRE(guides_drawn(f).size() == 1);
+    CHECK(guides_drawn(f)[0].from.x.raw() == doctest::Approx(310));   // graph x 300 + pan 10
+    CHECK(guides_drawn(f)[0].from.y.raw() == doctest::Approx(30 - 20));   // the source's top, + pan
+    f.release(grab);
+}
+
+TEST_CASE("a wired output is levelled with the input it feeds, at zoom 1 and at zoom 0.5") {
+    for (const float zoom : {1.f, 0.5f}) {
+        Fixture f;
+        REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+        at_zoom(f, zoom);
+        const float out_from_top = (middle_y(*f.row_of(f.m.source.out_label)) - f.allocated(f.card_of(f.m.source.out_label))->origin.y.raw()) / zoom;
+        const float in_from_top = (middle_y(*f.row_of(f.m.sink.in_label)) - f.allocated(f.card_of(f.m.sink.in_label))->origin.y.raw()) / zoom;
+        const float level_y = 60.f + in_from_top - out_from_top;   // the source's top that levels it with the sink
+        const Point grab = grab_title(f, "Source");
+        f.press(grab);
+        f.move_to(grab + Offset{DX{0.f}, DY{(level_y + 3.f - 30.f) * zoom}});
+        const auto wires = f.all<Polyline>();
+        REQUIRE(wires.size() == 1);
+        CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
+        f.release(grab);
+    }
+}
+
+TEST_CASE("a wired input is levelled at zoom 0.5 too") {
+    Fixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    at_zoom(f, 0.5f);
+    const float out_from_top = (middle_y(*f.row_of(f.m.source.out_label)) - f.allocated(f.card_of(f.m.source.out_label))->origin.y.raw()) / 0.5f;
+    const float in_from_top = (middle_y(*f.row_of(f.m.sink.in_label)) - f.allocated(f.card_of(f.m.sink.in_label))->origin.y.raw()) / 0.5f;
+    const float level_y = 30.f + out_from_top - in_from_top;
+    const Point grab = grab_title(f, "Sink");
+    f.press(grab);
+    f.move_to(grab + Offset{DX{0.f}, DY{(level_y + 3.f - 60.f) * 0.5f}});
+    const auto wires = f.all<Polyline>();
+    REQUIRE(wires.size() == 1);
+    CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
+    f.release(grab);
 }

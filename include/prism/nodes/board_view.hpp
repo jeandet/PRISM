@@ -23,6 +23,9 @@ float clamp_zoom(float z);
 // the board's top-left) where it is.
 BoardView zoomed_about(BoardView v, core::Offset pointer, float zoom);
 
+// Where the graph point `at` lies on the board, an offset from its top-left: zoom·(position + pan).
+core::Point board_point(BoardView v, core::Point at);
+
 // The graph point shown at `on_board`, an offset from the board's top-left: the inverse of a
 // node's place on the board.
 core::Point graph_point(BoardView v, core::Offset on_board);

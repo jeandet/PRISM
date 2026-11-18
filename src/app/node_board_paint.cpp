@@ -174,17 +174,11 @@ void draw_probe(render::DrawList& dl, const NodeBoardParts& parts, const ui::The
 namespace {
 
 constexpr float guide_alpha = 0.6f;
-
-core::Point guide_on_board(const nodes::Graph& graph, core::Point at) {
-    const core::Point unzoomed = board_coords::on_board(graph, at);
-    const float zoom = graph.view().zoom;
-    return {core::X{unzoomed.x.raw() * zoom}, core::Y{unzoomed.y.raw() * zoom}};
-}
 } // namespace
 
 void draw_guides(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t) {
     for (const auto& g : parts.guides)
-        dl.line(guide_on_board(*parts.graph, g.from), guide_on_board(*parts.graph, g.to), faded(t.accent, guide_alpha), 1.f);
+        dl.line(nodes::board_point(parts.graph->view(), g.from), nodes::board_point(parts.graph->view(), g.to), faded(t.accent, guide_alpha), 1.f);
 }
 
 namespace {

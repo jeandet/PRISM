@@ -218,13 +218,18 @@ void drop_guides(NodeBoardParts& parts) {
     parts.tree->mark_dirty_by_id(parts.board_id);
 }
 
+// Alt held at the press: the node goes where the pointer puts it.
+nodes::Snapped snapped_or_free(const NodeBoardParts& parts, nodes::NodeId id, core::Point to, std::uint16_t mods) {
+    return (mods & input::mods::alt) ? nodes::Snapped{to, {}} : snapped_drag(parts, id, to);
+}
+
 } // namespace
 
 // Its node may be gone already: the cards are rebuilt on the next frame.
 void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& n, core::Rect) {
     nodes::Graph& graph = *parts->graph;
     WidgetTree& tree = *parts->tree;
-    if (!std::ranges::contains(graph.nodes(), id)) return;
+    if (!std::ranges::contains(graph.nodes(), id)) return drop_guides(*parts);
     if (track_press(press, ev)) {
         mods = std::get<input::MouseButton>(ev).mods;
         shown = {{0, graph.position(id)}};
@@ -238,7 +243,7 @@ void NodeGrip::handle_canvas_input(const input::InputEvent& ev, ui::WidgetNode& 
     auto seen = shown.upper_bound(tree.input_frame());
     if (seen != shown.begin()) --seen;
     const core::Point pointer_at = board_coords::dragged(graph, n, seen->second, *d);
-    const auto placed = (mods & input::mods::alt) ? nodes::Snapped{pointer_at, {}} : snapped_drag(*parts, id, pointer_at);
+    const auto placed = snapped_or_free(*parts, id, pointer_at, mods);
     shown.erase(shown.begin(), seen);   // older frames are not shown any more
     parts->guides = placed.guides;
     graph.move(id, placed.at);

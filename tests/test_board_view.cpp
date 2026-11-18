@@ -61,6 +61,15 @@ TEST_CASE("graph_point is where a board offset lies in the graph: the inverse of
     CHECK(graph_point(BoardView{}, Offset{DX{7}, DY{9}}) == pt(7, 9));
 }
 
+TEST_CASE("board_point is where a graph point lies on the board: zoom * (position + pan), graph_point's inverse") {
+    const BoardView v{pt(10, -20), 0.5f};
+    CHECK(board_point(v, pt(100, 40)) == pt(55, 10));
+    const Point back = graph_point(v, board_point(v, pt(100, 40)) - Point{});
+    CHECK(back.x.raw() == Approx(100.f));
+    CHECK(back.y.raw() == Approx(40.f));
+    CHECK(board_point(BoardView{}, pt(7, 9)) == pt(7, 9));
+}
+
 TEST_CASE("fit_all shows every card with the margin clear, at the largest such zoom") {
     const std::vector<Rect> cards{rect(0, 0, 200, 100), rect(600, 300, 200, 100)};
     const auto v = fit_all(cards, Size{Width{500}, Height{300}});
