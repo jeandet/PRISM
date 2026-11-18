@@ -40,7 +40,7 @@ Rows and columns, splits, groups, sections, scroll areas, tabs.
 :::{grid-item-card} Data views
 :link: data
 :link-type: doc
-Lists, tables and trees over your collections.
+Lists, tables, trees and node boards.
 :::
 
 :::{grid-item-card} Text and code

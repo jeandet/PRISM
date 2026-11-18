@@ -1,8 +1,19 @@
 #include "nodes_tab.hpp"
 
 #include <algorithm>
+#include <utility>
 
 namespace gallery {
+
+namespace {
+
+// A patch node at (x, y) in graph units: the graph owns it, so Delete takes it off the board.
+nodes::NodeOptions placed(float x, float y, std::string title, std::string family) {
+    return {.title = std::move(title), .family = std::move(family),
+            .at = core::Point{core::X{x}, core::Y{y}}, .removable = true};
+}
+
+} // namespace
 
 void SineNode::view(app::ViewBuilder& vb) {
     vb.widget(cycles);
@@ -10,8 +21,25 @@ void SineNode::view(app::ViewBuilder& vb) {
     vb.port(out);
 }
 
+void SquareNode::view(app::ViewBuilder& vb) {
+    vb.widget(cycles);
+    vb.widget(amplitude);
+    vb.port(out);
+}
+
 void NoiseNode::view(app::ViewBuilder& vb) {
     vb.widget(level);
+    vb.port(out);
+}
+
+void ConstantNode::view(app::ViewBuilder& vb) {
+    vb.widget(value);
+    vb.port(out);
+}
+
+void GainNode::view(app::ViewBuilder& vb) {
+    vb.port(in);
+    vb.port(by);
     vb.port(out);
 }
 
@@ -52,32 +80,55 @@ void ScopeNode::canvas(render::DrawList& dl, core::Rect r, const ui::WidgetNode&
     dl.polyline(std::move(pts), theme.accent, 1.5f);
 }
 
+void NumberDisplayNode::show(double value) {
+    auto l = readout.get();
+    l.value = std::format("{:.3g}", value);
+    readout.set(std::move(l));
+}
+
+void NumberDisplayNode::view(app::ViewBuilder& vb) {
+    vb.port(in);
+    vb.widget(readout);
+}
+
 NodesTab::NodesTab() {
-    using core::X, core::Y;
-    auto s = graph.add(sine, {.title = "Sine", .family = "source", .at = {X{16}, Y{16}}});
-    auto z = graph.add(noise, {.title = "Noise", .family = "source", .at = {X{16}, Y{210}}});
-    auto m = graph.add(mixer, {.title = "Mixer", .family = "math", .at = {X{270}, Y{70}}});
-    auto f = graph.add(filter, {.title = "Low-pass", .family = "filter", .at = {X{520}, Y{215}}});
-    auto r = graph.add(raw, {.title = "Scope", .family = "display", .at = {X{520}, Y{16}}});
-    auto o = graph.add(smooth, {.title = "Scope", .family = "display", .at = {X{770}, Y{215}}});
-    static_cast<void>(graph.connect({s, 0}, {m, 0}));
-    static_cast<void>(graph.connect({z, 0}, {m, 1}));
-    static_cast<void>(graph.connect({m, 2}, {r, 0}));
-    static_cast<void>(graph.connect({m, 2}, {f, 0}));
-    static_cast<void>(graph.connect({f, 1}, {o, 0}));
+    const auto sine = graph.emplace<SineNode>(placed(20, 20, "Sine", "source"));
+    const auto square = graph.emplace<SquareNode>(placed(20, 210, "Square", "source"));
+    const auto noise = graph.emplace<NoiseNode>(placed(300, 140, "Noise", "source"));
+    const auto constant = graph.emplace<ConstantNode>(placed(300, 20, "Constant", "source"));
+    const auto gain = graph.emplace<GainNode>(placed(300, 260, "Gain", "math"));
+    const auto mixer = graph.emplace<MixerNode>(placed(300, 400, "Mixer", "math"));
+    const auto number = graph.emplace<NumberDisplayNode>(placed(610, 20, "Number", "display"));
+    const auto low_pass = graph.emplace<LowPassNode>(placed(610, 160, "Low-pass", "filter"));
+    const auto scope = graph.emplace<ScopeNode>(placed(900, 20, "Scope", "display"));
+    const auto filtered = graph.emplace<ScopeNode>(placed(900, 220, "Scope", "display"));
+    static_cast<void>(graph.connect({sine, 0}, {mixer, 0}));
+    static_cast<void>(graph.connect({noise, 0}, {mixer, 1}));
+    static_cast<void>(graph.connect({mixer, 2}, {scope, 0}));
+    static_cast<void>(graph.connect({mixer, 2}, {low_pass, 0}));
+    static_cast<void>(graph.connect({low_pass, 1}, {filtered, 0}));
+    static_cast<void>(graph.connect({square, 0}, {gain, 0}));
+    static_cast<void>(graph.connect({constant, 0}, {gain, 1}));
+    static_cast<void>(graph.connect({gain, 2}, {number, 0}));
     wire.on(fit, [this](const ui::Button&) { graph.request_fit(); });
     wire.on(actual_size, [this](const ui::Button&) { graph.request_zoom(1.f); });
+    graph.request_fit();   // the whole patch on show, whatever the tab's size
 }
 
 void NodesTab::view(app::ViewBuilder& vb) {
     vb.widget(title);
     vb.widget(intro);
     vb.hstack([&] {
-        vb.widget(fit);
-        vb.widget(actual_size);
-        vb.widget(zoom_label);
+        vb.node_palette(graph, kinds);
+        vb.vstack([&] {
+            vb.hstack([&] {
+                vb.widget(fit);
+                vb.widget(actual_size);
+                vb.widget(zoom_label);
+            });
+            vb.node_board(graph);
+        });
     });
-    vb.node_board(graph);
 }
 
 } // namespace gallery
