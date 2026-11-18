@@ -88,7 +88,8 @@ Color port_color(const ui::Theme& t, const nodes::Port& port) {
 
 // A wire's stroke: a waveform is drawn thicker than the scalars are.
 float wire_width(const nodes::Port& port) {
-    return nodes::type_name(port.type()) == "waveform" ? thick_wire : thin_wire;
+    static const nodes::TypeKey waveform = nodes::type_key<std::vector<double>>();
+    return port.type() == waveform ? thick_wire : thin_wire;
 }
 
 // `side` square, centred on `at`.

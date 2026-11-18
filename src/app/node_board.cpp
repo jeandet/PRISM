@@ -61,9 +61,7 @@ core::Point dragged(const nodes::Graph& graph, const ui::WidgetNode& n, core::Po
 
 // The graph point shown at `on_board`, a point in the board's own coordinates (a drop's place).
 core::Point to_graph(const nodes::Graph& graph, core::Point on_board) {
-    const float k = 1.f / graph.view().zoom;
-    const core::Point unzoomed{core::X{on_board.x.raw() * k}, core::Y{on_board.y.raw() * k}};
-    return unzoomed - (graph.view().pan - core::Point{});
+    return nodes::graph_point(graph.view(), on_board - core::Point{});
 }
 
 // A point on the board (a drop's place) in the window; none before the board is laid out.
@@ -89,6 +87,8 @@ ui::BoardRectOf window_rects(const NodeBoardParts& parts) {
 namespace {
 
 // The wire within wire_reach of `p` (window coordinates), the nearest if several are.
+// simplify: every wire is measured on every pointer move over the background, O(wires) each. A
+// board with hundreds of wires wants a spatial index, or the test limited to the wires near `p`.
 std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p) {
     constexpr float wire_reach = 6.f;
     const auto rect_of = board_coords::window_rects(parts);
@@ -111,7 +111,7 @@ std::optional<nodes::EdgeId> wire_at(const NodeBoardParts& parts, core::Point p)
 // A change of the probed output redraws the board: the bubble shows its value.
 core::Connection watch_output(NodeBoardParts& parts, nodes::EdgeId edge) {
     return parts.graph->port(parts.graph->edge(edge)->from)->on_change([&parts] {
-        parts.tree->mark_dirty_by_id(parts.background_id);
+        if (shown_probe(parts)) parts.tree->mark_dirty_by_id(parts.background_id);
     });
 }
 
@@ -379,6 +379,8 @@ std::vector<core::Point> places(nodes::Graph& graph, NodeBoardParts& parts) {
 
 // A node the graph owns is freed when removed, before the board rebuilds: drop what the board
 // keeps of it now, so no paint or hit test in between reaches its ports.
+// simplify: O(ports x nodes) per removal (a linear lookup of each port's node); fine for tens of
+// nodes. Keep a set of the live ids, built once per call, if boards grow past that.
 void forget_removed_nodes(NodeBoardParts& parts) {
     const auto gone = [&](nodes::NodeId id) { return !std::ranges::contains(parts.graph->nodes(), id); };
     std::erase_if(parts.ports, [&](const auto& kv) { return gone(kv.second.ref.node); });
