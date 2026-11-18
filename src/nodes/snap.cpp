@@ -20,13 +20,14 @@ struct Candidate {
     float line;        // the coordinate they would share
     bool wire;
     const core::Rect* card; // null for a wire straightening
+    float other_x;          // the other end's x, for a wire straightening
 };
 
 void add_alignments(std::vector<Candidate>& out, const std::array<float, 3>& mine,
                     const std::array<float, 3>& theirs, const core::Rect* card) {
     for (float from : mine)
         for (float to : theirs)
-            out.push_back({to - from, to, false, card});
+            out.push_back({to - from, to, false, card, 0.f});
 }
 
 std::vector<Candidate> x_candidates(float x, float w, std::span<const core::Rect> others) {
@@ -43,11 +44,13 @@ std::vector<Candidate> y_candidates(float y, float h, std::span<const core::Rect
         add_alignments(out, lines(y, h), lines(r.origin.y.raw(), r.extent.h.raw()), &r);
     for (const LevelWith& w : wires)
         out.push_back({w.other_end.raw() - (y + w.port_from_top.raw()), w.other_end.raw(), true,
-                       nullptr});
+                       nullptr, w.other_x.raw()});
     return out;
 }
 
 // The nearest candidate within `reach`; a wire straightening wins a tie against an alignment.
+// simplify: two alignments at the same distance keep the first seen, so which guide shows follows
+// the order `others` came in; break the tie by card distance instead if the guide ever jumps.
 std::optional<Candidate> pick(std::span<const Candidate> candidates, float reach) {
     std::optional<Candidate> best;
     for (const Candidate& c : candidates) {
@@ -75,9 +78,11 @@ Guide horizontal(float line, core::Point at, core::Size size, const core::Rect& 
     return {{core::X{left}, core::Y{line}}, {core::X{right}, core::Y{line}}};
 }
 
-// A straightening line runs across the dragged card: the other end's x is not known here.
-Guide straightening(float line, core::Point at, core::Size size) {
-    return {{at.x, core::Y{line}}, {core::X{at.x.raw() + size.w.raw()}, core::Y{line}}};
+// A straightening line runs from the card to the other end of the wire.
+Guide straightening(float line, core::Point at, core::Size size, float other_x) {
+    const float left = std::min(at.x.raw(), other_x);
+    const float right = std::max(at.x.raw() + size.w.raw(), other_x);
+    return {{core::X{left}, core::Y{line}}, {core::X{right}, core::Y{line}}};
 }
 
 } // namespace snap_detail
@@ -94,7 +99,8 @@ Snapped snap(core::Point at, core::Size size, std::span<const core::Rect> others
     std::vector<Guide> guides;
     if (x) guides.push_back(snap_detail::vertical(x->line, placed, size, *x->card));
     if (y && !y->wire) guides.push_back(snap_detail::horizontal(y->line, placed, size, *y->card));
-    if (y && y->wire) guides.push_back(snap_detail::straightening(y->line, placed, size));
+    if (y && y->wire)
+        guides.push_back(snap_detail::straightening(y->line, placed, size, y->other_x));
     return {placed, guides};
 }
 

@@ -74,12 +74,51 @@ TEST_CASE("x and y snap on their own, one guide each") {
 
 TEST_CASE("a wire straightening beats an alignment at the same distance") {
     const std::vector<Rect> others{rect(400, 53, 160, 90)};
-    const std::vector<LevelWith> wires{LevelWith{DY{30}, Y{83}}};
+    const std::vector<LevelWith> wires{LevelWith{DY{30}, Y{83}, X{500}}};
     const auto s = snap(pt(100, 50), size(160, 90), others, wires, reach);
 
     CHECK(s.at == pt(100, 53));
     REQUIRE(s.guides.size() == 1);
-    CHECK(s.guides.front() == Guide{pt(100, 83), pt(260, 83)});
+    CHECK(s.guides.front() == Guide{pt(100, 83), pt(500, 83)});
+}
+
+TEST_CASE("a wire straightens a card with no other card in sight") {
+    const std::vector<LevelWith> wires{LevelWith{DY{30}, Y{83}, X{40}}};
+    const auto s = snap(pt(100, 50), size(160, 90), {}, wires, reach);
+
+    CHECK(s.at == pt(100, 53));
+    REQUIRE(s.guides.size() == 1);
+    CHECK(s.guides.front() == Guide{pt(40, 83), pt(260, 83)});
+}
+
+TEST_CASE("an alignment nearer than a wire wins") {
+    const std::vector<Rect> others{rect(400, 52, 160, 90)};
+    const std::vector<LevelWith> wires{LevelWith{DY{30}, Y{85}, X{500}}};
+    const auto s = snap(pt(100, 50), size(160, 90), others, wires, reach);
+
+    // the wire would move it 5, the other card's top 2
+    CHECK(s.at == pt(100, 52));
+    REQUIRE(s.guides.size() == 1);
+    CHECK(s.guides.front() == Guide{pt(100, 52), pt(560, 52)});
+}
+
+TEST_CASE("a candidate exactly at the reach snaps") {
+    const std::vector<Rect> others{rect(106, 400, 160, 90)};
+    const auto s = snap(pt(100, 50), size(160, 90), others, {}, reach);
+
+    CHECK(s.at == pt(106, 50));
+    REQUIRE(s.guides.size() == 1);
+    CHECK(s.guides.front() == Guide{pt(106, 50), pt(106, 490)});
+}
+
+TEST_CASE("both axes can snap to the same card") {
+    const std::vector<Rect> others{rect(104, 53, 300, 200)};
+    const auto s = snap(pt(100, 50), size(160, 90), others, {}, reach);
+
+    CHECK(s.at == pt(104, 53));
+    REQUIRE(s.guides.size() == 2);
+    CHECK(has_guide(s, Guide{pt(104, 53), pt(104, 253)}));
+    CHECK(has_guide(s, Guide{pt(104, 53), pt(404, 53)}));
 }
 
 TEST_CASE("the nearest of two candidates wins") {

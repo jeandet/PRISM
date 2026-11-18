@@ -14,10 +14,11 @@ struct Guide {
 };
 
 // A wire end that would level with the dragged card: the port's y on the dragged card relative
-// to the card's top, and the y of the other end (graph units).
+// to the card's top, the y of the other end, and its x (graph units), which the guide reaches.
 struct LevelWith {
     core::DY port_from_top;
     core::Y other_end;
+    core::X other_x;
     bool operator==(const LevelWith&) const = default;
 };
 

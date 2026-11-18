@@ -71,8 +71,8 @@ offered; this plan leaves it out — see Task 1).
 // A line the board draws while a snap holds, in graph units.
 struct Guide { core::Point from, to; };
 // A wire end that would level with the dragged card: the port's y on the dragged card relative
-// to the card's top, and the y of the other end (graph units).
-struct LevelWith { core::DY port_from_top; core::Y other_end; };
+// to the card's top, the y of the other end, and its x, which the guide reaches (graph units).
+struct LevelWith { core::DY port_from_top; core::Y other_end; core::X other_x; };
 struct Snapped { core::Point at; std::vector<Guide> guides; };
 // `at`: where the pointer puts the card's top-left (unsnapped); `size`: its size; `others`: the
 // other cards; `wires`: its wired ports; `reach`: the snap distance in graph units.
@@ -97,7 +97,7 @@ Test `tests/test_node_board.cpp`.
 
 - The grip's move computes the unsnapped position as today, then `snap` with the other cards'
   rects in graph units (their positions and natural sizes, `arranged_extent`), the node's wired
-  ports as `LevelWith` (port row centre relative to the card top; the other end's y from its
+  ports as `LevelWith` (port row centre relative to the card top; the other end's y and x from its
   card's position and row), `reach = 6 / zoom`; moves the node to the snapped point; stores the
   guides for `board_over`. Alt held (the move event's or the press's mods): no snap, no guides.
   Release clears the guides.
