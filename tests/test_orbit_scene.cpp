@@ -34,7 +34,7 @@ Outcome fly(World& w, const Level& level, double gravity, int max_steps = 100'00
 }
 
 bool wins(const Level& level, Vec velocity, double gravity = 1.0) {
-    World w = launch(level, velocity);
+    World w = launch(level, velocity, 1.0);
     return fly(w, level, gravity) == Outcome::Hit;
 }
 

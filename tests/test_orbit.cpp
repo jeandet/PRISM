@@ -33,7 +33,7 @@ Level empty_level() { return {.start = {100, 300}, .target = {900, 300}, .target
 TEST_CASE("with no body a probe flies straight") {
     auto level = empty_level();
     level.target = {500, 100};   // out of its way
-    World w = launch(level, {200, 0});
+    World w = launch(level, {200, 0}, 1.0);
     step(w, level, 1.0, 0.5);
     CHECK(w.probe.pos.x == doctest::Approx(200));
     CHECK(w.probe.pos.y == doctest::Approx(300));
@@ -41,20 +41,20 @@ TEST_CASE("with no body a probe flies straight") {
 
 TEST_CASE("a probe aimed at the target with no body reaches it") {
     auto level = empty_level();
-    World w = launch(level, {400, 0});
+    World w = launch(level, {400, 0}, 1.0);
     CHECK(fly(w, level, 1.0) == Outcome::Hit);
 }
 
 TEST_CASE("a probe that leaves the field is lost") {
     auto level = empty_level();
-    World w = launch(level, {-400, 0});
+    World w = launch(level, {-400, 0}, 1.0);
     CHECK(fly(w, level, 1.0) == Outcome::Lost);
 }
 
 TEST_CASE("a probe aimed straight at a planet crashes into it") {
     Level level = empty_level();
     level.bodies = {{.pos = {500, 300}, .mass = 1.0, .radius = 40}};
-    World w = launch(level, {300, 0});
+    World w = launch(level, {300, 0}, 1.0);
     CHECK(fly(w, level, 1.0) == Outcome::Crashed);
 }
 
@@ -63,7 +63,7 @@ TEST_CASE("a planet pulls a passing probe toward it") {
     level.start = {300, 300};
     level.bodies = {{.pos = {500, 200}, .mass = 1.0, .radius = 20}};
     level.target = {500, 900};   // out of reach
-    World w = launch(level, {300, 0});
+    World w = launch(level, {300, 0}, 1.0);
     run(w, level, 1.0, 240);
     CHECK(w.probe.vel.y < 0);   // bent up, toward the planet above
 }
@@ -73,7 +73,7 @@ TEST_CASE("stronger gravity bends the path more") {
     level.start = {300, 300};
     level.bodies = {{.pos = {500, 200}, .mass = 1.0, .radius = 20}};
     level.target = {500, 900};
-    World weak = launch(level, {300, 0}), strong = launch(level, {300, 0});
+    World weak = launch(level, {300, 0}, 1.0), strong = launch(level, {300, 0}, 1.0);
     for (int i = 0; i < 240; ++i) {
         step(weak, level, 0.5, step_s);
         step(strong, level, 2.0, step_s);
@@ -91,7 +91,7 @@ TEST_CASE("a launch is the drag, reversed and scaled, capped at the top speed") 
 
 TEST_CASE("a launch copies the level: its bodies as they start, the probe at its start") {
     const Level& level = levels().front();
-    World w = launch(level, {120, 0});
+    World w = launch(level, {120, 0}, 1.0);
     REQUIRE(w.bodies.size() == level.bodies.size());
     for (std::size_t i = 0; i < level.bodies.size(); ++i) {
         CHECK(w.bodies[i].pos.x == level.bodies[i].pos.x);
@@ -105,7 +105,7 @@ TEST_CASE("a launch copies the level: its bodies as they start, the probe at its
 
 TEST_CASE("every level's ring is in the field and not buried in a body") {
     for (const auto& level : levels()) {
-        World w = launch(level, {0, 0});
+        World w = launch(level, {0, 0}, 1.0);
         Vec ring = ring_centre(w, level);
         CHECK(ring.x > 0);
         CHECK(ring.x < field_width);
@@ -123,7 +123,7 @@ TEST_CASE("every level has a winning launch at the default gravity") {
             for (double pull = 20; pull <= 180 && !won; pull += 10) {
                 double angle = a * 3.14159265358979 / 180;
                 Vec release = level.start + Vec{std::cos(angle), std::sin(angle)} * pull;
-                World w = launch(level, launch_velocity(level.start, release));
+                World w = launch(level, launch_velocity(level.start, release), 1.0);
                 won = fly(w, level, 1.0, 240 * 20) == Outcome::Hit;
             }
         CHECK(won);
@@ -133,7 +133,7 @@ TEST_CASE("every level has a winning launch at the default gravity") {
 TEST_CASE("many short ticks fly as far as the time they add up to, not one step each") {
     auto level = empty_level();
     level.target = {500, 100};   // out of its way
-    World w = launch(level, {200, 0});
+    World w = launch(level, {200, 0}, 1.0);
     double carry = 0;
     for (int i = 0; i < 100; ++i) advance(w, level, 1.0, 0.001, carry);   // 0.1 s in all
     CHECK(w.probe.pos.x == doctest::Approx(120).epsilon(0.01));   // 200 units/s for 0.1 s
@@ -143,7 +143,7 @@ TEST_CASE("a moon placed by the level helper stays in orbit for a minute") {
     Level level = empty_level();
     level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
     level.bodies.push_back(orbiting(level.bodies, 0, 200, 0.0, 1.0, 12));
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     run(w, level, 1.0, 60 * 240);
     REQUIRE(w.bodies.size() == 2);
     CHECK(length(w.bodies[1].pos - w.bodies[0].pos) == doctest::Approx(200).epsilon(0.10));
@@ -158,7 +158,7 @@ TEST_CASE("the moons' order in the bodies vector does not change where they end 
         orbiting(level.bodies, 0, 200, 0.5, 0.15, 10));   // opposite the first, near enough to pull on it
     Level swapped = level;
     std::swap(swapped.bodies[1], swapped.bodies[2]);
-    World a = launch(level, {0, 0}), b = launch(swapped, {0, 0});
+    World a = launch(level, {0, 0}, 1.0), b = launch(swapped, {0, 0}, 1.0);
     run(a, level, 1.0, 10 * 240);   // ten seconds
     run(b, swapped, 1.0, 10 * 240);
     REQUIRE(a.bodies.size() == 3);
@@ -176,7 +176,7 @@ TEST_CASE("the moons' order in the bodies vector does not change where they end 
 TEST_CASE("the same launch twice flies the same way") {
     const Level& level = levels().front();
     Vec v = launch_velocity(level.start, level.start + Vec{-120, 40});
-    World a = launch(level, v), b = launch(level, v);
+    World a = launch(level, v, 1.0), b = launch(level, v, 1.0);
     const Outcome first = fly(a, level, 1.0), second = fly(b, level, 1.0);
     CHECK(first == second);
     CHECK(a.time > 0.5);   // it flew, rather than standing still
@@ -188,7 +188,7 @@ TEST_CASE("the gravity slider steers a flight in progress") {
     Level level = empty_level();
     level.bodies = {{.pos = {800, 200}, .mass = 1.0, .radius = 20}};
     level.target = {500, 900};   // out of the way
-    World raised = launch(level, {300, 0}), steady = launch(level, {300, 0});
+    World raised = launch(level, {300, 0}, 1.0), steady = launch(level, {300, 0}, 1.0);
     for (int i = 0; i < 240; ++i) {
         step(raised, level, i < 120 ? 1.0 : 2.0, step_s);
         step(steady, level, 1.0, step_s);
@@ -202,11 +202,11 @@ TEST_CASE("a retry starts from the level's state, and the next launch at that gr
     level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
     level.bodies.push_back(orbiting(level.bodies, 0, 200, 0.0, 1.0, 12));
     Vec v = launch_velocity(level.start, level.start + Vec{-100, 30});
-    World steered = launch(level, v);
+    World steered = launch(level, v, 1.0);
     run(steered, level, 1.0, 120);
     CHECK(length(steered.bodies[1].pos - level.bodies[1].pos) > 1);   // the moon moved during that flight
 
-    World retry = launch(level, v);
+    World retry = launch(level, v, 1.0);
     REQUIRE(retry.bodies.size() == level.bodies.size());
     for (std::size_t i = 0; i < level.bodies.size(); ++i) {
         CHECK(retry.bodies[i].pos.x == level.bodies[i].pos.x);
@@ -214,7 +214,7 @@ TEST_CASE("a retry starts from the level's state, and the next launch at that gr
     }
     CHECK(retry.time == 0);
 
-    World a = launch(level, v), b = launch(level, v);
+    World a = launch(level, v, 1.0), b = launch(level, v, 1.0);
     const Outcome first = fly(a, level, 2.0), second = fly(b, level, 2.0);
     CHECK(first == second);
     CHECK(a.time > 0.5);
@@ -226,7 +226,7 @@ TEST_CASE("a moon that hits an anchor dies where it is, and the anchor stays") {
     Level level = empty_level();
     level.bodies.push_back({.pos = {500, 300}, .mass = 1.0, .radius = 40});
     level.bodies.push_back({.pos = {380, 300}, .vel = {200, 0}, .mass = 0.5, .radius = 10, .anchor = false});
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     for (int i = 0; i < 240 && w.bodies[1].alive; ++i) step(w, level, 1.0, step_s);
     REQUIRE(w.bodies.size() == 2);   // the dead moon keeps its slot, so the anchor keeps index 0
     CHECK_FALSE(w.bodies[1].alive);
@@ -238,7 +238,7 @@ TEST_CASE("two moons that hit each other both die") {
     Level level = empty_level();
     level.bodies.push_back({.pos = {450, 300}, .vel = {60, 0}, .mass = 0.5, .radius = 15, .anchor = false});
     level.bodies.push_back({.pos = {550, 300}, .vel = {-60, 0}, .mass = 0.5, .radius = 15, .anchor = false});
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     for (int i = 0; i < 240 && (w.bodies[0].alive || w.bodies[1].alive); ++i) step(w, level, 1.0, step_s);
     CHECK_FALSE(w.bodies[0].alive);
     CHECK_FALSE(w.bodies[1].alive);
@@ -248,14 +248,14 @@ TEST_CASE("a probe that crosses a moon crashes") {
     Level level = empty_level();
     level.target = {900, 900};   // out of the way
     level.bodies.push_back({.pos = {500, 300}, .mass = 0.5, .radius = 40, .anchor = false});
-    World w = launch(level, {300, 0});
+    World w = launch(level, {300, 0}, 1.0);
     CHECK(fly(w, level, 1.0) == Outcome::Crashed);
 }
 
 TEST_CASE("a probe further than 1.5 diagonals from the field's centre is lost") {
     auto level = empty_level();
     level.target = {100, 560};   // out of the way
-    World w = launch(level, {400, 0});
+    World w = launch(level, {400, 0}, 1.0);
     CHECK(fly(w, level, 1.0) == Outcome::Lost);
     CHECK(length(w.probe.pos - field_centre()) > 1.5 * field_diagonal());
 }
@@ -263,7 +263,7 @@ TEST_CASE("a probe further than 1.5 diagonals from the field's centre is lost") 
 TEST_CASE("a probe still flying after thirty seconds is lost") {
     auto level = empty_level();
     level.target = {900, 900};   // out of the way
-    World w = launch(level, {10, 0});   // a slow drift, well inside the field
+    World w = launch(level, {10, 0}, 1.0);   // a slow drift, well inside the field
     double carry = 0;
     CHECK(advance(w, level, 1.0, 31.0, carry) == Outcome::Lost);
     CHECK(w.time > 30);
@@ -276,7 +276,7 @@ TEST_CASE("a ring carried by a moon follows it") {
     level.bodies.push_back(orbiting(level.bodies, 0, 200, 0.0, 1.0, 12));
     level.target_body = 1;
     level.target_radius = 12;
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     Vec first = ring_centre(w, level);
     CHECK(first.x == w.bodies[1].pos.x);
     CHECK(first.y == w.bodies[1].pos.y);
@@ -289,7 +289,7 @@ TEST_CASE("a ring carried by a moon follows it") {
 
 TEST_CASE("a ring with no body carrying it stays where the level puts it") {
     auto level = empty_level();
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     CHECK(ring_centre(w, level).x == level.target.x);
     CHECK(ring_centre(w, level).y == level.target.y);
 }
@@ -302,7 +302,7 @@ TEST_CASE("a body removed before the carrier leaves the ring on its carrier") {
     level.bodies.push_back(orbiting(level.bodies, 0, 200, 0.25, 0.5, 12));   // the carrier
     level.target_body = 2;
 
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     for (int i = 0; i < 240 && w.bodies.size() == 3 && w.bodies[1].alive; ++i)
         step(w, level, 1.0, step_s);
     REQUIRE(w.bodies.size() == 3);   // the removed body stays in place, so the carrier keeps index 2
@@ -327,7 +327,7 @@ TEST_CASE("the ring stays where its carrier died") {
     level.bodies.push_back({.pos = {500, 480}, .vel = {0, -300}, .mass = 0.5, .radius = 12, .anchor = false});
     level.target_body = 1;
 
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     for (int i = 0; i < 240 && w.bodies.size() == 2 && w.bodies[1].alive; ++i)
         step(w, level, 1.0, step_s);
     REQUIRE(w.bodies.size() == 2);
@@ -349,7 +349,7 @@ TEST_CASE("a dead body pulls nothing and is skipped by collisions and crashes") 
     Level level = empty_level();
     level.target = {100, 560};   // out of the way
     level.bodies = with_dead;
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     w.probe.pos = dead.pos;   // sitting where the dead body is
     CHECK(probe_outcome(w, level) == Outcome::Flying);
 
@@ -357,7 +357,7 @@ TEST_CASE("a dead body pulls nothing and is skipped by collisions and crashes") 
     crossing.target = {100, 560};
     crossing.bodies = {{.pos = {500, 300}, .mass = 5.0, .radius = 40, .anchor = true, .alive = false},
                        {.pos = {500, 300}, .mass = 0.5, .radius = 10, .anchor = false}};
-    World c = launch(crossing, {0, 0});
+    World c = launch(crossing, {0, 0}, 1.0);
     step(c, crossing, 1.0, step_s);
     REQUIRE(c.bodies.size() == 2);
     CHECK(c.bodies[1].alive);   // it flew through a dead body, not into one

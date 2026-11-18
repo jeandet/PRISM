@@ -24,7 +24,7 @@ TEST_CASE("the aim preview is the first 1.5 s of the flight the launch would mak
     CHECK(path.front().x == level.start.x);
     CHECK(path.front().y == level.start.y);
 
-    World w = launch(level, velocity);
+    World w = launch(level, velocity, 1.0);
     for (int i = 0; i < 360; ++i) CHECK(step(w, level, 1.0, fixed_step) == Outcome::Flying);
     CHECK(path.back().x == w.probe.pos.x);
     CHECK(path.back().y == w.probe.pos.y);
@@ -49,7 +49,7 @@ TEST_CASE("a moving body's trail keeps 2 s x (1 + persistence / 5) of its path")
     CHECK(trail_seconds(20) == doctest::Approx(10.0));
 
     const Level& level = levels()[3];   // has a moon
-    World w = launch(level, {0, 0});
+    World w = launch(level, {0, 0}, 1.0);
     BodyTrails trails;
     for (int i = 0; i < 1200; ++i) {   // 5 s
         step(w, level, 1.0, fixed_step);

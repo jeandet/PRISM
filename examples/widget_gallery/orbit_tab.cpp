@@ -121,6 +121,7 @@ bool OrbitTab::on_tick(ui::AnimationClock::time_point now) {
     if (world_) fly(dt);
     if (win_pause_) finish_win_pause(dt);
     view_ = orbit::eased(view_, wanted_now(), dt);
+    if (world_) view_ = orbit::contains(view_, world_->probe.pos, aspect_);
     ++frame;
     const bool going = world_ || win_pause_ || !near(view_, wanted_now());
     clock_running_ = going;

@@ -207,7 +207,8 @@ inline Level bare_scene(std::mt19937_64& rng) {
 // starts on the ring, so the shot the level looks like it wants is tried first, then 3° steps
 // around the circle; every direction tries the slowest speed first.
 inline std::optional<Vec> solve(const Level& level, double gravity = 1.0) {
-    const Vec aim = ring_centre(launch(level, {}), level);
+    // only positions are read, so any gravity does
+    const Vec aim = ring_centre(launch(level, {}, 1.0), level);
     const double first = std::atan2(aim.y - level.start.y, aim.x - level.start.x);
     for (int direction = 0; direction < scene_detail::grid_directions; ++direction) {
         const double angle =

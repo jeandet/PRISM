@@ -145,7 +145,7 @@ TEST_CASE("the camera follows a flight and comes back once it ends") {
     Level level{.start = {900, 300}, .target = {200, 300}, .target_radius = 20};
     level.bodies.push_back(Body{.pos = {1400, 300}, .mass = 1e-6, .radius = 40});
 
-    World w = launch(level, {500, 0});
+    World w = launch(level, {500, 0}, 1.0);
     double carry = 0;
     View view = wanted_view(w.probe.pos, aspect);
     double widest = view.width;
@@ -163,4 +163,25 @@ TEST_CASE("the camera follows a flight and comes back once it ends") {
     CHECK(view.width == doctest::Approx(bare.width).epsilon(1e-4));
     CHECK(view.centre.x == doctest::Approx(bare.centre.x).epsilon(1e-4));
     CHECK(view.centre.y == doctest::Approx(bare.centre.y).epsilon(1e-4));
+}
+
+TEST_CASE("a fast probe flying straight up stays in the eased and grown view") {
+    // 520 is the launch speed; a slingshot past a planet makes a probe several times faster.
+    bool grown_needed = false;
+    for (double speed : {max_launch_speed, 1500.0, 3000.0}) {
+        Vec probe{500, 300};
+        View view = wanted_view(std::nullopt, aspect);
+        View lagging = view;   // the same easing without the growing, to see that it is needed
+        const Vec c = field_centre();
+        for (int frame = 0; std::abs(probe.y - c.y) < lost_reach_units(); ++frame) {
+            probe.y -= speed * frame_s;
+            view = eased(view, wanted_view(probe, aspect), frame_s);
+            lagging = eased(lagging, wanted_view(probe, aspect), frame_s);
+            grown_needed = grown_needed || !shows(lagging, probe);
+            view = contains(view, probe, aspect);
+            INFO("speed " << speed << " frame " << frame << " probe y " << probe.y);
+            REQUIRE(shows(view, probe));
+        }
+    }
+    CHECK(grown_needed);
 }

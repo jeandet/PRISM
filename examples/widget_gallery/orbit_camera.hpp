@@ -58,6 +58,15 @@ inline View wanted_view(const std::optional<Vec>& probe, double aspect) {
             .width = camera_detail::view_width(box, aspect > 0 ? aspect : 1)};
 }
 
+// `v` grown, about its centre, until `probe` and a margin are inside it: easing lags a fast probe,
+// and it must stay in sight until it is lost. Never needs more than the lost square gives, since
+// the centre stays in it.
+inline View contains(View v, Vec probe, double aspect) {
+    const double need_x = 2 * (std::abs(probe.x - v.centre.x) + camera_margin);
+    const double need_y = 2 * (std::abs(probe.y - v.centre.y) + camera_margin) * aspect;
+    return {.centre = v.centre, .width = std::max({v.width, need_x, need_y})};
+}
+
 // One frame of `seconds` of easing from `now` toward `wanted`, centre and width alike: each closes
 // the same share of its gap, so the time constant alone says how quickly the camera catches up.
 inline View eased(View now, View wanted, double seconds) {

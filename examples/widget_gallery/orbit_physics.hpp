@@ -102,7 +102,7 @@ inline void verlet_step(World& w, double gravity, double dt) {
 // A fresh flight: the level's bodies as they start, and the probe at the start with `velocity`.
 // Moving bodies start `sqrt(gravity)` times faster, which keeps a circular orbit circular when the
 // gravity slider is not at 1 (the speed an orbit needs grows with the square root of the pull).
-inline World launch(const Level& level, Vec velocity, double gravity = 1.0) {
+inline World launch(const Level& level, Vec velocity, double gravity) {
     World w{.bodies = level.bodies, .probe = {.pos = level.start, .vel = velocity}, .time = 0};
     for (auto& b : w.bodies) b.vel = b.vel * std::sqrt(gravity);
     return w;
