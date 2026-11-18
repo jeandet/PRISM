@@ -60,6 +60,7 @@ prism_lib = library('prism',
   'text/find.cpp',
   'text/complete.cpp',
   'ui/delegate.cpp',
+  'ui/layout.cpp',
   dependencies : [prism_headers_dep],
   install : true,
 )

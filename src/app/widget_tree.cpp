@@ -589,6 +589,7 @@ WidgetNode WidgetTree::build_widget_node(Node& node) {
     wn.layer_places = node.layer_places;
     wn.board_places = node.board_places;
     wn.board_under = node.board_under;
+    wn.board_scale = node.board_scale;
     wn.board_over = node.board_over;
     wn.keep_key = node.keep_key;
 #ifdef PRISM_DEBUG_TOOLS_ENABLED

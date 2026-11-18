@@ -92,11 +92,11 @@ namespace buttons {
     inline constexpr uint32_t left_mask = 1u << (left - 1);   // matches SDL_BUTTON_LMASK
 }
 
-inline InputEvent localize_mouse(const InputEvent& ev, Rect widget_rect) {
-    Offset off{DX{widget_rect.origin.x.raw()}, DY{widget_rect.origin.y.raw()}};
+inline InputEvent localize_mouse(const InputEvent& ev, Rect widget_rect, float scale = 1.f) {
     return std::visit([&](auto e) -> InputEvent {
         if constexpr (requires { e.position; })
-            e.position = e.position - off;
+            e.position = Point{X{(e.position.x.raw() - widget_rect.origin.x.raw()) / scale},
+                               Y{(e.position.y.raw() - widget_rect.origin.y.raw()) / scale}};
         return e;
     }, ev);
 }

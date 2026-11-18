@@ -719,3 +719,68 @@ TEST_CASE("input reaching a node's widgets after the node was removed does nothi
     CHECK(f.m.graph.nodes().empty());
     CHECK_FALSE(f.shows("Source"));
 }
+
+namespace {
+struct Level {   // a node with a widget and no port
+    Field<Slider<>> level{{.value = 0.25}};
+    Field<TextField<>> name{{.value = "abcdef"}};
+    WidgetId level_id = 0, name_id = 0;
+    std::vector<nodes::Port*> ports() { return {}; }
+    void view(WidgetTree::ViewBuilder& vb) {
+        level_id = vb.widget(level).node_ref.id;
+        name_id = vb.widget(name).node_ref.id;
+    }
+};
+
+struct LevelBoard {
+    Level node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Level", .family = "math", .at = P(20, 30)});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+using LevelFixture = BasicFixture<LevelBoard>;
+
+LevelFixture& zoomed(LevelFixture& f, float zoom) {
+    f.m.graph.set_view({.pan = {}, .zoom = zoom});
+    f.frame();
+    return f;
+}
+
+std::optional<Rect> drawn_with(const SceneSnapshot& snap, WidgetId id, Color c) {
+    for (std::size_t i = 0; i < snap.geometry.size(); ++i)
+        if (snap.geometry[i].first == id)
+            for (auto& cmd : snap.draw_lists[i]->commands)
+                if (auto* r = std::get_if<FilledRect>(&cmd); r && r->color == c) return r->rect;
+    return std::nullopt;
+}
+}
+
+TEST_CASE("a slider in a node at zoom 0.5 follows the pointer across its drawn track") {
+    LevelFixture f;
+    zoomed(f, 0.5f);
+    const WidgetId id = f.m.node.level_id;
+    const auto thumb = drawn_with(*f.snap, id, f.tree.theme().accent);
+    const auto track = find_widget_rect(*f.snap, id);
+    REQUIRE((thumb && track));
+    const Point at = thumb->origin + Offset{DX{thumb->extent.w.raw() / 2}, DY{thumb->extent.h.raw() / 2}};
+    f.press(at);
+    const double pressed = f.m.node.level.get().value;
+    CHECK(pressed == doctest::Approx(0.25).epsilon(0.1));
+    f.move_to(at + Offset{DX{track->extent.w.raw() / 2}, DY{0}});
+    CHECK(f.m.node.level.get().value - pressed == doctest::Approx(0.5).epsilon(0.05));
+}
+
+TEST_CASE("a click in a text field in a node at zoom 2 puts the caret between the letters under it") {
+    LevelFixture f;
+    zoomed(f, 2.f);
+    const auto text = f.text_at("abcdef");
+    REQUIRE(text);
+    const float abc = text_width(f.tree.theme().measurer, "abc", 14.f);
+    const Point at{text->x + DX{2.f * abc}, text->y + DY{6.f}};
+    f.press(at);
+    f.release(at);
+    REQUIRE(f.tree.focused_id() == f.m.node.name_id);
+    route_event(f.tree, f.snap.get(), TextInput{"X"});
+    CHECK(f.m.node.name.get().value == "abcXdef");
+}

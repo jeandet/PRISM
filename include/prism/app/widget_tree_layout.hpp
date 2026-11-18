@@ -279,6 +279,7 @@ inline void build_layout(WidgetNode& node, LayoutNode& parent, bool keep) {
         if (node.board_places) container.board_points = node.board_places();
         container.board_under = node.board_under;
         container.board_over = node.board_over;
+        if (node.board_scale) container.board_scale = node.board_scale();
         build_children(node, container, keep);
         parent.children.push_back(std::move(container));
     } else if (node.layout_kind == LK::Tabs) {

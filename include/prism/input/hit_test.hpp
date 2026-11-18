@@ -33,21 +33,31 @@ using namespace prism::render;
     return std::nullopt;
 }
 
+// Where a widget is drawn, and at what zoom (a zoomed board's cards): its own coordinates
+// start at rect's origin, scaled by `scale`.
+struct Placed {
+    Rect rect;
+    float scale = 1.f;
+};
+
+[[nodiscard]] inline float scale_of(const SceneSnapshot& snap, std::size_t i) {
+    return snap.scale.empty() ? 1.f : snap.scale[i];
+}
+
 // Where a widget is: in the window, or else in the overlay (the widgets of an open popup), so
 // events reach them in their own coordinates too.
-[[nodiscard]] inline std::optional<Rect> find_widget_rect(
-    const SceneSnapshot& snap, WidgetId id)
-{
-    for (auto& [wid, rect] : snap.geometry) {
-        if (wid == id) return rect;
-    }
-    for (auto& [wid, rect] : snap.overlay_placed) {
-        if (wid == id) return rect;
-    }
-    for (auto& [wid, rect] : snap.overlay_geometry) {
-        if (wid == id) return rect;
-    }
+[[nodiscard]] inline std::optional<Placed> find_widget_place(const SceneSnapshot& snap, WidgetId id) {
+    for (std::size_t i = 0; i < snap.geometry.size(); ++i)
+        if (snap.geometry[i].first == id) return Placed{snap.geometry[i].second, scale_of(snap, i)};
+    for (auto& [wid, rect] : snap.overlay_placed)
+        if (wid == id) return Placed{rect};
+    for (auto& [wid, rect] : snap.overlay_geometry)
+        if (wid == id) return Placed{rect};
     return std::nullopt;
+}
+
+[[nodiscard]] inline std::optional<Rect> find_widget_rect(const SceneSnapshot& snap, WidgetId id) {
+    return find_widget_place(snap, id).transform([](const Placed& p) { return p.rect; });
 }
 
 // The scroll view whose scrollbar is under `pos` (a press there drags its thumb).

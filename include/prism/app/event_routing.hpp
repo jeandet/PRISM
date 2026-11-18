@@ -12,6 +12,19 @@ using namespace prism::core;
 using namespace prism::input;
 using namespace prism::ui;
 
+// `ev` in widget `id`'s own coordinates: from where it is drawn, at its zoom.
+inline InputEvent local_to(const SceneSnapshot& snap, WidgetId id, const InputEvent& ev) {
+    auto place = find_widget_place(snap, id);
+    return place ? localize_mouse(ev, place->rect, place->scale) : ev;
+}
+
+// A drop at `p` (window coordinates) in the target's own coordinates.
+inline DropPlace drop_place_in(const Placed& target, Point p) {
+    const float s = target.scale;
+    return {Point{X{(p.x.raw() - target.rect.origin.x.raw()) / s}, Y{(p.y.raw() - target.rect.origin.y.raw()) / s}},
+            Size{Width{target.rect.extent.w.raw() / s}, Height{target.rect.extent.h.raw() / s}}};
+}
+
 // --- popup layer: while a popup is open it gets all input first ---
 
 // The open popup's area in window coordinates (its owner stores it in its own coordinates).
@@ -43,8 +56,7 @@ inline bool on_popup(const WidgetTree& tree, const SceneSnapshot& snap, Point po
 
 inline void dispatch_to_popup(WidgetTree& tree, const SceneSnapshot& snap, const InputEvent& ev) {
     auto id = tree.popup_owner();
-    auto rect = find_widget_rect(snap, id);
-    tree.dispatch(id, rect ? localize_mouse(ev, *rect) : ev);
+    tree.dispatch(id, local_to(snap, id, ev));
 }
 
 // Returns true if the popup took the event. A press outside closes a plain popup and is
@@ -132,11 +144,10 @@ inline bool route_drag_release(WidgetTree& tree, const SceneSnapshot& snap, Poin
     }
     WidgetId target = drop_target_at(tree, snap, p, tree.drag()->value);
     tree.move_drag(p, target);
-    auto rect = target ? find_widget_rect(snap, target) : std::nullopt;
-    if (target && !rect) rect = tree.drop_area_rect(target);   // a container: its recorded area
-    tree.end_drag(rect ? std::optional{DropPlace{Point{X{p.x.raw() - rect->origin.x.raw()}, Y{p.y.raw() - rect->origin.y.raw()}},
-                                                 rect->extent}}
-                       : std::nullopt);
+    auto place = target ? find_widget_place(snap, target) : std::nullopt;
+    if (target && !place)   // a container: its recorded area
+        place = tree.drop_area_rect(target).transform([](Rect r) { return Placed{r}; });
+    tree.end_drag(place ? std::optional{drop_place_in(*place, p)} : std::nullopt);
     return true;
 }
 
@@ -151,13 +162,9 @@ inline void route_mouse_move(WidgetTree& tree, const SceneSnapshot& snap,
         return;
     }
     if (auto cid = tree.captured_id(); cid != 0) {
-        auto rect = find_widget_rect(snap, cid);
-        InputEvent ev = mm;
-        tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);
+        tree.dispatch(cid, local_to(snap, cid, mm));
     } else if (hovered) {
-        auto rect = find_widget_rect(snap, *hovered);
-        InputEvent ev = mm;
-        tree.dispatch(*hovered, rect ? localize_mouse(ev, *rect) : ev);
+        tree.dispatch(*hovered, local_to(snap, *hovered, mm));
     }
 }
 
@@ -168,8 +175,7 @@ inline bool open_context_menu(WidgetTree& tree, const SceneSnapshot& snap, const
     if (!mb.pressed || mb.button != buttons::right) return false;
     auto menu = tree.context_menu_for(hit_test(snap, mb.position), mb.position);
     if (!menu) return false;
-    auto rect = find_widget_rect(snap, *menu);
-    tree.dispatch(*menu, rect ? localize_mouse(ev, *rect) : ev);
+    tree.dispatch(*menu, local_to(snap, *menu, ev));
     return true;
 }
 
@@ -208,8 +214,7 @@ inline bool route_other_button(WidgetTree& tree, const SceneSnapshot& snap, cons
                                const MouseButton& mb) {
     const WidgetId cid = tree.captured_id();
     if (cid == 0 || tree.captured_button() != buttons::left || mb.button == buttons::left) return false;
-    auto rect = find_widget_rect(snap, cid);
-    tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);
+    tree.dispatch(cid, local_to(snap, cid, ev));
     return true;
 }
 
@@ -233,8 +238,7 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
     auto id = hit_test(snap, mb.position);
     if (!mb.pressed && tree.captured_id() != 0) {
         auto cid = tree.captured_id();
-        auto rect = find_widget_rect(snap, cid);
-        tree.dispatch(cid, rect ? localize_mouse(ev, *rect) : ev);   // still pressed: a click lands
+        tree.dispatch(cid, local_to(snap, cid, ev));   // still pressed: a click lands
         tree.set_pressed(cid, false);
     } else if (id) {
         tree.set_pressed(*id, mb.pressed, mb.button);
@@ -245,7 +249,7 @@ inline void route_mouse_button(WidgetTree& tree, const SceneSnapshot& snap,
             tree.set_focused(*id);
             if (mb.button == buttons::left && rect) tree.arm_drag(*id, mb.position, *rect);
         }
-        tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
+        tree.dispatch(*id, local_to(snap, *id, ev));
     } else if (mb.pressed) {
         tree.close_overlays();
         tree.clear_focus();
@@ -262,9 +266,7 @@ inline void route_mouse_scroll(WidgetTree& tree, const SceneSnapshot& snap,
     constexpr float wheel_multiplier = 60.f;
     auto id = hit_test(snap, ms.position);
     if (id) {
-        auto rect = find_widget_rect(snap, *id);
-        InputEvent ev = ms;
-        tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
+        tree.dispatch(*id, local_to(snap, *id, ms));
         WidgetId stop = tree.open_content_popup() ? tree.popup_owner() : 0;   // stays in the popup
         tree.scroll_at(*id, DY{-ms.dy.raw() * wheel_multiplier}, stop);   // wheel down: further down
     }
@@ -378,8 +380,7 @@ inline void route_drop(WidgetTree& tree, const SceneSnapshot& snap, const InputE
     auto id = hit_test(snap, file ? file->position : text->position);
     if (!id) return;
     if (file) {
-        auto rect = find_widget_rect(snap, *id);
-        tree.dispatch(*id, rect ? localize_mouse(ev, *rect) : ev);
+        tree.dispatch(*id, local_to(snap, *id, ev));
         return;
     }
     tree.set_focused(*id);

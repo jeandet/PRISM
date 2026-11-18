@@ -167,3 +167,49 @@ TEST_CASE("a card wholly off the board contributes no geometry") {
     CHECK_FALSE(geometry_of(snap, 5));
     CHECK(geometry_of(snap, 6));
 }
+
+namespace {
+std::optional<std::size_t> entry_of(const SceneSnapshot& snap, WidgetId id) {
+    for (std::size_t i = 0; i < snap.geometry.size(); ++i) if (snap.geometry[i].first == id) return i;
+    return std::nullopt;
+}
+
+LayoutNode zoomed_board(float scale, Point card_at) {
+    auto b = board({card_at}, {leaf(5, 80, 40)});
+    b.board_scale = scale;
+    layout_measure(b, LayoutAxis::Vertical);
+    layout_arrange(b, R(10, 20, 800, 600));
+    return b;
+}
+}
+
+TEST_CASE("a zoomed board's cards are drawn and placed through its zoom, about its origin") {
+    auto b = zoomed_board(0.5f, P(200, 100));
+    SceneSnapshot snap;
+    layout_flatten(b, snap);
+    REQUIRE(snap.scale.size() == snap.geometry.size());
+    auto card = entry_of(snap, 5);
+    REQUIRE(card);
+    CHECK(snap.geometry[*card].second == R(110, 70, 40, 20));
+    CHECK(snap.visible[*card] == R(110, 70, 40, 20));
+    CHECK(snap.scale[*card] == 0.5f);
+    auto& cmds = snap.draw_lists[*card]->commands;
+    auto it = std::ranges::find_if(cmds, [](auto& c) { return std::holds_alternative<FilledRect>(c); });
+    REQUIRE(it != cmds.end());
+    CHECK(std::get<FilledRect>(*it).rect == R(110, 70, 40, 20));
+
+    auto whole = entry_of(snap, 1);
+    auto background_entry = entry_of(snap, 2);
+    REQUIRE((whole && background_entry));
+    CHECK(snap.geometry[*whole].second == R(10, 20, 800, 600));
+    CHECK(snap.scale[*whole] == 1.f);
+    CHECK(snap.geometry[*background_entry].second == R(10, 20, 10, 10));
+    CHECK(snap.scale[*background_entry] == 1.f);
+}
+
+TEST_CASE("a card inside the board unscaled but outside it once zoomed is not flattened") {
+    auto b = zoomed_board(2.f, P(500, 100));
+    SceneSnapshot snap;
+    layout_flatten(b, snap);
+    CHECK_FALSE(entry_of(snap, 5));
+}

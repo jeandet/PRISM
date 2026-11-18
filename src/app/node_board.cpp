@@ -459,6 +459,7 @@ WidgetId ViewBuilder::node_board(nodes::Graph& graph) {
         assert(every_port_placed(graph, *parts) && "a node's view must place each of its ports with vb.port");
     };
     b.board_places = [&graph, parts] { return places(graph, *parts); };
+    b.board_scale = [&graph] { return graph.view().zoom; };
     b.board_under = [parts, &theme = tree_.theme()](render::DrawList& dl, const BoardRectOf& rect_of) {
         draw_wires(dl, *parts, rect_of, theme.accent);
     };

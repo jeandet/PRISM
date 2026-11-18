@@ -93,6 +93,7 @@ struct WidgetNode {
     std::function<std::vector<Point>()> board_places;   // see Node::board_places
     BoardDraw board_under;
     BoardDraw board_over;
+    std::function<float()> board_scale;   // see Node::board_scale
     bool content_built = false;   // build_content has run (its content may well be empty)
     std::string keep_key;   // see Node::keep_key
     bool reused = false;    // just put back from the parked subtrees: already wired and subscribed

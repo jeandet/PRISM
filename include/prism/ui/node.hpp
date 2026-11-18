@@ -104,6 +104,7 @@ struct Node {
     std::function<std::vector<Point>()> board_places;
     BoardDraw board_under;
     BoardDraw board_over;
+    std::function<float()> board_scale;   // its cards' zoom, read at every layout; unset = 1. Copied.
     // Kept when what holds it is rebuilt (a dock panel moved elsewhere): the built widgets are
     // parked under this key and put back where a node with the same key is built next.
     std::string keep_key;

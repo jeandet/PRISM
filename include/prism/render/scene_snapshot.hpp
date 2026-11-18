@@ -35,6 +35,10 @@ struct SceneSnapshot {
     // leave visible, all a click can hit. geometry keeps the whole rect, as its origin is where
     // the widget's own coordinates start. Empty in a snapshot built by hand: hits use geometry.
     std::vector<Rect> visible;
+    // Parallel to geometry: the zoom each entry is drawn at (a zoomed board's cards), 1 elsewhere.
+    // An event reaches the widget at (position - origin) / scale. Empty in a snapshot built by
+    // hand: read as 1.
+    std::vector<float> scale;
     // Per-widget entries may be shared with a previous snapshot (see layout_flatten's
     // per-widget DrawList cache) -- const so nothing downstream can mutate a shared entry
     // out from under another snapshot still holding it.

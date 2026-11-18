@@ -98,6 +98,7 @@ struct LayoutNode {
     std::vector<Point> board_points;   // Kind::Board: where children after the first lie, in its coordinates
     BoardDraw board_under;   // Kind::Board: drawn above the first child, below the others
     BoardDraw board_over;    // Kind::Board: drawn above all its children
+    float board_scale = 1.f;   // Kind::Board: its cards drawn and hit at this zoom, about its origin
     DY scroll_offset{0};        // only for Kind::Scroll and VirtualList
     Height scroll_content_h{0}; // total content height, for scrollbar rendering
     size_t vlist_visible_start = 0;  // first materialized item index (VirtualList only)
@@ -510,6 +511,7 @@ inline Rect narrow(std::optional<Rect> clip, Rect inner) {
 inline void push_geometry(SceneSnapshot& snap, WidgetId id, Rect rect, std::optional<Rect> clip) {
     snap.geometry.push_back({id, rect});
     snap.visible.push_back(narrow(clip, rect));
+    snap.scale.push_back(1.f);
 }
 
 inline void push_entry(SceneSnapshot& snap, WidgetId id, Rect rect, DrawList dl,
@@ -710,6 +712,15 @@ inline bool shows_in(Rect r, Rect visible) {
     return seen.extent.w.raw() > 0 && seen.extent.h.raw() > 0;
 }
 
+// `inside`: the part of the board that shows, in the cards' own (unzoomed) coordinates.
+inline void flatten_cards(LayoutNode& board, SceneSnapshot& snap, Rect inside) {
+    for (std::size_t i = 1; i < board.children.size(); ++i)
+        if (shows_in(board.children[i].allocated, inside)) layout_flatten(board.children[i], snap, inside);
+}
+
+// The cards at the board's zoom (src/ui/layout.cpp).
+void flatten_zoomed_cards(LayoutNode& board, SceneSnapshot& snap, Rect inside);
+
 inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<Rect> clip) {
     const Rect inside = narrow(clip, node.allocated);
     DrawList clip_dl;
@@ -717,8 +728,8 @@ inline void flatten_board(LayoutNode& node, SceneSnapshot& snap, std::optional<R
     push_entry(snap, node.id, node.allocated, std::move(clip_dl), clip);
     if (!node.children.empty()) layout_flatten(node.children[0], snap, inside);
     flatten_board_draw(node, node.board_under, snap);
-    for (std::size_t i = 1; i < node.children.size(); ++i)
-        if (shows_in(node.children[i].allocated, inside)) layout_flatten(node.children[i], snap, inside);
+    if (node.board_scale == 1.f) flatten_cards(node, snap, inside);
+    else flatten_zoomed_cards(node, snap, inside);
     flatten_board_draw(node, node.board_over, snap);
     DrawList pop_dl;
     pop_dl.clip_pop();

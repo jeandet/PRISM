@@ -5,10 +5,12 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
+#include <prism/app/event_routing.hpp>
 #include <prism/app/widget_tree.hpp>
 #include <prism/backends/sdl_font_set.hpp>
 #include <prism/backends/sdl_text_measurer.hpp>
 #include <prism/backends/sdl_window.hpp>
+#include <prism/nodes/graph.hpp>
 #ifdef PRISM_TEST_WEBGPU
 #include <prism/backends/wgpu_renderer.hpp>
 #endif
@@ -74,17 +76,17 @@ struct Rig {
     }
 
     template <typename Model>
-    Frame render(WidgetTree& tree, float scale, const char* name) {
+    Frame render(WidgetTree& tree, float scale, const char* name, int width = w, int height = h) {
 #ifdef PRISM_TEST_WEBGPU
         if (via == Via::WebGpu) return render_webgpu(tree, scale, name);
 #endif
-        backends::SdlWindow win{1, WindowConfig{.title = name, .width = static_cast<int>(w * scale),
-                                                .height = static_cast<int>(h * scale),
+        backends::SdlWindow win{1, WindowConfig{.title = name, .width = static_cast<int>(width * scale),
+                                                .height = static_cast<int>(height * scale),
                                                 .decoration = DecorationMode::None}};
         win.ensure_created();
         win.force_device_scale(scale);
         tree.set_text_measurer(&measurer);
-        auto snap = tree.build_snapshot(w, h, ++version);
+        auto snap = tree.build_snapshot(width, height, ++version);
         win.render_snapshot(*snap, fonts, /*present=*/false);
         SDL_Surface* raw = SDL_RenderReadPixels(win.renderer(), nullptr);
         REQUIRE(raw);
@@ -311,3 +313,70 @@ TEST_CASE("webgpu: a selection covers exactly its word, at 2x (HiDPI)") { check_
 TEST_CASE("webgpu: a tree row's icon is clear of its label, at 1x") { check_icon_clear_of_label(1.f, Via::WebGpu); }
 TEST_CASE("webgpu: a tree row's icon is clear of its label, at 2x") { check_icon_clear_of_label(2.f, Via::WebGpu); }
 #endif
+
+namespace {
+struct LevelNode {
+    Field<Slider<>> level{{.value = 0.75}};
+    WidgetId id = 0;
+    std::vector<nodes::Port*> ports() { return {}; }
+    void view(WidgetTree::ViewBuilder& vb) { id = vb.widget(level).node_ref.id; }
+};
+
+struct ZoomedBoard {
+    LevelNode node;
+    nodes::Graph graph;
+    nodes::NodeId a = graph.add(node, {.title = "Level", .family = "math", .at = Point{X{60}, Y{80}}});
+    void view(WidgetTree::ViewBuilder& vb) { vb.node_board(graph); }
+};
+
+bool near_color(const std::uint8_t* p, Color c) {
+    return std::abs(p[0] - c.r) + std::abs(p[1] - c.g) + std::abs(p[2] - c.b) < 12;
+}
+
+// The bounding box of the pixels of colour `c`, in logical pixels.
+std::optional<Rect> pixels_of(const Frame& f, Color c, int s) {
+    int x0 = f.w, y0 = f.h, x1 = -1, y1 = -1;
+    for (int y = 0; y < f.h; ++y)
+        for (int x = 0; x < f.w; ++x)
+            if (near_color(f.at(x, y), c)) {
+                x0 = std::min(x0, x); y0 = std::min(y0, y);
+                x1 = std::max(x1, x); y1 = std::max(y1, y);
+            }
+    if (x1 < 0) return std::nullopt;
+    const float k = 1.f / static_cast<float>(s);
+    return Rect{Point{X{x0 * k}, Y{y0 * k}}, Size{Width{(x1 + 1 - x0) * k}, Height{(y1 + 1 - y0) * k}}};
+}
+
+bool contains(Rect outer, Rect inner, float slack) {
+    return inner.origin.x.raw() >= outer.origin.x.raw() - slack && inner.origin.y.raw() >= outer.origin.y.raw() - slack
+        && inner.origin.x.raw() + inner.extent.w.raw() <= outer.origin.x.raw() + outer.extent.w.raw() + slack
+        && inner.origin.y.raw() + inner.extent.h.raw() <= outer.origin.y.raw() + outer.extent.h.raw() + slack;
+}
+}
+
+TEST_CASE("a slider in a node at zoom 0.5 is drawn where it is hit") {
+    constexpr int width = 800, height = 600;
+    Rig rig;
+    ZoomedBoard model;
+    model.graph.set_view({.pan = {}, .zoom = 0.5f});
+    WidgetTree tree{model};
+    Frame f = rig.render<ZoomedBoard>(tree, 1.f, "zoomed-slider", width, height);
+    auto snap = tree.build_snapshot(width, height, ++rig.version);
+    const Color accent = tree.theme().accent;
+    const auto hit = input::find_widget_rect(*snap, model.node.id);   // where clicks reach the slider
+    REQUIRE(hit);
+    auto seen = pixels_of(f, accent, std::max(1, f.w / width));
+    REQUIRE(seen);
+    INFO("slider hit at " << hit->origin.x.raw() << "," << hit->origin.y.raw() << " " << hit->extent.w.raw()
+         << "x" << hit->extent.h.raw() << "; accent pixels at " << seen->origin.x.raw() << "," << seen->origin.y.raw()
+         << " " << seen->extent.w.raw() << "x" << seen->extent.h.raw());
+    CHECK(contains(*hit, *seen, 1.f));
+    CHECK(seen->extent.w.raw() == doctest::Approx(Widget<Slider<>>::thumb_len * 0.5f).epsilon(0.2));
+
+    const Point at = seen->origin + Offset{DX{seen->extent.w.raw() / 2}, DY{seen->extent.h.raw() / 2}};
+    app::widget_detail::route_event(tree, snap.get(), MouseButton{at, buttons::left, true});
+    CHECK(model.node.level.get().value == doctest::Approx(0.75).epsilon(0.1));
+    snap = tree.build_snapshot(width, height, ++rig.version);
+    app::widget_detail::route_event(tree, snap.get(), MouseMove{at - Offset{DX{40}, DY{0}}, 1});
+    CHECK(model.node.level.get().value < 0.6);
+}
