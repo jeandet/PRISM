@@ -1412,7 +1412,8 @@ struct IdleBackend final : public prism::BackendBase {
         std::this_thread::sleep_for(std::chrono::milliseconds(700));
         cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
     }
-    void submit(prism::WindowId, std::shared_ptr<const prism::SceneSnapshot>) override {}
+    int submits = 0;
+    void submit(prism::WindowId, std::shared_ptr<const prism::SceneSnapshot>) override { ++submits; }
     void wake() override {}
     void quit() override {}
 };
@@ -1426,4 +1427,21 @@ TEST_CASE("a tidy asked with no input after it still runs to its end") {
     prism::model_app(backend, window, model, [&](prism::AppContext&) { model.graph.request_tidy(); });
     CHECK_FALSE(model.graph.tidy_requested());
     CHECK(model.graph.position(model.a).x.raw() < model.graph.position(model.b).x.raw());
+}
+
+namespace {
+struct BusyModel {
+    prism::Field<prism::ProgressBar> bar{prism::ProgressBar{.busy = true}};
+    void view(prism::WidgetTree::ViewBuilder& vb) { vb.vstack(bar); }
+};
+}
+
+TEST_CASE("a busy bar keeps animating with no input after it") {
+    BusyModel model;
+    auto idle = std::make_unique<IdleBackend>();
+    auto* raw = idle.get();
+    auto backend = prism::Backend{std::move(idle)};
+    auto& window = backend.create_window({.width = 300, .height = 100});
+    prism::model_app(backend, window, model);
+    CHECK(raw->submits >= 5);
 }

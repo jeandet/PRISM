@@ -268,6 +268,7 @@ void AppRun::publish_entry(WindowId id, WindowRegistry::Entry& entry) {
     entry.republished_in_a_row = changed.empty() ? 0 : entry.republished_in_a_row + 1;
     warn_if_built_in_a_loop(entry.republished_in_a_row, changed);
     if (entry.tree->any_dirty()) publish_after_input(std::nullopt);
+    if (const auto due = entry.tree->next_wake()) deadline_timer_->arm(*due);   // one set while building
 #ifdef PRISM_DEBUG_TOOLS_ENABLED
     if (id == primary_id_ && debug_controller_)
         debug_controller_->update_stats(*entry.current_snap);
