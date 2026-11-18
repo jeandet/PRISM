@@ -134,8 +134,7 @@ struct Theme {
     Color node_border     = Color::rgba(42, 47, 61);
     Color node_border_selected = Color::rgba(58, 66, 88);
     Color node_glow       = Color::rgba(0, 140, 200, 89);   // accent at 35 %
-    // By wire slot: waveform, number, boolean, integer, text, then the app's own types, one slot
-    // each in the order they are first used, wrapping round.
+    // By wire slot: waveform, number, boolean, integer, text, then the neutral one every app type shares.
     std::array<Color, node_wire_slots> node_wires{
         Color::rgba(78, 161, 255), Color::rgba(242, 163, 58), Color::rgba(95, 211, 141),
         Color::rgba(169, 139, 255), Color::rgba(238, 241, 247), Color::rgba(154, 161, 178)};

@@ -12,7 +12,6 @@ namespace prism::app {
 namespace {
 
 constexpr float row_height = 26.f;
-constexpr float dot_radius = 5.f;
 constexpr float dot_inset = 14.f;
 constexpr float title_inset = 28.f;
 constexpr float title_size = 14.f;
@@ -29,7 +28,7 @@ struct Palette {
 // The graph point at the board's top-left, shifted by one step for each node added before.
 core::Point next_spot(Palette& p) {
     const float shift = cascade_step * static_cast<float>(p.added++);
-    return core::Point{} - (p.graph->view().pan - core::Point{}) + core::Offset{core::DX{shift}, core::DY{shift}};
+    return nodes::graph_point(p.graph->view(), {}) + core::Offset{core::DX{shift}, core::DY{shift}};
 }
 
 void draw_row(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n, const nodes::NodeKind& kind) {
@@ -37,7 +36,7 @@ void draw_row(render::DrawList& dl, core::Rect r, const ui::WidgetNode& n, const
     const auto& vs = ui::node_vs(n);
     const float mid = r.origin.y.raw() + r.extent.h.raw() / 2.f;
     if (vs.hovered) dl.filled_rect(r, t.surface_hover);
-    dl.circle(core::Point{r.origin.x + core::DX{dot_inset}, core::Y{mid}}, dot_radius, ui::node_family_color(t, kind.family));
+    dl.circle(core::Point{r.origin.x + core::DX{dot_inset}, core::Y{mid}}, ui::node_family_dot_radius, ui::node_family_color(t, kind.family));
     const float lh = ui::line_height(t.measurer, title_size);
     dl.text(kind.title, core::Point{r.origin.x + core::DX{title_inset}, core::Y{mid - lh / 2.f}}, title_size, t.text);
     if (vs.focused) ui::delegate_detail::draw_focus_ring(dl, r.extent.w, r.extent.h, t);
@@ -50,7 +49,7 @@ float widest_row(const ui::Theme& t, const std::vector<nodes::NodeKind>& kinds) 
     return title_inset + widest + dot_inset;
 }
 
-// A key release is a KeyRelease, never a KeyPress: Enter held repeats, which adds again, as it should.
+// Enter acts on its press; a held key repeats the press, and each adds a node.
 bool activates(const input::InputEvent& ev) {
     if (const auto* mb = std::get_if<input::MouseButton>(&ev))
         return mb->pressed && mb->button == input::buttons::left && mb->clicks == 2;

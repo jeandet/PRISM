@@ -561,9 +561,10 @@ TEST_CASE("click a wire, press Delete: it is gone") {
     CHECK(f.m.graph.view().pan == P(0, 0));   // a press on a wire selects it, it does not pan
     wires = f.all<Polyline>();
     REQUIRE(wires.size() == 2);          // the wire, and the faint wider stroke under it
-    CHECK(wires[0].thickness == doctest::Approx(9.f));
-    CHECK(wires[0].color == Color::rgba(wires[1].color.r, wires[1].color.g, wires[1].color.b, 64));
-    CHECK(wires[1].thickness == doctest::Approx(2.f));   // selected: the wire itself stays thin
+    const auto under = std::ranges::find_if(wires, [](const Polyline& w) { return w.thickness == doctest::Approx(9.f); });
+    const auto wire = std::ranges::find_if(wires, [](const Polyline& w) { return w.thickness == doctest::Approx(2.f); });
+    REQUIRE((under != wires.end() && wire != wires.end()));   // selected: the wire itself stays thin
+    CHECK(under->color == Color::rgba(wire->color.r, wire->color.g, wire->color.b, 64));
     key(f, keys::delete_);
     CHECK(f.m.graph.edges().empty());
 
@@ -1942,6 +1943,19 @@ TEST_CASE("hovering a card, or pressing a button, shows no probe") {
     route_event(f.tree, f.snap.get(), MouseMove{at, 1});   // a button held: a drag, not a hover
     f.frame();
     CHECK_FALSE(bubble_text(f));
+}
+
+TEST_CASE("an output changing under a hidden probe does not redraw the board") {
+    ProbedFixture f;
+    REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
+    f.frame();
+    hover(f, on_the_wire(f));
+    hover(f, *f.text_at("Sink") + Offset{DX{4.f}, DY{4.f}});   // a card took the hover: the probe is hidden
+    REQUIRE_FALSE(bubble_text(f));
+    f.tree.clear_dirty();
+    REQUIRE_FALSE(f.tree.any_dirty());
+    f.m.level.level.set(0.75);
+    CHECK_FALSE(f.tree.any_dirty());
 }
 
 TEST_CASE("leaving the window clears the probe") {

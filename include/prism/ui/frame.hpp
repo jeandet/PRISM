@@ -33,6 +33,9 @@ struct Insets {
 // The corner radius a node board's card is drawn with; its border and its ring follow it.
 inline constexpr float node_card_radius = 10.f;
 
+// The dot in a family's colour: before a card's title, and before a palette row's.
+inline constexpr float node_family_dot_radius = 4.f;
+
 namespace frame_detail {
 constexpr float title_h = 22.f;
 constexpr float title_size = 13.f;
@@ -40,13 +43,14 @@ constexpr float node_header_mix = 0.2f;    // the family's weight over the surfa
 constexpr float node_label_mix = 0.6f;     // and in the family name
 constexpr float node_header_left = 20.f;   // room for the family's dot, before the title
 constexpr float node_dot_x = 12.f;
-constexpr float node_dot_radius = 4.f;
 constexpr float node_label_size = 10.f;
 constexpr float node_label_pad = 10.f;     // from the header's right edge to the name
 constexpr float node_label_gap = 8.f;      // between the title and the name
 }
 
 // The header's family name, upper-cased as it is drawn.
+// simplify: ASCII only (std::toupper in the C locale leaves other letters as they are); a
+// Unicode case mapping is the upgrade, once family names are not words of the app's own choosing.
 inline std::string node_badge_name(const Framing& f) {
     std::string name{f.family};
     for (char& c : name) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
@@ -116,7 +120,7 @@ inline render::DrawList frame_draws(const Framing& f, Size size, const Theme& t)
         dl.rounded_rect(Rect{Point{X{0}, Y{0}}, size}, band, node_card_radius);
         // Only the header's top corners are the card's: square the lower two.
         dl.filled_rect(Rect{Point{X{0}, Y{h / 2.f}}, Size{Width{w}, Height{h / 2.f}}}, band);
-        dl.circle(Point{X{frame_detail::node_dot_x}, Y{h / 2.f}}, frame_detail::node_dot_radius, family);
+        dl.circle(Point{X{frame_detail::node_dot_x}, Y{h / 2.f}}, node_family_dot_radius, family);
         if (!f.family.empty()) {
             const std::string name = node_badge_name(f);
             const float width = text_width(t.measurer, name, frame_detail::node_label_size);
