@@ -471,3 +471,22 @@ TEST_CASE("z_order supports more than 65536 draw-list entries without wrapping")
     REQUIRE(snap.z_order.size() == static_cast<size_t>(N));
     CHECK(snap.z_order[N - 1] == static_cast<uint32_t>(N - 1));
 }
+
+TEST_CASE("a canvas's minimum width counts across a column, not only along a row") {
+    prism::LayoutNode col;
+    col.kind = prism::LayoutNode::Kind::Column;
+    prism::LayoutNode label;
+    label.kind = prism::LayoutNode::Kind::Leaf;
+    label.draws.filled_rect(R(0, 0, 40, 20), prism::Color::rgba(255, 0, 0));
+    prism::LayoutNode canvas;
+    canvas.kind = prism::LayoutNode::Kind::Canvas;
+    canvas.canvas_min_width = 200.f;
+    canvas.canvas_min_height = 110.f;
+    col.children.push_back(std::move(label));
+    col.children.push_back(std::move(canvas));
+
+    prism::layout_measure(col, prism::LayoutAxis::Horizontal);   // the column's width
+    CHECK(col.hint.preferred >= 200);
+    prism::layout_measure(col, prism::LayoutAxis::Vertical);     // its height
+    CHECK(col.hint.cross >= 200);
+}

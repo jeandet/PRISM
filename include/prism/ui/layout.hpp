@@ -289,10 +289,8 @@ inline void layout_detail::measure_node(LayoutNode& node, LayoutAxis parent_axis
     case LayoutNode::Kind::Canvas: {
         bool horiz = (parent_axis == LayoutAxis::Horizontal);
         std::optional<float> min_size = horiz ? node.canvas_min_width : node.canvas_min_height;
-        if (min_size.has_value())
-            node.hint = {.preferred = *min_size, .expand = false};
-        else
-            node.hint = {.preferred = 0, .expand = true};
+        std::optional<float> min_across = horiz ? node.canvas_min_height : node.canvas_min_width;
+        node.hint = {.preferred = min_size.value_or(0), .cross = min_across.value_or(0), .expand = !min_size};
         return;
     }
     case LayoutNode::Kind::Leaf: {
