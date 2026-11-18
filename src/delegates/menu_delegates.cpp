@@ -122,7 +122,8 @@ void sync_panels(const Items& items, WidgetNode& node) {
     node.popup_more.assign(rects.begin() + 1, rects.end());
 }
 
-void open_at(const Items& items, WidgetNode& node, Rect anchor, float min_w) {
+void open_at(const Items& items, WidgetNode& node, Rect local_anchor, float min_w) {
+    const Rect anchor = in_popup(node, local_anchor);
     Point below{anchor.origin.x, anchor.origin.y + DY{anchor.extent.h.raw()}};
     node.popup_area = Rect{below, popup_size(items, node, min_w)};
     node.popup_opened_from = anchor;

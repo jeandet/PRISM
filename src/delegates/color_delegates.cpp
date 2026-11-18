@@ -176,10 +176,10 @@ void Widget<Color>::handle_input(Field<Color>& field, const InputEvent& ev, Widg
     auto& es = node.get_or_create<ColorEditState>();
     color_detail::sync_hsv(es, field.get());
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->button == buttons::left) {
-        if (mb->pressed) color_detail::press(es, mb->position, field, node);
+        if (mb->pressed) color_detail::press(es, in_popup(node, mb->position), field, node);
         else es.drag = ColorEditState::Drag::none;
     } else if (auto* mm = std::get_if<MouseMove>(&ev); mm && es.drag != ColorEditState::Drag::none) {
-        color_detail::drag_to(es, mm->position, field, node);
+        color_detail::drag_to(es, in_popup(node, mm->position), field, node);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
         color_detail::key(es, kp->key, field, node);
     }

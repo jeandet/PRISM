@@ -335,6 +335,24 @@ namespace {
 void publish_inner_scroll(WidgetNode& node, const text::View& view);
 void highlight_in_idle_time(WidgetNode& node, text::View& view);
 
+// The completion list is drawn in the editor's own coordinates; as everything that pops up, it
+// shows at natural size from where its corner is drawn in a zoomed card (in_popup).
+void place_completions(WidgetNode& node, const text::Editor& editor) {
+    const Point corner = editor.completion_rect().origin;
+    const Offset by = in_popup(node, corner) - corner;
+    layout_detail::translate_draw_list(node.overlay_draws, by.dx, by.dy);
+}
+
+// A press on the list, in the coordinates the editor drew the list in.
+InputEvent on_completions(const InputEvent& ev, const WidgetNode& node, const text::Editor& editor) {
+    const auto* b = std::get_if<MouseButton>(&ev);
+    if (!b || !editor.completing()) return ev;
+    const Point corner = editor.completion_rect().origin;
+    MouseButton at = *b;
+    at.position = corner + (in_popup(node, b->position) - in_popup(node, corner));
+    return editor.completion_rect().contains(at.position) ? InputEvent{at} : ev;
+}
+
 // A text view as a leaf: drawn like a canvas (it fills its space), its View kept in the node's
 // edit state, where the tree's wheel, Page Up/Down and scrollbar find it (get_scroll_view).
 Node text_view_node(text::Document& doc, std::shared_ptr<text::View> view, WidgetId& next_id) {
@@ -430,15 +448,20 @@ Node text_editor_node(text::Document& doc, std::shared_ptr<text::Editor> editor,
             editor->view.draw(node.draws, node.canvas_bounds.extent, node.theme ? *node.theme : fallback);
             editor->view.marks = marks;
             node.overlay_draws.clear();
-            if (node.visual_state.focused) editor->draw_completions(node.overlay_draws, node.theme ? *node.theme : fallback);
-            else editor->close_completion();
+            if (node.visual_state.focused) {
+                editor->draw_completions(node.overlay_draws, node.theme ? *node.theme : fallback);
+                place_completions(node, *editor);
+            } else {
+                editor->close_completion();
+            }
             publish_inner_scroll(node, editor->view);
             highlight_in_idle_time(node, editor->view);
         };
         wn.record(wn);
         wn.wire = [editor](WidgetNode& node) {
             node.connections.push_back(node.on_input.connect([editor, &node](const InputEvent& ev) {
-                if (editor->handle(ev, node.theme ? node.theme->clipboard : nullptr)) node.dirty = true;
+                if (editor->handle(on_completions(ev, node, *editor), node.theme ? node.theme->clipboard : nullptr))
+                    node.dirty = true;
             }));
         };
     };

@@ -65,6 +65,7 @@ public:
         std::size_t selected = 0;
     };
     [[nodiscard]] const std::optional<Completing>& completing() const { return completing_; }
+    [[nodiscard]] core::Rect completion_rect() const { return list_; }   // where the list was drawn
     void set_completer(Completer source) { options_.complete = std::move(source); }
     void close_completion() { completing_.reset(); }
     // The open list, in the view's coordinates: under the word's line, or above it when the view

@@ -173,14 +173,15 @@ bool open_popup_input(Field<M>& field, const InputEvent& ev, WidgetNode& node) {
     sync_panels(items, node);
     const auto& path = node.get_or_create<MenuEditState>().path;
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left) {
-        auto h = hit(items, node, path, mb->position);
+        auto h = hit(items, node, path, in_popup(node, mb->position));
         if (!h) return false;
         if (h->item) activate(field, node, h->level, *h->item);
     } else if (auto* mm = std::get_if<MouseMove>(&ev)) {
-        auto h = hit(items, node, path, mm->position);
+        const Point at = in_popup(node, mm->position);
+        auto h = hit(items, node, path, at);
         auto& es = node.get_or_create<MenuEditState>();
-        auto from = std::exchange(es.pointer, mm->position);
-        bool on_the_way = h && from && heading_for_submenu(panels(items, node, path), *h, *from, mm->position);
+        auto from = std::exchange(es.pointer, at);
+        bool on_the_way = h && from && heading_for_submenu(panels(items, node, path), *h, *from, at);
         if (h && h->item && !on_the_way && !(h->level < path.size() && path[h->level] == *h->item))
             highlight(items, node, h->level, *h->item);
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {

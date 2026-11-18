@@ -987,17 +987,37 @@ TEST_CASE("at zoom 0.5 a dropdown in a node opens its list under its box, and a 
     REQUIRE(list);
     CHECK(list->origin.x.raw() == doctest::Approx(box.origin.x.raw()));
     CHECK(list->origin.y.raw() == doctest::Approx(bottom(box)));
-    CHECK(list->extent.w.raw() == doctest::Approx(box.extent.w.raw()));
+    CHECK(list->extent.w.raw() == doctest::Approx(box.extent.w.raw() / 0.5f));   // at natural size
     const float row = list->extent.h.raw() / 3;
     click(f, P(list->origin.x.raw() + 10, list->origin.y.raw() + 1.5f * row));
     CHECK(f.m.node.wave.get() == Wave::Square);
 }
 
-TEST_CASE("at zoom 0.5 a dropdown near the window's bottom opens below while its zoomed list fits there") {
+TEST_CASE("at zoom 0.25 a dropdown's list is drawn at natural size just below its zoomed box, and a click picks its second item") {
+    ShaperFixture f;
+    at_zoom(f, 0.25f);
+    const Rect box = laid_out(f, f.m.node.wave_id);
+    click(f, centre(f, f.m.node.wave_id));
+    auto list = open_list(f);
+    REQUIRE(list);
+    CHECK(list->origin.x.raw() == doctest::Approx(box.origin.x.raw()));
+    CHECK(list->origin.y.raw() == doctest::Approx(bottom(box)));
+    CHECK(list->extent.w.raw() == doctest::Approx(box.extent.w.raw() / 0.25f));
+    CHECK(list->extent.h.raw() == doctest::Approx(3 * 28.f));
+    std::optional<float> size;
+    for (auto& c : f.snap->overlay.commands)
+        if (auto* t = std::get_if<TextCmd>(&c); t && t->text == "Square") size = t->size;
+    REQUIRE(size);
+    CHECK(*size == doctest::Approx(14.f));
+    click(f, P(list->origin.x.raw() + 10, list->origin.y.raw() + 1.5f * 28.f));
+    CHECK(f.m.node.wave.get() == Wave::Square);
+}
+
+TEST_CASE("at zoom 0.5 a dropdown near the window's bottom opens below while its list fits there") {
     ShaperFixture f;
     at_zoom(f, 0.5f);
     const Rect box = laid_out(f, f.m.node.wave_id);
-    const float list_h = 3 * 28.f * 0.5f;
+    const float list_h = 3 * 28.f;   // at natural size
     const float top = 600.f - list_h - box.extent.h.raw() - 4.f;   // the list just fits below
     f.m.graph.move(f.m.a, f.m.graph.position(f.m.a) + Offset{DX{0}, DY{(top - box.origin.y.raw()) / 0.5f}});
     f.frame();
@@ -1022,7 +1042,7 @@ TEST_CASE("at zoom 0.5 a node's context menu opens at the pointer, and a click o
     REQUIRE(area);
     CHECK(area->origin.x.raw() == doctest::Approx(at.x.raw()));
     CHECK(area->origin.y.raw() == doctest::Approx(at.y.raw()));
-    click(f, at + Offset{DX{5.f}, DY{(28.f + 10.f) * 0.5f}});
+    click(f, at + Offset{DX{5.f}, DY{28.f + 10.f}});   // the menu at natural size
     CHECK(f.tree.popup_owner() == 0);
     CHECK(f.m.node.menu.get().chosen == std::optional<std::size_t>{1});
 }

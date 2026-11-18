@@ -58,6 +58,16 @@ void zoom_entries(SceneSnapshot& snap, const SnapshotMarks& from, const ViewTran
     zoom_rects(snap.scrollbar_geometry, from.scrollbar_geometry, t);
 }
 
+// What pops up from the cards' widgets is shown at natural size (WidgetNode's in_popup): drawn
+// here at 1/scale about each widget's origin, the board's zoom brings it back to natural size
+// there. Only the kinds layout_flatten draws overlays for (a table's header zooms with it).
+void unzoom_overlays(LayoutNode& n, float scale) {
+    using K = LayoutNode::Kind;
+    if ((n.kind == K::Leaf || n.kind == K::Canvas || n.kind == K::Handle) && !n.overlay_draws.empty())
+        scale_draw_list(n.overlay_draws, ViewTransform{Point{}, 1.f / scale});
+    for (auto& c : n.children) unzoom_overlays(c, scale);
+}
+
 } // namespace
 
 // The cards laid out at zoom 1, flattened against the visible part brought back to zoom 1, then
@@ -68,6 +78,7 @@ void flatten_zoomed_cards(LayoutNode& board, SceneSnapshot& snap, Rect inside) {
     const ViewTransform zoom{board.allocated.origin, board.board_scale};
     const ViewTransform unzoom{board.allocated.origin, 1.f / board.board_scale};
     const SnapshotMarks from = marks_of(snap);
+    for (std::size_t i = 1; i < board.children.size(); ++i) unzoom_overlays(board.children[i], board.board_scale);
     flatten_cards(board, snap, unzoom.apply(inside));
     zoom_entries(snap, from, zoom);
 }

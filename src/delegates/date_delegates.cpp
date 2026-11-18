@@ -176,7 +176,7 @@ void Widget<std::chrono::year_month_day>::handle_input(Field<std::chrono::year_m
                                                                 const InputEvent& ev, WidgetNode& node) {
     auto& es = node.get_or_create<DateEditState>();
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed && mb->button == buttons::left)
-        date_detail::press(es, mb->position, field, node);
+        date_detail::press(es, in_popup(node, mb->position), field, node);
     else if (auto* kp = std::get_if<KeyPress>(&ev))
         date_detail::key(es, kp->key, field, node);
 }

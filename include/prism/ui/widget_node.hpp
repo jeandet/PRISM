@@ -205,6 +205,12 @@ inline Rect laid_out_rect(const WidgetNode& n) {
 // Where the last layout drew `n`, and at what zoom: its own coordinates in the window.
 inline input::Placed place_of(const WidgetNode& n) { return {laid_out_rect(n), n.view_scale}; }
 
+// What pops up from a widget (its overlay_draws, popup_area, a dropdown's list) is shown at natural
+// size wherever the widget is zoomed (a zoomed board's card), placed from its zoomed origin: a
+// point of the widget's own coordinates, in its popups'.
+inline Point in_popup(const WidgetNode& n, Point local) { return Point{} + (local - Point{}) * n.view_scale; }
+inline Rect in_popup(const WidgetNode& n, Rect local) { return {in_popup(n, local.origin), local.extent * n.view_scale}; }
+
 // A node whose children are made at publish time (WidgetTree::materialize_all_virtual_lists).
 inline bool builds_children(const WidgetNode& n) {
     return n.layout_kind == LayoutKind::VirtualList || n.layout_kind == LayoutKind::Table

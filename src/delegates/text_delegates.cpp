@@ -326,8 +326,15 @@ std::vector<std::size_t> matches(const ComboBox& c) {
     return out;
 }
 
+// The list's top in the field's popup coordinates: right below the field as it is drawn.
+float list_top(const WidgetNode& node) {
+    return in_popup(node, Point{X{0}, Y{Widget<TextField<>>::widget_h.raw()}}).y.raw();
+}
+
+// `p` in the field's own coordinates.
 std::optional<std::size_t> row_at(Point p, std::size_t rows, const WidgetNode& node) {
-    float top = Widget<TextField<>>::widget_h.raw();
+    p = in_popup(node, p);
+    const float top = list_top(node);
     if (p.y.raw() < top || p.x.raw() < 0 || p.x.raw() > delegate_detail::widget_w(node).raw()) return std::nullopt;
     auto i = static_cast<std::size_t>((p.y.raw() - top) / row_h);
     return i < rows ? std::optional{i} : std::nullopt;
@@ -353,7 +360,7 @@ void Widget<ComboBox>::record(DrawList& dl, const Field<ComboBox>& field, Widget
     es.completion_index = std::min(es.completion_index, rows.size() - 1);
     const auto& t = node_theme(node);
     float w = delegate_detail::widget_w(node).raw();
-    float top = Widget<TextField<>>::widget_h.raw();
+    const float top = list_top(node);
     Rect list{Point{X{0}, Y{top}}, Size{Width{w}, Height{row_h * static_cast<float>(rows.size())}}};
     node.overlay_draws.filled_rect(list, t.popup_bg);
     node.overlay_draws.rect_outline(list, t.popup_border, 1.f);

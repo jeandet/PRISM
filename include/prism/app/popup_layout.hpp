@@ -71,16 +71,16 @@ inline std::optional<PopupLayout> layout_popup(WidgetNode& root, const LayoutNod
     float max_h = std::max(0.f, window.h.raw() - 2 * popup_margin);
     Size size{Width{std::min(max_w, std::max(popup_min_w, p.content.hint.cross + 2 * popup_pad))},
               Height{std::min(max_h, p.content.hint.preferred + 2 * popup_pad)}};
-    // The card is at natural size even next to an anchor in a zoomed card, as a dropdown's list.
-    const input::Placed placed = anchor_place(main, anchor->id).value_or(input::Placed{});
-    const Point at = placed.rect.origin;
+    // The card is at natural size even next to an anchor in a zoomed card, as everything that
+    // pops up from a widget is (WidgetNode's in_popup).
+    const Point at = anchor_place(main, anchor->id).value_or(input::Placed{}).rect.origin;
     p.card = anchor->popup_modal
         ? Rect{Point{X{(window.w.raw() - size.w.raw()) / 2}, Y{(window.h.raw() - size.h.raw()) / 2}}, size}
         : place_popup(size, Rect{at, Size{Width{0}, Height{0}}}, window);
     layout_arrange(p.content, Rect{Point{p.card.origin.x + DX{popup_pad}, p.card.origin.y + DY{popup_pad}},
                                    Size{size.w - Width{2 * popup_pad}, size.h - Height{2 * popup_pad}}});
     p.viewport_moved = update_scroll_state(p.content);
-    anchor->popup_area = placed.to_local(p.card);   // in the anchor's own coordinates
+    anchor->popup_area = Rect{Point{} + (p.card.origin - at), p.card.extent};   // in the anchor's popup coordinates
     return p;
 }
 

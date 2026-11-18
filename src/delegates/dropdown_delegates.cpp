@@ -35,10 +35,12 @@ void dropdown_record(DrawList& dl, WidgetNode& node,
         Height popup_h{static_cast<float>(resolver.count) * dd_option_h.raw()};
 
         // Below the box, above it when only that fits, else the roomier side, inside the window.
-        Y popup_y{dd_widget_h.raw()};
-        if (node.viewport_height.raw() > 0) {   // in the window's px: a zoomed card draws it at view_scale
-            const float s = node.view_scale, top = node.absolute_y.raw();
-            popup_y = Y{(place_on_axis(popup_h.raw() * s, top, top + dd_widget_h.raw() * s, node.viewport_height.raw()) - top) / s};
+        // In its popup coordinates: natural size, below the box as it is drawn (in_popup).
+        const float box_h = in_popup(node, Point{X{0}, Y{dd_widget_h.raw()}}).y.raw();
+        Y popup_y{box_h};
+        if (node.viewport_height.raw() > 0) {
+            const float top = node.absolute_y.raw();
+            popup_y = Y{place_on_axis(popup_h.raw(), top, top + box_h, node.viewport_height.raw()) - top};
         }
 
         node.overlay_draws.filled_rect(
@@ -74,10 +76,10 @@ bool dropdown_handle_input(const InputEvent& ev, WidgetNode& node,
 
     if (auto* mb = std::get_if<MouseButton>(&ev); mb && mb->pressed) {
         if (es.open) {
-            Y popup_y = es.popup_rect.origin.y;
-            DY rel_y = mb->position.y - popup_y;
+            const Point at = in_popup(node, mb->position);
+            DY rel_y = at.y - es.popup_rect.origin.y;
             if (rel_y.raw() >= 0 && rel_y.raw() < static_cast<float>(count) * dd_option_h.raw()
-                && mb->position.x.raw() >= 0 && mb->position.x.raw() < delegate_detail::widget_w(node).raw()) {
+                && at.x.raw() >= 0 && at.x.raw() < delegate_detail::widget_w(node).raw()) {
                 size_t idx = static_cast<size_t>(rel_y.raw() / dd_option_h.raw());
                 select(idx);
                 changed = true;
@@ -89,7 +91,8 @@ bool dropdown_handle_input(const InputEvent& ev, WidgetNode& node,
             es.highlighted = current_index;
             Height popup_h{static_cast<float>(count) * dd_option_h.raw()};
             // Default: open below; record() may flip upward
-            es.popup_rect = delegate_detail::make_rect(X{0}, Y{dd_widget_h.raw()}, delegate_detail::widget_w(node), popup_h);
+            es.popup_rect = delegate_detail::make_rect(X{0}, in_popup(node, Point{X{0}, Y{dd_widget_h.raw()}}).y,
+                                                       delegate_detail::widget_w(node), popup_h);
             node.dirty = true;
         }
     } else if (auto* kp = std::get_if<KeyPress>(&ev)) {
