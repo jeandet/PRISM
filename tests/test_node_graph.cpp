@@ -150,13 +150,29 @@ TEST_CASE("structure changes on add, connect, disconnect and remove; layout on m
 
 TEST_CASE("panning shifts the board and asks for a layout, unless it is no move") {
     Graph g;
-    CHECK(g.pan() == Point{});
+    CHECK(g.view().pan == Point{});
     const auto l = g.layout.get();
     g.pan_by(prism::core::DX{0}, prism::core::DY{0});
     CHECK(g.layout.get() == l);
     g.pan_by(prism::core::DX{5}, prism::core::DY{-7});
     CHECK(g.layout.get() > l);
-    CHECK(g.pan() == Point{prism::core::X{5}, prism::core::Y{-7}});
+    CHECK(g.view().pan == Point{prism::core::X{5}, prism::core::Y{-7}});
+}
+
+TEST_CASE("setting the view clamps the zoom and asks for a layout only on a change") {
+    Graph g;
+    const auto l = g.layout.get();
+    g.set_view({Point{prism::core::X{5}, prism::core::Y{5}}, 9.f});
+    CHECK(g.view().zoom == 2.f);
+    CHECK(g.layout.get() == l + 1);
+    g.set_view({Point{prism::core::X{5}, prism::core::Y{5}}, 9.f});
+    CHECK(g.layout.get() == l + 1);
+}
+
+TEST_CASE("panning adds to the view's pan in board units") {
+    Graph g;
+    g.pan_by(prism::core::DX{10}, prism::core::DY{0});
+    CHECK(g.view().pan.x.raw() == 10.f);
 }
 
 TEST_CASE("disconnecting or removing something unknown changes nothing") {

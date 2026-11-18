@@ -299,7 +299,7 @@ TEST_CASE("dragging the background pans all nodes") {
     auto source = f.text_at("Source"), sink = f.text_at("Sink");
     REQUIRE((source && sink));
     f.drag(empty_spot, empty_spot + Offset{DX{-50.f}, DY{-40.f}});
-    CHECK(f.m.graph.pan() == P(-50, -40));
+    CHECK(f.m.graph.view().pan == P(-50, -40));
     CHECK(f.m.graph.position(f.m.a) == P(20, 30));   // the nodes stay where they are in the graph
     auto s = f.text_at("Source"), k = f.text_at("Sink");
     REQUIRE((s && k));
@@ -320,7 +320,7 @@ TEST_CASE("a node panned off the board and back is where it was") {
     CHECK_FALSE(f.shows("Source"));
     CHECK_FALSE(f.shows("Sink"));
     f.drag(P(400, 300), P(1900, 300));
-    CHECK(f.m.graph.pan() == P(0, 0));
+    CHECK(f.m.graph.view().pan == P(0, 0));
     auto after = f.allocated(card);
     REQUIRE(after);
     CHECK(after->origin == before->origin);
@@ -357,7 +357,7 @@ TEST_CASE("a right click in the middle of a pan does not make the board jump") {
     route_event(f.tree, f.snap.get(), MouseButton{here, buttons::right, false});
     f.frame();
     f.move_to(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
-    CHECK(f.m.graph.pan() == P(-30, -20));
+    CHECK(f.m.graph.view().pan == P(-30, -20));
     f.release(empty_spot + Offset{DX{-30.f}, DY{-20.f}});
 }
 
@@ -495,7 +495,7 @@ TEST_CASE("click a wire, press Delete: it is gone") {
     CHECK(wires[0].thickness == 2.f);
     const Point on_wire = wires[0].points[12] + Offset{DX{0.f}, DY{4.f}};
     f.drag(on_wire, on_wire + Offset{DX{20.f}, DY{0.f}});
-    CHECK(f.m.graph.pan() == P(0, 0));   // a press on a wire selects it, it does not pan
+    CHECK(f.m.graph.view().pan == P(0, 0));   // a press on a wire selects it, it does not pan
     wires = f.all<Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].thickness == 4.f);    // selected: drawn thicker
@@ -571,12 +571,12 @@ TEST_CASE("a wire starts and ends on the ports' dots, at the card's edge") {
     }));
     f.move_to(in_dot + Offset{DX{-6.f}, DY{3.f}});   // near the dot is enough
     f.release(in_dot + Offset{DX{-6.f}, DY{3.f}});
-    CHECK(f.m.graph.pan() == P(0, 0));   // a press on a dot draws a wire, it does not pan
+    CHECK(f.m.graph.view().pan == P(0, 0));   // a press on a dot draws a wire, it does not pan
     REQUIRE(f.m.graph.edge_into({f.m.b, 0}));
 
     f.drag(in_dot, empty_spot);   // the input's dot picks its wire up
     CHECK(f.m.graph.edges().empty());
-    CHECK(f.m.graph.pan() == P(0, 0));
+    CHECK(f.m.graph.view().pan == P(0, 0));
 }
 
 TEST_CASE("a node is not removable unless its options say so") {
@@ -619,7 +619,7 @@ TEST_CASE("a board away from the window's origin: wires, pans, moves and drops l
     auto title = f.text_at("Source");
     REQUIRE(title);
     f.drag(on_board_empty, on_board_empty + Offset{DX{-15.f}, DY{-10.f}});   // the title still on the board
-    CHECK(f.m.graph.pan() == P(-15, -10));
+    CHECK(f.m.graph.view().pan == P(-15, -10));
     auto panned = f.text_at("Source");
     REQUIRE(panned);
     CHECK(panned->x.raw() == doctest::Approx(title->x.raw() - 15));
@@ -649,7 +649,7 @@ TEST_CASE("a board away from the window's origin: wires, pans, moves and drops l
             && x->rect.origin.y.raw() == doctest::Approx(in_row->origin.y.raw());
     }));
     f.release(in_dot + Offset{DX{-6.f}, DY{3.f}});
-    CHECK(f.m.graph.pan() == P(-15, -10));
+    CHECK(f.m.graph.view().pan == P(-15, -10));
     REQUIRE(f.m.graph.edge_into({f.m.b, 0}));
 }
 

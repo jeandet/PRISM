@@ -38,7 +38,7 @@ std::optional<core::Offset> dragged_by(const std::optional<core::Point>& press, 
 namespace board_coords {
 
 // Where the graph's point `at` lies on the board.
-core::Point on_board(const nodes::Graph& graph, core::Point at) { return at + (graph.pan() - core::Point{}); }
+core::Point on_board(const nodes::Graph& graph, core::Point at) { return at + (graph.view().pan - core::Point{}); }
 
 // Where a point of the graph dragged from `from` (a node's position, the pan) goes when the
 // pointer has moved by `d`.
@@ -136,13 +136,13 @@ void BoardBackground::handle_canvas_input(const input::InputEvent& ev, ui::Widge
     if (track_press(press, ev)) {
         const core::Point at = board_coords::to_window(n, *press);
         if (dot_near(*parts, at, any_port)) return press.reset();   // it draws a wire (dot_drag)
-        pan_at_press = graph.pan();
+        pan_at_press = graph.view().pan;
         set_selection(*parts, n, {.wire = wire_at(*parts, at), .node = {}});
         if (parts->selected.wire) press.reset();   // a wire clicked is selected, not dragged
     }
     if (const auto d = dragged_by(press, ev, n)) {
         const core::Point to = board_coords::dragged(pan_at_press, *d);
-        graph.pan_by(to.x - graph.pan().x, to.y - graph.pan().y);
+        graph.pan_by(to.x - graph.view().pan.x, to.y - graph.view().pan.y);
     }
 }
 

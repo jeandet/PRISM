@@ -137,7 +137,13 @@ core::Point Graph::position(NodeId id) const { return nodes_.at(id).options.at; 
 
 void Graph::pan_by(core::DX dx, core::DY dy) {
     if (dx.raw() == 0.f && dy.raw() == 0.f) return;
-    pan_ = pan_ + core::Offset{dx, dy};
+    set_view({view_.pan + core::Offset{dx, dy}, view_.zoom});
+}
+
+void Graph::set_view(BoardView v) {
+    v.zoom = clamp_zoom(v.zoom);
+    if (v == view_) return;
+    view_ = v;
     layout.set(layout.get() + 1);
 }
 
