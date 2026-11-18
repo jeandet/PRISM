@@ -33,8 +33,8 @@ float wheel_zoom(float zoom, float notches) { return clamp_zoom(zoom * std::pow(
 BoardView fit_all(std::span<const core::Rect> cards, core::Size size, float margin) {
     if (cards.empty()) return {};
     const core::Rect box = bounds(cards);
-    const float fit_w = (size.w.raw() - 2 * margin) / box.extent.w.raw();
-    const float fit_h = (size.h.raw() - 2 * margin) / box.extent.h.raw();
+    const float fit_w = box.extent.w.raw() > 0.f ? (size.w.raw() - 2 * margin) / box.extent.w.raw() : 1.f;
+    const float fit_h = box.extent.h.raw() > 0.f ? (size.h.raw() - 2 * margin) / box.extent.h.raw() : 1.f;
     const float zoom = clamp_zoom(std::min({1.f, fit_w, fit_h}));
     const core::Point centre = box.center();
     return {core::Point{core::X{size.w.raw() / (2 * zoom) - centre.x.raw()},
