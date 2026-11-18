@@ -69,6 +69,7 @@ constexpr float thick_wire = 3.f;   // a waveform's: it carries a curve, not a s
 constexpr float wire_under = 9.f;   // the soft stroke drawn under a selected wire
 constexpr float wire_under_alpha = 0.25f;
 constexpr float dot_side_floor = 4.f;
+constexpr float guide_alpha = 0.6f;
 constexpr float selected_ring = 2.f;   // the selected card's border and the glow outside it
 constexpr float faded_port_alpha = 0.35f;
 
@@ -171,14 +172,10 @@ void draw_probe(render::DrawList& dl, const NodeBoardParts& parts, const ui::The
             t.node_probe_text, 0.f, render::TextAnchor::TopLeft, mono);
 }
 
-namespace {
-
-constexpr float guide_alpha = 0.6f;
-} // namespace
-
 void draw_guides(render::DrawList& dl, const NodeBoardParts& parts, const ui::Theme& t) {
+    const auto& view = parts.graph->view();
     for (const auto& g : parts.guides)
-        dl.line(nodes::board_point(parts.graph->view(), g.from), nodes::board_point(parts.graph->view(), g.to), faded(t.accent, guide_alpha), 1.f);
+        dl.line(nodes::board_point(view, g.from), nodes::board_point(view, g.to), faded(t.accent, guide_alpha), 1.f);
 }
 
 namespace {
