@@ -86,7 +86,12 @@ TEST_CASE("flatten_tree row fields reflect live tree state") {
 // FlatModel has no view(), so naming its root after the model's own type requires
 // the reflection-only root_debug_name path in build_node_tree(); without reflection
 // the model produces no children at all (see above), so this test is reflection-only too.
-#if __cpp_impl_reflection
+// The name itself is a debug tool: WidgetNode::debug_name only exists, is only captured
+// (widget_tree.hpp:606-617, 673-675; view_builder.hpp:280-282) and is only shown by
+// flatten_node (widgets/debug/tree_inspector.hpp:61-64) when PRISM_DEBUG_TOOLS_ENABLED is
+// defined — in a release build the debug tools are off (meson.build:62-70) and every row
+// falls back to its layout_kind_name, so these naming checks cannot pass there.
+#if __cpp_impl_reflection && defined(PRISM_DEBUG_TOOLS_ENABLED)
 TEST_CASE("flatten_tree names the model root after the model's own type") {
     FlatModel model;
     prism::WidgetTree tree(model);
@@ -109,8 +114,9 @@ TEST_CASE("flatten_tree names the model root after the model's own type") {
 // gated behind #if __cpp_impl_reflection -- without reflection every block root falls
 // back to its layout_kind_name ("Default"), same as before this regression was fixed. This
 // naming convenience is reflection-only by design (README: "member name via P2996 reflection
-// provides identity").
-#if __cpp_impl_reflection
+// provides identity"). Like the root-name case above, the name shown is debug_name, which a
+// release build (PRISM_DEBUG_TOOLS_ENABLED off) never captures nor displays.
+#if __cpp_impl_reflection && defined(PRISM_DEBUG_TOOLS_ENABLED)
 struct NamedSubComponent {
     prism::Field<int> x{0};
     prism::Field<int> y{0};
@@ -150,8 +156,9 @@ TEST_CASE("flatten_tree names a nested block() root after the block's own type")
 // Field-name capture (WidgetTree::field_names_, populated in build_node_tree()'s view()
 // branch) is itself gated behind #if __cpp_impl_reflection -- without reflection a
 // view()-placed leaf falls back to its layout_kind_name, same reflection-only naming
-// convenience as the block-root case above.
-#if __cpp_impl_reflection
+// convenience as the block-root case above. Same debug-tools gate: without
+// PRISM_DEBUG_TOOLS_ENABLED (release build) rows are named by layout_kind_name only.
+#if __cpp_impl_reflection && defined(PRISM_DEBUG_TOOLS_ENABLED)
 struct NamedFieldsModel {
     prism::Field<int> alpha{0};
     prism::Field<int> beta{0};

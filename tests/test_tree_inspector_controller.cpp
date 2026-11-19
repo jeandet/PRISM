@@ -109,7 +109,15 @@ TEST_CASE("hovering the main tree updates the debug model's selection on refresh
 // reflection, every row falls back to its layout_kind_name, so "f19" never appears regardless
 // of scroll state; this is a limitation of the test's naming-based proxy signal, not of the
 // auto-scroll feature itself, so the whole scenario is reflection-only for now.
-#if __cpp_impl_reflection
+//
+// The signal is also a debug tool: the row label comes from WidgetNode::debug_name, which is
+// only captured and only shown by flatten_node (widgets/debug/tree_inspector.hpp:61-64) when
+// PRISM_DEBUG_TOOLS_ENABLED is defined. In a release build the debug tools are off
+// (meson.build:62-70), rows fall back to their layout_kind_name, and "f19" can never appear in
+// the rendered text -- so this scenario is skipped there too. The auto-scroll itself
+// (TreeInspectorController::refresh -> scroll_row_into_view) is not gated and runs in every
+// build.
+#if __cpp_impl_reflection && defined(PRISM_DEBUG_TOOLS_ENABLED)
 namespace {
 struct ManyLeavesModel {
     prism::Field<int> f0{0}, f1{0}, f2{0}, f3{0}, f4{0}, f5{0}, f6{0}, f7{0}, f8{0}, f9{0},

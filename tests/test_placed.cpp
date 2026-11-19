@@ -125,12 +125,19 @@ TEST_CASE("a Field marked skip is a value the view does not have to place") {
     CHECK(names == std::vector<std::string_view>{"forgotten"});
 }
 
+// The warning text is a debug diagnostic: check_unplaced_fields() only prints it under
+// #ifndef NDEBUG (include/prism/app/widget_tree_reflect.hpp:69), and a release build both
+// defines NDEBUG (b_ndebug=if-release) and leaves the debug tools off (meson.build:62-70,
+// PRISM_DEBUG_TOOLS_ENABLED), so in a release build no message is printed at all and there is
+// nothing to match. The direct unplaced_fields() checks above run in every build.
+#if defined(PRISM_DEBUG_TOOLS_ENABLED) && !defined(NDEBUG)
 TEST_CASE("the check says nothing about a skipped value, and still names a forgotten widget") {
     Picker m;
     const std::string said = warnings_while([&] { WidgetTree tree{m}; });
     CHECK(said.find("selected") == std::string::npos);
     CHECK(said.find("forgotten") != std::string::npos);
 }
+#endif
 
 namespace {
 // A model with no view(): its window is built from its members, and skip hides one everywhere.
