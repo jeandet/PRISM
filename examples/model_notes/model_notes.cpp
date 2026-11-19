@@ -117,6 +117,13 @@ struct NotesApp {
             stats_window = ctx->open_window(stats, {.title = "Statistics", .width = 320, .height = 80});
     }
 
+// GCC 16 at -O3 reports the editor options' placeholder string as "maybe uninitialized" when the
+// temporary dies (a false positive: every member has an initializer; GCC bug 80635's family,
+// which meson.build silences outright for GCC < 15). Silenced for this view only.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     void view(app::ViewBuilder& vb) {
         vb.hstack([&] {
             vb.remember_split(prefs.sidebar);
@@ -145,6 +152,9 @@ struct NotesApp {
             });
         });
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     void open(const fs::path& path) {
         auto text = notes::load_text(path);

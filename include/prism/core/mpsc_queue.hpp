@@ -65,7 +65,14 @@ public:
         if (!next)
             return std::nullopt;
 
-        auto value = std::move(next->value);
+        // `next` is only ever linked by push(), which always stores an engaged optional, so the
+        // payload is there to move. Construct the result in place from that payload instead of
+        // move-constructing the optional: GCC cannot see the engagement through the atomic load
+        // and, at -O3, reports a bogus -Wmaybe-uninitialized on the optional move's
+        // conditionally-initialized payload (GCC bug 80635 family, see meson.build). In-place
+        // construction defines the payload unconditionally, which is what the invariant above
+        // guarantees anyway.
+        std::optional<T> value{std::in_place, std::move(*next->value)};
         delete head_;
         head_ = next;
         return value;
