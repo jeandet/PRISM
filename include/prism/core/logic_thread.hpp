@@ -17,4 +17,9 @@ inline bool may_change_model() {
     return owner == std::thread::id{} || owner == std::this_thread::get_id();
 }
 
+// A model change from a thread that may not make one. Always on, not only under assert: a
+// release build (NDEBUG) would race silently. Reports the violation on stderr and aborts.
+// Defined once, in libprism (src/core/shared_state.cpp), so the message lives in one place.
+[[noreturn]] void model_thread_violation();
+
 } // namespace prism::core

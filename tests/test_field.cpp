@@ -4,6 +4,13 @@
 #include <prism/core/field.hpp>
 
 #include <string>
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#include <csignal>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
+#endif
 namespace prism::core {} namespace prism::render {} namespace prism::input {}
 namespace prism::ui {} namespace prism::app {} namespace prism::plot {}
 namespace prism {
@@ -174,3 +181,28 @@ TEST_CASE("Field: = takes a designated initializer") {
     CHECK(p.get().value == 0.5);
     CHECK(p.get().busy);
 }
+
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+// POSIX only: the child is a fork, so its death can be inspected with waitpid. The guard must
+// hold whether or not NDEBUG is defined — today it is only an assert, so a release build lets
+// the set() through and the child reaches _exit(0).
+TEST_CASE("Field::set from a thread that is not the logic thread aborts, with or without NDEBUG") {
+    // A joined thread's id: never this thread's, so the child below looks like "another thread".
+    std::thread::id other;
+    std::thread([&other] { other = std::this_thread::get_id(); }).join();
+
+    const pid_t pid = fork();
+    REQUIRE(pid >= 0);
+    if (pid == 0) {
+        // Pretend an app runs and its logic thread is `other`: this thread may not set fields.
+        prism::core::logic_thread.store(other);
+        prism::Field<int> f{0};
+        f.set(1);   // must print the violation and abort, assert or not
+        _exit(0);   // reached only when the check is compiled out (NDEBUG today)
+    }
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    CHECK(WIFSIGNALED(status));
+    CHECK(WTERMSIG(status) == SIGABRT);
+}
+#endif

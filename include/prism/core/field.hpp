@@ -6,7 +6,6 @@
 #include <prism/core/value.hpp>
 #include <prism/core/transaction.hpp>
 
-#include <cassert>
 #include <concepts>
 #include <functional>
 #include <vector>
@@ -30,8 +29,7 @@ struct ObservableValue {
     }
 
     void set(T new_value) {
-        assert(may_change_model() && "a model field set off the app's logic thread: hand it over "
-                                     "with AppContext::post, Shared<T> or Channel<T>");
+        if (!may_change_model()) model_thread_violation();
         if (value == new_value) return;
         value = std::move(new_value);
         emit_or_defer(static_cast<void*>(&changed_), [this] { changed_.emit(value); });

@@ -5,8 +5,17 @@
 #include <prism/core/logic_thread.hpp>
 #include <prism/core/read_log.hpp>
 
+#include <cstdio>
+#include <cstdlib>
+
 namespace prism::core {
 std::atomic<std::thread::id> logic_thread{};
+
+[[noreturn]] void model_thread_violation() {
+    std::fputs("prism: a model field set off the app's logic thread: hand it over "
+               "with AppContext::post, Shared<T> or Channel<T>\n", stderr);
+    std::abort();
+}
 } // namespace prism::core
 
 namespace prism::core::error_hub_detail {
