@@ -103,6 +103,13 @@ public:
     // Closes a window open_window opened (not the main one: closing that ends the app).
     void close_window(WindowId id);
 
+    // Ends the app exactly as if the user closed the main window: AppRun routes this to its
+    // WindowClose handling of the primary window. Logic thread.
+    void close_main_window();
+
+    // How close_main_window() ends the app; AppRun installs its primary-window close path.
+    void set_main_window_close_handler(std::function<void()> fn) { main_window_close_ = std::move(fn); }
+
     // Lets the widgets of `tree` ask for windows of their own (a dock's floating panels,
     // WidgetTree::request_window). Requests run after the current frame, never inside one.
     void serve_window_requests(WidgetTree& tree);
@@ -254,6 +261,7 @@ private:
     std::shared_ptr<std::atomic<bool>> closed_;
     std::shared_ptr<std::function<void()>> drain_publish_;
     std::shared_ptr<std::function<void(std::function<void()>)>> logic_wrapper_;
+    std::function<void()> main_window_close_;
     std::shared_ptr<WakeGate> wake_gate_ = std::make_shared<WakeGate>(*this);
 };
 
@@ -283,6 +291,9 @@ public:
                                                    mutation_queue_, mutation_scheduled_,
                                                    mutation_closed_, mutation_drain_publish_,
                                                    logic_wrapper_holder_);
+        // close_main_window() (app::run's quit_after, a Quit menu item) ends the app through
+        // the same path as the user closing the primary window.
+        ctx_holder_->set_main_window_close_handler([this] { handle_close(primary_id_); });
         registry_.set_waker(ctx_holder_->waker());
         ctx_holder_->serve_window_requests(*registry_.find(primary_id_)->tree);
         registry_.set_text_measurer(backend_.text_measurer());

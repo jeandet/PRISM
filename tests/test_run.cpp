@@ -7,6 +7,8 @@
 #include <prism/app/settings.hpp>
 
 #include <chrono>
+#include <atomic>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -23,6 +25,10 @@ struct Plain {
 struct WithWindow {
     core::Field<int> volume{3};
     app::WindowGeometry window;
+};
+struct Tiny {
+    core::Field<int> count{0};
+    void view(app::ViewBuilder& vb) { vb.widget(count); }
 };
 } // namespace run_test
 
@@ -62,4 +68,38 @@ TEST_CASE("opened settings load what the file had, and save each change") {
         plain.volume.set(9);
     }   // closing writes what is pending
     CHECK(read_file(file).find("volume = 9") != std::string::npos);
+}
+
+TEST_CASE("app::run with quit_after closes itself and returns 0, well under 10 s") {
+    run_test::Tiny model;
+    app::AppConfig cfg{.title = "prism test quit_after"};
+    cfg.quit_after = std::chrono::milliseconds(200);
+
+    // If run() never returns (quit_after not acted on yet), fail this binary after 20 s instead
+    // of hanging the whole suite; with the quit working, run() returns after ~200 ms.
+    const auto returned = std::make_shared<std::atomic<bool>>(false);
+    std::thread([returned] {
+        std::this_thread::sleep_for(std::chrono::seconds(20));
+        if (!returned->load(std::memory_order_acquire)) std::_Exit(1);
+    }).detach();
+
+    const auto start = std::chrono::steady_clock::now();
+    const int rc = app::run(model, cfg);
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+    returned->store(true, std::memory_order_release);
+
+    CHECK(rc == 0);
+    CHECK(elapsed < std::chrono::seconds(10));
+}
+
+TEST_CASE("run_detail::quit_after_from_env parses PRISM_QUIT_AFTER_MS, ignores what does not parse") {
+    using namespace std::chrono;
+    CHECK_FALSE(app::run_detail::quit_after_from_env(nullptr).has_value());
+    CHECK_FALSE(app::run_detail::quit_after_from_env("").has_value());
+    CHECK_FALSE(app::run_detail::quit_after_from_env("abc").has_value());
+    CHECK_FALSE(app::run_detail::quit_after_from_env("-5").has_value());
+    CHECK_FALSE(app::run_detail::quit_after_from_env("250ms").has_value());
+    const auto parsed = app::run_detail::quit_after_from_env("250");
+    REQUIRE(parsed.has_value());
+    CHECK(*parsed == milliseconds(250));
 }

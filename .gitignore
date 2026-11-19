@@ -1,5 +1,4 @@
-builddir/
-builddir-tsan/
+builddir*/
 build/
 subprojects/*/
 .cache/

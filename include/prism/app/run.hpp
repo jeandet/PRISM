@@ -5,11 +5,17 @@
 #include <prism/backends/settings_dir.hpp>
 
 #include <cctype>
+#include <charconv>
+#include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 
 // app::run: a whole main() in one call -- the window, the model, and the settings that survive
 // a restart.
@@ -56,6 +62,9 @@ struct AppConfig {
     std::string_view organization{};   // the settings folder's parent (SDL asks for one)
     std::string_view name{};            // the settings folder; default: the title, dashed
     DecorationMode decoration = DecorationMode::Custom;
+    // When set, the app closes itself this long after setup, exactly as if the user closed the
+    // main window (for CI and headless runs). When not set, run() reads PRISM_QUIT_AFTER_MS.
+    std::optional<std::chrono::milliseconds> quit_after{};
 };
 
 namespace run_detail {
@@ -72,10 +81,38 @@ inline std::string settings_name(const AppConfig& cfg) {
     return out;
 }
 
+// PRISM_QUIT_AFTER_MS as a duration: the whole string must be a non-negative integer, else the
+// variable is ignored (nullopt).
+inline std::optional<std::chrono::milliseconds> quit_after_from_env(const char* text) {
+    if (!text) return std::nullopt;
+    const std::string_view s{text};
+    if (s.empty()) return std::nullopt;
+    unsigned long long value = 0;
+    const auto res = std::from_chars(s.data(), s.data() + s.size(), value);
+    if (res.ec != std::errc{} || res.ptr != s.data() + s.size()) return std::nullopt;
+    if (value > static_cast<unsigned long long>(std::numeric_limits<long long>::max()))
+        return std::nullopt;   // not a chrono::milliseconds count
+    return std::chrono::milliseconds{static_cast<long long>(value)};
+}
+
 inline std::shared_ptr<void> open_settings(const AppConfig& cfg) {
     if (!cfg.settings.open) return nullptr;
     const auto dir = backends::settings_dir(std::string(cfg.organization), settings_name(cfg));
     return cfg.settings.open(dir / "settings.toml");
+}
+
+// Closes the main window `after` from now, exactly as if the user closed it: a timer thread
+// sleeps, then hands the close to the logic thread. The poster may outlive the app — once the
+// app's wake gate is closed it drops the close — so the thread needs no joining. run() uses
+// this for AppConfig::quit_after / PRISM_QUIT_AFTER_MS (CI and headless runs).
+inline void schedule_quit(AppContext& ctx, std::chrono::milliseconds after) {
+    auto poster = ctx.poster();
+    AppContext* ctxp = &ctx;   // the close runs on the logic thread, so only while the app lives
+    std::thread([poster = std::move(poster), ctxp,
+                 deadline = std::chrono::steady_clock::now() + after] {
+        std::this_thread::sleep_until(deadline);
+        poster([ctxp] { ctxp->close_main_window(); });
+    }).detach();
 }
 
 } // namespace run_detail
@@ -89,9 +126,14 @@ int run(Model& model, const AppConfig& cfg, std::function<void(AppContext&)> set
     WindowConfig window{.title = title.c_str(), .width = cfg.width, .height = cfg.height,
                         .decoration = cfg.decoration};
     if (cfg.settings.window) window = cfg.settings.window->applied_to(window);
-    model_app(window, model, [&cfg, setup = std::move(setup)](AppContext& ctx) {
+    // cfg wins when set; the environment variable is the no-code-change default (CI, headless).
+    const auto quit_after = cfg.quit_after
+        ? cfg.quit_after
+        : run_detail::quit_after_from_env(std::getenv("PRISM_QUIT_AFTER_MS"));
+    model_app(window, model, [&cfg, setup = std::move(setup), quit_after](AppContext& ctx) {
         if (cfg.settings.window) ctx.remember_window_size(*cfg.settings.window);
         if (setup) setup(ctx);
+        if (quit_after) run_detail::schedule_quit(ctx, *quit_after);   // that long after setup
     });
     return 0;
 }

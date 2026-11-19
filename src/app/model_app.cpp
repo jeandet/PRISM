@@ -33,6 +33,19 @@ void AppContext::close_window(WindowId id) {
     on_window_closed_.erase(id);
 }
 
+void AppContext::close_main_window() {
+    if (closed_ && closed_->load(std::memory_order_acquire)) return;   // already closing
+    if (main_window_close_) {
+        main_window_close_();
+        return;
+    }
+    // A bare AppContext, no app run attached: the same end as a window close, minus the frame
+    // a running app still owes.
+    if (closed_) closed_->store(true, std::memory_order_release);
+    if (clock_) clock_->clear();
+    backend_->quit();
+}
+
 void AppContext::serve_window_requests(WidgetTree& tree) {
     if (!backend_->opens_windows()) return;   // the browser: no opener, so docks float cards
     tree.set_window_opener(
