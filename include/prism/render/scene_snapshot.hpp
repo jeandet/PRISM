@@ -64,27 +64,73 @@ struct SceneSnapshot {
     std::chrono::steady_clock::time_point built_at{};  // when build_snapshot() finished
 };
 
+// resolve_clips() writes a ClipPush only when the rect the active outer clips resolve it to
+// differs from the one stored, and only into a DrawList owned solely by the snapshot being
+// resolved (use_count() == 1). A list's own nested clips are already resolved when the list
+// was built (resolve_nested_clips below, called by layout_flatten before a list is published
+// or cached), and intersection is idempotent, so for such a list the outer intersection is
+// the stored rect itself and nothing is written; layout_flatten shares a list across
+// snapshots only when the widget has no clipping ancestor, so a list reached with a clip
+// already active was freshly built for this snapshot and is not aliased. When that invariant
+// does not hold, this reports it and aborts — always on, not only under assert. Defined in
+// libprism (src/render/scene_snapshot.cpp).
+[[noreturn]] void clip_sharing_violation();
+
+// Resolves the ClipPush rects nested inside ONE list against the clips the list itself pushes
+// (the stack starts empty): a clip a widget drew inside the list is cut to the ClipPush that
+// wraps the list, once, when the list is built — call this before the list is published into a
+// snapshot (and before it is cached for reuse), while its builder still owns it alone.
+// Afterwards a resolve_clips() over a snapshot holding the list finds each nested rect already
+// equal to what the outer clips produce (intersection is idempotent), so it writes nothing.
+inline void resolve_nested_clips(DrawList& dl) {
+    std::vector<Rect> stack;
+    for (auto& cmd : dl.commands) {
+        if (auto* cp = std::get_if<ClipPush>(&cmd)) {
+            Rect r = cp->rect;
+            if (!stack.empty()) cp->rect = r = stack.back().intersect(r);
+            stack.push_back(r);
+        } else if (std::holds_alternative<ClipPop>(cmd)) {
+            if (!stack.empty()) stack.pop_back();
+        }
+    }
+}
+
 // Pre-intersect all ClipPush rects so backends receive final clip regions.
 // Must be called after layout_flatten, before handing the snapshot to any backend.
 inline void resolve_clips(SceneSnapshot& snap) {
+    struct ResolvedPush {
+        uint32_t list;
+        std::size_t command;
+        Rect rect;
+    };
+    // Pass 1, read-only: every ClipPush that sits under an active clip AND whose resolved rect
+    // differs from the stored one — only such a command is ever written, so a list with none
+    // (a shared, already-resolved one among them) is never touched below.
     std::vector<Rect> stack;
+    std::vector<ResolvedPush> writes;
     for (uint32_t idx : snap.z_order) {
-        // Entries below are only ever mutated while a clip is already active on `stack`.
-        // layout_flatten() only shares/caches a widget's DrawList across snapshots when it
-        // has no clipping ancestor (see its clipped_by_ancestor parameter), so any entry
-        // reached here with a non-empty stack was freshly built this call and isn't aliased
-        // by any other snapshot -- the const_pointer_cast reflects that invariant, not
-        // general license to mutate a published snapshot.
-        auto& dl = *std::const_pointer_cast<DrawList>(snap.draw_lists[idx]);
-        for (auto& cmd : dl.commands) {
-            if (auto* cp = std::get_if<ClipPush>(&cmd)) {
-                if (!stack.empty())
-                    cp->rect = stack.back().intersect(cp->rect);
-                stack.push_back(cp->rect);
+        const auto& list = snap.draw_lists[idx];
+        for (std::size_t i = 0; i < list->commands.size(); ++i) {
+            const auto& cmd = list->commands[i];
+            if (const auto* cp = std::get_if<ClipPush>(&cmd)) {
+                Rect r = cp->rect;
+                if (!stack.empty()) {
+                    r = stack.back().intersect(r);
+                    if (r != cp->rect) writes.push_back({idx, i, r});
+                }
+                stack.push_back(r);
             } else if (std::holds_alternative<ClipPop>(cmd)) {
                 if (!stack.empty()) stack.pop_back();
             }
         }
+    }
+    // Pass 2: apply them. A list written here must be owned solely by this snapshot — a shared
+    // one means the invariant above is broken, and writing it would mutate a list another
+    // snapshot still holds, so report and abort instead of const_casting it.
+    for (const auto& w : writes) {
+        if (snap.draw_lists[w.list].use_count() != 1) clip_sharing_violation();
+        auto& dl = *std::const_pointer_cast<DrawList>(snap.draw_lists[w.list]);
+        std::get<ClipPush>(dl.commands[w.command]).rect = w.rect;
     }
 }
 

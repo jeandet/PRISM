@@ -166,6 +166,7 @@ headless_tests = {
   'task_runner' : files('test_task_runner.cpp'),
   'process_tree_source' : files('test_process_tree_source.cpp'),
   'snapshot_stats' : files('test_snapshot_stats.cpp'),
+  'resolve_clips' : files('test_resolve_clips.cpp'),
   'record_reuse' : files('test_record_reuse.cpp'),
   'perf_lab' : files('test_perf_lab.cpp'),
   'frame_pacer' : files('test_frame_pacer.cpp'),
@@ -302,7 +303,8 @@ test('settings_dir', test_settings_dir)
 test_run = executable('test_run', files('test_run.cpp'),
   dependencies : [prism_software_backend_dep, doctest_dep],
 )
-test('run', test_run)
+# app::run opens a real SDL window for its quit_after test: the offscreen video driver.
+test('run', test_run, env : offscreen_env)
 
 test_sdl_font_set = executable('test_sdl_font_set',
   files('test_sdl_font_set.cpp'),

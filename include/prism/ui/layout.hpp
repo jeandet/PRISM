@@ -549,6 +549,9 @@ inline void flatten_table(LayoutNode& node, SceneSnapshot& snap, std::optional<R
         header_dl.commands.push_back(std::move(translated));
     }
     header_dl.clip_pop();
+    // The header cells' own clips (copied from overlay_draws above) are nested in the
+    // header's ClipPush: resolve them within this list while this build still owns it alone.
+    resolve_nested_clips(header_dl);
     snap.draw_lists.push_back(std::make_shared<DrawList>(std::move(header_dl)));
     snap.z_order.push_back(static_cast<uint32_t>(snap.geometry.size() - 1));
 
@@ -636,6 +639,9 @@ inline void flatten_board_draw(const LayoutNode& board, const BoardDraw& draw, S
     DrawList dl;
     draw(dl, [&board](WidgetId id) { return board_rect_of(board, id); }, board.board_scale);
     translate_draw_list(dl, DX{board.allocated.origin.x.raw()}, DY{board.allocated.origin.y.raw()});
+    // The board's own drawing may push clips of its own; a push nested in another one of this
+    // list is resolved here, while this build still owns the list alone.
+    resolve_nested_clips(dl);
     push_entry(snap, 0, board.allocated, std::move(dl));
 }
 
@@ -651,14 +657,16 @@ inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, std::optio
     // Reuse last frame's already-translated+clipped DrawList when this widget's content
     // didn't change (!dirty) AND it's still at the same screen rect -- a widget can be
     // clean but still relocate (a sibling resized, the window resized, ...), which would
-    // make a stale translated copy wrong. Restricted to !clipped_by_ancestor: resolve_clips
-    // only ever mutates a ClipPush rect in place when an outer clip is already active on
-    // its stack, and that can only happen for entries reached with clipped_by_ancestor
-    // true -- so an entry eligible for reuse here is guaranteed to never be mutated after
-    // publication, which is what makes sharing it across snapshots (and across the render
-    // thread) safe. Rows inside Scroll/VirtualList/Table therefore never get this reuse --
-    // simplify: recycled-row identity would need its own invalidation story; revisit if
-    // profiling shows scrolled/tabular content dominates snapshot-build cost.
+    // make a stale translated copy wrong. Restricted to !clipped_by_ancestor, which is what
+    // makes sharing the entry across snapshots (and across the render thread) safe: a list
+    // cached here has its own nested clips resolved once at build time (resolve_nested_clips
+    // below, before the cache stores it) and is reached by resolve_clips with no outer clip
+    // active on its stack -- the clipping ancestors pass `clip` down and wrap their children
+    // in ClipPush/ClipPop entries of their own -- so the outer intersection equals the stored
+    // rect and resolve_clips never writes it. Rows inside Scroll/VirtualList/Table therefore
+    // never get this reuse -- simplify: recycled-row identity would need its own invalidation
+    // story; revisit if profiling shows scrolled/tabular content dominates snapshot-build
+    // cost.
     bool cache_hit = !clipped_by_ancestor && node.widget && !node.widget->dirty
         && node.widget->cached_snapshot_draws
         && node.widget->cached_screen_rect == node.allocated;
@@ -687,6 +695,11 @@ inline void flatten_node_draws(LayoutNode& node, SceneSnapshot& snap, std::optio
             clipped->commands.push_back(std::move(cmd));
         }
         clipped->clip_pop();
+        // The widget's own clips (a text area's viewport, a table cell's) are nested in the
+        // ClipPush above: resolve them within this list now, while it is still owned solely
+        // by this build — before it is cached below and shared with later snapshots, which
+        // resolve_clips must then never need to write (see the cache comment above).
+        resolve_nested_clips(*clipped);
 
         if (!clipped_by_ancestor && node.widget) {
             node.widget->cached_screen_rect = node.allocated;
