@@ -80,7 +80,12 @@ public:
         {
             std::lock_guard<std::mutex> lk(state_->mutex);
             id = state_->next_id++;
-            state_->receivers.push_back({id, std::move(cb)});
+            // Copy-on-write: emit() only ever holds a shared_ptr to the frozen vector, so a
+            // connect during an emit swaps in a new vector and the running emit keeps the old
+            // one (the new receiver first fires on the next emit).
+            auto next = std::make_shared<std::vector<Entry>>(*state_->receivers);
+            next->push_back({id, std::make_shared<const Callback>(std::move(cb))});
+            state_->receivers = std::move(next);
         }
         auto detach = std::make_shared<std::function<void()>>(
             [weak = std::weak_ptr<State>(state_), id] {
@@ -91,31 +96,42 @@ public:
 
     void emit(Args... args) const {
         if (!state_) return;
-        std::vector<Callback> snapshot;
+        // The mutex is held only to copy the shared_ptr — no allocation — and the callbacks
+        // then run from that frozen vector: a disconnect or connect during emit cannot touch
+        // the emit in flight (it affects the next one).
+        std::shared_ptr<const std::vector<Entry>> snapshot;
         {
             std::lock_guard<std::mutex> lk(state_->mutex);
-            snapshot.reserve(state_->receivers.size());
-            for (auto& e : state_->receivers) snapshot.push_back(e.cb);
+            snapshot = state_->receivers;
         }
-        for (auto& cb : snapshot) {
-            if (cb) cb(args...);
+        for (const auto& e : *snapshot) {
+            if (*e.cb) (*e.cb)(args...);
         }
     }
 
 private:
+    // The callback sits behind a pointer so copying the list never copies a callback: a copy
+    // of one wrapping a Python object would change its reference count, maybe without the GIL.
     struct Entry {
         uint64_t id;
-        Callback cb;
+        std::shared_ptr<const Callback> cb;
     };
 
     struct State {
         std::mutex mutex;
         uint64_t next_id = 0;
-        std::vector<Entry> receivers;
+        // Frozen on every change: emit() copies only this pointer, so notifying listeners
+        // never allocates.
+        std::shared_ptr<const std::vector<Entry>> receivers =
+            std::make_shared<const std::vector<Entry>>();
 
         void remove(uint64_t id) {
             std::lock_guard<std::mutex> lk(mutex);
-            std::erase_if(receivers, [id](auto& e) { return e.id == id; });
+            auto next = std::make_shared<std::vector<Entry>>();
+            next->reserve(receivers->size());
+            for (const auto& e : *receivers)
+                if (e.id != id) next->push_back(e);
+            receivers = std::move(next);
         }
     };
 
