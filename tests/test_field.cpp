@@ -187,15 +187,14 @@ TEST_CASE("Field: = takes a designated initializer") {
 // hold whether or not NDEBUG is defined — today it is only an assert, so a release build lets
 // the set() through and the child reaches _exit(0).
 TEST_CASE("Field::set from a thread that is not the logic thread aborts, with or without NDEBUG") {
-    // A joined thread's id: never this thread's, so the child below looks like "another thread".
-    std::thread::id other;
-    std::thread([&other] { other = std::this_thread::get_id(); }).join();
-
     const pid_t pid = fork();
     REQUIRE(pid >= 0);
     if (pid == 0) {
-        // Pretend an app runs and its logic thread is `other`: this thread may not set fields.
-        prism::core::logic_thread.store(other);
+        // Pretend an app runs on another thread, which claims the model the way model_app's
+        // logic thread does: this thread may not set fields now. The claim is made on that
+        // thread, as in a real app; a store made here, next to the set, lets an optimizer
+        // fold the check away.
+        std::thread([] { prism::core::logic_thread.store(std::this_thread::get_id()); }).join();
         prism::Field<int> f{0};
         f.set(1);   // must print the violation and abort, assert or not
         _exit(0);   // reached only when the check is compiled out (NDEBUG today)
