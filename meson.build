@@ -69,6 +69,12 @@ if debug_tools_enabled
   add_project_arguments('-DPRISM_DEBUG_TOOLS_ENABLED', language : 'cpp')
 endif
 
+# No sockets, no filesystem on bare metal: the optional libraries are off unless asked for.
+foreach o : ['http', 'io', 'markdown']
+  opt = get_option(o)
+  set_variable(o + '_on', opt.enabled() or (opt.auto() and host_machine.system() != 'none'))
+endforeach
+
 prism_inc = include_directories('include')
 
 sdl_opt = get_option('sdl')

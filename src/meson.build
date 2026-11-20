@@ -1,6 +1,11 @@
 # Core: headers for templates, libprism (below) for the rest; stdexec is header-only
 stdexec_dep = dependency('stdexec', fallback : ['stdexec', 'stdexec_dep'])
-fmt_dep = dependency('fmt', fallback : ['fmt', 'fmt_dep'])
+if host_machine.system() == 'none'
+  # Its os.cc needs POSIX file calls a bare-metal libc lacks.
+  fmt_dep = dependency('fmt', fallback : ['fmt', 'fmt_header_only_dep'], default_options : ['header-only=true'])
+else
+  fmt_dep = dependency('fmt', fallback : ['fmt', 'fmt_dep'])
+endif
 
 if not has_reflection
   # test=false here, not as -Dmagic_enum:test=false on the command line: with reflection the
@@ -31,7 +36,7 @@ prism_headers_dep = declare_dependency(
 # them. simplify: built with this build's flags (reflection or not, NDEBUG or not); a header
 # whose inline code differs on those must keep that code in the header. A project linking an
 # installed libprism with other flags needs a library per flag set; add when one is packaged.
-prism_lib = library('prism',
+prism_lib = build_target('prism',
   'app/backend.cpp',
   'app/model_app.cpp',
   'app/node_board.cpp',
@@ -71,6 +76,8 @@ prism_lib = library('prism',
   'ui/layout.cpp',
   'ui/node_family.cpp',
   dependencies : [prism_headers_dep],
+  # A bare-metal link has no shared libraries.
+  target_type : host_machine.system() == 'none' ? 'static_library' : 'library',
   install : true,
 )
 
@@ -165,7 +172,7 @@ endif
 # found. No sockets in the browser, so never built there.
 prism_net_dep = dependency('', required : false)
 httplib_dep = dependency('', required : false)
-if host_machine.system() != 'emscripten' and get_option('http').allowed()
+if host_machine.system() != 'emscripten' and http_on
   # Its async name lookup calls GetAddrInfoExCancel, which MinGW's headers do not declare.
   httplib_options = ['zlib=disabled', 'brotli=disabled', 'zstd=disabled']
   if host_machine.system() == 'windows'
@@ -194,7 +201,7 @@ endif
 # Markdown (text/markdown.hpp): GitHub's CommonMark parser, cmark-gfm, into a text::Document.
 # Static, like libunibreak: a wheel needs no extra shared library. Its own warnings are not ours.
 prism_markdown_dep = dependency('', required : false)
-if get_option('markdown').allowed()
+if markdown_on
   cmark_dep = dependency('libcmark-gfm', required : get_option('markdown'),
                          fallback : ['cmark-gfm', 'cmark_gfm_dep'],
                          default_options : ['default_library=static', 'werror=false', 'warning_level=0'])
@@ -216,7 +223,7 @@ endif
 # Byte streams (io/streams.hpp): TCP and serial ports through standalone Asio (header-only) behind
 # prism-io. No sockets in the browser, so never built there.
 prism_io_dep = dependency('', required : false)
-if host_machine.system() != 'emscripten' and get_option('io').allowed()
+if host_machine.system() != 'emscripten' and io_on
   asio_dep = dependency('asio', required : get_option('io'), fallback : ['asio', 'asio_dep']).as_system('system')
   if asio_dep.found()
     # Asio's accept uses AcceptEx from mswsock; WrapDB's asio links only ws2_32.
