@@ -10,6 +10,8 @@
 // for_each_thread, oldest first, as up to two spans -- a mark in flight when the view is
 // taken is left out of it, never read half-written (see for_each_thread).
 
+#include <prism/profile/trace_format.hpp>
+
 #include <atomic>
 #include <array>
 #include <cstddef>
@@ -50,7 +52,6 @@ consteval Site make_site(const char* name,
     return Site{name, loc.function_name(), loc.file_name(), loc.line()};
 }
 
-enum class Kind : std::uint8_t { begin, end, instant, counter, frame };
 
 struct Event {
     std::uint64_t ticks;

@@ -233,6 +233,14 @@ test('profile_dump', executable('test_profile_dump', files('test_profile_dump.cp
   dependencies : [prism_core_dep, doctest_dep],
 ))
 
+# prism-trace's dump reader and Chrome trace-event JSON writer (tools/prism-trace, linked as the
+# prism_trace_dep static library): the round trip through Recorder + dump, a damaged events
+# chunk, garbage around the dump, a missing end chunk, a wrapped ring, a hand-built
+# pointer-size-4 dump.
+test('prism_trace', executable('test_prism_trace', files('test_prism_trace.cpp'),
+  dependencies : [prism_trace_dep, prism_core_dep, doctest_dep, glaze_dep],
+))
+
 test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
   dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],
 )

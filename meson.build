@@ -103,6 +103,14 @@ else
 endif
 
 subdir('src')
+
+# The prism-trace host tool (tools/prism-trace, doc/design/profiling.md): reads a profile dump
+# and writes Chrome trace-event JSON. Hosted only -- bare metal has no host to run a tool on.
+# Its library also backs tests/test_prism_trace.cpp, so this comes before subdir('tests').
+if host_machine.system() != 'none'
+  subdir('tools/prism-trace')
+endif
+
 if host_machine.system() == 'none'
   subdir('ports')
   if not get_option('tests').disabled()

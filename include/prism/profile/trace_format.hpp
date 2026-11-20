@@ -28,6 +28,9 @@
 
 namespace prism::profile {
 
+// An event's kind, as recorded and as written in an events chunk (one byte).
+enum class Kind : std::uint8_t { begin, end, instant, counter, frame };
+
 inline constexpr std::array<std::byte, 4> sync_marker{std::byte{'P'}, std::byte{'R'}, std::byte{'T'}, std::byte{'R'}};
 inline constexpr std::uint16_t format_version = 1;
 
