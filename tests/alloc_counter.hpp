@@ -1,5 +1,8 @@
 // Counts heap allocations made through operator new in a test executable. Include it in exactly
 // one translation unit per test executable: it replaces the global operator new and delete.
+// It counts libprism's allocations only where a program's operator new replaces the shared
+// library's (ELF platforms, static builds), not inside a Windows DLL. Over-aligned new is not
+// replaced (std::aligned_alloc is missing on Windows' UCRT): nothing on the frame path uses it.
 #pragma once
 
 #include <atomic>
@@ -21,15 +24,5 @@ void* operator new(std::size_t n)
     if (void* p = std::malloc(n == 0 ? 1 : n)) return p;
     throw std::bad_alloc{};
 }
-void* operator new(std::size_t n, std::align_val_t al)
-{
-    prism::test::g_allocations.fetch_add(1, std::memory_order_relaxed);
-    if (void* p = std::aligned_alloc(static_cast<std::size_t>(al),
-                                     (n + static_cast<std::size_t>(al) - 1) & ~(static_cast<std::size_t>(al) - 1)))
-        return p;
-    throw std::bad_alloc{};
-}
 void operator delete(void* p) noexcept { std::free(p); }
 void operator delete(void* p, std::size_t) noexcept { std::free(p); }
-void operator delete(void* p, std::align_val_t) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }

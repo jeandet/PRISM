@@ -170,7 +170,6 @@ headless_tests = {
   'record_reuse' : files('test_record_reuse.cpp'),
   'perf_lab' : files('test_perf_lab.cpp'),
   'frame_pacer' : files('test_frame_pacer.cpp'),
-  'alloc_free' : files('test_alloc_free.cpp'),
 }
 
 foreach name, src : headless_tests
@@ -179,6 +178,14 @@ foreach name, src : headless_tests
   )
   test(name, exe)
 endforeach
+
+# Counts libprism's heap allocations by replacing operator new in the test program, which a
+# Windows DLL does not see: there the test would count nothing and pass without testing.
+if host_machine.system() != 'windows'
+  test('alloc_free', executable('test_alloc_free', files('test_alloc_free.cpp'),
+    dependencies : [prism_core_dep, doctest_dep],
+  ))
+endif
 
 test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
   dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],

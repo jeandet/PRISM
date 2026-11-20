@@ -32,6 +32,17 @@ Rect plot_bounds() { return Rect{Point{X{0}, Y{0}}, Size{Width{400}, Height{300}
 
 } // namespace
 
+TEST_CASE("the counter sees allocations made inside libprism")
+{
+    // Every other test here passes trivially if the counter misses the library's allocations
+    // (a DLL keeps its own operator new): a first snapshot build must count some.
+    Controls model;
+    app::WidgetTree tree(model);
+    const auto before = allocations();
+    auto snap = tree.build_snapshot(480.f, 272.f, 1);
+    CHECK(allocations() - before > 0);
+}
+
 TEST_CASE("an empty plot re-records without allocating")
 {
     Theme t = default_theme();
