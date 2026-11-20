@@ -113,9 +113,9 @@ enables it as any app would.
 
 - header: magic, format version, ticks per second, pointer size, counts;
 - the thread table: id, name, lost-event count;
-- the names: each distinct name pointer seen, with its string (the device reads its own flash, so
-  the host needs no ELF);
-- each thread's events, oldest first.
+- each thread's events, oldest first, in chunks of at most 4096; before each, the call sites
+  those events use (pointer, name, function, file, line: the device reads its own flash, so the
+  host needs no ELF), at most 256 per chunk so the dump needs no allocation.
 
 *Our call:* recording pauses during a dump (marks become no-ops until it ends), so the end of
 the run, which the flight-recorder choice exists for, is what gets sent; a slow UART dump takes

@@ -131,28 +131,28 @@ private:
     std::optional<std::error_code> error_;
 };
 
-// The fixed dedup table of name pointers for one events chunk: a linear scan over at most
-// max_names_per_chunk entries -- the dump allocates nothing.
-class NameTable {
+// The fixed dedup table of site pointers for one events chunk: a linear scan over at most
+// max_sites_per_chunk entries -- the dump allocates nothing.
+class SiteTable {
 public:
-    // False when the table is full and `name` is not in it; the caller then ends the chunk
+    // False when the table is full and `site` is not in it; the caller then ends the chunk
     // before the event that would overflow it.
-    bool add(const char* name)
+    bool add(const Site* site)
     {
         for (std::size_t i = 0; i < count_; ++i)
-            if (ptrs_[i] == name)
+            if (ptrs_[i] == site)
                 return true;
         if (count_ == ptrs_.size())
             return false;
-        ptrs_[count_++] = name;
+        ptrs_[count_++] = site;
         return true;
     }
     void clear() { count_ = 0; }
     std::size_t count() const { return count_; }
-    const char* at(std::size_t i) const { return ptrs_[i]; }
+    const Site* at(std::size_t i) const { return ptrs_[i]; }
 
 private:
-    std::array<const char*, max_names_per_chunk> ptrs_{};
+    std::array<const Site*, max_sites_per_chunk> ptrs_{};
     std::size_t count_ = 0;
 };
 
@@ -162,22 +162,30 @@ inline const Event& event_at(const Recorder::ThreadView& tv, std::size_t i)
     return i < tv.first.size() ? tv.first[i] : tv.second[i - tv.first.size()];
 }
 
-// strlen of a name pointer, cut at 65535 (the names chunk's u16 length).
-inline std::size_t name_length(const char* name)
+// strlen of one of a site's strings, cut at 65535 (the sites chunk's u16 length).
+inline std::size_t site_string_length(const char* s)
 {
-    return std::min(std::strlen(name), std::size_t{65535});
+    return std::min(std::strlen(s), std::size_t{65535});
+}
+
+// The sites-chunk payload bytes of one site: pointer u64 | line u32 | name, function, file
+// (each u16 length + bytes).
+inline std::size_t site_payload_size(const Site& site)
+{
+    return 8 + 4 + (2 + site_string_length(site.name)) + (2 + site_string_length(site.function)) +
+           (2 + site_string_length(site.file));
 }
 
 // How many of tv's events from flat index `start` go into the next events chunk: at most
-// max_events_per_chunk, and no name beyond the table's capacity. The names of the chosen
-// events are added to `names`, which the chunk's names chunk then carries exactly.
-inline std::size_t plan_events_chunk(const Recorder::ThreadView& tv, std::size_t start, NameTable& names)
+// max_events_per_chunk, and no site beyond the table's capacity. The sites of the chosen
+// events are added to `sites`, which the chunk's sites chunk then carries exactly.
+inline std::size_t plan_events_chunk(const Recorder::ThreadView& tv, std::size_t start, SiteTable& sites)
 {
     const std::size_t total = tv.first.size() + tv.second.size();
     std::size_t count = 0;
     for (std::size_t i = start; i < total && count < max_events_per_chunk; ++i) {
         const Event& e = event_at(tv, i);
-        if (e.name != nullptr && !names.add(e.name))
+        if (!sites.add(e.site))
             break; // the table is full: end the chunk before this event
         ++count;
     }
@@ -207,20 +215,35 @@ void write_thread_chunk(ChunkWriter<S>& w, const Recorder::ThreadView& tv)
     w.end();
 }
 
+// One of a site's strings in the sites chunk: u16 length (cut at 65535) + bytes.
 template <io::ByteStream S>
-void write_names_chunk(ChunkWriter<S>& w, const NameTable& names)
+void put_site_string(ChunkWriter<S>& w, const char* s)
 {
-    std::uint32_t payload_len = 0;
-    for (std::size_t i = 0; i < names.count(); ++i)
-        payload_len += static_cast<std::uint32_t>(8 + 2 + name_length(names.at(i)));
-    w.begin(Chunk::names, payload_len);
-    for (std::size_t i = 0; i < names.count(); ++i) {
-        const char* name = names.at(i);
-        const std::size_t len = name_length(name);
-        w.put_uint(static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(name)));
-        w.put_uint(static_cast<std::uint16_t>(len));
-        w.put(io::as_bytes(std::string_view{name, len}));
-    }
+    const std::size_t len = site_string_length(s);
+    w.put_uint(static_cast<std::uint16_t>(len));
+    w.put(io::as_bytes(std::string_view{s, len}));
+}
+
+// One site of a sites chunk: pointer u64 | line u32 | name, function, file.
+template <io::ByteStream S>
+void write_site(ChunkWriter<S>& w, const Site& site)
+{
+    w.put_uint(static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(&site)));
+    w.put_uint(site.line);
+    put_site_string(w, site.name);
+    put_site_string(w, site.function);
+    put_site_string(w, site.file);
+}
+
+template <io::ByteStream S>
+void write_sites_chunk(ChunkWriter<S>& w, const SiteTable& sites)
+{
+    std::size_t payload = 0;
+    for (std::size_t i = 0; i < sites.count(); ++i)
+        payload += site_payload_size(*sites.at(i));
+    w.begin(Chunk::sites, static_cast<std::uint32_t>(payload)); // the length streams before the payload
+    for (std::size_t i = 0; i < sites.count(); ++i)
+        write_site(w, *sites.at(i));
     w.end();
 }
 
@@ -232,40 +255,38 @@ void write_events_chunk(ChunkWriter<S>& w, const Recorder::ThreadView& tv, std::
     for (std::size_t k = 0; k < count; ++k) {
         const Event& e = event_at(tv, start + k);
         w.put_uint(e.ticks);
-        // 0 for a frame boundary: no name, and no names-chunk entry.
-        w.put_uint(e.name == nullptr
-                       ? std::uint64_t{0}
-                       : static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(e.name)));
+        // The site pointer; never null (frame() records a site of its own).
+        w.put_uint(static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(e.site)));
         w.put_uint(static_cast<std::uint32_t>(e.value)); // i32: its two's-complement bits as u32 LE
         w.put_uint(static_cast<std::uint8_t>(e.kind));
     }
     w.end();
 }
 
-// One or more (names, events) pairs for one thread: the names chunk before an events chunk
-// carries the distinct name pointers that events chunk uses. Even a thread with no events
+// One or more (sites, events) pairs for one thread: the sites chunk before an events chunk
+// carries the distinct site pointers that events chunk uses. Even a thread with no events
 // gets one (empty) pair.
 template <io::ByteStream S>
 void dump_thread_pairs(ChunkWriter<S>& w, const Recorder::ThreadView& tv)
 {
     const std::size_t total = tv.first.size() + tv.second.size();
-    NameTable names;
+    SiteTable sites;
     std::size_t start = 0;
     do {
         if (w.error())
             return;
-        const std::size_t count = plan_events_chunk(tv, start, names);
-        write_names_chunk(w, names);
+        const std::size_t count = plan_events_chunk(tv, start, sites);
+        write_sites_chunk(w, sites);
         write_events_chunk(w, tv, start, count);
         start += count;
-        names.clear();
+        sites.clear();
     } while (start < total);
 }
 
 } // namespace profile_detail
 
 // Writes r's dump to `out`: the sync marker, a header chunk, one thread chunk per thread,
-// then per thread one or more (names, events) chunk pairs, then an end chunk. While paused,
+// then per thread one or more (sites, events) chunk pairs, then an end chunk. While paused,
 // a mark already in flight is left out of the view (for_each_thread), so the dump never reads
 // a half-written event and never waits for a marking thread.
 template <io::ByteStream S>

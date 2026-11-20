@@ -3,15 +3,18 @@
 // The post-mortem recorder behind the PRISM_PROFILE_* marks (profile.hpp,
 // doc/design/profiling.md): per-thread rings of fixed-size events carved out of one storage
 // region. A mark writes only its thread's ring -- no lock and no allocation once the thread
-// has claimed its ring on its first mark; a full ring overwrites the oldest events and counts
-// them in ThreadView::lost (a flight recorder: the end of a run is what survives). Read back
-// with for_each_thread, oldest first, as up to two spans -- a mark in flight when the view is
+// has claimed its ring on its first mark -- and records a single pointer: its call site, a
+// static constexpr Site built by the PRISM_PROFILE_* macros (profile.hpp), never copied,
+// hashed or formatted. A full ring overwrites the oldest events and counts them in
+// ThreadView::lost (a flight recorder: the end of a run is what survives). Read back with
+// for_each_thread, oldest first, as up to two spans -- a mark in flight when the view is
 // taken is left out of it, never read half-written (see for_each_thread).
 
 #include <atomic>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <source_location>
 #include <span>
 #include <string_view>
 
@@ -27,11 +30,31 @@ std::uint64_t profile_ticks_per_second();
 
 namespace prism::profile {
 
+// A call site: what a mark points at. Each PRISM_PROFILE_* macro builds one as a static
+// constexpr (make_site below), so the event records one pointer and the dump sends the
+// site's strings once -- the host tool needs no ELF.
+struct Site {
+    const char* name;
+    const char* function;
+    const char* file;
+    std::uint32_t line;
+};
+
+// The Site of a call: std::source_location::current() as this consteval function's default
+// argument gives the location of the call -- for the macros, their expansion, i.e. the
+// mark's call site. `name` must be a constant expression (a string literal): a non-constant
+// name does not compile.
+consteval Site make_site(const char* name,
+                         std::source_location loc = std::source_location::current())
+{
+    return Site{name, loc.function_name(), loc.file_name(), loc.line()};
+}
+
 enum class Kind : std::uint8_t { begin, end, instant, counter, frame };
 
 struct Event {
     std::uint64_t ticks;
-    const char* name;   // a string literal: recorded by pointer, never copied or formatted
+    const Site* site;   // the mark's call site: recorded by pointer, never copied or formatted
     std::int32_t value; // the counter's sample
     Kind kind;
 };
@@ -48,10 +71,12 @@ public:
     Recorder(const Recorder&) = delete;
     Recorder& operator=(const Recorder&) = delete;
 
-    void begin(const char* name);
-    void end(const char* name);
-    void instant(const char* name);
-    void counter(const char* name, std::int32_t v);
+    void begin(const Site& site);
+    void end(const Site& site);
+    void instant(const Site& site);
+    void counter(const Site& site, std::int32_t v);
+    // Records a site of its own (a static constexpr in recorder.cpp, named "frame"), so no
+    // event has a null site.
     void frame();
     // Names the calling thread on the timeline: copied into its slot, cut at 16 characters, so
     // a finished thread leaves no dangling pointer behind.
@@ -135,7 +160,7 @@ private:
     };
 
     Slot* claim_slot(); // this thread's ring, claimed on its first mark
-    void record(Kind kind, const char* name, std::int32_t value);
+    void record(Kind kind, const Site* site, std::int32_t value);
 
     std::size_t threads_;
     std::uint32_t serial_; // keys the threads' slot cache: a new recorder at an old address is a new key

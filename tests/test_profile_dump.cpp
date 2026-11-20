@@ -1,15 +1,15 @@
 // The binary dump (include/prism/profile/dump.hpp + trace_format.hpp over any io::ByteStream,
-// doc/design/profiling.md): crc32's known answer; the framed chunk layout of a two-thread,
-// three-name dump (sync marker, header, thread chunks, per-thread (names, events) pairs, end
-// -- every chunk's CRC valid, every event's name resolved through the names chunk before it,
-// and a frame() event's null pointer accepted with no names entry); dumps of a wrapped ring
-// while a thread keeps marking (every dump parses, CRCs valid, ticks never go backwards
-// within a thread); the chunk splits -- an events chunk ends at 4096 events and when its
-// 256-entry name table is full, each events chunk preceded by its names chunk; a wrapped ring
-// dumps oldest first with lost counted in its thread chunk; marks made during a dump (the
-// recorder's in-flight protocol: left out of the view, never read half-written, and the
-// recorder resumes after); a failed dump still resuming; io::FileStream's write/read round
-// trip; dump_to_file under PRISM_PROFILING.
+// doc/design/profiling.md): crc32's known answer; the framed chunk layout of a two-thread dump
+// (sync marker, header, thread chunks, per-thread (sites, events) pairs, end -- every chunk's
+// CRC valid, every event's site resolved through the sites chunk before it, and a frame()
+// event pointing at frame()'s own site, not a null pointer); a dumped site carries its name,
+// function, file and line; dumps of a wrapped ring while a thread keeps marking (every dump
+// parses, CRCs valid, ticks never go backwards within a thread); the chunk splits -- an
+// events chunk ends at 4096 events and when its 256-entry site table is full, each events
+// chunk preceded by its sites chunk; a wrapped ring dumps oldest first with lost counted in
+// its thread chunk; marks made during a dump (the recorder's in-flight protocol: left out of
+// the view, never read half-written, and the recorder resumes after); a failed dump still
+// resuming; io::FileStream's write/read round trip; dump_to_file under PRISM_PROFILING.
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
@@ -43,8 +43,10 @@ using prism::profile::Chunk;
 using prism::profile::Event;
 using prism::profile::Kind;
 using prism::profile::Recorder;
+using prism::profile::Site;
 using prism::profile::crc32;
 using prism::profile::format_version;
+using prism::profile::make_site;
 using prism::profile::sync_marker;
 
 namespace {
@@ -118,13 +120,21 @@ std::optional<ChunkView> next_chunk(std::span<const std::byte>& rest)
 
 // Redefined on purpose instead of using prism::profile::event_wire_size: the parser checks
 // the library against an independent constant.
-constexpr std::size_t event_wire_size = 8 + 8 + 4 + 1; // ticks, name pointer, value, kind
+constexpr std::size_t event_wire_size = 8 + 8 + 4 + 1; // ticks, site pointer, value, kind
 
 struct ParsedEvent {
     std::uint64_t ticks;
-    std::uint64_t name_ptr;
+    std::uint64_t site_ptr;
     std::int32_t value;
     Kind kind;
+};
+
+// One entry of a sites chunk: pointer u64 | line u32 | name, function, file (each u16 + bytes).
+struct ParsedSite {
+    std::string name;
+    std::string function;
+    std::string file;
+    std::uint32_t line = 0;
 };
 
 struct ParsedDump {
@@ -134,17 +144,17 @@ struct ParsedDump {
     std::uint64_t thread_count = 0;
     std::uint64_t threads_dropped = 0;
     std::map<std::uint64_t, std::pair<std::uint64_t, std::string>> threads; // id -> {lost, name}
-    // Per names chunk, in dump order: how many names it carried (one names chunk before each
+    // Per sites chunk, in dump order: how many sites it carried (one sites chunk before each
     // events chunk).
-    std::vector<std::size_t> names_chunk_sizes;
+    std::vector<std::size_t> sites_chunk_sizes;
     // Per events chunk, in dump order: the thread id and its events, oldest first.
     std::vector<std::pair<std::uint64_t, std::vector<ParsedEvent>>> event_chunks;
-    std::map<std::uint64_t, std::string> names_by_ptr; // every name pointer seen -> its string
+    std::map<std::uint64_t, ParsedSite> sites_by_ptr; // every site pointer seen -> its fields
 };
 
 // Walks a whole dump, checking the sync marker, the framing and every chunk's CRC. Chunk order
 // per the format: header, one thread chunk per thread, then per thread one or more
-// (names, events) pairs, then end.
+// (sites, events) pairs, then end.
 ParsedDump parse_dump(std::span<const std::byte> bytes)
 {
     REQUIRE(bytes.size() >= sync_marker.size());
@@ -185,21 +195,30 @@ ParsedDump parse_dump(std::span<const std::byte> bytes)
             CHECK(c->payload.empty());
             break;
         }
-        CHECK(c->type == Chunk::names);
-        std::map<std::uint64_t, std::string> names_chunk;
+        CHECK(c->type == Chunk::sites);
+        std::map<std::uint64_t, ParsedSite> sites_chunk;
         {
             auto p = c->payload;
             while (!p.empty()) {
                 const std::uint64_t ptr = take_u64(p);
-                const std::size_t len = take_u16(p);
-                REQUIRE(p.size() >= len);
-                std::string s(reinterpret_cast<const char*>(p.data()), len);
-                p = p.subspan(len);
-                names_chunk[ptr] = s;
-                d.names_by_ptr[ptr] = s;
+                ParsedSite s;
+                s.line = take_u32(p);
+                auto take_string = [&p] {
+                    const std::size_t len = take_u16(p);
+                    REQUIRE(p.size() >= len);
+                    std::string str(reinterpret_cast<const char*>(p.data()), len);
+                    p = p.subspan(len);
+                    return str;
+                };
+                s.name = take_string();
+                s.function = take_string();
+                s.file = take_string();
+                sites_chunk[ptr] = s;
+                d.sites_by_ptr[ptr] = s;
             }
+            CHECK(p.empty());
         }
-        d.names_chunk_sizes.push_back(names_chunk.size());
+        d.sites_chunk_sizes.push_back(sites_chunk.size());
         c = next_chunk(rest);
         REQUIRE(c.has_value());
         CHECK(c->type == Chunk::events);
@@ -211,12 +230,12 @@ ParsedDump parse_dump(std::span<const std::byte> bytes)
         while (!p.empty()) {
             ParsedEvent ev;
             ev.ticks = take_u64(p);
-            ev.name_ptr = take_u64(p);
+            ev.site_ptr = take_u64(p);
             ev.value = take_i32(p);
             ev.kind = static_cast<Kind>(take_u8(p));
-            // Resolves through the preceding names chunk -- unless it is 0, a frame boundary,
-            // which gets no names entry.
-            CHECK((ev.name_ptr == 0 || names_chunk.contains(ev.name_ptr)));
+            // Every event points at a site -- frame boundaries have their own, so the
+            // pointer is never 0 -- resolved through the preceding sites chunk.
+            CHECK(sites_chunk.contains(ev.site_ptr));
             events.push_back(ev);
         }
         CHECK(events.size() <= prism::profile::max_events_per_chunk);
@@ -256,6 +275,23 @@ std::vector<Event> events_of(const Recorder::ThreadView& tv)
     return out;
 }
 
+// n distinct sites whose names stay alive: sites are recorded by pointer, so the names must
+// outlive the recorder's use of them. Built at runtime -- only the macros need a constexpr
+// site.
+struct SiteArray {
+    std::vector<std::string> names;
+    std::vector<Site> sites;
+
+    explicit SiteArray(std::size_t n, const std::string& prefix) : names(n), sites(n)
+    {
+        for (std::size_t i = 0; i < n; ++i) {
+            names[i] = prefix + std::to_string(i);
+            sites[i] = Site{names[i].c_str(), "test_fn", "test_profile_dump.cpp",
+                            static_cast<std::uint32_t>(i + 1)};
+        }
+    }
+};
+
 // A ByteStream whose writes always fail.
 struct FailingStream {
     std::expected<void, std::error_code> write(std::span<const std::byte>) {
@@ -274,18 +310,21 @@ TEST_CASE("crc32 is the IEEE reflected CRC-32 (known answer)")
     CHECK(crc32(std::span<const std::byte>{}) == 0u); // init XOR final XOR over no bytes
 }
 
-TEST_CASE("a two-thread three-name dump is the framed chunks in order, every CRC valid")
+TEST_CASE("a two-thread dump is the framed chunks in order, every CRC valid")
 {
     std::vector<Event> storage(256);
     Recorder r{storage, 2}; // 128 events per ring
+    static constexpr Site alpha = make_site("alpha");
+    static constexpr Site heap = make_site("heap");
+    static constexpr Site beta = make_site("beta");
     r.name_thread("main");
-    r.instant("alpha");
-    r.counter("heap", 42);
-    r.frame(); // a frame boundary: name pointer 0, no names-chunk entry
+    r.instant(alpha);
+    r.counter(heap, 42);
+    r.frame(); // a frame boundary: frame()'s own site, not a null pointer
     std::jthread worker([&] {
         r.name_thread("worker");
-        r.begin("beta");
-        r.end("beta");
+        r.begin(beta);
+        r.end(beta);
     });
     worker.join();
 
@@ -310,17 +349,20 @@ TEST_CASE("a two-thread three-name dump is the framed chunks in order, every CRC
     std::sort(thread_names.begin(), thread_names.end());
     CHECK(thread_names == std::vector<std::string>{"main", "worker"});
 
-    REQUIRE(d.event_chunks.size() == 2); // one (names, events) pair per thread
+    REQUIRE(d.event_chunks.size() == 2); // one (sites, events) pair per thread
 
-    std::vector<std::string> names; // three distinct names across the whole dump
-    for (const auto& entry : d.names_by_ptr) {
-        names.push_back(entry.second);
-        // The pointer is a live string in this process: the dump stored its strlen, cut at 65535.
-        CHECK(std::string_view(reinterpret_cast<const char*>(static_cast<std::uintptr_t>(entry.first))) ==
-              entry.second);
+    std::vector<std::string> site_names; // four distinct sites across the whole dump
+    for (const auto& entry : d.sites_by_ptr) {
+        site_names.push_back(entry.second.name);
+        // The pointer is a live Site in this process: the dump stored its strings and line.
+        const Site* s = reinterpret_cast<const Site*>(static_cast<std::uintptr_t>(entry.first));
+        CHECK(std::string_view(s->name) == entry.second.name);
+        CHECK(std::string_view(s->function) == entry.second.function);
+        CHECK(std::string_view(s->file) == entry.second.file);
+        CHECK(s->line == entry.second.line);
     }
-    std::sort(names.begin(), names.end());
-    CHECK(names == std::vector<std::string>{"alpha", "beta", "heap"});
+    std::sort(site_names.begin(), site_names.end());
+    CHECK(site_names == std::vector<std::string>{"alpha", "beta", "frame", "heap"});
 
     for (const auto& chunk : d.event_chunks) {
         const std::string& tname = d.threads.at(chunk.first).second;
@@ -330,41 +372,70 @@ TEST_CASE("a two-thread three-name dump is the framed chunks in order, every CRC
         if (tname == "main") {
             REQUIRE(events.size() == 3);
             CHECK(events[0].kind == Kind::instant);
-            CHECK(d.names_by_ptr.at(events[0].name_ptr) == "alpha");
+            CHECK(d.sites_by_ptr.at(events[0].site_ptr).name == "alpha");
             CHECK(events[0].value == 0);
             CHECK(events[1].kind == Kind::counter);
-            CHECK(d.names_by_ptr.at(events[1].name_ptr) == "heap");
+            CHECK(d.sites_by_ptr.at(events[1].site_ptr).name == "heap");
             CHECK(events[1].value == 42);
             CHECK(events[2].kind == Kind::frame);
-            CHECK(events[2].name_ptr == 0); // no name: the parser accepts it, no names entry
+            CHECK(d.sites_by_ptr.at(events[2].site_ptr).name == "frame"); // frame()'s own site
             CHECK(events[2].value == 0);
         } else {
             CHECK(tname == "worker");
             REQUIRE(events.size() == 2);
             CHECK(events[0].kind == Kind::begin);
-            CHECK(d.names_by_ptr.at(events[0].name_ptr) == "beta");
+            CHECK(d.sites_by_ptr.at(events[0].site_ptr).name == "beta");
             CHECK(events[1].kind == Kind::end);
-            CHECK(d.names_by_ptr.at(events[1].name_ptr) == "beta");
+            CHECK(d.sites_by_ptr.at(events[1].site_ptr).name == "beta");
         }
     }
     check_ticks_order(d); // oldest first across each thread's chunk(s)
+}
+
+TEST_CASE("a dumped site carries its name, function, file and line")
+{
+    std::vector<Event> storage(64);
+    Recorder r{storage, 1};
+    static constexpr Site here = make_site("here"); // its line: the line of this call
+    r.instant(here);
+    prism::io::MemoryStream out;
+    REQUIRE(prism::profile::dump(r, out).has_value());
+    const ParsedDump d = parse_dump(out.bytes());
+    CHECK(d.thread_count == 1);
+    REQUIRE(d.sites_by_ptr.size() == 1);
+    const auto& entry = *d.sites_by_ptr.begin();
+    CHECK(entry.first == reinterpret_cast<std::uintptr_t>(&here));
+    const ParsedSite& s = entry.second;
+    CHECK(s.name == "here");
+    CHECK(s.file.ends_with("test_profile_dump.cpp"));
+    CHECK(s.file == here.file);
+    CHECK(s.line == here.line); // the line of the make_site call above
+    CHECK(!s.function.empty());
+    CHECK(s.function == here.function);
+    REQUIRE(d.event_chunks.size() == 1);
+    REQUIRE(d.event_chunks[0].second.size() == 1);
+    CHECK(d.event_chunks[0].second[0].site_ptr == reinterpret_cast<std::uintptr_t>(&here));
+    CHECK(d.event_chunks[0].second[0].kind == Kind::instant);
 }
 
 TEST_CASE("marks during a dump are dropped and resume after")
 {
     std::vector<Event> storage(262144);
     Recorder r{storage, 2}; // 131072 per ring: no wrap while this test runs
+    static constexpr Site before = make_site("before");
+    static constexpr Site spin = make_site("spin");
+    static constexpr Site after = make_site("after");
     r.name_thread("main");
-    r.instant("before");
+    r.instant(before);
 
     std::atomic<bool> stop{false};
     std::atomic<bool> started{false};
     std::jthread marker([&] {
         r.name_thread("marker");
-        r.instant("spin");
+        r.instant(spin);
         started.store(true, std::memory_order_release);
         while (!stop.load(std::memory_order_relaxed))
-            r.instant("spin"); // marks in a loop while the dump runs on the main thread
+            r.instant(spin); // marks in a loop while the dump runs on the main thread
     });
     while (!started.load(std::memory_order_acquire))
         std::this_thread::yield();
@@ -393,7 +464,7 @@ TEST_CASE("marks during a dump are dropped and resume after")
 
     // The dumped events are what the rings held at the pause -- a prefix of the rings now --
     // and the recorder resumed after the dump: a new mark lands.
-    r.instant("after");
+    r.instant(after);
     for (const auto& tv : threads_of(r)) {
         const auto events = events_of(tv);
         const auto it = by_thread.find(tv.id);
@@ -404,7 +475,8 @@ TEST_CASE("marks during a dump are dropped and resume after")
             CHECK(events[i].ticks == dumped[i].ticks); // the dump is a prefix of the ring
         if (tv.name == "main") {
             REQUIRE(events.size() == dumped.size() + 1); // "before" was dumped, "after" is new
-            CHECK(std::string_view(events.back().name) == "after");
+            CHECK(events.back().site == &after);
+            CHECK(std::string_view(events.back().site->name) == "after");
         }
     }
 }
@@ -413,8 +485,9 @@ TEST_CASE("an events chunk splits at 4096 events")
 {
     std::vector<Event> storage(10000);
     Recorder r{storage, 1}; // one ring of 10000 events
+    static constexpr Site tick = make_site("tick");
     for (int i = 0; i < 10000; ++i)
-        r.instant("tick");
+        r.instant(tick);
     prism::io::MemoryStream out;
     REQUIRE(prism::profile::dump(r, out).has_value());
     const ParsedDump d = parse_dump(out.bytes());
@@ -423,8 +496,8 @@ TEST_CASE("an events chunk splits at 4096 events")
     CHECK(d.event_chunks[0].second.size() == 4096);
     CHECK(d.event_chunks[1].second.size() == 4096);
     CHECK(d.event_chunks[2].second.size() == 1808);
-    // Each events chunk is preceded by its own names chunk (here: the one name, again).
-    CHECK(d.names_chunk_sizes == std::vector<std::size_t>{1, 1, 1});
+    // Each events chunk is preceded by its own sites chunk (here: the one site, again).
+    CHECK(d.sites_chunk_sizes == std::vector<std::size_t>{1, 1, 1});
     const std::uint64_t id = d.event_chunks[0].first;
     CHECK(d.event_chunks[1].first == id);
     CHECK(d.event_chunks[2].first == id);
@@ -434,31 +507,30 @@ TEST_CASE("an events chunk splits at 4096 events")
     for (const auto& chunk : d.event_chunks)
         for (const auto& ev : chunk.second) {
             CHECK(ev.kind == Kind::instant);
-            CHECK(d.names_by_ptr.at(ev.name_ptr) == "tick"); // resolved through its names chunk
+            CHECK(d.sites_by_ptr.at(ev.site_ptr).name == "tick"); // resolved through its sites chunk
         }
 }
 
-TEST_CASE("an events chunk splits when its name table is full")
+TEST_CASE("an events chunk splits when its site table is full")
 {
     std::vector<Event> storage(512);
     Recorder r{storage, 1}; // one ring, no wrap
-    std::array<std::string, 300> names; // stable addresses: names are recorded by pointer
-    for (int i = 0; i < 300; ++i) {
-        names[std::size_t(i)] = "n" + std::to_string(i);
-        r.instant(names[std::size_t(i)].c_str());
-    }
+    SiteArray sites{300, "n"};
+    for (std::size_t i = 0; i < sites.sites.size(); ++i)
+        r.instant(sites.sites[i]);
     prism::io::MemoryStream out;
     REQUIRE(prism::profile::dump(r, out).has_value());
     const ParsedDump d = parse_dump(out.bytes());
     CHECK(d.thread_count == 1);
     REQUIRE(d.event_chunks.size() == 2);
-    CHECK(d.event_chunks[0].second.size() == 256); // the 257th name would overflow the table
+    CHECK(d.event_chunks[0].second.size() == 256); // the 257th site would overflow the table
     CHECK(d.event_chunks[1].second.size() == 44);
-    CHECK(d.names_chunk_sizes == std::vector<std::size_t>{256, 44});
+    CHECK(d.sites_chunk_sizes == std::vector<std::size_t>{256, 44});
     std::size_t flat = 0; // oldest first: the events are n0, n1, ... in order
     for (const auto& chunk : d.event_chunks)
         for (const auto& ev : chunk.second) {
-            CHECK(d.names_by_ptr.at(ev.name_ptr) == names[flat]); // through its own names chunk
+            CHECK(ev.site_ptr == reinterpret_cast<std::uintptr_t>(&sites.sites[flat]));
+            CHECK(d.sites_by_ptr.at(ev.site_ptr).name == sites.names[flat]); // through its own sites chunk
             ++flat;
         }
     CHECK(flat == 300);
@@ -469,11 +541,9 @@ TEST_CASE("a wrapped ring dumps oldest first")
 {
     std::vector<Event> storage(16);
     Recorder r{storage, 1}; // one 16-event ring
-    std::array<std::string, 20> names; // stable addresses: names are recorded by pointer
-    for (int i = 0; i < 20; ++i) {
-        names[std::size_t(i)] = "e" + std::to_string(i);
-        r.instant(names[std::size_t(i)].c_str());
-    }
+    SiteArray sites{20, "e"};
+    for (std::size_t i = 0; i < sites.sites.size(); ++i)
+        r.instant(sites.sites[i]);
     prism::io::MemoryStream out;
     REQUIRE(prism::profile::dump(r, out).has_value());
     const ParsedDump d = parse_dump(out.bytes());
@@ -483,8 +553,10 @@ TEST_CASE("a wrapped ring dumps oldest first")
     REQUIRE(d.event_chunks.size() == 1);
     const auto& events = d.event_chunks[0].second;
     REQUIRE(events.size() == 16);
-    for (std::size_t i = 0; i < events.size(); ++i)
-        CHECK(d.names_by_ptr.at(events[i].name_ptr) == names[i + 4]); // the last 16, in order
+    for (std::size_t i = 0; i < events.size(); ++i) {
+        CHECK(events[i].site_ptr == reinterpret_cast<std::uintptr_t>(&sites.sites[i + 4]));
+        CHECK(d.sites_by_ptr.at(events[i].site_ptr).name == sites.names[i + 4]); // the last 16, in order
+    }
     check_ticks_order(d);
 }
 
@@ -497,13 +569,14 @@ TEST_CASE("dumps of a wrapped ring while a thread keeps marking")
     // can start on the in-flight -- newest -- event).
     std::vector<Event> storage(16);
     Recorder r{storage, 1}; // one 16-event ring
+    static constexpr Site spin = make_site("spin");
     std::atomic<bool> stop{false};
     std::atomic<bool> started{false};
     std::jthread marker([&] {
-        r.instant("spin");
+        r.instant(spin);
         started.store(true, std::memory_order_release);
         while (!stop.load(std::memory_order_relaxed))
-            r.instant("spin");
+            r.instant(spin);
     });
     while (!started.load(std::memory_order_acquire))
         std::this_thread::yield();
@@ -535,17 +608,20 @@ TEST_CASE("a failed dump reports the error and still resumes the recorder")
 {
     std::vector<Event> storage(64);
     Recorder r{storage, 2};
-    r.instant("x");
+    static constexpr Site x = make_site("x");
+    static constexpr Site y = make_site("y");
+    r.instant(x);
     FailingStream s;
     const auto res = prism::profile::dump(r, s);
     CHECK(!res.has_value());
     CHECK(res.error() == std::errc::io_error);
-    r.instant("y"); // the dump resumed the recorder on its error path: this mark lands
+    r.instant(y); // the dump resumed the recorder on its error path: this mark lands
     const auto threads = threads_of(r);
     REQUIRE(threads.size() == 1);
     const auto events = events_of(threads[0]);
     REQUIRE(events.size() == 2);
-    CHECK(std::string_view(events[1].name) == "y");
+    CHECK(events[1].site == &y);
+    CHECK(std::string_view(events[1].site->name) == "y");
 }
 
 #if !defined(__EMSCRIPTEN__)

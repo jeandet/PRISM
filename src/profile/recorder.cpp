@@ -13,6 +13,10 @@
 namespace prism::profile {
 namespace {
 
+// frame()'s site (recorder.hpp): one static constexpr for every frame boundary, so no event
+// has a null site. Its function/file/line are recorder.cpp's, the line of this call.
+constexpr Site frame_site = make_site("frame");
+
 // Slot::id: a value unique per thread. Hosted: a hash of the thread id. This lives in an
 // anonymous namespace, so a port cannot replace it by linking something else in; Task 7 (the
 // FreeRTOS task switches) will move it behind the port, so the task handle lands on the same
@@ -47,11 +51,11 @@ Recorder::Recorder(std::span<Event> storage, std::size_t threads)
     }
 }
 
-void Recorder::begin(const char* name) { record(Kind::begin, name, 0); }
-void Recorder::end(const char* name) { record(Kind::end, name, 0); }
-void Recorder::instant(const char* name) { record(Kind::instant, name, 0); }
-void Recorder::counter(const char* name, std::int32_t v) { record(Kind::counter, name, v); }
-void Recorder::frame() { record(Kind::frame, nullptr, 0); }
+void Recorder::begin(const Site& site) { record(Kind::begin, &site, 0); }
+void Recorder::end(const Site& site) { record(Kind::end, &site, 0); }
+void Recorder::instant(const Site& site) { record(Kind::instant, &site, 0); }
+void Recorder::counter(const Site& site, std::int32_t v) { record(Kind::counter, &site, v); }
+void Recorder::frame() { record(Kind::frame, &frame_site, 0); }
 
 void Recorder::name_thread(std::string_view name)
 {
@@ -96,7 +100,7 @@ Recorder::Slot* Recorder::claim_slot()
     return slot;
 }
 
-void Recorder::record(Kind kind, const char* name, std::int32_t value)
+void Recorder::record(Kind kind, const Site* site, std::int32_t value)
 {
     Slot* slot = claim_slot();
     if (slot == nullptr)
@@ -117,7 +121,7 @@ void Recorder::record(Kind kind, const char* name, std::int32_t value)
     // capacity with a compare.
     const std::uint32_t head = slot->head.load(std::memory_order_relaxed);
     const bool was_wrapped = slot->wrapped.load(std::memory_order_relaxed);
-    slot->ring[head] = Event{platform::profile_ticks(), name, value, kind};
+    slot->ring[head] = Event{platform::profile_ticks(), site, value, kind};
     std::uint32_t next = head + 1;
     if (next == capacity) {
         next = 0;

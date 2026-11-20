@@ -10,14 +10,15 @@
 //     header: version u16 | pointer size u8 | ticks per second u64 | thread count u64 |
 //             threads dropped u64
 //     thread: id u64 | lost u64 | name length u8 | name bytes
-//     names:  per distinct name pointer: pointer u64 | length u16 | bytes (strlen of the
-//             pointer, cut at 65535)
+//     sites:  per distinct site pointer: pointer u64 | line u32 | name (u16 length + bytes) |
+//             function (u16 length + bytes) | file (u16 length + bytes) -- each string the
+//             strlen of the site's, cut at 65535
 //     events: thread id u64, then per event (oldest first, at most max_events_per_chunk in
-//             one chunk): ticks u64 | name pointer u64 (0: none, a frame boundary) |
-//             value i32 | kind u8 -- event_wire_size bytes each
+//             one chunk): ticks u64 | site pointer u64 | value i32 | kind u8 --
+//             event_wire_size bytes each
 //     end:    empty
 // Chunk order: header, one thread chunk per thread, then for each thread one or more
-// (names, events) pairs -- the names chunk before an events chunk carries the distinct name
+// (sites, events) pairs -- the sites chunk before an events chunk carries the distinct site
 // pointers that events chunk uses -- then end.
 
 #include <array>
@@ -30,11 +31,11 @@ namespace prism::profile {
 inline constexpr std::array<std::byte, 4> sync_marker{std::byte{'P'}, std::byte{'R'}, std::byte{'T'}, std::byte{'R'}};
 inline constexpr std::uint16_t format_version = 1;
 
-enum class Chunk : std::uint8_t { header, thread, names, events, end };
+enum class Chunk : std::uint8_t { header, thread, sites, events, end };
 
 inline constexpr std::size_t max_events_per_chunk = 4096; // events in one events chunk
-inline constexpr std::size_t max_names_per_chunk = 256;   // the dump's fixed dedup table
-inline constexpr std::size_t event_wire_size = 8 + 8 + 4 + 1; // ticks, name pointer, value, kind
+inline constexpr std::size_t max_sites_per_chunk = 256;   // the dump's fixed dedup table
+inline constexpr std::size_t event_wire_size = 8 + 8 + 4 + 1; // ticks, site pointer, value, kind
 
 // The running CRC-32 (IEEE 802.3: reflected, polynomial 0xEDB88320): start at 0xFFFFFFFF, feed
 // every span, final XOR 0xFFFFFFFF -- so the CRC of no bytes is 0. The 256-entry table is
