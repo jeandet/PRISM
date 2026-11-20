@@ -13,17 +13,20 @@
 namespace prism::profile {
 namespace {
 
-// Slot::id: a value unique per thread. Hosted: a hash of the thread id. A FreeRTOS port
-// replaces this one function with the task handle, so task-switch events land on the same
+// Slot::id: a value unique per thread. Hosted: a hash of the thread id. This lives in an
+// anonymous namespace, so a port cannot replace it by linking something else in; Task 7 (the
+// FreeRTOS task switches) will move it behind the port, so the task handle lands on the same
 // track as the task's marks.
-std::uint64_t this_thread_id()
+std::uintptr_t this_thread_id()
 {
-    return std::hash<std::thread::id>{}(std::this_thread::get_id());
+    return static_cast<std::uintptr_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
 }
 
-std::uint64_t next_serial()
+// Keys the threads' slot cache. 32-bit on purpose, like every atomic here: no lock-free 64-bit
+// atomics (see the static_asserts in recorder.hpp). Wraps after 2^32 recorders in one process.
+std::uint32_t next_serial()
 {
-    static std::atomic<std::uint64_t> serial{1};
+    static std::atomic<std::uint32_t> serial{1};
     return serial.fetch_add(1, std::memory_order_relaxed);
 }
 
@@ -35,10 +38,12 @@ Recorder::Recorder(std::span<Event> storage, std::size_t threads)
 {
     if (threads_ == 0 || storage.empty())
         return;
-    const std::size_t capacity = storage.size() / threads_; // split evenly; the rest is unused
+    // One division here is fine: capacity is computed once, then record() only compares against
+    // it. Clamped to the slot's 32-bit capacity.
+    const std::size_t cap = std::min(storage.size() / threads_, static_cast<std::size_t>(UINT32_MAX));
     for (std::size_t i = 0; i < threads_; ++i) {
-        slots_[i].ring = storage.data() + i * capacity;
-        slots_[i].capacity = capacity;
+        slots_[i].ring = storage.data() + i * cap; // split evenly; the rest is unused
+        slots_[i].capacity = static_cast<std::uint32_t>(cap);
     }
 }
 
@@ -65,7 +70,7 @@ void Recorder::resume() { paused_.store(false, std::memory_order_relaxed); }
 Recorder::Slot* Recorder::claim_slot()
 {
     struct CacheEntry {
-        std::uint64_t serial;
+        std::uint32_t serial;
         Slot* slot; // null: this thread is beyond the table, already counted in threads_dropped_
     };
     // Keyed by the recorder's serial, so several recorders can live in one process (the tests
@@ -77,7 +82,7 @@ Recorder::Slot* Recorder::claim_slot()
         if (e.serial == serial_)
             return e.slot;
     Slot* slot = nullptr;
-    const std::uint64_t index = next_thread_.fetch_add(1, std::memory_order_relaxed);
+    const std::uint32_t index = next_thread_.fetch_add(1, std::memory_order_relaxed);
     if (index < threads_) {
         slot = &slots_[index];
         slot->id.store(this_thread_id(), std::memory_order_relaxed);
@@ -97,16 +102,28 @@ void Recorder::record(Kind kind, const char* name, std::int32_t value)
     Slot* slot = claim_slot();
     if (slot == nullptr)
         return;
-    const std::size_t capacity = slot->capacity;
+    const std::uint32_t capacity = slot->capacity;
     if (capacity == 0)
         return;
-    // Only the owning thread writes its slot; the release stores publish the whole event.
-    const std::uint64_t next = slot->next.load(std::memory_order_relaxed);
-    if (next >= capacity) // the ring was already full: the oldest event is overwritten
-        slot->lost.store(next + 1 - capacity, std::memory_order_relaxed);
-    slot->ring[next % capacity] = Event{platform::profile_ticks(), name, value, kind};
-    slot->count.store(next + 1 < capacity ? next + 1 : capacity, std::memory_order_release);
-    slot->next.store(next + 1, std::memory_order_release);
+    // Only the owning thread writes its slot, so plain load/store suffice; the release stores
+    // of head/wrapped publish the event just written. No division: the write index wraps at
+    // capacity with a compare.
+    const std::uint32_t head = slot->head.load(std::memory_order_relaxed);
+    const bool was_wrapped = slot->wrapped.load(std::memory_order_relaxed);
+    slot->ring[head] = Event{platform::profile_ticks(), name, value, kind};
+    std::uint32_t next = head + 1;
+    if (next == capacity) {
+        next = 0;
+        slot->wrapped.store(true, std::memory_order_release);
+    }
+    slot->head.store(next, std::memory_order_release);
+    if (was_wrapped) {
+        // The ring was already full, so this write overwrote the oldest event. Owner-thread
+        // load + store, no RMW.
+        const std::uint32_t lost = slot->lost.load(std::memory_order_relaxed);
+        if (lost != UINT32_MAX) // simplify: saturates at UINT32_MAX (see Slot::lost)
+            slot->lost.store(lost + 1, std::memory_order_relaxed);
+    }
 }
 
 } // namespace prism::profile

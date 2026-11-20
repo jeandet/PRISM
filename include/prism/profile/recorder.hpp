@@ -66,8 +66,8 @@ public:
     };
 
     // Calls f(const ThreadView&) once per thread that has a ring, in slot order. The ring is
-    // given oldest first as up to two spans: when it wrapped, [next % capacity, capacity) then
-    // [0, next % capacity).
+    // given oldest first as up to two spans: when it wrapped, [head, capacity) then [0, head);
+    // otherwise [0, head).
     template <class F>
     void for_each_thread(F&& f) const
     {
@@ -75,20 +75,20 @@ public:
             const Slot& s = slots_[i];
             if (!s.used.load(std::memory_order_acquire))
                 continue;
-            const std::uint64_t capacity = s.capacity;
-            // Acquire on next: record()'s release store of it publishes the whole event ring.
-            const std::uint64_t next = s.next.load(std::memory_order_acquire);
+            const std::uint32_t capacity = s.capacity;
+            // Acquire on head/wrapped: record()'s release stores of them publish the event ring.
+            const std::uint32_t head = s.head.load(std::memory_order_acquire);
+            const bool wrapped = s.wrapped.load(std::memory_order_acquire);
             ThreadView tv;
             tv.name = s.name.data();
             tv.id = s.id.load(std::memory_order_relaxed);
             tv.lost = s.lost.load(std::memory_order_relaxed);
-            if (capacity > 0 && next > capacity) {
-                const auto off = static_cast<std::size_t>(next % capacity);
-                tv.first = std::span<const Event>(s.ring + off, capacity - off);
-                tv.second = std::span<const Event>(s.ring, off);
+            if (capacity > 0 && wrapped) {
+                tv.first = std::span<const Event>(s.ring + head, capacity - head);
+                tv.second = head != 0 ? std::span<const Event>(s.ring, head)
+                                      : std::span<const Event>{};
             } else {
-                const std::uint64_t count = s.count.load(std::memory_order_acquire);
-                tv.first = count != 0 ? std::span<const Event>(s.ring, static_cast<std::size_t>(count))
+                tv.first = head != 0 ? std::span<const Event>(s.ring, head)
                                      : std::span<const Event>{};
                 tv.second = {};
             }
@@ -101,25 +101,32 @@ public:
 private:
     struct Slot {
         std::atomic<bool> used{false};
-        std::atomic<std::uint64_t> id{0};
-        std::atomic<std::uint64_t> lost{0};
-        std::atomic<std::uint64_t> next{0};  // ring write cursor
-        std::atomic<std::uint64_t> count{0}; // events held, <= capacity
+        std::atomic<std::uintptr_t> id{0};   // a FreeRTOS task handle fits
+        std::atomic<std::uint32_t> head{0};  // next write index, always < capacity
+        std::atomic<bool> wrapped{false};    // the ring has been filled once
+        // simplify: saturates at UINT32_MAX -- a wider count would need a lock-free 64-bit
+        // atomic, which a Cortex-M7 does not have
+        std::atomic<std::uint32_t> lost{0};
         std::array<char, 17> name{};         // name_thread's copy: 16 characters + NUL
         Event* ring = nullptr;
-        std::size_t capacity = 0;
+        std::uint32_t capacity = 0;
     };
 
     Slot* claim_slot(); // this thread's ring, claimed on its first mark
     void record(Kind kind, const char* name, std::int32_t value);
 
     std::size_t threads_;
-    std::uint64_t serial_; // keys the threads' slot cache: a new recorder at an old address is a new key
+    std::uint32_t serial_; // keys the threads' slot cache: a new recorder at an old address is a new key
     std::array<Slot, max_threads> slots_{};
-    std::atomic<std::uint64_t> next_thread_{0}; // slot table fill counter
-    std::atomic<std::uint64_t> threads_dropped_{0};
+    std::atomic<std::uint32_t> next_thread_{0}; // slot table fill counter
+    std::atomic<std::uint32_t> threads_dropped_{0};
     std::atomic<bool> paused_{false};
 };
+
+// A Cortex-M7 has no lock-free 64-bit atomics (they would link libatomic, which locks), so every
+// atomic in Recorder is 32-bit or pointer-sized.
+static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
+static_assert(std::atomic<std::uintptr_t>::is_always_lock_free);
 
 #if defined(PRISM_PROFILING)
 // The global recorder behind the PRISM_PROFILE_* macros: one static region of

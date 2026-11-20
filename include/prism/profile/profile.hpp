@@ -51,6 +51,8 @@ struct Scope {
 #else
 #define PRISM_PROFILE_SCOPE(name) ((void)0)
 #define PRISM_PROFILE_INSTANT(name) ((void)0)
-#define PRISM_PROFILE_COUNTER(name, value) ((void)0)
+// sizeof does not evaluate its operand, so a variable used only in a mark is still "used"
+// under -Wunused-variable, and the argument is never evaluated.
+#define PRISM_PROFILE_COUNTER(name, value) ((void)sizeof((value)))
 #define PRISM_PROFILE_FRAME() ((void)0)
 #endif
