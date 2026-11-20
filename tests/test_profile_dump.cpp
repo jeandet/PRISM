@@ -396,7 +396,8 @@ TEST_CASE("a dumped site carries its name, function, file and line")
 {
     std::vector<Event> storage(64);
     Recorder r{storage, 1};
-    static constexpr Site here = make_site("here"); // its line: the line of this call
+    constexpr std::uint32_t here_line = __LINE__ + 1;
+    static constexpr Site here = make_site("here");
     r.instant(here);
     prism::io::MemoryStream out;
     REQUIRE(prism::profile::dump(r, out).has_value());
@@ -409,7 +410,7 @@ TEST_CASE("a dumped site carries its name, function, file and line")
     CHECK(s.name == "here");
     CHECK(s.file.ends_with("test_profile_dump.cpp"));
     CHECK(s.file == here.file);
-    CHECK(s.line == here.line); // the line of the make_site call above
+    CHECK(s.line == here_line);
     CHECK(!s.function.empty());
     CHECK(s.function == here.function);
     REQUIRE(d.event_chunks.size() == 1);

@@ -81,7 +81,7 @@ enables it as any app would.
 
 ### Recorder
 
-- **Per-thread ring** of fixed-size events: a timestamp (64-bit ticks), the name pointer, a kind
+- **Per-thread ring** of fixed-size events: a timestamp (64-bit ticks), the call site pointer, a kind
   (begin, end, instant, counter, frame) and a 32-bit value (the counter's). *Our call:* all
   rings live in one static region sized at build time (options `profiling_events` per thread and
   `profiling_threads`), not on the heap: no allocation at all, and a board can place the region

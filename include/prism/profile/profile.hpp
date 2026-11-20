@@ -27,12 +27,15 @@ inline void name_thread(std::string_view) {}
 
 inline void instant(const Site& site) { global().instant(site); }
 inline void counter(const Site& site, std::int32_t value) { global().counter(site, value); }
+void instant(const Site&&) = delete; // a temporary site would dangle in the ring
+void counter(const Site&&, std::int32_t) = delete;
 inline void frame() { global().frame(); }
 
 // The RAII half of PRISM_PROFILE_SCOPE: begin in the constructor, end in the destructor.
 struct Scope {
     const Site* site;
     explicit Scope(const Site& s) : site(&s) { global().begin(s); }
+    explicit Scope(const Site&&) = delete; // a temporary site would dangle in the ring
     ~Scope() { global().end(*site); }
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
@@ -49,19 +52,25 @@ struct Scope {
 // make_site is consteval and takes std::source_location::current() by default, so the site
 // carries this line's function, file and line -- and a name that is not a constant expression
 // does not compile.
-#define PRISM_PROFILE_SCOPE(name) \
-    static constexpr ::prism::profile::Site PRISM_PROFILE_DETAIL_CAT(prism_site_, __LINE__) = \
+// __COUNTER__, not __LINE__: two marks on one line (or one macro expanding to two) get
+// distinct names.
+#define PRISM_PROFILE_SCOPE(name) PRISM_PROFILE_DETAIL_SCOPE(name, __COUNTER__)
+#define PRISM_PROFILE_DETAIL_SCOPE(name, id) \
+    static constexpr ::prism::profile::Site PRISM_PROFILE_DETAIL_CAT(prism_site_, id) = \
         ::prism::profile::make_site(name); \
-    ::prism::profile::Scope PRISM_PROFILE_DETAIL_CAT(prism_profile_scope_, __LINE__){ \
-        PRISM_PROFILE_DETAIL_CAT(prism_site_, __LINE__)}
+    ::prism::profile::Scope PRISM_PROFILE_DETAIL_CAT(prism_profile_scope_, id){ \
+        PRISM_PROFILE_DETAIL_CAT(prism_site_, id)}
+// do/while: a statement of its own, so `if (x) PRISM_PROFILE_INSTANT("i");` compiles on and off.
 #define PRISM_PROFILE_INSTANT(name) \
-    static constexpr ::prism::profile::Site PRISM_PROFILE_DETAIL_CAT(prism_site_, __LINE__) = \
-        ::prism::profile::make_site(name); \
-    ::prism::profile::instant(PRISM_PROFILE_DETAIL_CAT(prism_site_, __LINE__))
+    do { \
+        static constexpr ::prism::profile::Site prism_site = ::prism::profile::make_site(name); \
+        ::prism::profile::instant(prism_site); \
+    } while (0)
 #define PRISM_PROFILE_COUNTER(name, value) \
-    static constexpr ::prism::profile::Site PRISM_PROFILE_DETAIL_CAT(prism_site_, __LINE__) = \
-        ::prism::profile::make_site(name); \
-    ::prism::profile::counter(PRISM_PROFILE_DETAIL_CAT(prism_site_, __LINE__), (value))
+    do { \
+        static constexpr ::prism::profile::Site prism_site = ::prism::profile::make_site(name); \
+        ::prism::profile::counter(prism_site, (value)); \
+    } while (0)
 #define PRISM_PROFILE_FRAME() ::prism::profile::frame()
 #else
 #define PRISM_PROFILE_SCOPE(name) ((void)0)

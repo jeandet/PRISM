@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 using prism::profile::Event;
@@ -27,6 +28,23 @@ using prism::profile::Site;
 using prism::profile::make_site;
 
 namespace {
+
+// A mark keeps the site's address until the dump: a temporary Site would dangle, so the
+// recorder takes only an lvalue.
+template <class S>
+concept takes_site = requires(Recorder& r, S&& s) {
+    r.begin(static_cast<S&&>(s));
+    r.end(static_cast<S&&>(s));
+    r.instant(static_cast<S&&>(s));
+    r.counter(static_cast<S&&>(s), 0);
+};
+static_assert(takes_site<const Site&>);
+static_assert(!takes_site<Site>);
+#if defined(PRISM_PROFILING)
+static_assert(std::is_constructible_v<prism::profile::Scope, const Site&>);
+static_assert(!std::is_constructible_v<prism::profile::Scope, Site>);
+#endif
+
 
 std::vector<Recorder::ThreadView> threads_of(const Recorder& r)
 {
@@ -238,10 +256,12 @@ TEST_CASE("a thread that has used many recorders still keeps one ring per record
 // Compiled only in a -Dprofiling=enabled build: global() exists only there.
 TEST_CASE("the PRISM_PROFILE_* macros build their call site and record events pointing at it")
 {
-    PRISM_PROFILE_INSTANT("macro-instant");
+    const bool always = true;
+    if (always)
+        PRISM_PROFILE_INSTANT("macro-instant"); // a statement of its own, unbraced
     PRISM_PROFILE_COUNTER("macro-counter", 7);
     {
-        PRISM_PROFILE_SCOPE("macro-scope");
+        PRISM_PROFILE_SCOPE("macro-scope"); PRISM_PROFILE_SCOPE("macro-scope"); // two on one line
     }
     PRISM_PROFILE_FRAME();
     bool saw_instant = false;

@@ -75,6 +75,11 @@ public:
     void end(const Site& site);
     void instant(const Site& site);
     void counter(const Site& site, std::int32_t v);
+    // The ring keeps the site's address until the dump: a temporary would dangle.
+    void begin(const Site&&) = delete;
+    void end(const Site&&) = delete;
+    void instant(const Site&&) = delete;
+    void counter(const Site&&, std::int32_t) = delete;
     // Records a site of its own (a static constexpr in recorder.cpp, named "frame"), so no
     // event has a null site.
     void frame();
