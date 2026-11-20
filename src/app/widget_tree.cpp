@@ -434,7 +434,13 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
     return it->second->popup_builder && !it->second->children.empty() ? it->second : nullptr;
 }
 
-[[nodiscard]] std::unique_ptr<SceneSnapshot> WidgetTree::build_snapshot(float w, float h, uint64_t version) {
+std::unique_ptr<SceneSnapshot> WidgetTree::build_snapshot(float w, float h, uint64_t version) {
+    auto snap = std::make_unique<SceneSnapshot>();
+    build_snapshot(*snap, w, h, version);
+    return snap;
+}
+
+void WidgetTree::build_snapshot(SceneSnapshot& out, float w, float h, uint64_t version) {
     last_built_version_ = version;
     building_ = true;
     changed_while_building_.clear();   // only this build's: clear_dirty keeps them dirty
@@ -480,6 +486,8 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
             link_layout_cache(c, cursor);
             if (root_splits) c.layout_reusable = false;
         }
+        layout.children = std::move(spare_layout_children_);   // its capacity, from the last publish
+        layout.children.clear();
         layout.children.reserve(root_.children.size());
         for (auto& c : root_.children)
             build_layout(c, layout, /*keep=*/true);
@@ -526,12 +534,13 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
     if (popup) update_canvas_bounds(popup->content, Size{Width{w}, Height{h}});
     adopt_popup(root_);
 
-    auto snap = std::make_unique<SceneSnapshot>();
+    out.clear();
+    SceneSnapshot* snap = &out;
     snap->version = version;
     snap->window = window_colors;
     snap->viewport = Size{Width{w}, Height{h}};
     layout_flatten(layout, *snap);
-    resolve_clips(*snap);
+    resolve_clips(*snap, clip_scratch_);
     if (popup) flatten_popup(*popup, *snap, theme_);
     if (highlight_id_) {
         for (auto& [id, rect] : snap->geometry) {
@@ -560,8 +569,13 @@ void WidgetTree::end_drag(std::optional<DropPlace> place) {
     snap->build_time_ms = std::chrono::duration<double, std::milli>(
         build_end - build_start).count();
     snap->built_at = build_end;
+    if (last_layout_) {
+        // The old root's children were moved out into the new layout where reused: keep the
+        // vector's capacity for the next publish's root.
+        last_layout_->children.clear();
+        spare_layout_children_ = std::move(last_layout_->children);
+    }
     last_layout_ = std::move(layout);
-    return snap;
 }
 
 void WidgetTree::collect_drains(const Node& node) {

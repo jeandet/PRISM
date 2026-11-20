@@ -62,6 +62,22 @@ struct SceneSnapshot {
     std::size_t layout_pass_count = 0;  // 1 normally, 2 when a VirtualList/Table viewport changed
     std::size_t layout_nodes_reused = 0;   // layout nodes kept from the last publish, not rebuilt
     std::chrono::steady_clock::time_point built_at{};  // when build_snapshot() finished
+
+    // Back to an empty scene, keeping every vector's capacity (WidgetTree::build_snapshot into
+    // an existing snapshot). Releases the shared draw lists it held.
+    void clear() {
+        const auto keep = [](auto& v) { v.clear(); };
+        keep(geometry); keep(visible); keep(scale); keep(draw_lists); keep(z_order);
+        keep(overlay_geometry); keep(overlay_placed); keep(scrollbar_geometry);
+        overlay.clear();
+        version = 0;
+        window = {};
+        viewport = Size{Width{0}, Height{0}};
+        build_time_ms = 0.0;
+        dirty_widget_count = draw_command_count = approx_bytes = 0;
+        layout_pass_count = layout_nodes_reused = 0;
+        built_at = {};
+    }
 };
 
 // resolve_clips() writes a ClipPush only when the rect the active outer clips resolve it to
@@ -95,19 +111,28 @@ inline void resolve_nested_clips(DrawList& dl) {
     }
 }
 
-// Pre-intersect all ClipPush rects so backends receive final clip regions.
-// Must be called after layout_flatten, before handing the snapshot to any backend.
-inline void resolve_clips(SceneSnapshot& snap) {
+// resolve_clips' working memory. A caller that resolves every frame keeps one, so the pass
+// allocates nothing once its vectors have grown (doc/design/allocation-free-frames.md).
+struct ClipScratch {
     struct ResolvedPush {
         uint32_t list;
         std::size_t command;
         Rect rect;
     };
+    std::vector<Rect> stack;
+    std::vector<ResolvedPush> writes;
+};
+
+// Pre-intersect all ClipPush rects so backends receive final clip regions.
+// Must be called after layout_flatten, before handing the snapshot to any backend.
+inline void resolve_clips(SceneSnapshot& snap, ClipScratch& scratch) {
     // Pass 1, read-only: every ClipPush that sits under an active clip AND whose resolved rect
     // differs from the stored one — only such a command is ever written, so a list with none
     // (a shared, already-resolved one among them) is never touched below.
-    std::vector<Rect> stack;
-    std::vector<ResolvedPush> writes;
+    auto& stack = scratch.stack;
+    auto& writes = scratch.writes;
+    stack.clear();
+    writes.clear();
     for (uint32_t idx : snap.z_order) {
         const auto& list = snap.draw_lists[idx];
         for (std::size_t i = 0; i < list->commands.size(); ++i) {
@@ -132,6 +157,11 @@ inline void resolve_clips(SceneSnapshot& snap) {
         auto& dl = *std::const_pointer_cast<DrawList>(snap.draw_lists[w.list]);
         std::get<ClipPush>(dl.commands[w.command]).rect = w.rect;
     }
+}
+
+inline void resolve_clips(SceneSnapshot& snap) {
+    ClipScratch scratch;
+    resolve_clips(snap, scratch);
 }
 
 } // namespace prism::render

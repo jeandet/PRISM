@@ -496,6 +496,10 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<SceneSnapshot> build_snapshot(float w, float h, uint64_t version);
+    // Builds into an existing snapshot, which is cleared first and keeps its capacities: a
+    // runtime that recycles its snapshots builds frames without allocating for them
+    // (doc/design/allocation-free-frames.md). `out` must not be held by anyone else.
+    void build_snapshot(SceneSnapshot& out, float w, float h, uint64_t version);
 
 private:
     WidgetNode root_;
@@ -530,6 +534,11 @@ private:
     TooltipState tooltip_;
     bool tooltip_dirty_ = false;
     std::optional<Rect> popup_card_;   // see popup_card()
+    // Working memory kept across publishes, so a publish with nothing new allocates nothing
+    // (doc/design/allocation-free-frames.md): resolve_clips' stacks, and the root layout
+    // node's children vector.
+    render::ClipScratch clip_scratch_;
+    std::vector<ui::LayoutNode> spare_layout_children_;
     bool building_ = false;                         // inside build_snapshot
     std::vector<WidgetId> changed_while_building_;  // see clear_dirty()
     std::optional<LayoutNode> last_layout_;   // the last publish's layout, kept for the next one
