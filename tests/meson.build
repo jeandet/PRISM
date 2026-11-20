@@ -154,7 +154,6 @@ headless_tests = {
   'file_tree_source' : files('test_file_tree_source.cpp'),
   'proc_metrics' : files('test_proc_metrics.cpp'),
   'orbit' : files('test_orbit.cpp'),
-  'orbit_scene' : files('test_orbit_scene.cpp'),
   'orbit_camera' : files('test_orbit_camera.cpp'),
   'orbit_game' : files('test_orbit_game.cpp'),
   'view_transform' : files('test_view_transform.cpp'),
@@ -182,6 +181,14 @@ foreach name, src : headless_tests
   )
   test(name, exe)
 endforeach
+
+# The Orbit solver sweep flies thousands of probe paths: unoptimised it took 11 s natively and over
+# the 30 s timeout in node on a loaded CI runner. Pure arithmetic, so -O2 loses nothing a debug
+# build checks; asserts stay on unless the build sets NDEBUG.
+test('orbit_scene', executable('test_orbit_scene', files('test_orbit_scene.cpp'),
+  dependencies : [prism_core_dep, doctest_dep],
+  override_options : ['optimization=2'],
+))
 
 # Counts libprism's heap allocations by replacing operator new in the test program, which a
 # Windows DLL does not see: there the test would count nothing and pass without testing.
