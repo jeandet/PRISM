@@ -22,6 +22,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -32,6 +34,7 @@ namespace prism::platform {
 
 namespace platform_detail {
 struct ContextAccess {
+    static void start(FrameContext& c) { c.started_ = true; }
     static void loop(const FrameContext& c)
     {
         for (const auto& fn : c.loop_)
@@ -44,6 +47,27 @@ struct ContextAccess {
     }
 };
 } // namespace platform_detail
+
+// Always on, like the canvas's span check: a hook list that grows while it is called is UB.
+void require_not_started(bool started)
+{
+    if (!started)
+        return;
+    std::fputs("prism::platform::FrameContext: hook registered after setup returned\n", stderr);
+    std::abort();
+}
+
+void FrameContext::on_loop(std::function<void()> fn)
+{
+    require_not_started(started_);
+    loop_.push_back(std::move(fn));
+}
+
+void FrameContext::on_stats(std::function<void(std::string_view)> fn)
+{
+    require_not_started(started_);
+    stats_.push_back(std::move(fn));
+}
 
 namespace {
 
@@ -206,6 +230,7 @@ void logic_main(const RunArgs& a)
         FrameContext ctx{a.stop};
         if (*a.setup)
             (*a.setup)(ctx);
+        ContextAccess::start(ctx);
         logic_loop(a, *tree, ctx);
     }
     core::logic_thread.store(std::thread::id{}); // the model is the caller's again
@@ -264,7 +289,11 @@ std::optional<pthread_t> start_thread(void* (*entry)(void*), RunArgs& args, std:
 {
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, stack_bytes);
+    // A refused size is not fatal: start over from the default attributes and keep going.
+    if (pthread_attr_setstacksize(&attr, stack_bytes) != 0) {
+        pthread_attr_destroy(&attr);
+        pthread_attr_init(&attr);
+    }
     pthread_t thread;
     const int rc = pthread_create(&thread, &attr, entry, &args);
     pthread_attr_destroy(&attr);

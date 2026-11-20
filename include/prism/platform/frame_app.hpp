@@ -27,16 +27,17 @@ public:
     explicit FrameContext(std::stop_source stop) : stop_(std::move(stop)) {}
 
     // Runs each logic loop, after input and before the dirty check (e.g. drain a sample source).
-    // Register from setup.
-    void on_loop(std::function<void()> fn) { loop_.push_back(std::move(fn)); }
+    // Register from setup: registering later aborts, as the hooks are being called.
+    void on_loop(std::function<void()> fn);
     // Receives the timing line once a second, on the logic thread. Register from setup.
-    void on_stats(std::function<void(std::string_view)> fn) { stats_.push_back(std::move(fn)); }
-    // Ends the run: frame_app returns once both threads are done. Any thread.
+    void on_stats(std::function<void(std::string_view)> fn);
+    // Ends the run: frame_app returns once both threads are done. Any thread, while the run lasts.
     void quit() { stop_.request_stop(); }
 
 private:
     friend struct platform_detail::ContextAccess;
     std::stop_source stop_;
+    bool started_ = false; // set once setup has returned: the hook lists are then fixed
     std::vector<std::function<void()>> loop_;
     std::vector<std::function<void(std::string_view)>> stats_;
 };

@@ -5,7 +5,8 @@
 #include <prism/core/utf8.hpp>
 
 #include <algorithm>
-#include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <cmath>
 #include <cstdint>
 
@@ -39,16 +40,23 @@ inline std::uint32_t pack_opaque(Color c) {
 inline int span_begin(float lo) { return static_cast<int>(std::ceil(lo - 0.5f)); }
 inline int span_end(float hi) { return static_cast<int>(std::ceil(hi - 0.5f)); }
 
+// Always on (not an assert): a short span would be written past its end, and the check is cheap.
+void require_span(std::span<std::uint32_t> pixels, int stride, int height) {
+    if (pixels.size() >= std::size_t(stride) * height) return;
+    std::fputs("prism::raster::Canvas: pixel span smaller than stride * height\n", stderr);
+    std::abort();
+}
+
 } // namespace
 
 Canvas::Canvas(std::span<std::uint32_t> pixels, int width, int height, int stride)
     : pixels_(pixels), width_(width), height_(height), stride_(stride) {
-    assert(pixels.size() >= std::size_t(stride) * height);
+    require_span(pixels, stride, height);
     reset_clip();
 }
 
 void Canvas::retarget(std::span<std::uint32_t> pixels) {
-    assert(pixels.size() >= std::size_t(stride_) * height_);
+    require_span(pixels, stride_, height_);
     pixels_ = pixels;
     reset_clip();
 }

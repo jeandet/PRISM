@@ -140,6 +140,23 @@ TEST_CASE("quit while the render thread waits ends the run")
 {
     Counter model;
     MemorySink sink;
+    ScriptedTouch touch;
+    touch.sink = &sink;
+    const auto start = std::chrono::steady_clock::now();
+    prism::platform::frame_app(sink, touch, model, [&](FrameContext& ctx) {
+        ctx.on_loop([&, polls = 0]() mutable {
+            if (sink.presents >= 1 && ++polls >= 3) // the render thread is idle by now
+                ctx.quit();
+        });
+    });
+    CHECK(sink.presents >= 1);
+    CHECK(std::chrono::steady_clock::now() - start < 1s);
+}
+
+TEST_CASE("quit while the render thread is inside present() ends the run")
+{
+    Counter model;
+    MemorySink sink;
     sink.present_time = 50ms;
     ScriptedTouch touch;
     touch.sink = &sink;
@@ -167,3 +184,34 @@ TEST_CASE("the timing line reaches on_stats")
     CHECK(std::isdigit(static_cast<unsigned char>(line.front())));
     CHECK(line.find("fps") != std::string::npos);
 }
+
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#include <csignal>
+#include <sys/wait.h>
+#include <unistd.h>
+
+namespace {
+template <typename F>
+bool aborts(F f)
+{
+    const pid_t pid = fork();
+    if (pid == 0) { f(); _exit(0); }
+    int status = 0;
+    waitpid(pid, &status, 0);
+    return WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT;
+}
+} // namespace
+
+TEST_CASE("registering a hook from inside a running hook aborts")
+{
+    CHECK(aborts([] {
+        Counter model;
+        MemorySink sink;
+        ScriptedTouch touch;
+        touch.sink = &sink;
+        prism::platform::frame_app(sink, touch, model, [&](FrameContext& ctx) {
+            ctx.on_loop([&] { ctx.on_loop([] {}); });
+        });
+    }));
+}
+#endif
