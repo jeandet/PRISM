@@ -18,11 +18,13 @@ inline std::size_t allocations() { return g_allocations.load(std::memory_order_r
 
 } // namespace prism::test
 
-void* operator new(std::size_t n)
+// noinline: inlined into a caller, delete's free() faces operator new's pointer and GCC flags the
+// pair as mismatched (-Wmismatched-new-delete), though both come from malloc here.
+[[gnu::noinline]] void* operator new(std::size_t n)
 {
     prism::test::g_allocations.fetch_add(1, std::memory_order_relaxed);
     if (void* p = std::malloc(n == 0 ? 1 : n)) return p;
     throw std::bad_alloc{};
 }
-void operator delete(void* p) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+[[gnu::noinline]] void operator delete(void* p) noexcept { std::free(p); }
+[[gnu::noinline]] void operator delete(void* p, std::size_t) noexcept { std::free(p); }
