@@ -183,7 +183,7 @@ void watchdog_task(void *) {
 
 } // namespace
 
-extern "C" int main(void) {
+int main() {
     xTaskCreate(prism_test_task, "prism", 16384, nullptr, 2, nullptr); // 64 KiB stack
     xTaskCreate(watchdog_task, "watchdog", 512, nullptr, configMAX_PRIORITIES - 1, nullptr);
     vTaskStartScheduler();

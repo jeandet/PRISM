@@ -3,7 +3,9 @@
 qemu_system_arm = find_program('qemu-system-arm', required : false)
 
 # --specs=nosys.specs and -Wl,--gc-sections come from the cross file.
-qemu_link_args = ['-T', qemu_ld, alloc_count_link_arg]
+# nosys.specs' stubs (_close, _read, ...) warn "not implemented" at link time, and werror makes
+# the linker warnings fatal.
+qemu_link_args = ['-T', qemu_ld, alloc_count_link_arg, '-Wl,--no-fatal-warnings']
 qemu_ld_dep = files('../../ports/qemu_mps2/mps2_an500.ld')
 
 posix_tests = executable('posix_tests.elf', 'posix_qemu/main.cpp',
@@ -12,7 +14,6 @@ posix_tests = executable('posix_tests.elf', 'posix_qemu/main.cpp',
   link_whole : [qemu_posix, qemu_board],
   link_depends : qemu_ld_dep,
   link_args : qemu_link_args,
-  override_options : firmware_options,
 )
 
 prism_tests = executable('prism_tests.elf', 'prism_qemu/main.cpp',
@@ -22,7 +23,6 @@ prism_tests = executable('prism_tests.elf', 'prism_qemu/main.cpp',
   link_whole : [qemu_posix, qemu_board],
   link_depends : qemu_ld_dep,
   link_args : qemu_link_args,
-  override_options : firmware_options,
 )
 
 if qemu_system_arm.found()

@@ -385,7 +385,7 @@ static void watchdog_task(void *) {
     exit_qemu(99);
 }
 
-extern "C" int main(void) {
+int main() {
     xTaskCreate(test_task, "tests", 16384, nullptr, 2, nullptr); // 64 KiB stack
     xTaskCreate(watchdog_task, "watchdog", 512, nullptr, configMAX_PRIORITIES - 1, nullptr);
     vTaskStartScheduler();
