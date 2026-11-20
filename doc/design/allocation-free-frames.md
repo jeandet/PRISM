@@ -32,6 +32,22 @@ frame until the prism-stm32 runtime stopped building snapshots faster than it dr
 reads 65. prism-stm32's own rasterizer allocated 1660 per frame (a scratch vector per filled
 quad) and now allocates none.
 
+**After part 1** (phases 1, 2, 3 and 5; plan `docs/superpowers/plans/2026-11-20-allocation-free-frames-1.md`):
+19 per frame on the host, 20 on the board. A publish with nothing changed allocates nothing.
+What is left:
+
+| Allocations | Function | What allocates |
+|---|---|---|
+| 8 + 6 | `flatten_overlays`, `flatten_node_draws` | each dirty widget's new translated, clipped copy and its commands' payloads (phase 4) |
+| 4 | `ObservableValue<CursorState>::get()` | reading the plot's cursor field allocates: to investigate (read tracking?) |
+| 1 | `build_layout` | a dirty subtree's layout node |
+
+Part 1 also deviated from the design in one place: the snapshot pool lives in the runtime that
+owns the handoff (prism-stm32 keeps four slots), and PRISM provides
+`WidgetTree::build_snapshot(SceneSnapshot&, …)`, which rebuilds into an existing snapshot. The
+`SceneSnapshot` contract and the `unique_ptr` overload are unchanged; `model_app` can adopt slots
+the same way later.
+
 ## Prior art
 
 - **Everything static, sized at compile time** — TouchGFX (screens are classes, widgets their
