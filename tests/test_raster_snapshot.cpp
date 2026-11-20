@@ -10,13 +10,13 @@
 #include <prism/render/scene_snapshot.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdint>
 #include <memory>
 #include <set>
 #include <string>
 #include <variant>
+#include <vector>
 
 using namespace prism::core;
 using prism::app::ViewBuilder;
@@ -54,7 +54,8 @@ TEST_CASE("a laid-out snapshot draws into a 480x272 canvas") {
     REQUIRE(snap != nullptr);
     tree.clear_dirty();
 
-    std::array<std::uint32_t, W * H> fb{};
+    // On the heap: 510 KB would overflow the 64 KB stack Emscripten gives main's thread.
+    std::vector<std::uint32_t> fb(std::size_t{W} * H);
     prism::raster::Canvas canvas{fb, W, H, W};
     canvas.clear(snap->window.background);
     prism::raster::draw(canvas, *snap, fonts);
