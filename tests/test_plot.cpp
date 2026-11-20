@@ -1704,3 +1704,23 @@ TEST_CASE("nice_ticks: a range starting just below zero has a plain 0 tick, not 
     CHECK(ticks[0] == 0.0);
     CHECK_FALSE(std::signbit(ticks[0]));   // fmt prints -0.0 as "-0"
 }
+
+TEST_CASE("x ticks thin out on a narrow plot so their labels do not overlap")
+{
+    using namespace prism;
+    using namespace prism::plot;
+    auto ticks_over = [](float width) {
+        PlotMapping map{.x_range = {0.0, 8000.0, false}, .y_range = {-100.0, 0.0, false},
+                        .plot_area = Rect{Point{X{30}, Y{10}}, Size{Width{width}, Height{100}}}};
+        return std::pair{map, compute_ticks(map)};
+    };
+    const auto [narrow_map, narrow] = ticks_over(200.f);
+    const float label_w = 4.f * 0.6f * tick_font_size; // "8000" at the fallback measure
+    for (std::size_t i = 1; i < narrow.x.size(); ++i) {
+        const float gap = (narrow_map.to_pixel(narrow.x[i], 0.0).x - narrow_map.to_pixel(narrow.x[i - 1], 0.0).x).raw();
+        CHECK(gap >= label_w + 4.f);
+    }
+    CHECK(narrow.x.size() >= 2);
+    const auto [wide_map, wide] = ticks_over(800.f);
+    CHECK(wide.x.size() > narrow.x.size());
+}

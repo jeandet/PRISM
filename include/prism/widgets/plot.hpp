@@ -219,7 +219,7 @@ void render_plot_panel(DrawList& dl, Rect bounds, const WidgetNode& node,
                                AxisTitles{.x = !x_label.empty(), .y = !y_label.empty()});
 
     draw_background(dl, map.plot_area, t);
-    auto ticks = compute_ticks(map);
+    auto ticks = compute_ticks(map, t.measurer);
 
     // Inside clip_push, coordinates are local (origin = {0,0})
     PlotMapping local_map = map;

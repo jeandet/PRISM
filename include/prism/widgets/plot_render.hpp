@@ -258,9 +258,21 @@ struct TickArrays {
     TickList y;
 };
 
-inline TickArrays compute_ticks(const PlotMapping& map)
+// Up to 6 x ticks, fewer when the plot is too narrow for their labels side by side (the
+// range's ends stand in for the widest label, with about two characters between labels).
+// simplify: ignores a custom x tick format (time axes); measure the formatted labels if those
+// overlap on narrow plots.
+inline int x_tick_target(const PlotMapping& map, const TextMeasurer* m)
 {
-    return {nice_ticks(map.x_range.min, map.x_range.max, 6), y_ticks_for(map.y_range)};
+    const float widest = std::max(text_width(m, y_tick_text(map.x_range.min), tick_font_size),
+                                  text_width(m, y_tick_text(map.x_range.max), tick_font_size));
+    const float per_label = widest + 2.f * tick_font_size;
+    return std::clamp(static_cast<int>(map.plot_area.extent.w.raw() / per_label), 2, 6);
+}
+
+inline TickArrays compute_ticks(const PlotMapping& map, const TextMeasurer* m = nullptr)
+{
+    return {nice_ticks(map.x_range.min, map.x_range.max, x_tick_target(map, m)), y_ticks_for(map.y_range)};
 }
 
 inline void draw_grid_lines(DrawList& dl, const PlotMapping& map,
