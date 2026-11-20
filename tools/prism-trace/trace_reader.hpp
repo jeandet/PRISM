@@ -5,9 +5,10 @@
 // include/prism/profile/trace_format.hpp -- one header shared with the recorder, so the two
 // cannot drift; this file only reads it. read_trace reads ONE dump out of the bytes: from the
 // first sync marker to the dump's end chunk; bytes after the end chunk are ignored, a missing
-// end chunk is a warning (not an error), and a chunk whose CRC-32 does not match is skipped
-// with one warning, resynchronising on the chunk's length field when it is plausible and on the
-// next sync marker otherwise.
+// end chunk is a warning (not an error), and a damaged chunk (a bad CRC, an unknown type, a
+// length past the input, a malformed payload) is skipped with one warning per skipped region --
+// its length field is NOT trusted: the reader scans forward one byte at a time for the next
+// complete valid chunk (a known type, a length that fits, a matching CRC) and resumes there.
 //
 // Since Task 2b events point at call SITES, not names: a sites chunk (pointer u64, line u32,
 // then name, function, file as u16 length + bytes each) precedes each events chunk, and the
@@ -21,6 +22,7 @@
 #include <map>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace prism_trace {
@@ -42,6 +44,9 @@ struct TraceEvent {
 };
 
 struct Trace {
+    // True when a sync marker was found: these bytes hold a dump, not chatter. The CLI keys its
+    // exit code on it: not found means an error, exit 1, no output file (I4).
+    bool found = false;
     double ticks_per_second = 0;
     struct Thread {
         std::uint64_t id = 0;
@@ -58,5 +63,12 @@ struct Trace {
 // Reads one dump out of `bytes`, which may hold other bytes around it (chatter on a UART line,
 // a file with a dump appended).
 Trace read_trace(std::span<const std::byte> bytes);
+
+// Whether `path` names a serial device rather than a dump file -- the CLI's serial-vs-file
+// decision, declared here so the tests can pin it (I3): a path under /dev/, or a COM port
+// name, "COM" followed only by one or more digits ("COM3", "COM12"; case-insensitive, and
+// optionally the \\.\ prefix Windows needs from COM10 up). A file whose name merely starts
+// with "com" (com_dump.bin, combined.prtr) is a file, not a port.
+bool is_serial_path(std::string_view path);
 
 } // namespace prism_trace

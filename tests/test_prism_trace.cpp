@@ -7,6 +7,14 @@
 // with no end chunk (a warning, not an error); a ring that wrapped mid-block (valid JSON, the
 // orphan E dropped, the open B closed at the thread's last timestamp); a hand-built dump with
 // pointer size 4 (site pointers are raw u64 bits, never reinterpreted).
+//
+// Fix round 1, step A (task-3-review.md C1/I2/I3/I4/I5): the damaged-dump cases -- one byte
+// removed from an events chunk, one inserted, one bit flipped in its length field (each: that
+// chunk skipped with one warning, the next thread's events and the end chunk still read); a
+// dump truncated mid-chunk; a CRC-valid sites chunk whose string length runs past its payload;
+// an unknown chunk type with a valid CRC; a header with version 2 (a warning and no threads);
+// a thread name cut mid-UTF-8 (the JSON still valid UTF-8 and parseable); and the step-B CLI
+// predicates pinned here: prism_trace::is_serial_path and Trace::found.
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
@@ -39,6 +47,7 @@ using prism::profile::Site;
 using prism::profile::make_site;
 using prism_trace::SiteInfo;
 using prism_trace::Trace;
+using prism_trace::is_serial_path;
 using prism_trace::read_trace;
 using prism_trace::to_chrome_json;
 
@@ -144,6 +153,45 @@ std::vector<ChunkSpan> walk_chunks(std::span<const std::byte> bytes)
     return chunks;
 }
 
+// The first chunk of `type` in the walk, or nullptr.
+const ChunkSpan* find_chunk(const std::vector<ChunkSpan>& chunks, Chunk type)
+{
+    for (const ChunkSpan& c : chunks)
+        if (c.type == type)
+            return &c;
+    return nullptr;
+}
+
+// --- damaging a dump ---------------------------------------------------------------------------
+
+// A UART overrun drops one byte: everything after `at` shifts left by one.
+void remove_byte_at(std::vector<std::byte>& v, std::size_t at)
+{
+    v.erase(v.begin() + static_cast<std::ptrdiff_t>(at));
+}
+
+// A duplicated byte on the line: everything from `at` shifts right by one.
+void insert_byte_at(std::vector<std::byte>& v, std::size_t at, std::byte b)
+{
+    v.insert(v.begin() + static_cast<std::ptrdiff_t>(at), b);
+}
+
+// One bit of the byte at `at` flips (a line error in a chunk's length field).
+void flip_bit_at(std::vector<std::byte>& v, std::size_t at, unsigned bit)
+{
+    v[at] = static_cast<std::byte>(static_cast<unsigned int>(v[at]) ^ (1u << bit));
+}
+
+// Recomputes the CRC of the chunk at `c` after an in-place payload edit, so a hand-damaged
+// chunk still passes the CRC check (the damage is in the payload's meaning, not its framing).
+void fix_chunk_crc(std::vector<std::byte>& bytes, const ChunkSpan& c)
+{
+    const std::uint32_t crc =
+        prism::profile::crc32(std::span<const std::byte>{bytes.data() + c.header, 5 + c.length});
+    for (std::size_t i = 0; i < 4; ++i)
+        bytes[c.header + 5 + c.length + i] = static_cast<std::byte>((crc >> (8 * i)) & 0xFFu);
+}
+
 // --- recorder helpers -------------------------------------------------------------------------
 
 // Dumps r into a MemoryStream and returns the bytes.
@@ -155,6 +203,27 @@ std::vector<std::byte> dumped(Recorder& r)
 }
 
 std::uint64_t ptr_of(const Site& site) { return reinterpret_cast<std::uintptr_t>(&site); }
+
+// The two-thread dump the damage tests start from: main (slot 0, two instants at site "a"),
+// then worker (slot 1, two instants at site "b"). The dump writes chunks in slot order, so the
+// first events chunk is main's, the last events chunk the worker's, and the last chunk the end.
+std::vector<std::byte> two_thread_dump()
+{
+    static constexpr Site a = make_site("a");
+    static constexpr Site b = make_site("b");
+    std::vector<Event> storage(256);
+    Recorder r{storage, 2}; // 128 events per ring: no wrap
+    r.name_thread("main");
+    r.instant(a);
+    r.instant(a);
+    std::jthread worker([&] {
+        r.name_thread("worker");
+        r.instant(b);
+        r.instant(b);
+    });
+    worker.join();
+    return dumped(r);
+}
 
 // --- JSON helpers (Glaze's generic read) -------------------------------------------------------
 
@@ -208,6 +277,90 @@ std::vector<const glz::generic*> events_with(const glz::generic& root, std::stri
 double ts_us(const Trace& trace, std::uint64_t ticks)
 {
     return static_cast<double>(ticks) * 1e6 / trace.ticks_per_second;
+}
+
+// True when one of the trace's warnings contains `needle`.
+bool has_warning(const Trace& trace, std::string_view needle)
+{
+    for (const std::string& w : trace.warnings)
+        if (w.find(needle) != std::string::npos)
+            return true;
+    return false;
+}
+
+// What the C1 tests expect once the first events chunk is damaged: exactly one warning (the
+// damaged chunk -- the end chunk was still read), both threads and both sites known, the
+// damaged thread's events gone, the other thread's two intact, valid JSON over what survived.
+void check_first_events_chunk_skipped(const Trace& trace)
+{
+    CHECK(trace.warnings.size() == 1);
+    CHECK(!has_warning(trace, "no end chunk"));
+    REQUIRE(trace.threads.size() == 2);
+    CHECK(trace.sites.size() == 2);
+    std::size_t total = 0;
+    std::size_t empty_threads = 0;
+    for (const Trace::Thread& t : trace.threads) {
+        total += t.events.size();
+        if (t.events.empty())
+            ++empty_threads;
+        else
+            CHECK(t.events.size() == 2);
+    }
+    CHECK(total == 2);
+    CHECK(empty_threads == 1);
+    const glz::generic root = parse_json(to_chrome_json(trace));
+    CHECK(events_with(root, "i").size() == 2);
+}
+
+// A small UTF-8 validity check (RFC 3629): no stray continuation bytes, no truncated
+// sequences, no overlongs, no surrogates, nothing past U+10FFFF.
+bool is_valid_utf8(std::string_view s)
+{
+    std::size_t i = 0;
+    while (i < s.size()) {
+        const auto b0 = static_cast<unsigned char>(s[i]);
+        if (b0 < 0x80) {
+            ++i;
+            continue;
+        }
+        std::size_t len = 0;
+        unsigned char lo = 0x80, hi = 0xBF; // the first continuation byte's allowed range
+        if (b0 >= 0xC2 && b0 <= 0xDF) {
+            len = 1;
+        } else if (b0 == 0xE0) {
+            len = 2;
+            lo = 0xA0; // no overlong 3-byte forms
+        } else if (b0 >= 0xE1 && b0 <= 0xEC) {
+            len = 2;
+        } else if (b0 == 0xED) {
+            len = 2;
+            hi = 0x9F; // no surrogates
+        } else if (b0 >= 0xEE && b0 <= 0xEF) {
+            len = 2;
+        } else if (b0 == 0xF0) {
+            len = 3;
+            lo = 0x90; // no overlong 4-byte forms
+        } else if (b0 >= 0xF1 && b0 <= 0xF3) {
+            len = 3;
+        } else if (b0 == 0xF4) {
+            len = 3;
+            hi = 0x8F; // nothing past U+10FFFF
+        } else {
+            return false; // 0x80-0xC1, 0xF5-0xFF: a stray continuation or an invalid lead byte
+        }
+        if (i + len >= s.size())
+            return false; // the sequence is cut at the end
+        const auto b1 = static_cast<unsigned char>(s[i + 1]);
+        if (b1 < lo || b1 > hi)
+            return false;
+        for (std::size_t k = 2; k <= len; ++k) {
+            const auto bk = static_cast<unsigned char>(s[i + k]);
+            if (bk < 0x80 || bk > 0xBF)
+                return false;
+        }
+        i += len + 1;
+    }
+    return true;
 }
 
 } // namespace
@@ -574,4 +727,171 @@ TEST_CASE("a hand-built dump with pointer size 4 reads correctly (site pointers 
     const glz::generic* c = events_with(root, "C")[0];
     CHECK(str_field(*c, "name") == "mark");
     CHECK(num_field(field(*c, "args"), "value") == -7);
+}
+
+TEST_CASE("one byte removed inside an events chunk: that chunk is skipped, the next thread's events and the end chunk still read (C1)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    const ChunkSpan* events = find_chunk(chunks, Chunk::events); // the first one: main's
+    REQUIRE(events != nullptr);
+    remove_byte_at(bytes, events->payload + events->length / 2); // a dropped byte mid-payload
+    check_first_events_chunk_skipped(read_trace(bytes));
+}
+
+TEST_CASE("one byte inserted inside an events chunk: same expectations (C1)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    const ChunkSpan* events = find_chunk(chunks, Chunk::events);
+    REQUIRE(events != nullptr);
+    insert_byte_at(bytes, events->payload + events->length / 2, std::byte{0x00}); // a duplicated byte
+    check_first_events_chunk_skipped(read_trace(bytes));
+}
+
+TEST_CASE("one bit flipped in an events chunk's length field: same expectations (C1)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    const ChunkSpan* events = find_chunk(chunks, Chunk::events);
+    REQUIRE(events != nullptr);
+    flip_bit_at(bytes, events->header + 4, 7); // the length u32's top bit: now about 2^31
+    check_first_events_chunk_skipped(read_trace(bytes));
+}
+
+TEST_CASE("a dump truncated in the middle of an events chunk: no crash, a warning, the earlier chunks read (I5)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    REQUIRE(chunks.size() >= 2);
+    REQUIRE(chunks.back().type == Chunk::end);
+    const ChunkSpan& last_events = chunks[chunks.size() - 2]; // the worker's events chunk
+    REQUIRE(last_events.type == Chunk::events);
+    bytes.resize(last_events.payload + last_events.length / 2); // cut mid-payload
+
+    const Trace trace = read_trace(bytes); // must not crash
+    CHECK(!trace.warnings.empty());      // the truncated chunk is reported
+    REQUIRE(trace.threads.size() == 2);  // both thread chunks were read before the cut
+    const Trace::Thread* main_t = nullptr;
+    for (const Trace::Thread& t : trace.threads)
+        if (t.name == "main")
+            main_t = &t;
+    REQUIRE(main_t != nullptr);
+    CHECK(main_t->events.size() == 2); // the earlier events chunk was read whole
+    parse_json(to_chrome_json(trace)); // still valid JSON
+}
+
+TEST_CASE("a CRC-valid sites chunk whose string length runs past its payload: skipped with a warning, no crash (I5)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    const ChunkSpan* sites = find_chunk(chunks, Chunk::sites); // the first one: main's
+    REQUIRE(sites != nullptr);
+    // The first site entry is pointer u64 | line u32 | name u16 length: claim a 65535-byte name.
+    bytes[sites->payload + 12] = std::byte{0xFF};
+    bytes[sites->payload + 13] = std::byte{0xFF};
+    fix_chunk_crc(bytes, *sites); // the damage is in the payload's meaning: the CRC still passes
+
+    const Trace trace = read_trace(bytes);
+    CHECK(trace.warnings.size() == 1);
+    CHECK(has_warning(trace, "malformed sites chunk"));
+    CHECK(!has_warning(trace, "no end chunk")); // the end chunk was still read
+    REQUIRE(trace.threads.size() == 2);
+    CHECK(trace.sites.size() == 1); // the worker's sites chunk survived; the damaged one did not
+    std::size_t total = 0;
+    for (const Trace::Thread& t : trace.threads)
+        total += t.events.size();
+    CHECK(total == 4); // the events chunks are separate: all four events still read
+    parse_json(to_chrome_json(trace));
+}
+
+TEST_CASE("an unknown chunk type with a valid CRC: skipped with a warning, the rest read (I5)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    REQUIRE(!chunks.empty());
+    REQUIRE(chunks.back().type == Chunk::end);
+    std::vector<std::byte> extra;
+    std::vector<std::byte> payload{std::byte{'x'}, std::byte{'y'}, std::byte{'z'}};
+    append_chunk(extra, static_cast<Chunk>(0x7F), payload); // a type the reader does not know
+    bytes.insert(bytes.begin() + static_cast<std::ptrdiff_t>(chunks.back().header), extra.begin(),
+                 extra.end()); // just before the end chunk
+
+    const Trace trace = read_trace(bytes);
+    CHECK(trace.warnings.size() == 1);
+    CHECK(has_warning(trace, "unknown chunk type"));
+    CHECK(!has_warning(trace, "no end chunk"));
+    REQUIRE(trace.threads.size() == 2);
+    CHECK(trace.sites.size() == 2);
+    std::size_t total = 0;
+    for (const Trace::Thread& t : trace.threads)
+        total += t.events.size();
+    CHECK(total == 4);
+    parse_json(to_chrome_json(trace));
+}
+
+TEST_CASE("a header chunk with version 2 (CRC recomputed): a warning and no threads (I5/M3 -- our call: an unknown version is not read)")
+{
+    auto bytes = two_thread_dump();
+    const auto chunks = walk_chunks(bytes);
+    const ChunkSpan* header = find_chunk(chunks, Chunk::header);
+    REQUIRE(header != nullptr);
+    bytes[header->payload] = std::byte{2}; // version u16 LE = 2
+    bytes[header->payload + 1] = std::byte{0};
+    fix_chunk_crc(bytes, *header);
+
+    const Trace trace = read_trace(bytes);
+    // Our call, pinned here: a format version we do not know is a warning and the dump is not
+    // read -- no threads -- rather than mis-parsed as version 1 (M3).
+    CHECK(!trace.warnings.empty());
+    CHECK(has_warning(trace, "version"));
+    CHECK(trace.threads.empty());
+}
+
+TEST_CASE("a thread name cut mid-UTF-8 sequence: the JSON is valid UTF-8 and still parses (I2)")
+{
+    std::vector<Event> storage(64);
+    Recorder r{storage, 1};
+    static constexpr Site mark = make_site("mark");
+    // 15 ASCII chars + é (0xC3 0xA9): name_thread keeps 16 bytes, so the stored name ends on
+    // the lone lead byte 0xC3 -- not valid UTF-8.
+    r.name_thread("abcdefghijklmno\xC3\xA9");
+    r.instant(mark);
+    const auto bytes = dumped(r);
+
+    const Trace trace = read_trace(bytes);
+    REQUIRE(trace.threads.size() == 1);
+    CHECK(trace.threads[0].name.size() == 16); // the cut really is mid-character
+
+    const std::string json = to_chrome_json(trace);
+    CHECK(is_valid_utf8(json));          // the writer must not pass the invalid byte through raw
+    const glz::generic root = parse_json(json); // and Glaze still reads the output
+    const auto m = events_with(root, "M");
+    REQUIRE(m.size() == 1);
+    CHECK(!str_field(field(*m[0], "args"), "name").empty());
+}
+
+TEST_CASE("the CLI predicates pinned for step B: is_serial_path, and read_trace's found (I3/I4)")
+{
+    // Serial devices: a /dev/ path, or COM followed only by digits.
+    CHECK(is_serial_path("/dev/ttyACM0"));
+    CHECK(is_serial_path("COM3"));
+    CHECK(is_serial_path("COM12"));
+    // Files whose name merely starts with "com" (or COM with no digits) are files.
+    CHECK(!is_serial_path("com_dump.bin"));
+    CHECK(!is_serial_path("combined.prtr"));
+    CHECK(!is_serial_path("COM"));
+    CHECK(!is_serial_path("COMX"));
+
+    // Bytes with no sync marker are not a dump.
+    const std::vector<std::byte> garbage(64, std::byte{0xAB});
+    const Trace none = read_trace(garbage);
+    CHECK(none.found == false);
+    CHECK(!none.warnings.empty());
+    CHECK(none.threads.empty());
+
+    // A real dump is found (red until read_trace sets found in step B).
+    const std::vector<std::byte> dump = two_thread_dump();
+    const Trace real = read_trace(dump);
+    CHECK(real.found == true);
 }

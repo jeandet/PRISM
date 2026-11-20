@@ -5,8 +5,11 @@
 //
 //   prism-trace <dump file | serial device> [-o out.json] [--baud N]
 //
-// A serial read ends when the dump's end chunk has arrived or 5 s pass without bytes.
-// Warnings (a damaged chunk, a missing end chunk) and a one-line summary go to stderr.
+// A serial read ends when the dump's end chunk has arrived or 5 s pass without bytes. Warnings
+// (a damaged chunk, a missing end chunk) and a one-line summary go to stderr. When the input
+// holds no dump at all (no sync marker -- a wrong file, or a serial read that timed out before
+// the device sent anything) the tool prints an error and exits 1 without writing the output
+// file, so a script can tell that from a good conversion.
 #include "chrome_json.hpp"
 #include "trace_reader.hpp"
 
@@ -20,7 +23,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -37,19 +39,6 @@ namespace {
 void usage()
 {
     std::cerr << "usage: prism-trace <dump file | serial device> [-o out.json] [--baud N]\n";
-}
-
-// A serial device: a path under /dev/, or a COM port name ("COM3").
-bool is_serial_device(std::string_view path)
-{
-    if (path.starts_with("/dev/"))
-        return true;
-    if (path.size() < 3)
-        return false;
-    std::string prefix{path.substr(0, 3)};
-    for (char& c : prefix)
-        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-    return prefix == "COM";
 }
 
 std::expected<std::vector<std::byte>, std::error_code> read_file(std::string_view path)
@@ -76,8 +65,8 @@ std::expected<std::vector<std::byte>, std::error_code> read_file(std::string_vie
 // that, the dump is complete.
 bool ends_with_end_chunk(std::span<const std::byte> bytes)
 {
-    constexpr std::array<std::byte, 5> end_head{std::byte{0x04}, std::byte{0}, std::byte{0},
-                                                std::byte{0}, std::byte{0}};
+    static constexpr std::array<std::byte, 5> end_head{std::byte{0x04}, std::byte{0}, std::byte{0},
+                                                       std::byte{0}, std::byte{0}};
     static constexpr std::uint32_t end_crc = prism::profile::crc32(end_head);
     if (bytes.size() < 9)
         return false;
@@ -172,7 +161,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<std::byte> bytes;
-    if (is_serial_device(input)) {
+    if (prism_trace::is_serial_path(input)) {
 #if defined(PRISM_TRACE_HAS_IO)
         auto read = read_serial(input, baud);
         if (!read) {
@@ -196,6 +185,12 @@ int main(int argc, char** argv)
     const prism_trace::Trace trace = prism_trace::read_trace(bytes);
     for (const std::string& warning : trace.warnings)
         std::cerr << "prism-trace: warning: " << warning << '\n';
+    if (!trace.found) {
+        // Not a dump (a wrong file, or a serial read that timed out with no bytes): exit 1 and
+        // write no output file, so a script can tell this from a good conversion (I4).
+        std::cerr << "prism-trace: " << input << ": no profile dump found\n";
+        return 1;
+    }
     std::size_t events = 0;
     for (const prism_trace::Trace::Thread& thread : trace.threads)
         events += thread.events.size();

@@ -2,11 +2,14 @@
 // sync marker to the dump's end chunk -- one function per chunk type. Every integer is read
 // little-endian byte by byte, so the host's endianness does not matter, and the device's pointer
 // size is irrelevant: site pointers travel as raw u64 bits and are never reinterpreted as host
-// pointers (a 32-bit device's 0x12345678 reads fine on a 64-bit host).
+// pointers (a 32-bit device's 0x12345678 reads fine on a 64-bit host). A damaged chunk is not
+// trusted -- not even its length field: one warning per skipped region, then find_next_chunk
+// scans forward one byte at a time for the next complete valid chunk and resumes there.
 #include "trace_reader.hpp"
 
 #include <bit>
 #include <concepts>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -97,9 +100,87 @@ Trace::Thread* find_thread(Trace& trace, std::uint64_t id)
     return nullptr;
 }
 
+// What reading one chunk did. `damaged` means its payload did not parse (a warning says so) and
+// the caller resynchronises; `refuse` means the dump's format version is unknown, so the dump is
+// not read at all rather than mis-parsed.
+enum class ChunkRead { ok, end, damaged, refuse };
+
+// A complete, CRC-valid chunk sitting at `header` (valid says so). Anything else -- an unknown
+// type, a length that runs past the input, a CRC mismatch, a truncated header -- is not a chunk.
+struct ChunkAt {
+    std::size_t header = 0; // offset of the type byte
+    Chunk type = Chunk::header;
+    std::uint32_t length = 0;
+    std::size_t end = 0; // one past the chunk's CRC
+    bool valid = false;
+};
+
+ChunkAt chunk_at(std::span<const std::byte> bytes, std::size_t header)
+{
+    ChunkAt c;
+    c.header = header;
+    if (header + 5 > bytes.size())
+        return c; // a truncated chunk header
+    const auto type_byte = static_cast<std::uint8_t>(bytes[header]);
+    if (type_byte > static_cast<std::uint8_t>(Chunk::end))
+        return c; // not a known chunk type
+    c.type = static_cast<Chunk>(type_byte);
+    c.length = load_u32(bytes, header + 1);
+    const std::uint64_t end = static_cast<std::uint64_t>(header) + 5 + c.length + 4;
+    if (end > bytes.size())
+        return c; // the length runs past the input
+    const std::size_t body = 5 + static_cast<std::size_t>(c.length); // fits: end <= size was checked
+    if (prism::profile::crc32(bytes.subspan(header, body)) != load_u32(bytes, header + body))
+        return c; // CRC mismatch
+    c.end = static_cast<std::size_t>(end);
+    c.valid = true;
+    return c;
+}
+
+// Why chunk_at rejected the offset `at`: the skip warning's text.
+std::string damage_at(std::span<const std::byte> bytes, std::size_t at)
+{
+    if (at + 5 > bytes.size())
+        return "truncated chunk header at offset " + std::to_string(at);
+    const auto type_byte = static_cast<std::uint8_t>(bytes[at]);
+    if (type_byte > static_cast<std::uint8_t>(Chunk::end))
+        return "unknown chunk type " + std::to_string(type_byte) + " at offset " +
+               std::to_string(at);
+    if (static_cast<std::uint64_t>(at) + 5 + load_u32(bytes, at + 1) + 4 > bytes.size())
+        return "chunk at offset " + std::to_string(at) + ": its length runs past the end";
+    return "chunk at offset " + std::to_string(at) + ": CRC mismatch";
+}
+
+// The next offset at or after `from` where a complete valid chunk sits (chunk_at accepts it).
+// A sync marker found while scanning is not a chunk: it is skipped past. bytes.size() when there
+// is none.
+// simplify: the scan costs a CRC per candidate offset -- O(n * chunk) in the worst case, fine on
+// a host; a random offset passes the type and length checks with probability about 2^-24 and the
+// CRC with 2^-32, so a false hit does not happen on a real dump.
+std::size_t find_next_chunk(std::span<const std::byte> bytes, std::size_t from)
+{
+    constexpr auto marker = prism::profile::sync_marker;
+    for (std::size_t i = from; i < bytes.size(); ++i) {
+        bool is_marker = i + marker.size() <= bytes.size();
+        if (is_marker)
+            for (std::size_t k = 0; k < marker.size(); ++k)
+                if (bytes[i + k] != marker[k]) {
+                    is_marker = false;
+                    break;
+                }
+        if (is_marker) {
+            i += marker.size() - 1; // a marker is not a chunk: skip past it
+            continue;
+        }
+        if (chunk_at(bytes, i).valid)
+            return i;
+    }
+    return bytes.size();
+}
+
 // header: version u16 | pointer size u8 | ticks per second u64 | thread count u64 |
 //         threads dropped u64
-void read_header(Trace& trace, std::span<const std::byte> payload)
+ChunkRead read_header(Trace& trace, std::span<const std::byte> payload)
 {
     PayloadReader r{payload};
     const std::uint16_t version = r.u<std::uint16_t>();
@@ -109,17 +190,23 @@ void read_header(Trace& trace, std::span<const std::byte> payload)
     const std::uint64_t threads_dropped = r.u<std::uint64_t>();
     if (!r.ok()) {
         trace.warnings.push_back("malformed header chunk, skipped");
-        return;
+        return ChunkRead::damaged;
     }
-    if (version != prism::profile::format_version)
+    if (version != prism::profile::format_version) {
+        // An unknown format version is not read as version 1: a future format's payloads would
+        // be mis-parsed into a plausible but wrong trace.
         trace.warnings.push_back("dump format version " + std::to_string(version) + ", expected " +
-                                 std::to_string(prism::profile::format_version));
+                                 std::to_string(prism::profile::format_version) +
+                                 ": the dump is not read");
+        return ChunkRead::refuse;
+    }
     trace.ticks_per_second = static_cast<double>(ticks_per_second);
     trace.threads_dropped = threads_dropped;
+    return ChunkRead::ok;
 }
 
 // thread: id u64 | lost u64 | name length u8 | name bytes
-void read_thread(Trace& trace, std::span<const std::byte> payload)
+ChunkRead read_thread(Trace& trace, std::span<const std::byte> payload)
 {
     PayloadReader r{payload};
     Trace::Thread thread;
@@ -128,14 +215,15 @@ void read_thread(Trace& trace, std::span<const std::byte> payload)
     thread.name = std::string(r.str8());
     if (!r.ok()) {
         trace.warnings.push_back("malformed thread chunk, skipped");
-        return;
+        return ChunkRead::damaged;
     }
     trace.threads.push_back(std::move(thread));
+    return ChunkRead::ok;
 }
 
 // sites: per distinct site pointer: pointer u64 | line u32 | name, function, file (u16 length +
 // bytes each)
-void read_sites(Trace& trace, std::span<const std::byte> payload)
+ChunkRead read_sites(Trace& trace, std::span<const std::byte> payload)
 {
     PayloadReader r{payload};
     while (r.ok() && r.left() > 0) {
@@ -147,20 +235,21 @@ void read_sites(Trace& trace, std::span<const std::byte> payload)
         info.file = std::string(r.str16());
         if (!r.ok()) {
             trace.warnings.push_back("malformed sites chunk, skipped");
-            return;
+            return ChunkRead::damaged;
         }
         trace.sites[pointer] = std::move(info); // the sites chunks repeat across events chunks: merge by pointer
     }
+    return ChunkRead::ok;
 }
 
 // events: thread id u64, then per event ticks u64 | site pointer u64 | value i32 | kind u8
-void read_events(Trace& trace, std::span<const std::byte> payload)
+ChunkRead read_events(Trace& trace, std::span<const std::byte> payload)
 {
     PayloadReader r{payload};
     const std::uint64_t thread_id = r.u<std::uint64_t>();
     if (!r.ok()) {
         trace.warnings.push_back("malformed events chunk, skipped");
-        return;
+        return ChunkRead::damaged;
     }
     Trace::Thread* thread = find_thread(trace, thread_id);
     if (thread == nullptr) { // an events chunk whose thread chunk was lost
@@ -171,43 +260,44 @@ void read_events(Trace& trace, std::span<const std::byte> payload)
     if (r.left() % prism::profile::event_wire_size != 0)
         trace.warnings.push_back("events chunk with a partial event at its end");
     const std::size_t count = r.left() / prism::profile::event_wire_size;
+    bool unknown_kind = false;
     for (std::size_t i = 0; i < count; ++i) {
         TraceEvent event;
         event.ticks = r.u<std::uint64_t>();
         event.site = r.u<std::uint64_t>(); // the device-side pointer's bits, never reinterpreted
         event.value = std::bit_cast<std::int32_t>(r.u<std::uint32_t>()); // i32: its two's-complement bits
-        event.kind = static_cast<Kind>(r.u<std::uint8_t>());
+        const std::uint8_t kind_byte = r.u<std::uint8_t>();
+        if (kind_byte > static_cast<std::uint8_t>(Kind::frame))
+            unknown_kind = true; // the JSON writer drops it; the warning says why
+        event.kind = static_cast<Kind>(kind_byte);
         if (!r.ok()) {
             trace.warnings.push_back("malformed events chunk, skipped");
-            return;
+            return ChunkRead::damaged;
         }
         thread->events.push_back(event); // oldest first: the chunks come in order
     }
+    if (unknown_kind)
+        trace.warnings.push_back("events chunk with an unknown event kind: those events are dropped");
+    return ChunkRead::ok;
 }
 
-// One CRC-valid chunk. Returns true when it is the dump's end chunk.
-bool read_chunk(Trace& trace, Chunk type, std::span<const std::byte> payload)
+// Reads one CRC-valid chunk: `end` when it is the dump's end chunk, `damaged` when its payload
+// did not parse (a warning says so), `refuse` when the format version is unknown.
+ChunkRead read_chunk(Trace& trace, Chunk type, std::span<const std::byte> payload)
 {
     switch (type) {
     case Chunk::header:
-        read_header(trace, payload);
-        return false;
+        return read_header(trace, payload);
     case Chunk::thread:
-        read_thread(trace, payload);
-        return false;
+        return read_thread(trace, payload);
     case Chunk::sites:
-        read_sites(trace, payload);
-        return false;
+        return read_sites(trace, payload);
     case Chunk::events:
-        read_events(trace, payload);
-        return false;
+        return read_events(trace, payload);
     case Chunk::end:
-        return true;
+        return ChunkRead::end;
     }
-    trace.warnings.push_back("unknown chunk type " +
-                             std::to_string(static_cast<unsigned>(static_cast<std::uint8_t>(type))) +
-                             ", skipped");
-    return false;
+    return ChunkRead::damaged; // unreachable: chunk_at accepts only known types
 }
 
 } // namespace
@@ -220,35 +310,63 @@ Trace read_trace(std::span<const std::byte> bytes)
         trace.warnings.push_back("no sync marker: not a profile dump");
         return trace;
     }
+    trace.found = true; // a sync marker was found: these bytes hold a dump
     pos += prism::profile::sync_marker.size();
 
-    bool ended = false;
-    while (!ended && pos < bytes.size()) {
-        if (pos + 5 > bytes.size())
-            break; // a truncated chunk header: the dump ends here
-        const auto type = static_cast<Chunk>(static_cast<std::uint8_t>(bytes[pos]));
-        const std::uint32_t length = load_u32(bytes, pos + 1);
-        const std::uint64_t chunk_end = static_cast<std::uint64_t>(pos) + 5 + length + 4;
-        if (chunk_end > bytes.size()) {
-            // The length cannot be trusted (a damaged chunk): resynchronise on the next marker.
-            trace.warnings.push_back("damaged chunk at offset " + std::to_string(pos) +
-                                     ": its length runs past the end, skipped");
-            pos = find_sync(bytes, pos + 1);
+    bool ended = false;   // the end chunk was read: bytes after it are ignored
+    bool refused = false; // the format version is unknown: the dump is not read
+    while (!ended && !refused && pos < bytes.size()) {
+        const ChunkAt chunk = chunk_at(bytes, pos);
+        if (!chunk.valid) {
+            // A damaged chunk (a dropped, inserted or flipped byte; an unknown type; a length
+            // past the end; a CRC mismatch): its length field is NOT trusted -- one warning per
+            // skipped region, then resynchronise on the next complete valid chunk.
+            trace.warnings.push_back(damage_at(bytes, pos) + ", skipped");
+            pos = find_next_chunk(bytes, pos + 1);
             continue;
         }
-        const std::span<const std::byte> payload = bytes.subspan(pos + 5, length);
-        if (prism::profile::crc32(bytes.subspan(pos, 5 + static_cast<std::size_t>(length))) !=
-            load_u32(bytes, pos + 5 + length)) {
-            trace.warnings.push_back("chunk at offset " + std::to_string(pos) + ": CRC mismatch, skipped");
-            pos = static_cast<std::size_t>(chunk_end); // the length is plausible: skip by it
-            continue;
+        const std::span<const std::byte> payload = bytes.subspan(chunk.header + 5, chunk.length);
+        switch (read_chunk(trace, chunk.type, payload)) {
+        case ChunkRead::ok:
+            pos = chunk.end;
+            break;
+        case ChunkRead::end:
+            ended = true; // bytes after the end chunk are ignored
+            break;
+        case ChunkRead::damaged:
+            // A CRC-valid but malformed payload: the chunk failed -- resynchronise from its
+            // start + 1, not from its length field.
+            pos = find_next_chunk(bytes, chunk.header + 1);
+            break;
+        case ChunkRead::refuse:
+            refused = true;
+            break;
         }
-        pos = static_cast<std::size_t>(chunk_end);
-        ended = read_chunk(trace, type, payload); // bytes after the end chunk are ignored
     }
-    if (!ended)
+    if (!ended && !refused)
         trace.warnings.push_back("no end chunk: the dump is truncated");
     return trace;
+}
+
+// A serial device: a path under /dev/, or a COM port name -- "COM" followed only by one or more
+// digits, case-insensitive, optionally with the \\.\ prefix Windows needs from COM10 up. A file
+// whose name merely starts with "com" (com_dump.bin, combined.prtr) is a file, not a port.
+bool is_serial_path(std::string_view path)
+{
+    if (path.starts_with("/dev/"))
+        return true;
+    const std::size_t at = path.starts_with("\\\\.\\") ? 4 : 0; // Windows' prefix, from COM10 up
+    if (path.size() < at + 4) // "COM" plus at least one digit
+        return false;
+    const auto upper = [](char c) {
+        return static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    };
+    if (upper(path[at]) != 'C' || upper(path[at + 1]) != 'O' || upper(path[at + 2]) != 'M')
+        return false;
+    for (std::size_t i = at + 3; i < path.size(); ++i) // only digits after "COM"
+        if (path[i] < '0' || path[i] > '9')
+            return false;
+    return true;
 }
 
 } // namespace prism_trace

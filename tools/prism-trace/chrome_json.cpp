@@ -1,11 +1,14 @@
 // The writer half of prism-trace: the Trace as Chrome trace-event JSON
 // ({"traceEvents":[...]} -- one function per event kind). Strings are escaped (quotes,
-// backslashes, control characters -- the site's name, function and file come from the device)
-// and every number goes through to_chars, so the output is valid JSON whatever the names hold.
-// ts is microseconds: ticks / ticks_per_second * 1e6, as a double.
+// backslashes, control characters) and sanitised to valid UTF-8 -- the site's name, function
+// and file come from the device, and a name cut at 16 bytes can end mid-sequence -- so the
+// output is valid JSON whatever the names hold. Every number goes through to_chars, so ts is
+// written in its shortest round-trip form. ts is microseconds: ticks / ticks_per_second * 1e6,
+// as a double.
 #include "chrome_json.hpp"
 
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -16,29 +19,89 @@ namespace {
 
 using prism::profile::Kind;
 
-// Appends a JSON string (with its quotes), escaping what JSON requires.
+// The length in bytes (1-4) of the well-formed UTF-8 sequence starting at s[i], or 0 when the
+// byte there does not start one (RFC 3629: continuation bytes in 0x80-0xBF, no overlongs, no
+// surrogates, nothing past U+10FFFF, no sequence cut off at the end).
+std::size_t utf8_sequence(std::string_view s, std::size_t i)
+{
+    const auto b0 = static_cast<unsigned char>(s[i]);
+    if (b0 < 0x80)
+        return 1;
+    std::size_t len = 0;
+    unsigned char lo = 0x80, hi = 0xBF; // the first continuation byte's allowed range
+    if (b0 >= 0xC2 && b0 <= 0xDF) {
+        len = 1;
+    } else if (b0 == 0xE0) {
+        len = 2;
+        lo = 0xA0; // no overlong 3-byte forms
+    } else if (b0 >= 0xE1 && b0 <= 0xEC) {
+        len = 2;
+    } else if (b0 == 0xED) {
+        len = 2;
+        hi = 0x9F; // no surrogates
+    } else if (b0 >= 0xEE && b0 <= 0xEF) {
+        len = 2;
+    } else if (b0 == 0xF0) {
+        len = 3;
+        lo = 0x90; // no overlong 4-byte forms
+    } else if (b0 >= 0xF1 && b0 <= 0xF3) {
+        len = 3;
+    } else if (b0 == 0xF4) {
+        len = 3;
+        hi = 0x8F; // nothing past U+10FFFF
+    } else {
+        return 0; // 0x80-0xC1, 0xF5-0xFF: a stray continuation or an invalid lead byte
+    }
+    if (i + len >= s.size())
+        return 0; // the sequence is cut at the end
+    const auto b1 = static_cast<unsigned char>(s[i + 1]);
+    if (b1 < lo || b1 > hi)
+        return 0;
+    for (std::size_t k = 2; k <= len; ++k) {
+        const auto bk = static_cast<unsigned char>(s[i + k]);
+        if (bk < 0x80 || bk > 0xBF)
+            return 0;
+    }
+    return len + 1;
+}
+
+// Appends a JSON string (with its quotes), escaping what JSON requires. JSON strings are UTF-8,
+// and the device's are not guaranteed to be (a 16-byte thread name can end mid-sequence): valid
+// sequences are copied, each invalid byte becomes U+FFFD, so the output is always valid UTF-8.
 void append_string(std::string& out, std::string_view value)
 {
     constexpr char hex[] = "0123456789abcdef";
+    constexpr std::string_view replacement{"\xEF\xBF\xBD"}; // U+FFFD, the replacement character
     out += '"';
-    for (const char c : value) {
-        switch (c) {
-        case '"': out += "\\\""; break;
-        case '\\': out += "\\\\"; break;
-        case '\b': out += "\\b"; break;
-        case '\f': out += "\\f"; break;
-        case '\n': out += "\\n"; break;
-        case '\r': out += "\\r"; break;
-        case '\t': out += "\\t"; break;
-        default:
-            if (static_cast<unsigned char>(c) < 0x20) {
-                const auto uc = static_cast<unsigned char>(c);
-                out += "\\u00";
-                out += hex[uc >> 4];
-                out += hex[uc & 0xF];
-            } else {
-                out += c; // bytes >= 0x80 pass through: JSON strings are UTF-8
+    for (std::size_t i = 0; i < value.size();) {
+        const auto uc = static_cast<unsigned char>(value[i]);
+        if (uc < 0x80) {
+            switch (value[i]) {
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\b': out += "\\b"; break;
+            case '\f': out += "\\f"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                if (uc < 0x20) {
+                    out += "\\u00";
+                    out += hex[uc >> 4];
+                    out += hex[uc & 0xF];
+                } else {
+                    out += value[i];
+                }
             }
+            ++i;
+            continue;
+        }
+        if (const std::size_t seq = utf8_sequence(value, i); seq != 0) {
+            out.append(value.substr(i, seq)); // a valid multi-byte sequence: copied as-is
+            i += seq;
+        } else {
+            out += replacement; // an invalid byte: U+FFFD
+            ++i;
         }
     }
     out += '"';
@@ -215,9 +278,10 @@ void append_thread_name(std::string& out, bool& first, const Trace::Thread& thre
     end_event(out);
 }
 
-// One thread's events: begins as "B", each end matched against the open begins (an orphan "E" --
-// its "B" was overwritten in the ring -- is dropped), instants and frames as "i" with "s":"t",
-// counters as "C"; a "B" still open when the thread's events end is closed at its last timestamp.
+// One thread's events: begins as "B", each end matched against the nearest open begin with the
+// same site (an end with no such begin -- its "B" was overwritten in the ring -- is an orphan
+// "E" and is dropped), instants and frames as "i" with "s":"t", counters as "C"; a "B" still
+// open when the thread's events end is closed at its last timestamp.
 void append_thread_events(std::string& out, bool& first, const Trace& trace, const Trace::Thread& thread)
 {
     std::vector<const TraceEvent*> open;
@@ -227,13 +291,20 @@ void append_thread_events(std::string& out, bool& first, const Trace& trace, con
             open.push_back(&event);
             append_begin(out, first, trace, thread, event);
             break;
-        case Kind::end:
-            if (!open.empty()) {
-                const TraceEvent* begin = open.back();
-                open.pop_back();
+        case Kind::end: {
+            // Close the nearest open begin with the same site (a lost middle events chunk can
+            // leave ends out of order); an end with no open begin of its site is an orphan --
+            // its begin was overwritten in the ring -- dropped.
+            std::size_t k = open.size();
+            while (k > 0 && open[k - 1]->site != event.site)
+                --k;
+            if (k > 0) {
+                const TraceEvent* begin = open[k - 1];
+                open.resize(k - 1); // pop down to (and including) the matching begin
                 append_end(out, first, trace, thread, *begin, event.ticks);
             }
-            break; // an orphan end: its begin was overwritten -- dropped
+            break;
+        }
         case Kind::instant:
         case Kind::frame:
             append_instant(out, first, trace, thread, event);
