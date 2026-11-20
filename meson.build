@@ -73,6 +73,18 @@ endif
 if debug_tools_enabled
   prism_header_args += ['-DPRISM_DEBUG_TOOLS_ENABLED']
 endif
+
+# Profiling (doc/design/profiling.md): the PRISM_PROFILE_* marks and the global recorder. Like
+# the reflection flag, these defines change what PRISM's headers declare, so they ride on
+# prism_header_args: add_project_arguments covers PRISM's own targets, and prism_headers_dep's
+# compile_args (src/meson.build) covers every consumer, so all of them compile the marks the
+# same way.
+profiling_enabled = get_option('profiling').enabled()
+if profiling_enabled
+  prism_header_args += ['-DPRISM_PROFILING',
+                        '-DPRISM_PROFILING_EVENTS=@0@'.format(get_option('profiling_events')),
+                        '-DPRISM_PROFILING_THREADS=@0@'.format(get_option('profiling_threads'))]
+endif
 add_project_arguments(prism_header_args, language : 'cpp')
 
 # No sockets, no filesystem on bare metal: the optional libraries are off unless asked for.

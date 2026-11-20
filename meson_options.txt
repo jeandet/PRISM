@@ -17,3 +17,9 @@ option('io', type : 'feature', value : 'auto',
        description : 'Build prism-io: TCP and serial byte streams through Asio (never in the browser)')
 option('markdown', type : 'feature', value : 'auto',
        description : 'Build prism-markdown: GitHub-flavoured Markdown into a text::Document, through cmark-gfm')
+option('profiling', type : 'feature', value : 'disabled',
+       description : 'Compile the PRISM_PROFILE_* marks in, with the global profile recorder (puts -DPRISM_PROFILING on prism_headers_dep; doc/design/profiling.md)')
+option('profiling_events', type : 'integer', value : 65536, min : 1,
+       description : 'Events in each thread ring of the global profile recorder (with -Dprofiling=enabled)')
+option('profiling_threads', type : 'integer', value : 32, min : 1,
+       description : 'Thread rings of the global profile recorder (with -Dprofiling=enabled)')

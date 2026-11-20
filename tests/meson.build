@@ -211,6 +211,20 @@ test('frame_app', executable('test_frame_app', files('test_frame_app.cpp'),
   dependencies : [prism_platform_dep, doctest_dep],
 ), timeout : 30)
 
+# The profile recorder (include/prism/profile/recorder.hpp) and its clock: libprism only, no SDL.
+test('profile_recorder', executable('test_profile_recorder', files('test_profile_recorder.cpp'),
+  dependencies : [prism_core_dep, doctest_dep],
+))
+
+# The marks with PRISM_PROFILING off, even in a -Dprofiling=enabled build: a target's own
+# cpp_args are appended on the compile command after the compile_args its dependencies
+# contribute, so this -UPRISM_PROFILING lands after prism_headers_dep's -DPRISM_PROFILING and
+# wins -- the file always compiles the macros away.
+test('profile_macros_off', executable('test_profile_macros_off', files('test_profile_macros_off.cpp'),
+  dependencies : [prism_core_dep, doctest_dep],
+  cpp_args : ['-UPRISM_PROFILING'],
+))
+
 test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
   dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],
 )

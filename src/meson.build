@@ -37,7 +37,7 @@ prism_headers_dep = declare_dependency(
 # them. simplify: built with this build's flags (reflection or not, NDEBUG or not); a header
 # whose inline code differs on those must keep that code in the header. A project linking an
 # installed libprism with other flags needs a library per flag set; add when one is packaged.
-prism_lib = build_target('prism',
+prism_lib_sources = [
   'app/backend.cpp',
   'app/model_app.cpp',
   'app/node_board.cpp',
@@ -76,6 +76,24 @@ prism_lib = build_target('prism',
   'ui/delegate.cpp',
   'ui/layout.cpp',
   'ui/node_family.cpp',
+  # The profile recorder (include/prism/profile/recorder.hpp): always in libprism -- tests and
+  # ports drive a Recorder directly, with or without PRISM_PROFILING.
+  'profile/recorder.cpp',
+]
+# The global recorder behind the PRISM_PROFILE_* marks: only with -Dprofiling=enabled, which
+# also puts -DPRISM_PROFILING/-DPRISM_PROFILING_EVENTS/-DPRISM_PROFILING_THREADS on
+# prism_header_args (meson.build).
+if profiling_enabled
+  prism_lib_sources += 'profile/global.cpp'
+endif
+# The hosted profile clock (std::chrono::steady_clock): on bare metal the port defines
+# prism::platform::profile_ticks itself (the DWT cycle counter extended to 64 bits).
+if host_machine.system() != 'none'
+  prism_lib_sources += 'profile/steady_clock.cpp'
+endif
+
+prism_lib = build_target('prism',
+  prism_lib_sources,
   dependencies : [prism_headers_dep],
   # A bare-metal link has no shared libraries.
   target_type : host_machine.system() == 'none' ? 'static_library' : 'library',
