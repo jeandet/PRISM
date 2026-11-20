@@ -29,6 +29,7 @@ glaze_dep = dependency('glaze', fallback : ['glaze', 'glaze_dep'])
 
 prism_headers_dep = declare_dependency(
   include_directories : prism_inc,
+  compile_args : prism_header_args,
   dependencies : [stdexec_dep, magic_enum_dep, fmt_dep, unibreak_dep, sheenbidi_dep, glaze_dep],
 )
 

@@ -46,6 +46,11 @@ if host_machine.system() == 'emscripten' and get_option('optimization') != 'plai
   add_project_link_arguments('-O' + get_option('optimization'), language : ['c', 'cpp'])
 endif
 
+# The flags that change what PRISM's headers declare. Every file including them must see the
+# same ones as libprism, or the two disagree on class layouts: project arguments for PRISM's
+# own targets, and prism_headers_dep's compile_args (src/meson.build) for a parent project.
+prism_header_args = []
+
 # Probe the feature macro, not just the flag: emscripten's clang accepts -freflection
 # (with an unused-argument warning) but doesn't implement it.
 has_reflection = cpp.compiles('''
@@ -56,7 +61,7 @@ has_reflection = cpp.compiles('''
   #endif
 ''', args : ['-freflection'], name : '__cpp_impl_reflection check')
 if has_reflection
-  add_project_arguments('-freflection', language : 'cpp')
+  prism_header_args += ['-freflection']
 endif
 
 debug_tools_opt = get_option('prism_debug_tools')
@@ -66,8 +71,9 @@ else
   debug_tools_enabled = debug_tools_opt.enabled()
 endif
 if debug_tools_enabled
-  add_project_arguments('-DPRISM_DEBUG_TOOLS_ENABLED', language : 'cpp')
+  prism_header_args += ['-DPRISM_DEBUG_TOOLS_ENABLED']
 endif
+add_project_arguments(prism_header_args, language : 'cpp')
 
 # No sockets, no filesystem on bare metal: the optional libraries are off unless asked for.
 foreach o : ['http', 'io', 'markdown']
