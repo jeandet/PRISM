@@ -178,8 +178,44 @@ TEST_CASE("compute_mapping reclaims the bottom margin when draw_x_axis is false"
     CHECK(map_without_axis.plot_area.extent.h.raw() >
           map_with_axis.plot_area.extent.h.raw());
     CHECK(map_without_axis.plot_area.extent.h.raw() ==
-          doctest::Approx(map_with_axis.plot_area.extent.h.raw()
-                           + (margin_bottom.raw() - margin_top.raw())));
+          doctest::Approx(300.f - 2.f * margin_top.raw()));
+}
+
+namespace {
+prism::plot::PlotMapping mapping_for_y(double y_max, prism::plot::AxisTitles titles = {})
+{
+    using namespace prism;
+    using namespace prism::plot;
+    Rect bounds{Point{X{0}, Y{0}}, Size{Width{240}, Height{150}}};
+    return compute_mapping(bounds, AxisRange{0.0, 10.0, false}, AxisRange{0.0, y_max, false},
+                           ViewTransform{}, {}, true, nullptr, titles);
+}
+} // namespace
+
+TEST_CASE("plot margins: the left margin fits the widest y tick label")
+{
+    // "1" .. "0.8" (3 characters) against "100000" (6): the second needs more room, and
+    // short labels leave far less than the old fixed 60 px.
+    const float narrow = mapping_for_y(1.0).plot_area.origin.x.raw();
+    const float wide = mapping_for_y(100000.0).plot_area.origin.x.raw();
+    CHECK(narrow < wide);
+    CHECK(narrow < 40.f);
+    // The tick labels themselves still fit: 3 characters at the fallback 0.6 em of 11 px.
+    CHECK(narrow >= 3.f * 0.6f * prism::plot::tick_font_size);
+}
+
+TEST_CASE("plot margins: an axis title adds its line, and only then")
+{
+    using prism::plot::AxisTitles;
+    const auto bare = mapping_for_y(1.0);
+    const auto with_y = mapping_for_y(1.0, AxisTitles{.y = true});
+    const auto with_x = mapping_for_y(1.0, AxisTitles{.x = true});
+    CHECK(with_y.plot_area.origin.x.raw() > bare.plot_area.origin.x.raw());
+    CHECK(with_y.plot_area.extent.h.raw() == doctest::Approx(bare.plot_area.extent.h.raw()));
+    CHECK(with_x.plot_area.extent.h.raw() < bare.plot_area.extent.h.raw());
+    CHECK(with_x.plot_area.origin.x.raw() == doctest::Approx(bare.plot_area.origin.x.raw()));
+    // Tick labels alone: well under the old fixed 45 px.
+    CHECK(150.f - bare.plot_area.extent.h.raw() - prism::plot::margin_top.raw() < 30.f);
 }
 
 TEST_CASE("draw_background emits filled rect and border")
@@ -294,7 +330,7 @@ TEST_CASE("draw_axes_labels suppresses x_label when draw_x_axis is false")
     Theme t = default_theme();
 
     DrawList dl;
-    draw_axes_labels(dl, map, "Time", "Value", t, false);
+    draw_axes_labels(dl, map, compute_ticks(map), "Time", "Value", t, false);
 
     REQUIRE(dl.size() == 1);
     auto& txt = std::get<TextCmd>(dl.commands[0]);
@@ -873,8 +909,9 @@ TEST_CASE("PlotGroup shares x pan/zoom across panels, keeps y pan/zoom independe
     Rect bounds{Point{X{0}, Y{0}}, Size{Width{400}, Height{300}}};
     node.canvas_bounds = bounds;
 
+    // Panel "A" has a y title: the mapping makes room for it, as the panel does.
     auto map = compute_mapping(bounds, group.x_range, p1.y_range, group.x_view,
-                               std::span<const Series>{});
+                               std::span<const Series>{}, true, nullptr, AxisTitles{.y = true});
     Point center = map.plot_area.center();
 
     // Diagonal drag on p1: moves both horizontally and vertically.
@@ -983,8 +1020,9 @@ TEST_CASE("PlotGroup cursor syncs data_x across panels")
     Rect bounds{Point{X{0}, Y{0}}, Size{Width{400}, Height{300}}};
     node.canvas_bounds = bounds;
 
+    // Panel "A" has a y title: the mapping makes room for it, as the panel does.
     auto map = compute_mapping(bounds, group.x_range, p1.y_range, group.x_view,
-                               std::span<const Series>{});
+                               std::span<const Series>{}, true, nullptr, AxisTitles{.y = true});
     Point center = map.plot_area.center();
     InputEvent ev = MouseMove{center};
     p1.handle_canvas_input(ev, node, bounds);
@@ -1016,8 +1054,9 @@ TEST_CASE("PlotGroup labels every panel's own value at the shared cursor, hovere
     // Hovering p1 alone sets the group's shared (x-only) cursor -- p2 never receives
     // this MouseMove at all, since event_routing.hpp dispatches it only to the single
     // hit-tested widget.
+    // Panel "A" has a y title: the mapping makes room for it, as the panel does.
     auto map = compute_mapping(bounds, group.x_range, p1.y_range, group.x_view,
-                               std::span<const Series>{});
+                               std::span<const Series>{}, true, nullptr, AxisTitles{.y = true});
     Point center = map.plot_area.center();
     InputEvent ev = MouseMove{center};
     p1.handle_canvas_input(ev, node, bounds);

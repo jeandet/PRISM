@@ -171,7 +171,9 @@ inline PlotMapping compute_mapping(Rect bounds,
                                    const AxisRange& yr,
                                    const ViewTransform& vt,
                                    std::span<const Series> series,
-                                   bool draw_x_axis = true)
+                                   bool draw_x_axis = true,
+                                   const TextMeasurer* measurer = nullptr,
+                                   AxisTitles titles = {})
 {
     AxisRange eff_x = xr;
     AxisRange eff_y = yr;
@@ -189,12 +191,13 @@ inline PlotMapping compute_mapping(Rect bounds,
     // With no x-axis to label (a stacked panel that isn't the group's bottom one),
     // the tick-label-sized bottom margin would otherwise sit empty -- collapse it
     // to match the top margin instead, so the plot's own box fills the canvas.
-    Height bottom_margin = draw_x_axis ? margin_bottom : margin_top;
+    const Width left = left_margin(eff_y, measurer, titles);
+    const Height bottom = bottom_margin(measurer, titles, draw_x_axis);
     Rect plot_area{
-        Point{bounds.origin.x + DX{margin_left.raw()},
+        Point{bounds.origin.x + DX{left.raw()},
               bounds.origin.y + DY{margin_top.raw()}},
-        Size{bounds.extent.w - margin_left - margin_right,
-             bounds.extent.h - margin_top - bottom_margin},
+        Size{bounds.extent.w - left - margin_right,
+             bounds.extent.h - margin_top - bottom},
     };
 
     return PlotMapping{eff_x, eff_y, plot_area};
@@ -212,7 +215,8 @@ void render_plot_panel(DrawList& dl, Rect bounds, const WidgetNode& node,
                        std::span<SeriesDrawCache> draw_caches = {})
 {
     auto& t = *node.theme;
-    auto map = compute_mapping(bounds, x_range, y_range, view, series, draw_x_axis);
+    auto map = compute_mapping(bounds, x_range, y_range, view, series, draw_x_axis, t.measurer,
+                               AxisTitles{.x = !x_label.empty(), .y = !y_label.empty()});
 
     draw_background(dl, map.plot_area, t);
     auto ticks = compute_ticks(map);
@@ -238,11 +242,11 @@ void render_plot_panel(DrawList& dl, Rect bounds, const WidgetNode& node,
     }
     dl.clip_pop();
     draw_tick_labels(dl, map, ticks, t, draw_x_axis, x_tick_format);
-    draw_axes_labels(dl, map, x_label, y_label, t, draw_x_axis);
+    draw_axes_labels(dl, map, ticks, x_label, y_label, t, draw_x_axis);
 }
 
 template <PlotCursor C>
-void route_plot_input(const InputEvent& ev, WidgetNode& /*nd*/, Rect bounds,
+void route_plot_input(const InputEvent& ev, WidgetNode& nd, Rect bounds,
                       Field<AxisRange>& x_range, Field<AxisRange>& y_range,
                       Field<ViewTransform>& view, Field<C>& cursor,
                       DragMode& drag_mode, Point& drag_start_pixel,
@@ -250,13 +254,18 @@ void route_plot_input(const InputEvent& ev, WidgetNode& /*nd*/, Rect bounds,
                        std::span<const Series> series,
                        bool draw_x_axis = true,
                        const std::function<void()>& on_reset_view = {},
-                       AutoFitCache* fit_cache = nullptr)
+                       AutoFitCache* fit_cache = nullptr,
+                       AxisTitles titles = {})
 {
+    // The same margins the plot was drawn with, so a pixel means the same data point.
+    const TextMeasurer* measurer = nd.theme ? nd.theme->measurer : nullptr;
     auto map = [&] {
         if (!fit_cache)
-            return compute_mapping(bounds, x_range, y_range, view, series, draw_x_axis);
+            return compute_mapping(bounds, x_range, y_range, view, series, draw_x_axis,
+                                   measurer, titles);
         auto resolved = resolve_auto_fit_ranges(x_range, y_range, series, *fit_cache);
-        return compute_mapping(bounds, resolved.x, resolved.y, view, series, draw_x_axis);
+        return compute_mapping(bounds, resolved.x, resolved.y, view, series, draw_x_axis,
+                               measurer, titles);
     }();
 
     // A PlotPanel needs to reset every sibling panel in its PlotGroup (shared x-axis,
@@ -346,9 +355,9 @@ void route_plot_input(const InputEvent& ev, WidgetNode& /*nd*/, Rect bounds,
         // x-only-zoom hotspot for a panel whose x-axis isn't drawn.
         bool in_x_axis = draw_x_axis
                           && (px >= map.left() && px <= map.right()
-                          && py > map.bottom() && py <= map.bottom() + DY{margin_bottom.raw()});
+                          && py > map.bottom() && py <= bounds.origin.y + DY{bounds.extent.h.raw()});
         bool in_y_axis = (py >= map.top() && py <= map.bottom()
-                          && px >= map.left() - DX{margin_left.raw()} && px < map.left());
+                          && px >= bounds.origin.x && px < map.left());
 
         if (!in_plot && !in_x_axis && !in_y_axis) return;
 
@@ -461,7 +470,8 @@ inline void PlotModel::handle_canvas_input(const InputEvent& ev, WidgetNode& nd,
 {
     route_plot_input(ev, nd, bounds, x_range, y_range, view, cursor,
                      drag_mode, drag_start_pixel, drag_start_view,
-                     std::span<const Series>(series_), true, {}, &autofit_cache);
+                     std::span<const Series>(series_), true, {}, &autofit_cache,
+                     AxisTitles{.x = !x_label.get().empty(), .y = !y_label.get().empty()});
 }
 
 class PlotGroup;
@@ -615,7 +625,8 @@ inline void PlotPanel::handle_canvas_input(const InputEvent& ev, WidgetNode& nd,
     route_plot_input(ev, nd, bounds, group_->x_range, y_range, merged_view,
                      group_->cursor, drag_mode, drag_start_pixel, drag_start_view,
                      std::span<const Series>(series_), draw_x_axis_, reset_whole_group,
-                     &autofit_cache);
+                     &autofit_cache,
+                     AxisTitles{.x = !group_->x_label.get().empty(), .y = !y_label.get().empty()});
 
     auto result = merged_view.get();
 

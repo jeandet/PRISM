@@ -187,13 +187,46 @@ AxisRange auto_fit_range(const Range& series, Axis axis)
     return (axis == Axis::X) ? fit.x : fit.y;
 }
 
-constexpr Width margin_left{60.f};
-constexpr Height margin_bottom{45.f};
 constexpr Height margin_top{10.f};
 constexpr Width margin_right{10.f};
+constexpr float margin_edge = 4.f; // between the canvas edge and the outermost axis text
 constexpr float tick_len = 5.f; // axis-polymorphic: used as both a horizontal and vertical tick length
+constexpr float tick_gap = tick_len + 2.f; // from the plot's edge to its tick labels
 constexpr float tick_font_size = 11.f;
 constexpr float label_font_size = 12.f;
+
+// Which axes have a title (x_label / y_label): each takes one line of the margin.
+struct AxisTitles {
+    bool x = false;
+    bool y = false;
+};
+
+inline std::string y_tick_text(double v) { return fmt::format("{:.6g}", v); }
+
+inline TickList y_ticks_for(const AxisRange& y) { return nice_ticks(y.min, y.max, 5); }
+
+inline Width widest_y_tick_label(const TickList& y_ticks, const TextMeasurer* m)
+{
+    float widest = 0.f;
+    for (double v : y_ticks)
+        widest = std::max(widest, text_width(m, y_tick_text(v), tick_font_size));
+    return Width{widest};
+}
+
+// Room left of and under the plot: what its tick labels and titles need, so a small plot
+// (a 240 px panel on a microcontroller's screen) is not mostly margin.
+inline Width left_margin(const AxisRange& y, const TextMeasurer* m, AxisTitles titles)
+{
+    const float title = titles.y ? line_height(m, label_font_size) : 0.f;
+    return Width{margin_edge + title + widest_y_tick_label(y_ticks_for(y), m).raw() + tick_gap};
+}
+
+inline Height bottom_margin(const TextMeasurer* m, AxisTitles titles, bool draw_x_axis)
+{
+    if (!draw_x_axis) return margin_top;
+    const float title = titles.x ? line_height(m, label_font_size) : 0.f;
+    return Height{tick_gap + line_height(m, tick_font_size) + title + margin_edge};
+}
 
 struct CursorState {
     double data_x = 0.0;
@@ -227,8 +260,7 @@ struct TickArrays {
 
 inline TickArrays compute_ticks(const PlotMapping& map)
 {
-    return {nice_ticks(map.x_range.min, map.x_range.max, 6),
-            nice_ticks(map.y_range.min, map.y_range.max, 5)};
+    return {nice_ticks(map.x_range.min, map.x_range.max, 6), y_ticks_for(map.y_range)};
 }
 
 inline void draw_grid_lines(DrawList& dl, const PlotMapping& map,
@@ -276,10 +308,10 @@ inline void draw_tick_labels(DrawList& dl, const PlotMapping& map,
         if (y < map.top() || y > map.bottom()) continue;
         dl.line(Point{map.left() - DX{tick_len}, y},
                 Point{map.left(), y}, t.border, 1.f);
-        auto label = fmt::format("{:.6g}", ty);
+        auto label = y_tick_text(ty);
         Width label_w = label_width(label);
         dl.text(std::move(label),
-                Point{map.left() - DX{tick_len + 2.f + label_w.raw()}, y - DY{6.f}},
+                Point{map.left() - DX{tick_gap + label_w.raw()}, y - DY{6.f}},
                 tick_font_size, t.text_muted);
     }
 }
@@ -558,7 +590,7 @@ void draw_series_values_at_cursor(DrawList& dl, const PlotMapping& map,
     }
 }
 
-inline void draw_axes_labels(DrawList& dl, const PlotMapping& map,
+inline void draw_axes_labels(DrawList& dl, const PlotMapping& map, const TickArrays& ticks,
                              const std::string& x_label, const std::string& y_label,
                              const Theme& t, bool draw_x_axis = true)
 {
@@ -566,11 +598,15 @@ inline void draw_axes_labels(DrawList& dl, const PlotMapping& map,
     // so the midpoint is computed via the algebraically valid a + (b-a)/2 form.
     X cx = map.left() + (map.right() - map.left()) / 2.f;
 
-    if (draw_x_axis && !x_label.empty())
-        dl.text(x_label, Point{cx - DX{30.f}, map.bottom() + DY{18.f}}, label_font_size, t.text);
+    if (draw_x_axis && !x_label.empty()) {
+        const float w = text_width(t.measurer, x_label, label_font_size);
+        const float under_ticks = tick_gap + line_height(t.measurer, tick_font_size);
+        dl.text(x_label, Point{cx - DX{w / 2.f}, map.bottom() + DY{under_ticks}}, label_font_size, t.text);
+    }
 
     if (!y_label.empty()) {
-        X lx = map.left() - DX{margin_left.raw() - 10.f};
+        const float title_h = line_height(t.measurer, label_font_size);
+        X lx = map.left() - DX{tick_gap + widest_y_tick_label(ticks.y, t.measurer).raw() + title_h / 2.f};
         Y cy = map.top() + (map.bottom() - map.top()) / 2.f;
         dl.text(y_label, Point{lx, cy}, label_font_size, t.text, 90.f, TextAnchor::Center);
     }
