@@ -117,6 +117,35 @@ jobs:
           name: meson-testlog-clang-libcxx
           path: builddir/meson-logs/testlog.txt
 
+  # PRISM cross-compiled for a bare-metal Cortex-M7 (no OS, no SDL) and the firmwares run under
+  # QEMU (mps2-an500, semihosting). The image carries the threaded arm-none-eabi toolchain,
+  # meson, ninja and qemu-system-arm; it is built from prism-stm32's Dockerfile.
+  # --user root: the image's default user is uid 1000, but the runner mounts the workspace
+  # owned by its own uid and actions/checkout must write to it.
+  embedded-qemu:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/jeandet/prism-stm32-dev:arm-20261120
+      options: --user root
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup build-arm
+        run: meson setup build-arm --cross-file tests/cross/none-cortex-m7.ini -Dsdl=disabled
+      - name: Build
+        run: ninja -C build-arm
+      - name: Firmware size
+        run: arm-none-eabi-size "$(find build-arm -name prism_tests.elf)"
+      - name: Run tests on QEMU
+        run: meson test -C build-arm --print-errorlogs
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meson-testlog-embedded-qemu
+          path: build-arm/meson-logs/testlog.txt
+
   # Cross-builds to wasm32 (examples as web pages) and runs the tests under node
   # (window-opening tests are built, not run).
   wasm-node:
