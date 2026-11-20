@@ -6,7 +6,7 @@ qemu_system_arm = find_program('qemu-system-arm', required : false)
 # nosys.specs' stubs (_close, _read, ...) warn "not implemented" at link time, and werror makes
 # the linker warnings fatal.
 qemu_link_args = ['-T', qemu_ld, alloc_count_link_arg, '-Wl,--no-fatal-warnings']
-qemu_ld_dep = files('../../ports/qemu_mps2/mps2_an500.ld')
+qemu_ld_dep = files(qemu_ld)
 
 posix_tests = executable('posix_tests.elf', 'posix_qemu/main.cpp',
   include_directories : [qemu_freertos_inc, prism_inc],

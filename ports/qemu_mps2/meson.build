@@ -16,9 +16,14 @@ qemu_posix = static_library('qemu_posix', freertos_posix_files,
 )
 
 # Vectors and Reset_Handler, semihosting log/_write/exit, the FreeRTOS hooks.
-qemu_board = static_library('qemu_board',
-  files('startup.c', 'semihost.c', 'freertos_hooks.c'),
+qemu_startup = static_library('qemu_startup', files('startup.c'),
   include_directories : qemu_freertos_inc,
-  # startup.c's vector table uses GNU range designators and function-pointer casts.
+  # The vector table uses GNU range designators and function-pointer casts.
   c_args : ['-Wno-pedantic'],
+)
+
+qemu_board = static_library('qemu_board',
+  files('semihost.c', 'freertos_hooks.c'),
+  include_directories : qemu_freertos_inc,
+  link_whole : qemu_startup,
 )

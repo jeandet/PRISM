@@ -3,8 +3,8 @@
 
 Turns a binary file into a C++ source that defines, in namespace prism::raster::embedded, a function
 `std::span<const std::uint8_t> <symbol>()` returning the file's bytes. Used by meson
-(custom_target) to compile the TTF fonts into the firmware -- GCC 15 has #embed in C only, not
-in C++, so the arrays are generated here instead.
+(custom_target) to compile the TTF fonts into the library -- C++ #embed is not available in every
+compiler PRISM supports, so the arrays are generated here instead.
 """
 
 import sys

@@ -137,7 +137,7 @@ jobs:
       - name: Build
         run: ninja -C build-arm
       - name: Firmware size
-        run: arm-none-eabi-size "$(find build-arm -name prism_tests.elf)"
+        run: arm-none-eabi-size build-arm/tests/embedded/prism_tests.elf
       - name: Run tests on QEMU
         run: meson test -C build-arm --print-errorlogs
       - if: failure()

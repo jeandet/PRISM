@@ -87,6 +87,8 @@ prism_core_dep = declare_dependency(
   dependencies : [prism_headers_dep],
 )
 
+# Software rasterizer (and the frame runtime below): internal static libraries, not installed:
+# PRISM installs no headers for them, so an installed archive would be unusable.
 # Software rasterizer: draws a SceneSnapshot into an ARGB framebuffer with stb_truetype and
 # Latin Noto Sans faces compiled in (scripts/embed.py), so a target with no SDL can show a UI.
 stb_dep = dependency('stb', fallback : ['stb', 'stb_dep'])
@@ -110,7 +112,7 @@ prism_raster_lib = static_library('prism-raster',
   'raster/fonts.cpp',
   embedded_font_sources,
   dependencies : [prism_core_dep, stb_dep],
-  install : true,
+  install : false,
 )
 prism_raster_dep = declare_dependency(
   link_with : prism_raster_lib,
@@ -124,7 +126,7 @@ prism_platform_lib = static_library('prism-platform',
   'platform/frame_runtime.cpp',
   'platform/frame_stats.cpp',
   dependencies : [prism_core_dep, prism_raster_dep],
-  install : true,
+  install : false,
 )
 prism_platform_dep = declare_dependency(
   link_with : prism_platform_lib,
@@ -211,7 +213,7 @@ prism_software_backend_lib = library('prism-software-backend',
   install : true,
 )
 
-endif
+endif # end sdl_enabled
 
 # HTTP (net/http.hpp): cpp-httplib behind prism-net. Header-only upstream; TLS when OpenSSL is
 # found. No sockets in the browser, so never built there.
@@ -347,4 +349,4 @@ prism_dep = declare_dependency(
   sources : app_sources,
   link_args : app_link_args,
 )
-endif
+endif # end sdl_enabled
