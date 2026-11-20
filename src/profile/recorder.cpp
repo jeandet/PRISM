@@ -65,7 +65,8 @@ void Recorder::name_thread(std::string_view name)
 }
 
 void Recorder::pause() const { paused_.store(true, std::memory_order_seq_cst); }
-void Recorder::resume() const { paused_.store(false, std::memory_order_relaxed); }
+// Release: the dump's reads of the rings happen before the next mark overwrites them.
+void Recorder::resume() const { paused_.store(false, std::memory_order_release); }
 
 Recorder::Slot* Recorder::claim_slot()
 {

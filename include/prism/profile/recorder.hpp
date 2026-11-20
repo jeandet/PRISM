@@ -86,12 +86,13 @@ public:
             if (!s.used.load(std::memory_order_acquire))
                 continue;
             const std::uint32_t capacity = s.capacity;
-            // Acquire on head/wrapped: record()'s release stores of them publish the event ring.
+            // writing first (seq_cst, Dekker-paired with record()'s writing store and pause()'s
+            // paused store): a mark that passed the paused check before pause() is seen here as
+            // writing. Loaded after it, head/wrapped (acquire) already include any mark that
+            // finished before, so the newest event never shows up as the oldest.
+            const bool writing = s.writing.load(std::memory_order_seq_cst);
             const std::uint32_t head = s.head.load(std::memory_order_acquire);
             const bool wrapped = s.wrapped.load(std::memory_order_acquire);
-            // seq_cst, Dekker-paired with record()'s writing store and pause()'s paused store:
-            // a mark that passed the paused check before pause() is seen here as writing.
-            const bool writing = s.writing.load(std::memory_order_seq_cst);
             ThreadView tv;
             tv.name = s.name.data();
             tv.id = s.id.load(std::memory_order_relaxed);
