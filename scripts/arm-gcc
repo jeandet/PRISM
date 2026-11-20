@@ -1,0 +1,5 @@
+#!/bin/sh
+# arm-none-eabi-gcc without -pthread: Meson's threads dependency adds it, and the bare-metal
+# compiler rejects it. Threads come from the RTOS, not from a flag.
+for a; do shift; [ "$a" = -pthread ] || set -- "$@" "$a"; done
+exec arm-none-eabi-gcc "$@"

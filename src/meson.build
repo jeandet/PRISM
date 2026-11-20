@@ -79,6 +79,7 @@ prism_core_dep = declare_dependency(
   dependencies : [prism_headers_dep],
 )
 
+if sdl_enabled
 # Software backend: links SDL3 + SDL3_ttf
 if host_machine.system() == 'emscripten'
   # The wrapdb SDL3 port has no emscripten support; emscripten ships its own ports.
@@ -158,6 +159,8 @@ prism_software_backend_lib = library('prism-software-backend',
   install : true,
 )
 
+endif
+
 # HTTP (net/http.hpp): cpp-httplib behind prism-net. Header-only upstream; TLS when OpenSSL is
 # found. No sockets in the browser, so never built there.
 prism_net_dep = dependency('', required : false)
@@ -226,6 +229,7 @@ if host_machine.system() != 'emscripten' and get_option('io').allowed()
   endif
 endif
 
+if sdl_enabled
 # OFL: the licence texts travel with the fonts. Own install tag, so wheels (tags runtime,
 # python-runtime) don't carry a second copy: the Python package ships its own (python/prism).
 # The script fonts are found beside the UI font (SdlFontSet::script_font_files).
@@ -291,3 +295,4 @@ prism_dep = declare_dependency(
   sources : app_sources,
   link_args : app_link_args,
 )
+endif

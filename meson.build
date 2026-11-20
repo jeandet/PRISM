@@ -71,16 +71,23 @@ endif
 
 prism_inc = include_directories('include')
 
+sdl_opt = get_option('sdl')
+if sdl_opt.auto()
+  sdl_enabled = host_machine.system() != 'none'
+else
+  sdl_enabled = sdl_opt.enabled()
+endif
+
 subdir('src')
-if host_machine.system() != 'emscripten'
+if sdl_enabled and host_machine.system() != 'emscripten'
   subdir('python')
 endif
-if not get_option('tests').disabled()
+if sdl_enabled and not get_option('tests').disabled()
   subdir('tests')
 endif
-if not get_option('examples').disabled()
+if sdl_enabled and not get_option('examples').disabled()
   subdir('examples')
 endif
-if not get_option('benchmarks').disabled()
+if sdl_enabled and not get_option('benchmarks').disabled()
   subdir('benchmarks')
 endif
