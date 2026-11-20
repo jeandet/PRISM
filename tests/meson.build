@@ -369,8 +369,11 @@ test('settings_dir', test_settings_dir)
 test_run = executable('test_run', files('test_run.cpp'),
   dependencies : [prism_software_backend_dep, doctest_dep],
 )
-# app::run opens a real SDL window for its quit_after test: the offscreen video driver.
-test('run', test_run, env : offscreen_env)
+# app::run opens a real SDL window for its quit_after test: the offscreen video driver, and
+# SDL's software renderer, so no graphics driver is loaded (it leaks, and the CI ASan lane
+# checks leaks) -- this test only needs the window to open and close.
+run_env = environment({'SDL_VIDEODRIVER' : 'offscreen', 'SDL_RENDER_DRIVER' : 'software'})
+test('run', test_run, env : run_env)
 
 test_sdl_font_set = executable('test_sdl_font_set',
   files('test_sdl_font_set.cpp'),
