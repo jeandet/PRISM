@@ -192,13 +192,9 @@ private:
 
     std::array<float, kScopeSamples> scope_window(std::span<const float> newest) const {
         std::array<float, kScopeSamples> out{};
-        if (newest.size() <= kScopeSamples) {
-            std::copy(newest.begin(), newest.end(),
-                      out.end() - static_cast<std::ptrdiff_t>(newest.size()));
-            return out;
-        }
-        const std::size_t start = trigger_start(newest, kScopeSamples);
-        std::copy_n(newest.begin() + static_cast<std::ptrdiff_t>(start), kScopeSamples, out.begin());
+        const std::size_t count = std::min(newest.size(), kScopeSamples);
+        std::ranges::copy(newest.subspan(trigger_start(newest, kScopeSamples), count),
+                          out.end() - static_cast<std::ptrdiff_t>(count));
         return out;
     }
 
