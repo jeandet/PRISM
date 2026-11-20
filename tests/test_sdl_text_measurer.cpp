@@ -61,10 +61,10 @@ TEST_CASE("ui role falls back to the mono font for symbols Noto Sans lacks") {
 TEST_CASE("the fallback font follows size changes") {
     TtfSession ttf;
     auto m = bundled();
-    float small = m.width(bullet, 14.f, FontRole::Ui);
-    float big = m.width(bullet, 28.f, FontRole::Ui);
-    CHECK(small > 0.f);
-    CHECK(big == doctest::Approx(2.f * small).epsilon(0.15));
+    float at_14 = m.width(bullet, 14.f, FontRole::Ui);
+    float at_28 = m.width(bullet, 28.f, FontRole::Ui);
+    CHECK(at_14 > 0.f);
+    CHECK(at_28 == doctest::Approx(2.f * at_14).epsilon(0.15));
 }
 
 TEST_CASE("without usable fonts, measurement falls back to the estimate") {

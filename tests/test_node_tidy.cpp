@@ -15,8 +15,8 @@ using doctest::Approx;
 
 namespace {
 
-constexpr std::size_t IN = 0;
-constexpr std::size_t OUT = 1;
+constexpr std::size_t in_port = 0;
+constexpr std::size_t out_port = 1;
 constexpr float CARD_W = 160.f;
 constexpr float CARD_H = 100.f;
 
@@ -61,7 +61,7 @@ struct Board {
         return id;
     }
 
-    void wire(NodeId from, NodeId to) { wire_into(from, OUT, to, IN); }
+    void wire(NodeId from, NodeId to) { wire_into(from, out_port, to, in_port); }
 
     void wire_into(NodeId from, std::size_t out, NodeId to, std::size_t in) {
         REQUIRE(graph.connect({from, out}, {to, in}).has_value());
@@ -120,8 +120,8 @@ TEST_CASE("a diamond puts its sink two columns after its source") {
     const auto sink = board.mix("sink", 20, 0);
     board.wire(a, left);
     board.wire(a, right);
-    board.wire_into(left, OUT, sink, MIX_A);
-    board.wire_into(right, OUT, sink, MIX_B);
+    board.wire_into(left, out_port, sink, MIX_A);
+    board.wire_into(right, out_port, sink, MIX_B);
 
     const auto laid = board.tidy();
 
@@ -138,8 +138,8 @@ TEST_CASE("a wire skipping a column still leaves its sink two columns out") {
     const auto b = board.node("b", 10, 0);
     const auto c = board.mix("c", 20, 0);
     board.wire(a, b);
-    board.wire_into(b, OUT, c, MIX_A);
-    board.wire_into(a, OUT, c, MIX_B);
+    board.wire_into(b, out_port, c, MIX_A);
+    board.wire_into(a, out_port, c, MIX_B);
 
     const auto laid = board.tidy();
 
@@ -238,8 +238,8 @@ TEST_CASE("a right-to-left sweep moves the first column to uncross the wires") {
     board.wire(c, p);
     board.wire(b, q);
     board.wire(a, r);
-    board.wire_into(p, OUT, s, MIX_A);
-    board.wire_into(r, OUT, s, MIX_B);
+    board.wire_into(p, out_port, s, MIX_A);
+    board.wire_into(r, out_port, s, MIX_B);
     board.wire(q, t);
 
     const auto laid = board.tidy();

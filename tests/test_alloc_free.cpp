@@ -87,8 +87,8 @@ TEST_CASE("a rebuilt snapshot keeps nothing from the previous scene")
 {
     ManyLabels big;
     app::WidgetTree big_tree(big);
-    Controls small;
-    app::WidgetTree small_tree(small);
+    Controls controls;
+    app::WidgetTree small_tree(controls);
 
     render::SceneSnapshot reused;
     big_tree.build_snapshot(reused, 480.f, 272.f, 1);

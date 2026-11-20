@@ -132,8 +132,8 @@ TEST_CASE("the guide: five buttons in a cross at the group's centre, not overlap
     CHECK(guide[3].second.center().x.raw() == doctest::Approx(200.f));
     CHECK(guide[4].second.center().x.raw() == doctest::Approx(200.f));
     // A small group still gets a cross that fits.
-    auto small = dock_guide(Size{Width{90}, Height{90}});
-    CHECK(small[4].second.origin.y.raw() + small[4].second.extent.h.raw() <= 90.f);
+    auto tight = dock_guide(Size{Width{90}, Height{90}});
+    CHECK(tight[4].second.origin.y.raw() + tight[4].second.extent.h.raw() <= 90.f);
 }
 
 TEST_CASE("a drop on a guide button is that button's zone, even inside the middle region") {

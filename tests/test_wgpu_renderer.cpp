@@ -146,15 +146,15 @@ TEST_CASE("an image is drawn scaled into its rect") {
     auto out = draw(std::move(dl), 48, 48);
     // Each texel fills a 16 x 16 quarter. Scaling filters linearly (as SDL does), so a pixel
     // near a texel's centre carries a few percent of its neighbours.
-    auto near = [](std::array<int, 4> got, std::array<int, 4> want) {
+    auto close_to = [](std::array<int, 4> got, std::array<int, 4> want) {
         for (int i = 0; i < 4; ++i)
             if (std::abs(got[i] - want[i]) > 24) return false;
         return true;
     };
-    CHECK(near(out.at(16, 16), {255, 0, 0, 255}));
-    CHECK(near(out.at(31, 16), {0, 255, 0, 255}));
-    CHECK(near(out.at(16, 31), {0, 0, 255, 255}));
-    CHECK(near(out.at(31, 31), {255, 255, 255, 255}));
+    CHECK(close_to(out.at(16, 16), {255, 0, 0, 255}));
+    CHECK(close_to(out.at(31, 16), {0, 255, 0, 255}));
+    CHECK(close_to(out.at(16, 31), {0, 0, 255, 255}));
+    CHECK(close_to(out.at(31, 31), {255, 255, 255, 255}));
     CHECK(out.at(4, 4) == std::array{0, 0, 0, 255});
 }
 

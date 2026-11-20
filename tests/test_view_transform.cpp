@@ -48,7 +48,7 @@ TEST_CASE("scaling a draw list scales every command's geometry") {
 
     CHECK(scaled(ClipPush{rect(300, 250, 80, 40)}).rect == rect(200, 150, 40, 20));
 
-    const auto poly = scaled(Polyline{{pt(300, 250), pt(100, 50)}, c, 4.f});
+    const auto poly = scaled(prism::render::Polyline{{pt(300, 250), pt(100, 50)}, c, 4.f});
     CHECK(poly.points[0] == pt(200, 150));
     CHECK(poly.points[1] == pt(100, 50));
     CHECK(poly.thickness == 2.f);

@@ -101,13 +101,13 @@ std::vector<float> crossings_key(std::span<const std::size_t> column,
                                  const Neighbours& neighbours) {
     std::vector<float> out;
     for (std::size_t place = 0; place < column.size(); ++place) {
-        std::vector<std::size_t> near;
+        std::vector<std::size_t> nearby;
         for (const std::size_t node : neighbours[column[place]]) {
             const auto at = std::ranges::find(reference, node);
             if (at != reference.end())
-                near.push_back(static_cast<std::size_t>(std::distance(reference.begin(), at)));
+                nearby.push_back(static_cast<std::size_t>(std::distance(reference.begin(), at)));
         }
-        out.push_back(near.empty() ? static_cast<float>(place) : median(near));
+        out.push_back(nearby.empty() ? static_cast<float>(place) : median(nearby));
     }
     return out;
 }

@@ -39,7 +39,7 @@ std::vector<RoundedRect> centred_on(const std::vector<RoundedRect>& rects, Point
 }
 
 // The wire leaving the dot at `from`: the polyline starting there.
-std::optional<Polyline> leaving(const std::vector<Polyline>& wires, Point from) {
+std::optional<render::Polyline> leaving(const std::vector<render::Polyline>& wires, Point from) {
     for (const auto& w : wires)
         if (w.points.front().x.raw() == doctest::Approx(from.x.raw())
             && w.points.front().y.raw() == doctest::Approx(from.y.raw()))
@@ -141,7 +141,7 @@ struct BasicFixture {
     // Whether widget `id` paints anything of colour `c`, in any of the shapes a grid is drawn in.
     bool paints(WidgetId id, Color c) const {
         return std::ranges::any_of(draws_of<Line>(id), [&](const Line& l) { return l.color == c; })
-            || std::ranges::any_of(draws_of<Polyline>(id), [&](const Polyline& p) { return p.color == c; })
+            || std::ranges::any_of(draws_of<render::Polyline>(id), [&](const render::Polyline& p) { return p.color == c; })
             || std::ranges::any_of(draws_of<FilledRect>(id), [&](const FilledRect& r) { return r.color == c; })
             || std::ranges::any_of(draws_of<RectOutline>(id), [&](const RectOutline& o) { return o.color == c; })
             || std::ranges::any_of(draws_of<Circle>(id), [&](const Circle& d) { return d.color == c; });
@@ -206,7 +206,7 @@ TEST_CASE("a wire is drawn from the output's card edge to the input's") {
     auto in_row = f.row_of(f.m.sink.in_label);
     REQUIRE((out_card && in_card && out_row && in_row));
 
-    auto wires = f.all<Polyline>();
+    auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].color == f.tree.theme().node_wires[nodes::wire_slot(f.m.source.out.type())]);
     auto first = wires[0].points.front(), last = wires[0].points.back();
@@ -249,11 +249,11 @@ TEST_CASE("moving a node relays it out without rebuilding its widgets") {
 TEST_CASE("connecting rebuilds nothing but adds a wire") {
     Fixture f;
     auto ids = f.tree.leaf_ids();
-    CHECK(f.all<Polyline>().empty());
+    CHECK(f.all<render::Polyline>().empty());
     REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
     f.frame();
     CHECK(f.tree.leaf_ids() == ids);
-    CHECK(f.all<Polyline>().size() == 1);
+    CHECK(f.all<render::Polyline>().size() == 1);
 }
 
 TEST_CASE("a node added later gets its card") {
@@ -299,7 +299,7 @@ TEST_CASE("a node without a view shows its ports and its wires") {
     REQUIRE((x && y && sum));
     CHECK(x->y.raw() < y->y.raw());     // inputs first, in ports() order
     CHECK(y->y.raw() < sum->y.raw());   // then the outputs
-    CHECK(f.all<Polyline>().size() == 2);
+    CHECK(f.all<render::Polyline>().size() == 2);
     f.m.graph.remove(c);
     f.frame();
 }
@@ -442,7 +442,7 @@ TEST_CASE("a node off the board is still wired") {
     f.frame();
     CHECK_FALSE(f.shows("Source"));
     CHECK(f.shows("Sink"));
-    auto wires = f.all<Polyline>();
+    auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].points.front().x.raw() < 0.f);
 }
@@ -504,9 +504,9 @@ TEST_CASE("dragging from an output onto a compatible input connects them") {
     auto out_card = f.allocated(f.card_of(f.m.source.out_label));
     auto out_row = f.row_of(f.m.source.out_label);
     REQUIRE((out_card && out_row));
-    std::vector<Polyline> trails;
+    std::vector<render::Polyline> trails;
     for (auto& c : f.snap->overlay.commands)
-        if (auto* p = std::get_if<Polyline>(&c)) trails.push_back(*p);
+        if (auto* p = std::get_if<render::Polyline>(&c)) trails.push_back(*p);
     REQUIRE(trails.size() == 1);
     CHECK(trails[0].color == f.tree.theme().node_wires[nodes::wire_slot(f.m.source.out.type())]);
     CHECK(trails[0].thickness == doctest::Approx(2.f));   // a number wire's, at zoom 1
@@ -565,16 +565,16 @@ TEST_CASE("click a wire, press Delete: it is gone") {
     Fixture f;
     REQUIRE(f.m.graph.connect({f.m.a, 0}, {f.m.b, 0}).has_value());
     f.frame();
-    auto wires = f.all<Polyline>();
+    auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].thickness == 2.f);
     const Point on_wire = wires[0].points[12] + Offset{DX{0.f}, DY{4.f}};
     f.drag(on_wire, on_wire + Offset{DX{20.f}, DY{0.f}});
     CHECK(f.m.graph.view().pan == P(0, 0));   // a press on a wire selects it, it does not pan
-    wires = f.all<Polyline>();
+    wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 2);          // the wire, and the faint wider stroke under it
-    const auto under = std::ranges::find_if(wires, [](const Polyline& w) { return w.thickness == doctest::Approx(9.f); });
-    const auto wire = std::ranges::find_if(wires, [](const Polyline& w) { return w.thickness == doctest::Approx(2.f); });
+    const auto under = std::ranges::find_if(wires, [](const render::Polyline& w) { return w.thickness == doctest::Approx(9.f); });
+    const auto wire = std::ranges::find_if(wires, [](const render::Polyline& w) { return w.thickness == doctest::Approx(2.f); });
     REQUIRE((under != wires.end() && wire != wires.end()));   // selected: the wire itself stays thin
     CHECK(under->color == Color::rgba(wire->color.r, wire->color.g, wire->color.b, 64));
     key(f, keys::delete_);
@@ -688,7 +688,7 @@ TEST_CASE("a board away from the window's origin: wires, pans, moves and drops l
 
     f.drag(centre(f, f.m.source.out_label), centre(f, f.m.sink.in_label));
     REQUIRE(f.m.graph.edge_into({f.m.b, 0}));
-    auto wires = f.all<Polyline>();
+    auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     auto out_card = f.allocated(f.card_of(f.m.source.out_label));
     REQUIRE(out_card);
@@ -918,7 +918,7 @@ TEST_CASE("at zoom 0.5 a wire runs between the zoomed cards' edges, and a drag f
     f.frame();
     const Point out_dot = dot_of(f, f.m.source.out_label, true);
     const Point in_dot = dot_of(f, f.m.sink.in_label, false);
-    auto wires = f.all<Polyline>();
+    auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].points.front().x.raw() == doctest::Approx(out_dot.x.raw()));
     CHECK(wires[0].points.front().y.raw() == doctest::Approx(out_dot.y.raw()));
@@ -1752,7 +1752,7 @@ TEST_CASE("a wire is drawn in its type's colour, and a waveform is the thicker o
     REQUIRE(f.m.graph.connect({f.m.n, 0}, {f.m.k, 0}).has_value());
     f.frame();
     const Theme& t = f.tree.theme();
-    const auto wires = f.all<Polyline>();
+    const auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 2);
 
     // The slots are the registry's: the first is the waveform, the second the number.
@@ -1807,9 +1807,9 @@ TEST_CASE("while a wire is dragged, a port that cannot take it fades, and the tr
     const Color number = t.node_wires[nodes::wire_slot(f.m.number.out.type())];
 
     // The wire following the pointer is the dragged type's too.
-    std::vector<Polyline> trails;
+    std::vector<render::Polyline> trails;
     for (auto& c : f.snap->overlay.commands)
-        if (auto* p = std::get_if<Polyline>(&c)) trails.push_back(*p);
+        if (auto* p = std::get_if<render::Polyline>(&c)) trails.push_back(*p);
     REQUIRE(trails.size() == 1);
     CHECK(trails[0].color == wave);
     CHECK(trails[0].thickness == doctest::Approx(3.f));
@@ -1854,7 +1854,7 @@ void hover(ProbedFixture& f, Point at) {
 }
 
 Point on_the_wire(const ProbedFixture& f) {
-    const auto wires = f.all<Polyline>();
+    const auto wires = f.all<render::Polyline>();
     return wires.back().points[12];
 }
 
@@ -1897,13 +1897,13 @@ TEST_CASE("hovering a wire shows its value in a bubble, in the theme's probe loo
         return r.color == wire && r.thickness == doctest::Approx(1.f) && r.rect.origin == box.rect.origin;
     }));
 
-    const auto wires = f.all<Polyline>();   // the hovered wire carries the under-stroke
+    const auto wires = f.all<render::Polyline>();   // the hovered wire carries the under-stroke
     REQUIRE(wires.size() == 2);
     CHECK(wires[0].thickness == doctest::Approx(9.f));
 
     hover(f, empty_spot);
     CHECK_FALSE(bubble_text(f));
-    CHECK(f.all<Polyline>().size() == 1);
+    CHECK(f.all<render::Polyline>().size() == 1);
 }
 
 TEST_CASE("the bubble follows the output while the pointer rests") {
@@ -1931,7 +1931,7 @@ TEST_CASE("removing the probed wire's source node clears the probe") {
     f.m.level.level.set(0.5);   // nothing is listening any more
     f.frame();
     CHECK_FALSE(bubble_text(f));
-    CHECK(f.all<Polyline>().empty());
+    CHECK(f.all<render::Polyline>().empty());
 }
 
 TEST_CASE("disconnecting the probed wire clears the probe") {
@@ -2243,7 +2243,7 @@ TEST_CASE("a wired input is levelled with the output feeding it") {
     const Point grab = grab_title(f, "Sink");
     f.press(grab);
     f.move_to(grab + Offset{DX{0.f}, DY{level_y + 3.f - 60.f}});
-    const auto wires = f.all<Polyline>();
+    const auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
     CHECK(!guides_drawn(f).empty());
@@ -2422,7 +2422,7 @@ TEST_CASE("a wired output is levelled with the input it feeds, at zoom 1 and at 
         const Point grab = grab_title(f, "Source");
         f.press(grab);
         f.move_to(grab + Offset{DX{0.f}, DY{(level_y + 3.f - 30.f) * zoom}});
-        const auto wires = f.all<Polyline>();
+        const auto wires = f.all<render::Polyline>();
         REQUIRE(wires.size() == 1);
         CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
         f.release(grab);
@@ -2439,7 +2439,7 @@ TEST_CASE("a wired input is levelled at zoom 0.5 too") {
     const Point grab = grab_title(f, "Sink");
     f.press(grab);
     f.move_to(grab + Offset{DX{0.f}, DY{(level_y + 3.f - 60.f) * 0.5f}});
-    const auto wires = f.all<Polyline>();
+    const auto wires = f.all<render::Polyline>();
     REQUIRE(wires.size() == 1);
     CHECK(wires[0].points.front().y.raw() == doctest::Approx(wires[0].points.back().y.raw()));
     f.release(grab);

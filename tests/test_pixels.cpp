@@ -393,13 +393,13 @@ struct GridBoard {
 // Whether logical (x, y) holds a grid dot: a pixel within one of it is nearer the grid's colour
 // than the board's background, however much of the backing it covers after antialiasing.
 bool on_grid(const Frame& f, Color grid, Color bg, int x, int y, int s) {
-    const auto near = [](const std::uint8_t* p, Color c) {
+    const auto color_gap = [](const std::uint8_t* p, Color c) {
         return std::abs(p[0] - c.r) + std::abs(p[1] - c.g) + std::abs(p[2] - c.b);
     };
     for (int dy = -1; dy <= 1; ++dy)
         for (int dx = -1; dx <= 1; ++dx) {
             const std::uint8_t* p = f.at(x * s + dx, y * s + dy);
-            if (near(p, grid) < near(p, bg)) return true;
+            if (color_gap(p, grid) < color_gap(p, bg)) return true;
         }
     return false;
 }

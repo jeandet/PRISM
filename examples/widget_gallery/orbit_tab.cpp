@@ -30,7 +30,7 @@ std::uint64_t seed_from_clock() {
     return static_cast<std::uint64_t>(std::chrono::system_clock::now().time_since_epoch().count()) % 100000;
 }
 
-bool near(const orbit::View& a, const orbit::View& b) {
+bool close_enough(const orbit::View& a, const orbit::View& b) {
     return orbit::length(a.centre - b.centre) < settled_distance && std::abs(a.width - b.width) < settled_distance;
 }
 } // namespace
@@ -123,7 +123,7 @@ bool OrbitTab::on_tick(ui::AnimationClock::time_point now) {
     view_ = orbit::eased(view_, wanted_now(), dt);
     if (world_) view_ = orbit::contains(view_, world_->probe.pos, aspect_);
     ++frame;
-    const bool going = world_ || win_pause_ || !near(view_, wanted_now());
+    const bool going = world_ || win_pause_ || !close_enough(view_, wanted_now());
     clock_running_ = going;
     return going;
 }

@@ -152,16 +152,16 @@ bool aborts(F f) {
 } // namespace
 
 TEST_CASE("Canvas rejects a pixel span smaller than stride * height") {
-    std::array<std::uint32_t, 4 * 4 - 1> small{};
-    CHECK(aborts([&] { prism::raster::Canvas c{small, 4, 4, 4}; }));
+    std::array<std::uint32_t, 4 * 4 - 1> too_short{};
+    CHECK(aborts([&] { prism::raster::Canvas c{too_short, 4, 4, 4}; }));
     std::array<std::uint32_t, 4 * 4> ok{};
     CHECK_FALSE(aborts([&] { prism::raster::Canvas c{ok, 4, 4, 4}; }));
 }
 
 TEST_CASE("Canvas::retarget rejects a pixel span smaller than stride * height") {
     std::array<std::uint32_t, 4 * 4> ok{};
-    std::array<std::uint32_t, 4 * 4 - 1> small{};
+    std::array<std::uint32_t, 4 * 4 - 1> too_short{};
     prism::raster::Canvas c{ok, 4, 4, 4};
-    CHECK(aborts([&] { c.retarget(small); }));
+    CHECK(aborts([&] { c.retarget(too_short); }));
 }
 #endif
