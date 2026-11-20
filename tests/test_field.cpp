@@ -2,6 +2,7 @@
 #include <doctest.h>
 
 #include <prism/core/field.hpp>
+#include <prism/core/transaction.hpp>
 
 #include <string>
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -183,6 +184,38 @@ TEST_CASE("Field: = takes a designated initializer") {
 }
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+TEST_CASE("Field::mutate changes the value in place and notifies once") {
+    prism::Field<std::string> f{"abc"};
+    int calls = 0;
+    std::string seen;
+    auto conn = f.on_change().connect([&](const std::string& v) { ++calls; seen = v; });
+    f.mutate([](std::string& s) { s.append("def"); });
+    CHECK(f.get() == "abcdef");
+    CHECK(calls == 1);
+    CHECK(seen == "abcdef");
+}
+
+TEST_CASE("Field::mutate notifies even when nothing changed") {
+    prism::Field<int> f{3};
+    int calls = 0;
+    auto conn = f.on_change().connect([&](const int&) { ++calls; });
+    f.mutate([](int&) {});
+    CHECK(calls == 1);   // no copy is kept to compare against: mutate always notifies
+}
+
+TEST_CASE("Field::mutate inside a transaction notifies at commit, like set") {
+    prism::Field<int> f{0};
+    int calls = 0;
+    auto conn = f.on_change().connect([&](const int&) { ++calls; });
+    prism::transaction([&] {
+        f.mutate([](int& v) { v = 7; });
+        f.mutate([](int& v) { v += 1; });
+        CHECK(calls == 0);
+    });
+    CHECK(calls == 1);
+    CHECK(f.get() == 8);
+}
+
 // POSIX only: the child is a fork, so its death can be inspected with waitpid. The guard must
 // hold whether or not NDEBUG is defined — today it is only an assert, so a release build lets
 // the set() through and the child reaches _exit(0).
@@ -198,6 +231,21 @@ TEST_CASE("Field::set from a thread that is not the logic thread aborts, with or
         prism::Field<int> f{0};
         f.set(1);   // must print the violation and abort, assert or not
         _exit(0);   // reached only when the check is compiled out (NDEBUG today)
+    }
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    CHECK(WIFSIGNALED(status));
+    CHECK(WTERMSIG(status) == SIGABRT);
+}
+
+TEST_CASE("Field::mutate from a thread that is not the logic thread aborts, like set") {
+    const pid_t pid = fork();
+    REQUIRE(pid >= 0);
+    if (pid == 0) {
+        std::thread([] { prism::core::logic_thread.store(std::this_thread::get_id()); }).join();
+        prism::Field<int> f{0};
+        f.mutate([](int& v) { v = 1; });
+        _exit(0);
     }
     int status = 0;
     REQUIRE(waitpid(pid, &status, 0) == pid);

@@ -92,3 +92,12 @@ TEST_CASE("a rebuilt snapshot keeps nothing from the previous scene")
     CHECK(reused.overlay.size() == fresh->overlay.size());
     CHECK(reused.overlay_geometry == fresh->overlay_geometry);
 }
+
+TEST_CASE("mutate writes a label's text into its existing capacity")
+{
+    Field<ui::Label<>> stats{{.value = "measuring, please wait for the first line"}};
+    const auto before = allocations();
+    stats.mutate([](ui::Label<>& l) { l.value.assign("12 fps \u00b7 0 allocs/frame"); });
+    CHECK(allocations() - before == 0);
+    CHECK(stats.get().value == "12 fps \u00b7 0 allocs/frame");
+}

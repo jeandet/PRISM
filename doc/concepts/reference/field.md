@@ -57,6 +57,7 @@ Inside a [transaction](transaction.md), the notification waits for its end.
 | `f = v` | the same as `set(v)` |
 | `f = {.member = ...}` | builds a new `T` from a designated initializer: members not named go back to their defaults |
 | `update(fn)` | calls `fn(T&)` on a copy, then sets it: changes several members in one notification |
+| `mutate(fn)` | calls `fn(T&)` on the stored value itself, no copy: a string keeps its memory. Always notifies |
 | `set_value(f, v)` (free function) | changes only the widget's value member, keeps the others |
 | `f += v`, `-=`, `*=`, `/=`, `%=`, `\|=`, `&=`, `^=` | the operator on the value, then `set`; exists when `T` has it |
 | `++f`, `--f` | the same; return the field |
@@ -65,6 +66,16 @@ Inside a [transaction](transaction.md), the notification waits for its end.
 ```cpp
 core::Field<ui::ProgressBar> progress{{.value = 0.0, .label = "Exporting"}};
 progress.update([](ui::ProgressBar& p) { p.value = 0.5; p.busy = false; });   // one notification
+```
+
+`mutate` is for text or lists changed often, such as a status line updated every second on
+a microcontroller. `update` and `set` build a new value, which allocates for a long string;
+`mutate` writes into the one the field holds, so nothing is allocated once the text fits. It
+notifies every time, since no old value is kept to compare with.
+
+```cpp
+core::Field<ui::Label<>> status{{.value = "starting"}};
+status.mutate([&](ui::Label<>& l) { l.value.assign(line); });   // reuses the string's memory
 ```
 
 ## Comparing

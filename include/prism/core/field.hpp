@@ -46,6 +46,18 @@ struct ObservableValue {
         set(std::move(next));
     }
 
+    // Changes the stored value in place, with no copy: a string or vector keeps its capacity, so
+    // e.g. `label.mutate([&](auto& l) { l.value.assign(text); })` allocates nothing once the
+    // text fits. Always notifies, as there is no old value left to compare with; otherwise the
+    // same rules as set() (logic thread only, deferred inside a transaction).
+    template <typename F>
+        requires std::invocable<F&, T&>
+    void mutate(F&& change) {
+        if (!may_change_model()) model_thread_violation();
+        std::forward<F>(change)(value);
+        emit_or_defer(static_cast<void*>(&changed_), [this] { changed_.emit(value); });
+    }
+
     // Sugar over set(): `price = 9.99`, `count += 1`, `++count`, `name += "!"`. Each is one set(),
     // so an equal result does not notify and a transaction defers the notification.
     Derived& operator=(T new_value) { set(std::move(new_value)); return self(); }
