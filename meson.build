@@ -85,6 +85,10 @@ else
 endif
 
 subdir('src')
+if host_machine.system() == 'none'
+  subdir('ports')
+  subdir('tests/embedded')
+endif
 if sdl_enabled and host_machine.system() != 'emscripten'
   subdir('python')
 endif
