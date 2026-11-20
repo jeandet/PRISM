@@ -1,6 +1,6 @@
 # Porting PRISM, and devices
 
-**Status:** Proposal — for review before code.
+**Status:** Partial — step 1 implemented (platform code in PRISM, QEMU CI); steps 2–4 planned.
 
 ## Why
 

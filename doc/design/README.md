@@ -78,11 +78,11 @@ graph TB
 |---|---|---|
 | [blocks.md](blocks.md) | Blocks: reusable model + view + behaviour; a self-wiring base class explored | **Design only** |
 | [menus-and-dialogs.md](menus-and-dialogs.md) | In-window popup layer and modality for menus, context menus, dialogs | **Implemented** — menu bar, context menus (shortcuts, separators, check items), modal dialog, tooltips |
-| [drag-and-docking.md](drag-and-docking.md) | Dragging inside the app (lists, trees, tabs), then docking panels with a saved layout | **Partial** — step 1 implemented (platform code in PRISM, QEMU CI); steps 2-4 planned |
+| [drag-and-docking.md](drag-and-docking.md) | Dragging inside the app (lists, trees, tabs), then docking panels with a saved layout | **Proposal** — for review before code |
 | [accessibility.md](accessibility.md) | Widget accessibility metadata (AccessKit roles) and what a screen-reader bridge needs | **Partial** — metadata only; bridge deferred |
 | [text-stack.md](text-stack.md) | One document, styled layout and fonts under a text editor, a code editor (syntax highlighting), rich text and Markdown | **Proposal** — for review before code |
 | [allocation-free-frames.md](allocation-free-frames.md) | No heap allocation per frame once startup is done (embedded, real-time): snapshot pool, reused draw lists, an embedded guard | **Proposal** — for review before code |
-| [porting-and-devices.md](porting-and-devices.md) | Porting PRISM to a board with little code (drawing levels from framebuffer to accelerators, a shared frame runtime) and device families (byte/sample streams, buses, lines) with emulation | **Proposal** — for review before code |
+| [porting-and-devices.md](porting-and-devices.md) | Porting PRISM to a board with little code (drawing levels from framebuffer to accelerators, a shared frame runtime) and device families (byte/sample streams, buses, lines) with emulation | **Partial** — step 1 implemented (platform code in PRISM, QEMU CI); steps 2-4 planned |
 | [proxy-widget.md](proxy-widget.md) | Composite foreign renderers (CEF, VTK, mpv, etc.) as regular widgets via shared surfaces | **Concept** |
 | testing-strategy | doctest, synchronous scheduler, headless rendering, golden snapshots (`tests/test_golden_snapshot.cpp`) | **Not written** |
 | tracing-profiling | Tracy behind generic macros — not integrated; today: snapshot stats + `present_stats()` + `examples/perf_lab` | **Not written** |

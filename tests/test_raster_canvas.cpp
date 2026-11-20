@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <vector>
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 #include <csignal>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -138,7 +138,7 @@ TEST_CASE("image scaled 2x maps texels (nearest neighbour)") {
     CHECK_FALSE(fb.touched(4, 0));   // outside the dest rect
 }
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 // The bounds check is an assert, so the child is a fork whose death is inspected with waitpid.
 namespace {
 template <typename F>
