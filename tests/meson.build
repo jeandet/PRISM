@@ -170,6 +170,7 @@ headless_tests = {
   'record_reuse' : files('test_record_reuse.cpp'),
   'perf_lab' : files('test_perf_lab.cpp'),
   'frame_pacer' : files('test_frame_pacer.cpp'),
+  'alloc_free' : files('test_alloc_free.cpp'),
 }
 
 foreach name, src : headless_tests

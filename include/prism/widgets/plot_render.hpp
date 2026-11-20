@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 #include <algorithm>
 #include <array>
+#include <initializer_list>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -68,12 +69,35 @@ struct PlotMapping {
     }
 };
 
-inline std::vector<double> nice_ticks(double min, double max, int target_count)
+// Tick positions in a fixed array: a plot draws a handful per axis, so computing them each
+// redraw allocates nothing (doc/design/allocation-free-frames.md). simplify: past `capacity`
+// ticks are dropped, which only a target count far above any axis' needs can reach.
+struct TickList {
+    static constexpr std::size_t capacity = 32;
+
+    TickList() = default;
+    TickList(std::initializer_list<double> values) { for (double v : values) push_back(v); }
+
+    void push_back(double v) { if (n_ < capacity) values_[n_++] = v; }
+    std::size_t size() const { return n_; }
+    bool empty() const { return n_ == 0; }
+    double operator[](std::size_t i) const { return values_[i]; }
+    double front() const { return values_[0]; }
+    double back() const { return values_[n_ - 1]; }
+    const double* begin() const { return values_.data(); }
+    const double* end() const { return values_.data() + n_; }
+
+private:
+    std::array<double, capacity> values_{};
+    std::size_t n_ = 0;
+};
+
+inline TickList nice_ticks(double min, double max, int target_count)
 {
     if (target_count < 1) target_count = 1;
 
     double range = max - min;
-    if (range <= 0.0) return {min};
+    if (range <= 0.0) { TickList one; one.push_back(min); return one; }
 
     double rough_step = range / target_count;
     double magnitude = std::pow(10.0, std::floor(std::log10(rough_step)));
@@ -92,8 +116,8 @@ inline std::vector<double> nice_ticks(double min, double max, int target_count)
     // Each tick is a whole multiple of the step, not a running sum: adding the step tick after
     // tick drifts, and the zero tick came out as 5.5e-17 on the axis.
     double first = std::ceil(min / nice_step) + 0.0;   // + 0.0: ceil(-0.05) is -0.0, labelled "-0"
-    std::vector<double> ticks;
-    for (double k = first; k * nice_step <= max + nice_step * 1e-9; k += 1.0)
+    TickList ticks;
+    for (double k = first; k * nice_step <= max + nice_step * 1e-9 && ticks.size() < TickList::capacity; k += 1.0)
         ticks.push_back(k * nice_step);
 
     return ticks;
@@ -197,8 +221,8 @@ inline void draw_background(DrawList& dl, Rect plot_area, const Theme& t)
 }
 
 struct TickArrays {
-    std::vector<double> x;
-    std::vector<double> y;
+    TickList x;
+    TickList y;
 };
 
 inline TickArrays compute_ticks(const PlotMapping& map)

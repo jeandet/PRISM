@@ -164,15 +164,17 @@ ResolvedRanges resolve_auto_fit_ranges(const Field<AxisRange>& xr, const Field<A
     return {ex.auto_fit ? cache.x : ex, ey.auto_fit ? cache.y : ey};
 }
 
+// Plain values, not Fields: a caller with computed ranges passes them as they are, with no
+// temporary Field (each one allocates its listener state). A Field still converts implicitly.
 inline PlotMapping compute_mapping(Rect bounds,
-                                   const Field<AxisRange>& xr,
-                                   const Field<AxisRange>& yr,
-                                   const Field<ViewTransform>& vt,
+                                   const AxisRange& xr,
+                                   const AxisRange& yr,
+                                   const ViewTransform& vt,
                                    std::span<const Series> series,
                                    bool draw_x_axis = true)
 {
-    AxisRange eff_x = xr.get();
-    AxisRange eff_y = yr.get();
+    AxisRange eff_x = xr;
+    AxisRange eff_y = yr;
 
     if (eff_x.auto_fit || eff_y.auto_fit) {
         BothAxisFit fitted = auto_fit_ranges(series);
@@ -180,7 +182,7 @@ inline PlotMapping compute_mapping(Rect bounds,
         if (eff_y.auto_fit) eff_y = fitted.y;
     }
 
-    auto& v = vt.get();
+    auto& v = vt;
     eff_x = PlotMapping::apply_view(eff_x, v.offset_x, v.scale_x);
     eff_y = PlotMapping::apply_view(eff_y, v.offset_y, v.scale_y);
 
@@ -200,8 +202,8 @@ inline PlotMapping compute_mapping(Rect bounds,
 
 template <PlotCursor C>
 void render_plot_panel(DrawList& dl, Rect bounds, const WidgetNode& node,
-                       const Field<AxisRange>& x_range, const Field<AxisRange>& y_range,
-                       const Field<ViewTransform>& view, const Field<C>& cursor,
+                       const AxisRange& x_range, const AxisRange& y_range,
+                       const ViewTransform& view, const Field<C>& cursor,
                        std::span<const Series> series,
                        const std::string& x_label, const std::string& y_label,
                        bool draw_x_axis,
@@ -254,9 +256,7 @@ void route_plot_input(const InputEvent& ev, WidgetNode& /*nd*/, Rect bounds,
         if (!fit_cache)
             return compute_mapping(bounds, x_range, y_range, view, series, draw_x_axis);
         auto resolved = resolve_auto_fit_ranges(x_range, y_range, series, *fit_cache);
-        Field<AxisRange> xr{resolved.x};
-        Field<AxisRange> yr{resolved.y};
-        return compute_mapping(bounds, xr, yr, view, series, draw_x_axis);
+        return compute_mapping(bounds, resolved.x, resolved.y, view, series, draw_x_axis);
     }();
 
     // A PlotPanel needs to reset every sibling panel in its PlotGroup (shared x-axis,
@@ -441,11 +441,9 @@ struct PlotModel {
     {
         auto resolved = resolve_auto_fit_ranges(x_range, y_range,
                                                 std::span<const Series>(series_), autofit_cache);
-        Field<AxisRange> xr{resolved.x};
-        Field<AxisRange> yr{resolved.y};
         if (draw_caches_.size() != series_.size())
             draw_caches_.assign(series_.size(), SeriesDrawCache{});
-        render_plot_panel(dl, bounds, node, xr, yr, view, cursor,
+        render_plot_panel(dl, bounds, node, resolved.x, resolved.y, view.get(), cursor,
                           std::span<const Series>(series_), x_label.get(), y_label.get(), true,
                           x_tick_format, revision.get(), std::span<SeriesDrawCache>(draw_caches_));
     }
@@ -587,15 +585,13 @@ inline ViewTransform PlotPanel::merged_transform() const
 
 inline void PlotPanel::canvas(DrawList& dl, Rect bounds, const WidgetNode& node)
 {
-    Field<ViewTransform> merged_view{merged_transform()};
+    const ViewTransform merged_view = merged_transform();
 
     auto resolved = resolve_auto_fit_ranges(group_->x_range, y_range,
                                             std::span<const Series>(series_), autofit_cache);
-    Field<AxisRange> xr{resolved.x};
-    Field<AxisRange> yr{resolved.y};
     if (draw_caches_.size() != series_.size())
         draw_caches_.assign(series_.size(), SeriesDrawCache{});
-    render_plot_panel(dl, bounds, node, xr, yr, merged_view,
+    render_plot_panel(dl, bounds, node, resolved.x, resolved.y, merged_view,
                       group_->cursor, std::span<const Series>(series_),
                       group_->x_label.get(), y_label.get(), draw_x_axis_,
                       group_->x_tick_format, revision.get(),
