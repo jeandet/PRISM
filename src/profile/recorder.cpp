@@ -64,8 +64,8 @@ void Recorder::name_thread(std::string_view name)
     slot->used.store(true, std::memory_order_release); // publish the name to for_each_thread
 }
 
-void Recorder::pause() { paused_.store(true, std::memory_order_relaxed); }
-void Recorder::resume() { paused_.store(false, std::memory_order_relaxed); }
+void Recorder::pause() const { paused_.store(true, std::memory_order_seq_cst); }
+void Recorder::resume() const { paused_.store(false, std::memory_order_relaxed); }
 
 Recorder::Slot* Recorder::claim_slot()
 {
@@ -97,14 +97,20 @@ Recorder::Slot* Recorder::claim_slot()
 
 void Recorder::record(Kind kind, const char* name, std::int32_t value)
 {
-    if (paused_.load(std::memory_order_relaxed))
-        return;
     Slot* slot = claim_slot();
     if (slot == nullptr)
         return;
     const std::uint32_t capacity = slot->capacity;
     if (capacity == 0)
         return;
+    // The in-flight flag, Dekker-paired with pause()'s seq_cst store: a mark that gets past
+    // the paused check below is guaranteed to be seen by for_each_thread as writing, so a dump
+    // never reads the event this mark is writing (see for_each_thread).
+    slot->writing.store(true, std::memory_order_seq_cst);
+    if (paused_.load(std::memory_order_seq_cst)) {
+        slot->writing.store(false, std::memory_order_release);
+        return;
+    }
     // Only the owning thread writes its slot, so plain load/store suffice; the release stores
     // of head/wrapped publish the event just written. No division: the write index wraps at
     // capacity with a compare.
@@ -124,6 +130,7 @@ void Recorder::record(Kind kind, const char* name, std::int32_t value)
         if (lost != UINT32_MAX) // simplify: saturates at UINT32_MAX (see Slot::lost)
             slot->lost.store(lost + 1, std::memory_order_relaxed);
     }
+    slot->writing.store(false, std::memory_order_release);
 }
 
 } // namespace prism::profile

@@ -91,6 +91,15 @@ endif
 if host_machine.system() != 'none'
   prism_lib_sources += 'profile/steady_clock.cpp'
 endif
+# The dump's hosted parts: io::FileStream (src/io/file_stream.cpp) and dump_to_file
+# (src/profile/dump.cpp) -- no file system on bare metal, and dump_to_file also needs the
+# global recorder (-Dprofiling=enabled).
+if host_machine.system() != 'none'
+  prism_lib_sources += 'io/file_stream.cpp'
+  if profiling_enabled
+    prism_lib_sources += 'profile/dump.cpp'
+  endif
+endif
 
 prism_lib = build_target('prism',
   prism_lib_sources,

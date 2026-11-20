@@ -5,7 +5,8 @@
 // region. A mark writes only its thread's ring -- no lock and no allocation once the thread
 // has claimed its ring on its first mark; a full ring overwrites the oldest events and counts
 // them in ThreadView::lost (a flight recorder: the end of a run is what survives). Read back
-// with for_each_thread, oldest first, as up to two spans.
+// with for_each_thread, oldest first, as up to two spans -- a mark in flight when the view is
+// taken is left out of it, never read half-written (see for_each_thread).
 
 #include <atomic>
 #include <array>
@@ -55,8 +56,11 @@ public:
     // Names the calling thread on the timeline: copied into its slot, cut at 16 characters, so
     // a finished thread leaves no dangling pointer behind.
     void name_thread(std::string_view name);
-    void pause(); // marks become no-ops until resume()
-    void resume();
+    // Marks become no-ops until resume(). Const because dump() holds a const Recorder& while
+    // it pauses it; the seq_cst store pairs with record()'s seq_cst load of it, so a mark that
+    // got past the check before the pause is seen by for_each_thread as in flight.
+    void pause() const;
+    void resume() const;
 
     struct ThreadView {
         std::string_view name;
@@ -68,6 +72,12 @@ public:
     // Calls f(const ThreadView&) once per thread that has a ring, in slot order. The ring is
     // given oldest first as up to two spans: when it wrapped, [head, capacity) then [0, head);
     // otherwise [0, head).
+    //
+    // A mark in flight when the view is taken is left out, never read half-written: with a
+    // wrapped ring the event being written at ring[head] is the oldest, so the view starts one
+    // past it; not wrapped, that write is past the view and nothing is dropped. The reader
+    // never waits for the marking thread. The view is therefore exact only while the recorder
+    // is paused (dump() pauses it) or while no thread is marking.
     template <class F>
     void for_each_thread(F&& f) const
     {
@@ -79,12 +89,20 @@ public:
             // Acquire on head/wrapped: record()'s release stores of them publish the event ring.
             const std::uint32_t head = s.head.load(std::memory_order_acquire);
             const bool wrapped = s.wrapped.load(std::memory_order_acquire);
+            // seq_cst, Dekker-paired with record()'s writing store and pause()'s paused store:
+            // a mark that passed the paused check before pause() is seen here as writing.
+            const bool writing = s.writing.load(std::memory_order_seq_cst);
             ThreadView tv;
             tv.name = s.name.data();
             tv.id = s.id.load(std::memory_order_relaxed);
             tv.lost = s.lost.load(std::memory_order_relaxed);
             if (capacity > 0 && wrapped) {
-                tv.first = std::span<const Event>(s.ring + head, capacity - head);
+                std::uint32_t first_begin = head;
+                if (writing) // drop ring[head], the in-flight write: the oldest once wrapped
+                    first_begin = head + 1 == capacity ? capacity : head + 1;
+                tv.first = first_begin < capacity
+                               ? std::span<const Event>(s.ring + first_begin, capacity - first_begin)
+                               : std::span<const Event>{};
                 tv.second = head != 0 ? std::span<const Event>(s.ring, head)
                                       : std::span<const Event>{};
             } else {
@@ -104,6 +122,9 @@ private:
         std::atomic<std::uintptr_t> id{0};   // a FreeRTOS task handle fits
         std::atomic<std::uint32_t> head{0};  // next write index, always < capacity
         std::atomic<bool> wrapped{false};    // the ring has been filled once
+        // The in-flight flag: record() sets it (seq_cst) before its paused check and clears it
+        // after the write, so for_each_thread can leave the event being written out of its view.
+        std::atomic<bool> writing{false};
         // simplify: saturates at UINT32_MAX -- a wider count would need a lock-free 64-bit
         // atomic, which a Cortex-M7 does not have
         std::atomic<std::uint32_t> lost{0};
@@ -120,11 +141,12 @@ private:
     std::array<Slot, max_threads> slots_{};
     std::atomic<std::uint32_t> next_thread_{0}; // slot table fill counter
     std::atomic<std::uint32_t> threads_dropped_{0};
-    std::atomic<bool> paused_{false};
+    mutable std::atomic<bool> paused_{false}; // mutable: pause()/resume() are const
 };
 
 // A Cortex-M7 has no lock-free 64-bit atomics (they would link libatomic, which locks), so every
 // atomic in Recorder is 32-bit or pointer-sized.
+static_assert(std::atomic<bool>::is_always_lock_free);
 static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
 static_assert(std::atomic<std::uintptr_t>::is_always_lock_free);
 

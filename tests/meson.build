@@ -225,6 +225,14 @@ test('profile_macros_off', executable('test_profile_macros_off', files('test_pro
   cpp_args : ['-UPRISM_PROFILING'],
 ))
 
+# The binary dump over any io::ByteStream (include/prism/profile/dump.hpp + trace_format.hpp,
+# io/memory_stream.hpp, io/file_stream.hpp): libprism only, no SDL. The FileStream and
+# dump_to_file cases compile out under emscripten (the node test runner has no host file
+# system to write to).
+test('profile_dump', executable('test_profile_dump', files('test_profile_dump.cpp'),
+  dependencies : [prism_core_dep, doctest_dep],
+))
+
 test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
   dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],
 )
