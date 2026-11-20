@@ -85,4 +85,4 @@ graph TB
 | [porting-and-devices.md](porting-and-devices.md) | Porting PRISM to a board with little code (drawing levels from framebuffer to accelerators, a shared frame runtime) and device families (byte/sample streams, buses, lines) with emulation | **Partial** — step 1 implemented (platform code in PRISM, QEMU CI); steps 2-4 planned |
 | [proxy-widget.md](proxy-widget.md) | Composite foreign renderers (CEF, VTK, mpv, etc.) as regular widgets via shared surfaces | **Concept** |
 | testing-strategy | doctest, synchronous scheduler, headless rendering, golden snapshots (`tests/test_golden_snapshot.cpp`) | **Not written** |
-| tracing-profiling | Tracy behind generic macros — not integrated; today: snapshot stats + `present_stats()` + `examples/perf_lab` | **Not written** |
+| [profiling.md](profiling.md) | Post-mortem profiling for PRISM and apps, desktop and microcontroller: free-when-off marks, per-thread rings, a dump over any byte stream, Perfetto via `prism-trace` | **Proposal** — for review before code |
