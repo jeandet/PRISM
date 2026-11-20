@@ -116,6 +116,20 @@ prism_raster_dep = declare_dependency(
   dependencies : [prism_core_dep],
 )
 
+# The frame runtime (platform/frame_app.hpp): a model on a framebuffer target, drawn by the
+# rasterizer. Static: it calls allocation_count() and system_counters(), which whoever links it
+# defines (a port, a test program).
+prism_platform_lib = static_library('prism-platform',
+  'platform/frame_runtime.cpp',
+  'platform/frame_stats.cpp',
+  dependencies : [prism_core_dep, prism_raster_dep],
+  install : true,
+)
+prism_platform_dep = declare_dependency(
+  link_with : prism_platform_lib,
+  dependencies : [prism_core_dep, prism_raster_dep],
+)
+
 if sdl_enabled
 # Software backend: links SDL3 + SDL3_ttf
 if host_machine.system() == 'emscripten'

@@ -173,6 +173,7 @@ headless_tests = {
   'raster_canvas' : files('test_raster_canvas.cpp'),
   'raster_fonts' : files('test_raster_fonts.cpp'),
   'raster_snapshot' : files('test_raster_snapshot.cpp'),
+  'spsc_ring' : files('test_spsc_ring.cpp'),
 }
 
 foreach name, src : headless_tests
@@ -192,6 +193,16 @@ if host_machine.system() != 'windows'
     dependencies : [prism_raster_dep, doctest_dep],
   ))
 endif
+
+# The frame runtime (platform/frame_app.hpp) and its timing line. Each executable defines the
+# platform hooks the runtime reads (allocation_count, system_counters).
+test('frame_stats', executable('test_frame_stats', files('test_frame_stats.cpp'),
+  dependencies : [prism_platform_dep, doctest_dep],
+))
+# Two threads and a quit: a hang must fail the test, not stall the suite.
+test('frame_app', executable('test_frame_app', files('test_frame_app.cpp'),
+  dependencies : [prism_platform_dep, doctest_dep],
+), timeout : 30)
 
 test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
   dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],
