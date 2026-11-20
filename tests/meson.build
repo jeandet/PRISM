@@ -276,8 +276,12 @@ endif
 
 # net::send / net::Client against an in-process cpp-httplib server on localhost.
 if prism_net_dep.found()
+  # httplib's std::regex trips a false -Wmaybe-uninitialized inside libstdc++'s regex automaton
+  # under ASan at -O2 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105616).
+  test_http_args = get_option('b_sanitize').contains('address') ? cpp.get_supported_arguments('-Wno-maybe-uninitialized') : []
   test_http = executable('test_http', files('test_http.cpp'),
     dependencies : [prism_net_dep, httplib_dep, doctest_dep],
+    cpp_args : test_http_args,
   )
   test('http', test_http)
 endif
