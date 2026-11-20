@@ -86,6 +86,36 @@ prism_core_dep = declare_dependency(
   dependencies : [prism_headers_dep],
 )
 
+# Software rasterizer: draws a SceneSnapshot into an ARGB framebuffer with stb_truetype and
+# Latin Noto Sans faces compiled in (scripts/embed.py), so a target with no SDL can show a UI.
+stb_dep = dependency('stb', fallback : ['stb', 'stb_dep'])
+embedded_fonts_dir = meson.project_source_root() / 'assets' / 'fonts' / 'embedded'
+embed_py = files(meson.project_source_root() / 'scripts' / 'embed.py')
+embedded_font_sources = [
+  custom_target('embedded_noto_sans_latin',
+    input : files(embedded_fonts_dir / 'NotoSans-Latin.ttf'),
+    output : 'embedded_noto_sans_latin.cpp',
+    command : [find_program('python3'), embed_py, '@INPUT@', '@OUTPUT@', 'noto_sans_latin'],
+  ),
+  custom_target('embedded_noto_sans_bold_latin',
+    input : files(embedded_fonts_dir / 'NotoSans-Bold-Latin.ttf'),
+    output : 'embedded_noto_sans_bold_latin.cpp',
+    command : [find_program('python3'), embed_py, '@INPUT@', '@OUTPUT@', 'noto_sans_bold_latin'],
+  ),
+]
+prism_raster_lib = static_library('prism-raster',
+  'raster/canvas.cpp',
+  'raster/draw_snapshot.cpp',
+  'raster/fonts.cpp',
+  embedded_font_sources,
+  dependencies : [prism_core_dep, stb_dep],
+  install : true,
+)
+prism_raster_dep = declare_dependency(
+  link_with : prism_raster_lib,
+  dependencies : [prism_core_dep],
+)
+
 if sdl_enabled
 # Software backend: links SDL3 + SDL3_ttf
 if host_machine.system() == 'emscripten'

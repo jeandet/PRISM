@@ -170,11 +170,14 @@ headless_tests = {
   'record_reuse' : files('test_record_reuse.cpp'),
   'perf_lab' : files('test_perf_lab.cpp'),
   'frame_pacer' : files('test_frame_pacer.cpp'),
+  'raster_canvas' : files('test_raster_canvas.cpp'),
+  'raster_fonts' : files('test_raster_fonts.cpp'),
+  'raster_snapshot' : files('test_raster_snapshot.cpp'),
 }
 
 foreach name, src : headless_tests
   exe = executable('test_' + name, src,
-    dependencies : [prism_core_dep, doctest_dep],
+    dependencies : [prism_core_dep, prism_raster_dep, doctest_dep],
   )
   test(name, exe)
 endforeach
@@ -184,6 +187,9 @@ endforeach
 if host_machine.system() != 'windows'
   test('alloc_free', executable('test_alloc_free', files('test_alloc_free.cpp'),
     dependencies : [prism_core_dep, doctest_dep],
+  ))
+  test('raster_allocations', executable('test_raster_allocations', files('test_raster_allocations.cpp'),
+    dependencies : [prism_raster_dep, doctest_dep],
   ))
 endif
 
