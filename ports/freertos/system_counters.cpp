@@ -10,8 +10,8 @@
 
 #include <malloc.h>
 
-extern "C" char end;       // the linker script: where the newlib heap starts
-extern "C" char _heap_end; // and where it must stop (sbrk.c)
+extern "C" char end[];       // the linker script: where the newlib heap starts
+extern "C" char _heap_end[]; // and where it must stop (sbrk.c)
 extern "C" std::uint32_t prism_allocation_count(void); // alloc_count.c
 
 std::uint32_t prism::platform::allocation_count()
@@ -25,7 +25,7 @@ std::optional<prism::platform::SystemCounters> prism::platform::system_counters(
     return SystemCounters{
         .idle_us = ulTaskGetIdleRunTimeCounter(),
         .heap_used = std::size_t(heap.uordblks),
-        .heap_total = std::size_t(&_heap_end - &end),
+        .heap_total = std::size_t(_heap_end - end),
         .stacks_used = configTOTAL_HEAP_SIZE - xPortGetFreeHeapSize(),
         .stacks_total = configTOTAL_HEAP_SIZE,
     };

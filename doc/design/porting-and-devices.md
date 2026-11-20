@@ -94,7 +94,7 @@ the code that uses it.
 Moves from prism-stm32 into PRISM: `app/runtime.*`, `app/frame_stats.*`, `app/spsc_ring.hpp`,
 `app/example.hpp`, `raster/`, `posix/`, `app/adc_sample.hpp`, the synthetic source, and the
 audio scope as an example. prism-stm32 keeps `boards/` and its build. PRISM gains a build
-without SDL (`-Dsdl=false`), so a board repository uses it as a meson subproject.
+without SDL (`-Dsdl=disabled`), so a board repository uses it as a meson subproject.
 
 ### 2. Drawing: three levels a target plugs in at
 
@@ -277,12 +277,16 @@ with its pixel format and band size, before any hardware exists.
 
 ### 5. Order
 
-1. **Move** the runtime, rasterizer, rings and POSIX layer into PRISM; `-Dsdl=false`; prism-stm32
+1. **Move** the runtime, rasterizer, rings and POSIX layer into PRISM; `-Dsdl=disabled`; prism-stm32
    consumes PRISM as a subproject and keeps only `boards/`. Board apps become model + view (the
    scope rewritten that way). **PRISM's CI cross-compiles and tests them (decided):** the Arm
    toolchain from the development image (prism-stm32's `docker/Dockerfile`), FreeRTOS as a
    dependency, and the QEMU MPS2-AN500 (Cortex-M7) test firmwares moved from prism-stm32 run as
    a CI job, so a PRISM change cannot break the embedded side unnoticed.
+   The manual page for `frame_app` and `prism::raster` comes with step 3, when the Framebuffer
+   concept settles that API.
+   Measured board baseline after step 1: 19-23 allocations per frame (same sites as before; the
+   earlier "20" was already 21 before step 1).
 2. **Sample streams:** the concepts, `Ring`, `Signal`, `any_source`; the STM32 ADC as a lending
    DMA source; the generator and WAV emulations. The scope reads through the family.
 3. **Accelerated drawing:** the rasterizer templated on the pixel format, the optional

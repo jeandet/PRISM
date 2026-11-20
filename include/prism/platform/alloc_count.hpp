@@ -12,8 +12,8 @@ std::uint32_t allocation_count();
 
 } // namespace prism::platform
 
-// A port's allocation guard, built in with PRISM_ALLOC_GUARD: armed once startup is done, any
-// later allocation is a violation. Defined by the port (C, beside its malloc wrapper).
+// A port's allocation guard, armed by the port once startup is done (e.g. from an on_stats hook,
+// as prism-stm32 does), after which any allocation is a violation. Defined by the port (C, beside its malloc wrapper).
 extern "C" void prism_allocation_guard_arm(void);
 extern "C" void prism_allocation_guard_disarm(void);
 extern "C" std::uint32_t prism_allocation_violations(void);

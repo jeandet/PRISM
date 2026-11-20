@@ -7,7 +7,7 @@
    So each block is laid out as [8-byte TCB][tdata][tbss]. */
 #include "posix_internal.h"
 
-/* TLS template exported by the linker script (ports/qemu_mps2/mps2_an500.ld). */
+/* TLS template exported by the linker script (the board's linker script). */
 extern char _tdata_start[];
 extern char _tdata_end[];
 extern char _tbss_end[];

@@ -150,15 +150,6 @@ bool snapshot_waiting(Handoff& h)
     return h.pending >= 0;
 }
 
-// Startup is over once the first timing line is out (a second of frames: caches and buffers
-// are warm). From then on the guard, when built in, stops on any allocation.
-void arm_allocation_guard()
-{
-#ifdef PRISM_ALLOC_GUARD
-    prism_allocation_guard_arm();
-#endif
-}
-
 // Hands the timing line to the app once a second (the render thread fed the frames into h.stats).
 void report_stats(Handoff& h, const FrameContext& ctx)
 {
@@ -170,7 +161,6 @@ void report_stats(Handoff& h, const FrameContext& ctx)
     }
     if (line) {
         ContextAccess::stats(ctx, *line);
-        arm_allocation_guard();
     }
 }
 

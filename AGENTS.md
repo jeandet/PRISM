@@ -101,6 +101,11 @@ ninja -C builddir
 meson test -C builddir
 ```
 
+- `-Dsdl` is `auto`: off on a bare-metal host. The bare-metal cross build is
+  `meson setup builddir-arm --cross-file tests/cross/none-cortex-m7.ini -Dsdl=disabled`; `ports/`
+  holds the FreeRTOS POSIX layer and the QEMU MPS2-AN500 test board, and `tests/embedded` runs
+  under `qemu-system-arm` when found. The `embedded-qemu` CI job does exactly that.
+
 - Requires Meson >= 1.5, GCC 16+ for `-freflection` (auto-detected by the build; without it,
   model structs need a manual `view()` method instead of automatic reflection — most structs in
   `examples/` and `tests/` are written to work either way).
@@ -133,7 +138,7 @@ meson test -C builddir
 
 ## Module layout (`include/prism/`)
 
-Thirteen namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`List`/
+Sixteen namespaced modules: `core` (`Field`/`State`/`Derived`/`Shared`/`Channel`/`List`/
 `Connection`/reflection), `render` (`DrawList`), `input` (`InputEvent`/hit testing), `ui`
 (`Widget<T>` delegates, layout, `Node`), `delegates` (built-in widget implementations), `app`
 (`WidgetTree`, `ViewBuilder`, `model_app`, event routing), `widgets` (`Tree`/`Table`/`Plot`/debug
@@ -143,7 +148,9 @@ sound out through a render function; SDL code in `src/backends/sdl_audio.cpp`), 
 serial in `prism-io` over Asio, `-Dio`), `text` (documents: `Document` over a `core::SumTree`,
 `View`/`Editor` behind `vb.text_view`/`text_editor`/`code_editor`, syntax highlighting, Markdown in
 `prism-markdown` over cmark-gfm, `-Dmarkdown`; doc/design/text-stack.md), `nodes` (node editors:
-`Graph` of app-owned nodes and typed `In`/`Out` ports, shown by `vb.node_board` in `app/node_board`).
+`Graph` of app-owned nodes and typed `In`/`Out` ports, shown by `vb.node_board` in `app/node_board`), `raster` (software rasterizer, `prism-raster`),
+`platform` (`frame_app`: the runtime for framebuffer targets, `FrameStats`), `dev` (devices:
+`SpscRing` for now).
 
 Non-template code goes in `src/<module>/<header>.cpp` (libprism), not in the header: headers keep
 templates, reflection code and short getters, so each file that includes them parses less. Never

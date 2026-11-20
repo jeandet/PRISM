@@ -1,7 +1,7 @@
-/* A running count of heap allocations, for the timing line (app/frame_stats.hpp).
+/* A running count of heap allocations, for the timing line (include/prism/platform/alloc_count.hpp).
    Every allocation in newlib goes through _malloc_r: malloc, calloc, C++ operator new (via
    malloc), and the allocating case of realloc. The firmware links with -Wl,--wrap=_malloc_r
-   (meson.build), which sends those calls here first. */
+   (alloc_count_link_arg in ports/freertos/meson.build), which sends those calls here first. */
 #include <reent.h>
 #include <stddef.h>
 #include <stdint.h>

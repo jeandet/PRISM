@@ -10,6 +10,12 @@
 #include <cstdint>
 #include <vector>
 
+#ifndef NDEBUG
+#include <csignal>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 using namespace prism::core;
 using prism::render::Image;
 
@@ -131,3 +137,31 @@ TEST_CASE("image scaled 2x maps texels (nearest neighbour)") {
     CHECK(fb.at(3, 3) == 0xFFFFFF00u);
     CHECK_FALSE(fb.touched(4, 0));   // outside the dest rect
 }
+
+#ifndef NDEBUG
+// The bounds check is an assert, so the child is a fork whose death is inspected with waitpid.
+namespace {
+template <typename F>
+bool aborts(F f) {
+    const pid_t pid = fork();
+    if (pid == 0) { f(); _exit(0); }
+    int status = 0;
+    waitpid(pid, &status, 0);
+    return WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT;
+}
+} // namespace
+
+TEST_CASE("Canvas rejects a pixel span smaller than stride * height") {
+    std::array<std::uint32_t, 4 * 4 - 1> small{};
+    CHECK(aborts([&] { prism::raster::Canvas c{small, 4, 4, 4}; }));
+    std::array<std::uint32_t, 4 * 4> ok{};
+    CHECK_FALSE(aborts([&] { prism::raster::Canvas c{ok, 4, 4, 4}; }));
+}
+
+TEST_CASE("Canvas::retarget rejects a pixel span smaller than stride * height") {
+    std::array<std::uint32_t, 4 * 4> ok{};
+    std::array<std::uint32_t, 4 * 4 - 1> small{};
+    prism::raster::Canvas c{ok, 4, 4, 4};
+    CHECK(aborts([&] { c.retarget(small); }));
+}
+#endif

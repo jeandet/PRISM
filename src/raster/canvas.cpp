@@ -5,6 +5,7 @@
 #include <prism/core/utf8.hpp>
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 
@@ -42,10 +43,12 @@ inline int span_end(float hi) { return static_cast<int>(std::ceil(hi - 0.5f)); }
 
 Canvas::Canvas(std::span<std::uint32_t> pixels, int width, int height, int stride)
     : pixels_(pixels), width_(width), height_(height), stride_(stride) {
+    assert(pixels.size() >= std::size_t(stride) * height);
     reset_clip();
 }
 
 void Canvas::retarget(std::span<std::uint32_t> pixels) {
+    assert(pixels.size() >= std::size_t(stride_) * height_);
     pixels_ = pixels;
     reset_clip();
 }
