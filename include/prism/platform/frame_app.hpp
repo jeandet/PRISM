@@ -9,6 +9,8 @@
 #include <prism/app/widget_tree.hpp>
 #include <prism/platform/frame_target.hpp>
 
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <stop_token>
@@ -19,7 +21,16 @@ namespace prism::platform {
 
 namespace platform_detail {
 struct ContextAccess;
+
+// Always on, like the canvas's span check: a hook list that grows while it is called is UB.
+inline void require_not_started(bool started)
+{
+    if (!started)
+        return;
+    std::fputs("prism::platform::FrameContext: hook registered after setup returned\n", stderr);
+    std::abort();
 }
+} // namespace platform_detail
 
 // The app's handle on the runtime, given to setup on the logic thread.
 class FrameContext {
@@ -28,9 +39,17 @@ public:
 
     // Runs each logic loop, after input and before the dirty check (e.g. drain a sample source).
     // Register from setup: registering later aborts, as the hooks are being called.
-    void on_loop(std::function<void()> fn);
+    void on_loop(std::function<void()> fn)
+    {
+        platform_detail::require_not_started(started_);
+        loop_.push_back(std::move(fn));
+    }
     // Receives the timing line once a second, on the logic thread. Register from setup.
-    void on_stats(std::function<void(std::string_view)> fn);
+    void on_stats(std::function<void(std::string_view)> fn)
+    {
+        platform_detail::require_not_started(started_);
+        stats_.push_back(std::move(fn));
+    }
     // Ends the run: frame_app returns once both threads are done. Any thread, while the run lasts.
     void quit() { stop_.request_stop(); }
 

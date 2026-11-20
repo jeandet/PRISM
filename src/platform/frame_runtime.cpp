@@ -22,8 +22,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -47,27 +45,6 @@ struct ContextAccess {
     }
 };
 } // namespace platform_detail
-
-// Always on, like the canvas's span check: a hook list that grows while it is called is UB.
-void require_not_started(bool started)
-{
-    if (!started)
-        return;
-    std::fputs("prism::platform::FrameContext: hook registered after setup returned\n", stderr);
-    std::abort();
-}
-
-void FrameContext::on_loop(std::function<void()> fn)
-{
-    require_not_started(started_);
-    loop_.push_back(std::move(fn));
-}
-
-void FrameContext::on_stats(std::function<void(std::string_view)> fn)
-{
-    require_not_started(started_);
-    stats_.push_back(std::move(fn));
-}
 
 namespace {
 
