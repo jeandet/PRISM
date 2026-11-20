@@ -154,3 +154,47 @@ checks each task.
 **Files:** `ports/freertos/profile_task_switch.c` (the hook), `ports/qemu_mps2/FreeRTOSConfig.h` and prism-stm32's `boards/stm32h7b3i_dk/FreeRTOSConfig.h` (`#define traceTASK_SWITCHED_IN() prism_profile_task_switched_in()` under `PRISM_PROFILING`), `include/prism/profile/recorder.hpp` (`void task_switched_in(std::uint64_t task_id)` writing into a ring of its own, interrupt-safe: called from PendSV), `tools/prism-trace/chrome_json.cpp` (a "running" `B`/`E` slice per task between its switch-in and the next switch), test in `tests/embedded/profile_qemu`.
 
 - [ ] **Step 1 (vibe): test + stubs:** two tasks alternating; the dump's switch ring names both task ids; the JSON has "running" slices on both tracks. **Step 2 (vibe): implement.** **Step 3 (controller):** QEMU run; board build. **Step 4: Commit** in each repo.
+
+### Task 2b: Call sites (amends Tasks 1–2, before the format is used by any tool)
+
+A mark points at a per-call-site `static constexpr Site`, not at a bare name, so the trace also
+carries function, file and line, and a name that is not a constant expression cannot compile.
+
+**Files:** `include/prism/profile/recorder.hpp`, `include/prism/profile/profile.hpp`,
+`include/prism/profile/trace_format.hpp`, `include/prism/profile/dump.hpp`, `src/profile/*.cpp`,
+`tests/test_profile_recorder.cpp`, `tests/test_profile_dump.cpp`, `tests/test_profile_macros_off.cpp`
+
+**Interfaces:**
+- `struct Site { const char* name; const char* function; const char* file; std::uint32_t line; };`
+  built `static constexpr` by each macro from `std::source_location::current()`.
+- `Event::site` (`const Site*`) replaces `Event::name`; `Recorder::begin/end/instant/counter` take
+  `const Site&`; `frame()` uses a `Site` of its own.
+- The names chunk becomes a sites chunk: per distinct site, pointer (u64), line (u32), then
+  name, function, file (each len u16 + bytes). Same per-events-chunk dedup (R2). Format
+  version stays 1 (nothing has been released).
+
+- [ ] **Step 1 (vibe): tests + stubs:** recorder and dump tests rewritten on sites; a test that a
+  dumped site carries its line and file; `test_profile_macros_off` unchanged in intent.
+- [ ] **Step 2 (vibe): implement.** **Step 3 (controller):** suites as in Task 1.
+  **Step 4: Commit** `feat(profile): marks point at call sites (name, function, file, line)`.
+
+### Task 8: PC sampling on Cortex-M (after Task 7)
+
+A timer interrupt reads the interrupted code's PC from the exception frame and counts it in a
+histogram over `.text`; the dump carries it; `prism-trace` names the buckets from the ELF.
+No marks needed: it shows where time goes that nobody marked, interrupt handlers and idle
+included. Microcontroller only (on a desktop, `perf` does this better).
+
+**Files:** `include/prism/profile/sampler.hpp` (`class Sampler(std::span<std::uint16_t> buckets,
+std::uintptr_t text_begin, std::uintptr_t text_end, unsigned shift)`; `void sample(std::uintptr_t
+pc)` — interrupt-safe, saturating, out-of-range PCs counted apart; `pause/resume`),
+`trace_format.hpp` (chunk `pc_histogram`: text begin u64, shift u8, out-of-range u32, counts),
+`dump.hpp` (optional sampler argument), `ports/freertos/profile_sampler.c` (a timer ISR at the
+highest priority reading the stacked PC from MSP/PSP per EXC_RETURN), `tools/prism-trace`
+(`--elf firmware.elf`: symbols via pyelftools or `arm-none-eabi-nm`; a "top functions" text
+report), prism-stm32: TIM at 10 kHz, 64-byte buckets.
+
+- [ ] **Step 1 (vibe): tests + stubs:** host test of `Sampler` (bucketing, saturation, out of
+  range, dump chunk round trip); QEMU firmware: a busy loop in a known function dominates the
+  histogram. **Step 2 (vibe): implement.** **Step 3 (controller):** suites, QEMU run, board
+  build. **Step 4 (user):** a board capture. **Step 5: Commit** in each repo.

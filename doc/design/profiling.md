@@ -66,7 +66,10 @@ prism::profile::name_thread("render");      // once per thread
 prism::profile::dump(stream);               // io::ByteStream: write everything recorded so far
 ```
 
-Names are string literals: a mark records the pointer, never copies or formats. The macros exist
+A mark records one pointer: each macro builds a `static constexpr` call site (name, function,
+file, line, from `std::source_location`) and the event points at it; nothing is copied, hashed
+or formatted. A name that is not a constant expression does not compile. The dump sends each
+site's strings once, so the host needs no ELF. The macros exist
 for one reason, compiling to nothing when profiling is off without evaluating their arguments;
 each forwards to an inline function when on.
 
@@ -140,6 +143,14 @@ and the tool, so they cannot drift.
 `WidgetTree` publish (layout, recording dirty widgets, flatten), the rasterizer (per draw-list,
 and text), `model_app` on the desktop; counters for heap and CPU where the platform reports them.
 
+### PC sampling (microcontroller, later)
+
+A timer interrupt at the highest priority reads the interrupted code's PC from the exception
+frame the CPU pushed and counts it in a histogram over `.text` (16-bit buckets of 64 bytes:
+1/32 of the code size). The dump carries the histogram; `prism-trace` names the buckets from
+the firmware's ELF. It shows where time goes that no mark covers, interrupt handlers and the
+idle task included; no call stacks. On a desktop, `perf` does this better: not built there.
+
 ## Order
 
 1. Recorder, API, build switch, desktop file dump, `prism-trace`, Perfetto check by hand.
@@ -147,6 +158,7 @@ and text), `model_app` on the desktop; counters for heap and CPU where the platf
 3. Cortex-M7 clock, QEMU test (record, dump over semihosting, convert), the board's UART stream,
    a traced scope run on the real board.
 4. FreeRTOS task-switch events.
+5. PC sampling on Cortex-M.
 
 ## Left to the builder
 
