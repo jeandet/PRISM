@@ -34,13 +34,13 @@ volatile std::uint32_t& reg(std::uintptr_t addr)
     return *reinterpret_cast<volatile std::uint32_t*>(addr);
 }
 
-// Unlock the DWT (the M7's LAR), let CoreDebug run the trace units, then clear and start
-// the cycle counter.
+// Turn trace on first (CoreDebug DEMCR.TRCENA): on an M7 the DWT ignores its unlock while
+// trace is off. Then unlock it (LAR) and start the cycle counter -- without resetting it, so a
+// debugger already using it is not disturbed.
 void dwt_start()
 {
-    reg(dwt_lar_addr) = dwt_lar_key;
     reg(demcr_addr) |= demcr_trcena;
-    reg(dwt_cyccnt_addr) = 0;
+    reg(dwt_lar_addr) = dwt_lar_key;
     reg(dwt_ctrl_addr) |= dwt_cyccntena;
 }
 

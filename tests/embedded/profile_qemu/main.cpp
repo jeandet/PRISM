@@ -123,6 +123,9 @@ void check_ticks(std::string_view thread_name, const Recorder::ThreadView &tv) {
 void profile_test_task(void *) {
     std::setvbuf(stdout, nullptr, _IONBF, 0); // one _write per printf: whole lines
     qemu_log("PRISM profile round trip in QEMU (mps2-an500)\n");
+    // Which clock runs: configCPU_CLOCK_HZ means the DWT cycle counter, 1000000 the µs fallback.
+    std::printf("profile clock: %llu ticks per second\n",
+                static_cast<unsigned long long>(prism::platform::profile_ticks_per_second()));
 
     // Two tasks, each marking kBlocks nested blocks into its own ring.
     std::thread worker0([] {
