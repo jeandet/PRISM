@@ -555,12 +555,11 @@ TEST_CASE("garbage bytes before the sync marker and after the end chunk are igno
     r.frame();
     const auto bytes = dumped(r);
 
-    std::vector<std::byte> noisy;
-    for (int i = 0; i < 10; ++i)
-        noisy.push_back(std::byte{0xAB}); // garbage before the sync marker
-    noisy.insert(noisy.end(), bytes.begin(), bytes.end());
-    for (int i = 0; i < 7; ++i)
-        noisy.push_back(std::byte{0x00}); // garbage after the end chunk
+    // 10 bytes of garbage before the sync marker, 7 after the end chunk. Sized up front: GCC 14
+    // warns (stringop-overflow, a false positive) on growing the vector with insert().
+    std::vector<std::byte> noisy(10 + bytes.size() + 7, std::byte{0x00});
+    std::fill_n(noisy.begin(), 10, std::byte{0xAB});
+    std::ranges::copy(bytes, noisy.begin() + 10);
 
     const Trace trace = read_trace(noisy);
     CHECK(trace.warnings.empty());

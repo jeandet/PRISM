@@ -449,7 +449,7 @@ TEST_CASE("marks during a dump are dropped and resume after")
 
     const ParsedDump d = parse_dump(out.bytes());
     CHECK(d.thread_count == 2);
-    REQUIRE(d.event_chunks.size() == 2);
+    REQUIRE(d.event_chunks.size() >= 2); // a chunk holds at most 4096 events: the marker may need several
     std::map<std::uint64_t, std::vector<ParsedEvent>> by_thread;
     std::size_t dumped_total = 0;
     for (const auto& chunk : d.event_chunks) {
@@ -461,6 +461,7 @@ TEST_CASE("marks during a dump are dropped and resume after")
         acc.insert(acc.end(), chunk.second.begin(), chunk.second.end());
         dumped_total += chunk.second.size();
     }
+    CHECK(by_thread.size() == 2);
     CHECK(dumped_total >= 2); // "before" on main, at least one "spin" on the marker
 
     // The dumped events are what the rings held at the pause -- a prefix of the rings now --
