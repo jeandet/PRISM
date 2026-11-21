@@ -4,6 +4,12 @@
 
 #include <string>
 
+#if defined(__APPLE__)
+#include <IOKit/serial/ioss.h>
+#include <sys/ioctl.h>
+#include <cerrno>
+#endif
+
 // Each stream owns its io_context and runs it only inside its own calls: a blocking API, with a
 // timeout made the way Asio's blocking_tcp_client example does -- start the operation, run the
 // context for at most the timeout, and cancel what is still pending.
@@ -134,6 +140,23 @@ void TcpListener::close() {
     impl_->acceptor.close(ignored);
 }
 
+// macOS's termios stops at B230400, so Asio refuses 921600 and up; IOSSIOSPEED sets any rate
+// (what pyserial does). It must come after the other options: tcsetattr would reset the speed.
+namespace {
+std::error_code set_baud(asio::serial_port& port, unsigned baud) {
+    std::error_code ec;
+    port.set_option(asio::serial_port_base::baud_rate(baud), ec);
+#if defined(__APPLE__)
+    if (ec == asio::error::invalid_argument) {
+        speed_t speed = baud;
+        if (::ioctl(port.native_handle(), IOSSIOSPEED, &speed) == -1) return {errno, std::system_category()};
+        return {};
+    }
+#endif
+    return ec;
+}
+} // namespace
+
 // --- SerialPort ----------------------------------------------------------------------------------
 
 struct SerialPort::Impl {
@@ -153,11 +176,11 @@ std::expected<SerialPort, std::error_code> SerialPort::open(std::string_view dev
     std::error_code ec;
     impl->port.open(std::string(device), ec);
     using sp = asio::serial_port_base;
-    if (!ec) impl->port.set_option(sp::baud_rate(options.baud), ec);
     if (!ec) impl->port.set_option(sp::character_size(8), ec);
     if (!ec) impl->port.set_option(sp::parity(sp::parity::none), ec);
     if (!ec) impl->port.set_option(sp::stop_bits(sp::stop_bits::one), ec);
     if (!ec) impl->port.set_option(sp::flow_control(sp::flow_control::none), ec);
+    if (!ec) ec = set_baud(impl->port, options.baud);
     if (ec) return failure(ec);
     return SerialPort{std::move(impl)};
 }

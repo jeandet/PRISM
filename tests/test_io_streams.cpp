@@ -9,11 +9,16 @@
 #include <string>
 #include <thread>
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 #include <fcntl.h>
-#include <pty.h>
 #include <termios.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <util.h>
+#else
+#include <pty.h>
+#endif
+#define PRISM_TEST_PTY 1
 #endif
 
 using namespace prism;
@@ -71,7 +76,7 @@ TEST_CASE("nothing listening: connect fails; accept with nobody coming times out
     CHECK_FALSE(io::TcpStream::connect("127.0.0.1", free_port, {.connect_timeout = 500ms}));
 }
 
-#if defined(__linux__)
+#if defined(PRISM_TEST_PTY)
 TEST_CASE("a serial port reads and writes lines (a pseudo-terminal stands in for the device)") {
     int controller = -1;
     int device = -1;
@@ -101,6 +106,18 @@ TEST_CASE("a serial port reads and writes lines (a pseudo-terminal stands in for
     CHECK(lines.read_line().error() == std::errc::timed_out);   // and then silence
 
     port->close();
+    ::close(device);
+    ::close(controller);
+}
+
+// macOS's termios has no B921600, so Asio refuses the rate the profiler's dump uses.
+TEST_CASE("a serial port opens at 921600 baud") {
+    int controller = -1;
+    int device = -1;
+    char name[128]{};
+    REQUIRE(openpty(&controller, &device, name, nullptr, nullptr) == 0);
+    const auto port = io::SerialPort::open(name, {.baud = 921600});
+    CHECK(port.has_value());
     ::close(device);
     ::close(controller);
 }
