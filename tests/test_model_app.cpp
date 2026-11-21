@@ -130,10 +130,9 @@ TEST_CASE("model_app routes MouseButton to Field<bool> toggle") {
             auto [id, rect] = geo->geometry[0];
             auto center = rect.center();
 
+            auto before = count.load(std::memory_order_acquire); // before the click: its publish may land before cb returns
             cb(prism::WindowEvent{window_.id(), prism::MouseButton{center, 1, true}});
             cb(prism::WindowEvent{window_.id(), prism::MouseButton{center, 1, false}});   // a click lands on release
-
-            auto before = count.load(std::memory_order_acquire);
             count.wait(before, std::memory_order_acquire);
 
             cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
@@ -186,9 +185,8 @@ TEST_CASE("model_app pushes a hovered TextField's cursor to the window") {
             REQUIRE_FALSE(geo->geometry.empty());
             auto [id, rect] = geo->geometry[0];
 
+            auto before = count.load(std::memory_order_acquire); // before the event: its publish may land before cb returns
             cb(prism::WindowEvent{window_.id(), prism::MouseMove{rect.center()}});
-
-            auto before = count.load(std::memory_order_acquire);
             count.wait(before, std::memory_order_acquire);
 
             cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
@@ -694,9 +692,11 @@ TEST_CASE("Shared<T> drain fires observer during model_app event loop") {
         void run(std::function<void(const prism::WindowEvent&)> cb) override {
             // Wait for initial publish
             count.wait(0, std::memory_order_acquire);
-            // Send a resize to trigger another event loop tick (drain happens each tick)
-            cb(prism::WindowEvent{window_.id(), prism::WindowResize{800, 600}});
+            // Send a resize to trigger another event loop tick (drain happens each tick). The
+            // count is read before the resize: its publish runs on the logic thread and may
+            // land before cb returns, and a count read after it would wait for one more forever.
             auto before = count.load(std::memory_order_acquire);
+            cb(prism::WindowEvent{window_.id(), prism::WindowResize{800, 600}});
             count.wait(before, std::memory_order_acquire);
             cb(prism::WindowEvent{window_.id(), prism::WindowClose{}});
         }
