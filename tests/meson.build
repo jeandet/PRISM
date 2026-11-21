@@ -211,6 +211,34 @@ test('frame_app', executable('test_frame_app', files('test_frame_app.cpp'),
   dependencies : [prism_platform_dep, doctest_dep],
 ), timeout : 30)
 
+# The shared board apps (examples/embedded/), moved from prism-stm32: their doctest tests, on
+# prism_embedded_apps_dep (which carries the examples/ include directory, PRISM's core and
+# CMSIS-DSP, the scope's FFT).
+foreach name, src : {
+  'embedded_apps_spectrum' : files('test_embedded_apps_spectrum.cpp'),
+  'embedded_apps_synthetic_source' : files('test_embedded_apps_synthetic_source.cpp'),
+}
+  test(name, executable('test_' + name, src,
+    dependencies : [prism_embedded_apps_dep, doctest_dep]))
+endforeach
+
+# The two that build a widget snapshot also need the rasterizer (a text measurer for the tree).
+foreach name, src : {
+  'embedded_apps_audio_scope' : files('test_embedded_apps_audio_scope.cpp'),
+  'embedded_apps_widgets_app' : files('test_embedded_apps_widgets_app.cpp'),
+}
+  test(name, executable('test_' + name, src,
+    dependencies : [prism_embedded_apps_dep, prism_raster_dep, doctest_dep]))
+endforeach
+
+# attach_widgets and attach_scope under the frame runtime (platform library); the test defines
+# the two hooks the runtime reads (allocation_count, system_counters) itself. A hang must fail
+# the test, not stall the suite.
+test('embedded_apps_frame_hooks', executable('test_embedded_apps_frame_hooks',
+  files('test_embedded_apps_frame_hooks.cpp'),
+  dependencies : [prism_embedded_apps_dep, prism_platform_dep, doctest_dep],
+), timeout : 30)
+
 # The profile recorder (include/prism/profile/recorder.hpp) and its clock: libprism only, no SDL.
 test('profile_recorder', executable('test_profile_recorder', files('test_profile_recorder.cpp'),
   dependencies : [prism_core_dep, doctest_dep],

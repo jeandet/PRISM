@@ -112,6 +112,12 @@ freertos_port_on = get_option('freertos_port').enabled() or (get_option('freerto
 
 subdir('src')
 
+# The shared board apps (examples/embedded/): built on every target, bare metal ('none')
+# included (doc/design/esp32-port.md, "Shared apps move into PRISM"), so this sits outside the
+# sdl block. It defines prism_embedded_apps_dep, which tests/ below reads and the board
+# repositories get through subproject('prism').get_variable('prism_embedded_apps_dep').
+subdir('examples/embedded')
+
 # The prism-trace host tool (tools/prism-trace, doc/design/profiling.md): reads a profile dump
 # and writes Chrome trace-event JSON. Hosted only -- bare metal has no host to run a tool on.
 # Its library also backs tests/test_prism_trace.cpp, so this comes before subdir('tests').
