@@ -129,6 +129,32 @@ The profiler's clock (`prism::platform::profile_ticks()`) for this target: the R
 counter through ESP-IDF's `esp_cpu_get_cycle_count()`, extended to 64 bits as on the M7, in
 prism-esp32 (the board owns it: ports/freertos's M7 clock does not apply).
 
+## Using it (decided: as friendly as it can be)
+
+The person holding the board should go from a fresh clone to a running demo without installing
+ESP-IDF or knowing it exists.
+
+- **Flash without building.** CI builds both firmwares and publishes them (an artifact on every
+  run, a GitHub release when tagged), each as one merged image written at address 0. Flash it
+  from the browser (Espressif's web flasher, nothing to install, works on macOS, Linux and
+  Windows) or with `esptool.py write_flash 0x0 <file>` (`pip install esptool`).
+- **Build with one command.** `scripts/build.sh` runs ESP-IDF from the repository's container
+  image (the pinned commit is baked in, as prism-stm32's toolchain is) and leaves
+  `build/widgets.bin` and `build/scope.bin`, the same merged images. Docker or Podman is the only
+  requirement; nothing on the host knows ESP-IDF. Developers who already have ESP-IDF can run
+  `idf.py build` directly.
+- **Flash from the host, not the container.** USB does not reach a container on macOS, so
+  flashing is always the host's step (the web flasher, or `esptool.py`), never `idf.py flash`
+  inside Docker. `scripts/flash.sh` wraps `esptool.py` and finds the board's port itself.
+- **Read the console with anything.** UART0 at 115200 for logs (any serial terminal, or the web
+  flasher's console). The profiler's dump shares the port at 921600: `prism-trace` switches
+  the speed itself.
+- **The README is the manual:** what the board is, which image does what, flash, see the console,
+  take a trace; screenshots of both apps. Every error the board can print on the console says
+  what to do next (e.g. "no PSRAM found: is this a WROOM-3 module?").
+- **An app is a model and a view**, as on the desktop: the README shows the one place a new app
+  is added (`main/`), and the same app source builds for the desktop and the STM32.
+
 ## Risks
 
 - **Frame rate.** 800×480 is 2.9× the STM32's pixels, drawn into PSRAM. The STM32 spends
