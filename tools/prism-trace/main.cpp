@@ -194,8 +194,12 @@ int main(int argc, char** argv)
     std::size_t events = 0;
     for (const prism_trace::Trace::Thread& thread : trace.threads)
         events += thread.events.size();
+    // ticks_per_second says which clock the device recorded with: its CPU clock when the DWT
+    // cycle counter ran (280000000 on the STM32H7B3I-DK), 1000000 for the microsecond fallback
+    // (QEMU, where the DWT does not count). Exact in the double, so print it as an integer.
     std::cerr << "prism-trace: " << trace.threads.size() << " threads, " << events << " events, "
-              << trace.warnings.size() << " warning(s), " << trace.sites.size() << " sites\n";
+              << trace.warnings.size() << " warning(s), " << trace.sites.size() << " sites, "
+              << static_cast<std::uint64_t>(trace.ticks_per_second) << " ticks/s\n";
 
     const std::string json = prism_trace::to_chrome_json(trace);
     if (output_path.empty()) {
