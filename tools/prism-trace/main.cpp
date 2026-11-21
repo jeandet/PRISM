@@ -79,8 +79,9 @@ bool ends_with_end_chunk(std::span<const std::byte> bytes)
     return crc == end_crc;
 }
 
-// Reads until the dump's end chunk has arrived, the port closes, or 5 s pass without bytes
-// (the port's read timeout): the device gone quiet means the dump is over.
+// Waits as long as it takes for the first byte (the user presses the board's button after
+// starting this), then reads until the dump's end chunk has arrived, the port closes, or 5 s
+// pass without bytes (the port's read timeout): the device gone quiet means the dump is over.
 std::expected<std::vector<std::byte>, std::error_code> read_serial(std::string_view device, unsigned baud)
 {
     prism::io::SerialPort::Options options;
@@ -94,8 +95,10 @@ std::expected<std::vector<std::byte>, std::error_code> read_serial(std::string_v
     for (;;) {
         auto got = port->read_some(std::span{buf});
         if (!got) {
+            if (got.error() == std::errc::timed_out && bytes.empty())
+                continue; // nothing sent yet: keep waiting
             if (got.error() == std::errc::timed_out)
-                return bytes; // 5 s of silence
+                return bytes; // 5 s of silence after the dump started
             return std::unexpected(got.error());
         }
         if (*got == 0)
@@ -163,6 +166,8 @@ int main(int argc, char** argv)
     std::vector<std::byte> bytes;
     if (prism_trace::is_serial_path(input)) {
 #if defined(PRISM_TRACE_HAS_IO)
+        std::cerr << "prism-trace: waiting for a dump on " << input
+                  << " (press the board's button; Ctrl-C to quit)\n";
         auto read = read_serial(input, baud);
         if (!read) {
             std::cerr << "prism-trace: " << input << ": " << read.error().message() << '\n';
