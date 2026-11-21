@@ -3,6 +3,7 @@
 #include "sdl_webgpu.hpp"
 #include <prism/backends/font_lookup.hpp>
 #include <prism/core/utf8.hpp>
+#include <prism/profile/profile.hpp>
 #include <prism/ui/window_chrome.hpp>
 
 #include <cassert>
@@ -249,6 +250,7 @@ void SoftwareBackend::show_platform_requests() {
 }
 
 void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
+    prism::profile::name_thread("render");   // this thread renders and presents
     // Every event carries the frame on screen when it was read (WindowEvent::shown), so the
     // app hit-tests it against what the user saw. last_presented_ is only touched on this
     // thread (presents and drain_close_requests), so reading it here needs no lock.
@@ -620,7 +622,10 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                 }
                 if (win) {
                     const auto t0 = FramePacer::clock::now();
-                    win->render_snapshot(*snap, fonts_);
+                    {
+                        PRISM_PROFILE_SCOPE("draw");   // render_snapshot draws, then presents
+                        win->render_snapshot(*snap, fonts_);
+                    }
                     const auto t1 = FramePacer::clock::now();
                     {
                         std::lock_guard<std::mutex> lk(windows_mutex_);
@@ -636,6 +641,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                         }
                     }
                     presented_any = true;
+                    PRISM_PROFILE_FRAME();   // one presented frame
                 }
             }
             if (presented_any && pacer_) pacer_->mark_presented(now);

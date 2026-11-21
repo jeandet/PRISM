@@ -139,6 +139,7 @@ struct LabConfig {
     double rate_hz = 1000.0;
     int headless_seconds = 0;  // 0 = interactive
     std::string svg_path;      // positional arg: one-frame SVG capture (showcase convention)
+    std::string trace_path;    // --trace FILE: dump the profile marks there at exit
 };
 
 // Parses args excluding argv[0]; nullopt on any malformed or unknown input.
@@ -174,6 +175,9 @@ inline std::optional<LabConfig> parse_lab_args(const std::vector<std::string>& a
                 if (*v > INT_MAX) return std::nullopt; // would narrow UB-ishly into int
                 cfg.headless_seconds = static_cast<int>(*v);
             }
+        } else if (a == "--trace") {
+            if (i + 1 >= args.size()) return std::nullopt;
+            cfg.trace_path = args[++i];
         } else if (a == "--rate") {
             if (i + 1 >= args.size()) return std::nullopt;
             const auto v = parse_positive_double(args[++i]);

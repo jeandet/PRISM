@@ -1,5 +1,6 @@
 #include <cstring>
 #include <prism/backends/sdl_window.hpp>
+#include <prism/profile/profile.hpp>
 #include "sdl_webgpu.hpp"
 #include <prism/render/shape_mesh.hpp>
 #include "sdl_platform.hpp"
@@ -349,10 +350,14 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, bo
     // Text shown in neither this frame nor the previous one is released.
     text_cache_.end_frame(2, [](const CachedText& t) { SDL_DestroyTexture(t.texture); });
     image_cache_.end_frame(2, [](SDL_Texture* t) { SDL_DestroyTexture(t); });
-    if (present) SDL_RenderPresent(renderer_);
+    if (present) {
+        PRISM_PROFILE_SCOPE("present");
+        SDL_RenderPresent(renderer_);
+    }
 }
 
 void SdlWindow::render_draw_list(const DrawList& dl, SdlFontSet& fonts) {
+    PRISM_PROFILE_SCOPE("draw list");   // one draw list
     for (const auto& cmd : dl.commands) {
         std::visit([this, &fonts](const auto& c) {
             if constexpr (std::is_same_v<std::decay_t<decltype(c)>, TextCmd>)
@@ -387,6 +392,7 @@ void SdlWindow::render_cmd(const RectOutline& cmd) {
 void SdlWindow::render_cmd(const TextCmd& cmd, SdlFontSet& fonts) {
     if (cmd.text.empty()) return;
 
+    PRISM_PROFILE_SCOPE("text");
     // Rasterize at the true backing resolution (cmd.size is in points) and shrink the
     // destination rect back down by the same factor below -- SDL_SetRenderScale then
     // stretches it back to exactly the glyph bitmap's native size, instead of upscaling a

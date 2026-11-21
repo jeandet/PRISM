@@ -241,6 +241,18 @@ test('prism_trace', executable('test_prism_trace', files('test_prism_trace.cpp')
   dependencies : [prism_trace_dep, prism_core_dep, doctest_dep, glaze_dep],
 ))
 
+# PRISM's own marks (doc/design/profiling.md, "Marks PRISM places itself"): a frame_app run leaves
+# a "logic" thread with "snapshot" blocks and a "render" thread with "draw"/"present" blocks on
+# the global recorder (tests/test_profile_marks.cpp). Only with -Dprofiling=enabled --
+# profiling_enabled is set in the top-level meson.build, and global() (src/profile/global.cpp)
+# is compiled into libprism only then -- so the test is registered only there. It links the
+# frame runtime, like test_frame_app, and defines the platform hooks itself.
+if profiling_enabled
+  test('profile_marks', executable('test_profile_marks', files('test_profile_marks.cpp'),
+    dependencies : [prism_platform_dep, doctest_dep],
+  ), timeout : 30)
+endif
+
 test_data_studio = executable('test_data_studio', files('test_data_studio.cpp'),
   dependencies : [prism_core_dep, doctest_dep, dependency('sqlite3', fallback : ['sqlite3', 'sqlite3_dep'])],
 )

@@ -7,6 +7,7 @@
 #include <prism/app/table_paint.hpp>
 #include <prism/input/hit_test.hpp>
 #include <prism/core/list.hpp>
+#include <prism/profile/profile.hpp>
 #include <prism/ui/dock.hpp>
 #include <prism/ui/popup_place.hpp>
 #include <prism/ui/table_ops.hpp>
@@ -452,9 +453,13 @@ void WidgetTree::build_snapshot(SceneSnapshot& out, float w, float h, uint64_t v
     // dirty flag itself (only clear_dirty(), called by the caller after publish,
     // does), so this reflects exactly what changed since the last publish.
     assert(widget_detail::marks_consistent(root_) && "a widget node was put in the tree without adopt()");
-    std::size_t dirty_widgets = count_dirty(root_);
-    refresh_dirty(root_);
-    materialize_all_virtual_lists(root_);
+    std::size_t dirty_widgets;
+    {
+        PRISM_PROFILE_SCOPE("record dirty");
+        dirty_widgets = count_dirty(root_);
+        refresh_dirty(root_);
+        materialize_all_virtual_lists(root_);
+    }
 
     std::optional<PopupLayout> popup;   // the open popup's content, laid out by do_layout
     bool viewport_moved = false;   // a list's viewport, which its rows were materialized for
@@ -504,34 +509,38 @@ void WidgetTree::build_snapshot(SceneSnapshot& out, float w, float h, uint64_t v
         return layout;
     };
 
-    LayoutNode layout = do_layout();
     std::size_t layout_passes = 1;
-
-    // Tables and virtual lists depend on viewport sizes set by update_scroll_state,
-    // itself only known after this arrange pass -- on the first frame (or any real
-    // resize) they were materialized against a stale/zero viewport, producing wrong
-    // cell positions. Re-materialize and re-layout only when a viewport actually
-    // changed, not on any unrelated dirty flag elsewhere in the tree: every publish
-    // that touches a VirtualList/Table freshly rebinds its visible rows (marking them
-    // dirty regardless of whether their viewport moved), so gating on check_dirty()
-    // reran this whole second pass on every single publish for any app using one.
-    // A split's first layout uses its stored sizes, then fits them to its space; one nested in
-    // another can only fit once its parent has. Each level takes a pass, hence the loop.
-    constexpr int kMaxSettlePasses = 4;
-    for (int pass = 0; viewport_moved && pass < kMaxSettlePasses; ++pass) {
-        materialize_all_virtual_lists(root_);
+    LayoutNode layout;
+    {
+        PRISM_PROFILE_SCOPE("layout");
         layout = do_layout();
-        ++layout_passes;
-    }
 
-    // A widget whose height follows its width (a wrapped label) learns its height only
-    // once placed: lay out again with it, so it shows right in this frame, not the next.
-    if (update_canvas_bounds(layout, Size{Width{w}, Height{h}})) {
-        layout = do_layout();
-        ++layout_passes;
-        update_canvas_bounds(layout, Size{Width{w}, Height{h}});
+        // Tables and virtual lists depend on viewport sizes set by update_scroll_state,
+        // itself only known after this arrange pass -- on the first frame (or any real
+        // resize) they were materialized against a stale/zero viewport, producing wrong
+        // cell positions. Re-materialize and re-layout only when a viewport actually
+        // changed, not on any unrelated dirty flag elsewhere in the tree: every publish
+        // that touches a VirtualList/Table freshly rebinds its visible rows (marking them
+        // dirty regardless of whether their viewport moved), so gating on check_dirty()
+        // reran this whole second pass on every single publish for any app using one.
+        // A split's first layout uses its stored sizes, then fits them to its space; one nested in
+        // another can only fit once its parent has. Each level takes a pass, hence the loop.
+        constexpr int kMaxSettlePasses = 4;
+        for (int pass = 0; viewport_moved && pass < kMaxSettlePasses; ++pass) {
+            materialize_all_virtual_lists(root_);
+            layout = do_layout();
+            ++layout_passes;
+        }
+
+        // A widget whose height follows its width (a wrapped label) learns its height only
+        // once placed: lay out again with it, so it shows right in this frame, not the next.
+        if (update_canvas_bounds(layout, Size{Width{w}, Height{h}})) {
+            layout = do_layout();
+            ++layout_passes;
+            update_canvas_bounds(layout, Size{Width{w}, Height{h}});
+        }
+        if (popup) update_canvas_bounds(popup->content, Size{Width{w}, Height{h}});
     }
-    if (popup) update_canvas_bounds(popup->content, Size{Width{w}, Height{h}});
     adopt_popup(root_);
 
     out.clear();
@@ -539,9 +548,12 @@ void WidgetTree::build_snapshot(SceneSnapshot& out, float w, float h, uint64_t v
     snap->version = version;
     snap->window = window_colors;
     snap->viewport = Size{Width{w}, Height{h}};
-    layout_flatten(layout, *snap);
-    resolve_clips(*snap, clip_scratch_);
-    if (popup) flatten_popup(*popup, *snap, theme_);
+    {
+        PRISM_PROFILE_SCOPE("flatten");
+        layout_flatten(layout, *snap);
+        resolve_clips(*snap, clip_scratch_);
+        if (popup) flatten_popup(*popup, *snap, theme_);
+    }
     if (highlight_id_) {
         for (auto& [id, rect] : snap->geometry) {
             if (id == *highlight_id_) {

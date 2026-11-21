@@ -2,6 +2,7 @@
 
 #include <prism/raster/fonts.hpp>
 
+#include <prism/profile/profile.hpp>
 #include <prism/render/draw_list.hpp>
 
 #include <cstdint>
@@ -23,8 +24,10 @@ void draw_list(Canvas& canvas, const DrawList& dl, const Fonts& fonts) {
             } else if constexpr (std::is_same_v<K, RectOutline>) {
                 canvas.rect_outline(c.rect, c.color, c.thickness);
             } else if constexpr (std::is_same_v<K, TextCmd>) {
-                if (!c.text.empty())
+                if (!c.text.empty()) {
+                    PRISM_PROFILE_SCOPE("text");
                     canvas.text(fonts, c.text, c.origin, c.size, c.color, c.angle, c.anchor, c.font);
+                }
             } else if constexpr (std::is_same_v<K, ClipPush>) {
                 canvas.push_clip(c.rect);
             } else if constexpr (std::is_same_v<K, ClipPop>) {
@@ -51,10 +54,16 @@ void draw_list(Canvas& canvas, const DrawList& dl, const Fonts& fonts) {
 void draw(Canvas& canvas, const SceneSnapshot& snap, const Fonts& fonts) {
     for (std::uint32_t idx : snap.z_order) {
         if (idx >= snap.draw_lists.size()) continue;   // defensive: a malformed snapshot
-        if (snap.draw_lists[idx]) draw_list(canvas, *snap.draw_lists[idx], fonts);
+        if (snap.draw_lists[idx]) {
+            PRISM_PROFILE_SCOPE("draw list");
+            draw_list(canvas, *snap.draw_lists[idx], fonts);
+        }
     }
     canvas.reset_clip();   // the overlay is rendered last, on top, with no clip
-    draw_list(canvas, snap.overlay, fonts);
+    {
+        PRISM_PROFILE_SCOPE("draw list");   // the overlay is a draw list too
+        draw_list(canvas, snap.overlay, fonts);
+    }
 }
 
 } // namespace prism::raster

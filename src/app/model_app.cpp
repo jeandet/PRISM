@@ -6,6 +6,7 @@
 #include <prism/app/event_routing.hpp>
 #include <prism/core/error_hub.hpp>
 #include <prism/core/logic_thread.hpp>
+#include <prism/profile/profile.hpp>
 #include <prism/ui/context.hpp>
 
 #include <algorithm>
@@ -139,7 +140,10 @@ void AppContext::schedule_drain() {
 
 void AppContext::drain_queue() {
     apply_wrapper(logic_wrapper_, [&] {
-        run_mutations(take_queued());
+        {
+            PRISM_PROFILE_SCOPE("update hooks");   // the queued work one loop turn runs
+            run_mutations(take_queued());
+        }
         run_publish_tail();
         scheduled_->store(false, std::memory_order_release);
         if (!queue_->empty()) schedule_drain();
@@ -267,10 +271,13 @@ void AppRun::on_inspector_hotkey(const KeyPress& kp) {
 #endif
 
 void AppRun::publish_entry(WindowId id, WindowRegistry::Entry& entry) {
-    entry.current_snap = std::shared_ptr<const SceneSnapshot>(
-        entry.tree->build_snapshot(static_cast<float>(entry.width),
-                                    static_cast<float>(entry.height),
-                                    ++entry.version));
+    {
+        PRISM_PROFILE_SCOPE("snapshot");
+        entry.current_snap = std::shared_ptr<const SceneSnapshot>(
+            entry.tree->build_snapshot(static_cast<float>(entry.width),
+                                        static_cast<float>(entry.height),
+                                        ++entry.version));
+    }
     backend_.submit(id, entry.current_snap);
     backend_.wake();
     // A field set while the frame was built (a board's fit, made in its layout) gets the next
@@ -359,6 +366,7 @@ void AppRun::arm_deadlines() {
 }
 
 void AppRun::logic_main(std::function<void(AppContext&)> setup) {
+    prism::profile::name_thread("logic");
     detail_is_logic_thread() = true;
     core::logic_thread.store(std::this_thread::get_id());
     backend_.wait_ready();
@@ -384,7 +392,10 @@ void AppRun::logic_main(std::function<void(AppContext&)> setup) {
         schedule_tick();
     }
 
-    loop_.run();
+    {
+        PRISM_PROFILE_SCOPE("logic loop");
+        loop_.run();
+    }
     core::logic_thread.store(std::thread::id{});   // the model is the caller's again
 }
 

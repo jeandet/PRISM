@@ -1,5 +1,6 @@
 #include <prism/prism.hpp>
 #include <prism/widgets/plot.hpp>
+#include <prism/profile/dump.hpp>
 #include "../showcase/showcase_common.hpp"
 #include "lab_model.hpp"
 #include "headless_lab_backend.hpp"
@@ -126,7 +127,7 @@ static void produce_loop(std::stop_token st, core::Shared<double>& out, double r
 }
 
 static constexpr std::string_view kUsage =
-    "usage: perf_lab [--rows N] [--points N] [--rate HZ] [--headless SECONDS] [capture.svg]";
+    "usage: perf_lab [--rows N] [--points N] [--rate HZ] [--headless SECONDS] [--trace FILE] [capture.svg]";
 
 int main(int argc, char* argv[]) {
     auto cfg = perf_lab::parse_lab_args({argv + 1, argv + argc});
@@ -134,12 +135,33 @@ int main(int argc, char* argv[]) {
         fmt::print(stderr, "{}\n", kUsage);
         return 2;
     }
+#if !defined(PRISM_PROFILING)
+    if (!cfg->trace_path.empty()) {
+        fmt::print(stderr, "perf_lab was built without -Dprofiling=enabled\n");
+        return 2;
+    }
+#endif
+    // --trace FILE: at exit, dump the global recorder's marks to FILE. dump_to_file is
+    // declared only with PRISM_PROFILING, so this one call is the guarded spot (the marks
+    // themselves never are).
+    auto dump_trace = []([[maybe_unused]] const std::string& path) {
+#if defined(PRISM_PROFILING)
+        if (path.empty()) return;
+        if (auto res = prism::profile::dump_to_file(path); res)
+            fmt::print("profile trace written to {}\n", path);
+        else
+            fmt::print(stderr, "profile trace not written to {}: {}\n", path,
+                       res.error().message());
+#endif
+    };
     PerfLab app(cfg->rows, cfg->points);
 
     // One-frame SVG capture (examples convention: positional argv[1] is the output path).
     if (!cfg->svg_path.empty()) {
         app.seed_demo_data();
-        return showcase(argc, argv, app, 1280, 800);
+        const int rc = showcase(argc, argv, app, 1280, 800);
+        dump_trace(cfg->trace_path);
+        return rc;
     }
 
     if (cfg->headless_seconds > 0) {
@@ -175,6 +197,7 @@ int main(int argc, char* argv[]) {
         fmt::print("last frame: dirty {} · cmds {} · {}\n",
                    last.dirty_widgets, last.draw_commands,
                    perf_lab::format_bytes(last.approx_bytes));
+        dump_trace(cfg->trace_path);
         return 0;
     }
 
@@ -187,5 +210,6 @@ int main(int argc, char* argv[]) {
         });
         producer = std::jthread(produce_loop, std::ref(app.telemetry), cfg->rate_hz);
     });
+    dump_trace(cfg->trace_path);
     return 0;
 }

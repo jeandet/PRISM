@@ -13,13 +13,16 @@
 #include <prism/app/widget_tree.hpp>
 #include <prism/core/logic_thread.hpp>
 #include <prism/input/input_event.hpp>
+#include <prism/profile/profile.hpp>
 #include <prism/raster/canvas.hpp>
 #include <prism/raster/draw_snapshot.hpp>
 #include <prism/raster/fonts.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <memory>
@@ -73,6 +76,10 @@ struct Handoff {
     // The timing summary: the render thread adds each finished frame, the logic thread reads
     // a line once a second. Fixed-size, so neither side allocates per frame.
     FrameStats stats{std::chrono::steady_clock::now(), allocation_count(), system_counters()};
+    // The previous stats period's platform counters, and when they were read: the CPU %
+    // profile counter's before/after (only report_stats, on the logic thread, touches these).
+    std::optional<SystemCounters> prev_system;
+    std::chrono::steady_clock::time_point prev_stats_at{};
 };
 
 using Clock = std::chrono::steady_clock;
@@ -130,7 +137,10 @@ void publish(WidgetTree& tree, Handoff& h, core::Size size, std::uint64_t versio
         slot = free_slot(h);
     }
     const auto start = Clock::now();
-    tree.build_snapshot(h.slots[std::size_t(slot)], size.w.raw(), size.h.raw(), version);
+    {
+        PRISM_PROFILE_SCOPE("snapshot");
+        tree.build_snapshot(h.slots[std::size_t(slot)], size.w.raw(), size.h.raw(), version);
+    }
     tree.clear_dirty();
     const auto build_time = since(start);
     {
@@ -161,6 +171,23 @@ void report_stats(Handoff& h, const FrameContext& ctx)
         line = h.stats.tick(Clock::now(), allocation_count(), system);
     }
     if (line) {
+        // Once per stats period (not per frame): heap and CPU as counters on the timeline.
+        if (system) {
+            const std::int32_t heap_kb = static_cast<std::int32_t>(system->heap_used / 1024);
+            PRISM_PROFILE_COUNTER("heap KB", heap_kb);
+            if (h.prev_system) {
+                const auto now = Clock::now();
+                // CPU % over the period: the share of it the idle task did not run (the same
+                // computation the stats line's CPU field makes).
+                const long cpu = std::lround(100.0 * std::clamp(
+                    1.0 - (double(system->idle_us - h.prev_system->idle_us) / 1e6)
+                          / std::chrono::duration<double>(now - h.prev_stats_at).count(),
+                    0.0, 1.0));
+                PRISM_PROFILE_COUNTER("cpu %", static_cast<std::int32_t>(cpu));
+                h.prev_stats_at = now;
+            }
+            h.prev_system = system;
+        }
         ContextAccess::stats(ctx, *line);
     }
 }
@@ -185,21 +212,28 @@ void logic_loop(const RunArgs& a, WidgetTree& tree, const FrameContext& ctx)
 
     const std::stop_token stop = a.stop.get_token();
     std::optional<Point> last_touch;
-    while (!stop.stop_requested()) {
-        route_touch(tree, *a.h, a.touch->read(), last_touch);
-        const auto update_start = Clock::now();
-        ContextAccess::loop(ctx);
-        const auto update_time = since(update_start);
-        report_stats(*a.h, ctx);
-        if (tree.any_dirty() && !snapshot_waiting(*a.h))
-            publish(tree, *a.h, a.size, ++version, update_time);
-        std::this_thread::sleep_for(kPollPeriod);
+    {
+        PRISM_PROFILE_SCOPE("logic loop");
+        while (!stop.stop_requested()) {
+            route_touch(tree, *a.h, a.touch->read(), last_touch);
+            const auto update_start = Clock::now();
+            {
+                PRISM_PROFILE_SCOPE("update hooks");
+                ContextAccess::loop(ctx);
+            }
+            const auto update_time = since(update_start);
+            report_stats(*a.h, ctx);
+            if (tree.any_dirty() && !snapshot_waiting(*a.h))
+                publish(tree, *a.h, a.size, ++version, update_time);
+            std::this_thread::sleep_for(kPollPeriod);
+        }
     }
 }
 
 // The model and the tree belong to this thread while the run lasts; the tree goes with it.
 void logic_main(const RunArgs& a)
 {
+    prism::profile::name_thread("logic");
     core::logic_thread.store(std::this_thread::get_id());
     {
         std::unique_ptr<WidgetTree> tree = (*a.make_tree)();
@@ -215,6 +249,7 @@ void logic_main(const RunArgs& a)
 
 void render_main(const RunArgs& a)
 {
+    prism::profile::name_thread("render");
     Handoff& h = *a.h;
     const int width = int(a.size.w.raw()), height = int(a.size.h.raw());
     // One canvas for the whole run, pointed at each frame's back buffer: it keeps its scratch
@@ -236,10 +271,16 @@ void render_main(const RunArgs& a)
         canvas.retarget(a.sink->back());
         auto start = Clock::now();
         canvas.clear(snap->window.background); // clearing is the caller's job, as with SDL
-        raster::draw(canvas, *snap, *a.fonts);
+        {
+            PRISM_PROFILE_SCOPE("draw");
+            raster::draw(canvas, *snap, *a.fonts);
+        }
         times.draw = since(start);
         start = Clock::now();
-        a.sink->present();
+        {
+            PRISM_PROFILE_SCOPE("present");
+            a.sink->present();
+        }
         times.present = since(start);
         {
             std::lock_guard lock{h.mu};
@@ -247,6 +288,7 @@ void render_main(const RunArgs& a)
             h.drawing = -1;
             h.stats.add(times);
         }
+        PRISM_PROFILE_FRAME(); // one presented frame
     }
 }
 
