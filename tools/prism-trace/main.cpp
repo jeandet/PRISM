@@ -21,7 +21,6 @@
 #include <chrono>
 #endif
 
-#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstddef>
@@ -60,25 +59,6 @@ std::expected<std::vector<std::byte>, std::error_code> read_file(std::string_vie
 
 #if defined(PRISM_TRACE_HAS_IO)
 
-// The dump's end chunk is the last thing the device sends: an empty payload, so its framing is
-// fixed -- type 0x04, length 0, then the CRC-32 of those five bytes. Once the bytes end with
-// that, the dump is complete.
-bool ends_with_end_chunk(std::span<const std::byte> bytes)
-{
-    static constexpr std::array<std::byte, 5> end_head{std::byte{0x04}, std::byte{0}, std::byte{0},
-                                                       std::byte{0}, std::byte{0}};
-    static constexpr std::uint32_t end_crc = prism::profile::crc32(end_head);
-    if (bytes.size() < 9)
-        return false;
-    const std::span<const std::byte> tail = bytes.subspan(bytes.size() - 9);
-    if (!std::equal(end_head.begin(), end_head.end(), tail.begin()))
-        return false;
-    std::uint32_t crc = 0;
-    for (std::size_t i = 0; i < 4; ++i)
-        crc |= static_cast<std::uint32_t>(tail[5 + i]) << (8 * i);
-    return crc == end_crc;
-}
-
 // Waits as long as it takes for the first byte (the user presses the board's button after
 // starting this), then reads until the dump's end chunk has arrived, the port closes, or 5 s
 // pass without bytes (the port's read timeout): the device gone quiet means the dump is over.
@@ -104,7 +84,7 @@ std::expected<std::vector<std::byte>, std::error_code> read_serial(std::string_v
         if (*got == 0)
             return bytes; // the device closed the port
         bytes.insert(bytes.end(), buf.begin(), buf.begin() + static_cast<std::ptrdiff_t>(*got));
-        if (ends_with_end_chunk(bytes))
+        if (prism_trace::dump_complete(bytes))
             return bytes;
     }
 }
@@ -196,15 +176,9 @@ int main(int argc, char** argv)
         std::cerr << "prism-trace: " << input << ": no profile dump found\n";
         return 1;
     }
-    std::size_t events = 0;
-    for (const prism_trace::Trace::Thread& thread : trace.threads)
-        events += thread.events.size();
-    // ticks_per_second says which clock the device recorded with: its CPU clock when the DWT
-    // cycle counter ran (280000000 on the STM32H7B3I-DK), 1000000 for the microsecond fallback
-    // (QEMU, where the DWT does not count). Exact in the double, so print it as an integer.
-    std::cerr << "prism-trace: " << trace.threads.size() << " threads, " << events << " events, "
-              << trace.warnings.size() << " warning(s), " << trace.sites.size() << " sites, "
-              << static_cast<std::uint64_t>(trace.ticks_per_second) << " ticks/s\n";
+    // ticks/s says which clock the device recorded with: its CPU clock when the DWT cycle
+    // counter ran (280000000 on the STM32H7B3I-DK), 1000000 for a microsecond clock (QEMU, ESP32).
+    std::cerr << "prism-trace: " << prism_trace::summary(trace) << '\n';
 
     const std::string json = prism_trace::to_chrome_json(trace);
     if (output_path.empty()) {

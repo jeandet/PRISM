@@ -71,4 +71,11 @@ Trace read_trace(std::span<const std::byte> bytes);
 // with "com" (com_dump.bin, combined.prtr) is a file, not a port.
 bool is_serial_path(std::string_view path);
 
+// Whether `bytes` hold a whole dump: a sync marker, then later the dump's end chunk. Bytes may
+// follow the end chunk (the device goes on logging), so a reader of a live port can stop there.
+bool dump_complete(std::span<const std::byte> bytes);
+
+// One line for a person: "2 threads, 812 events, 0 warning(s), 14 sites, 1000000 ticks/s".
+std::string summary(const Trace& trace);
+
 } // namespace prism_trace

@@ -7,6 +7,8 @@
 // scans forward one byte at a time for the next complete valid chunk and resumes there.
 #include "trace_reader.hpp"
 
+#include <algorithm>
+#include <array>
 #include <bit>
 #include <concepts>
 #include <cctype>
@@ -367,6 +369,37 @@ bool is_serial_path(std::string_view path)
         if (path[i] < '0' || path[i] > '9')
             return false;
     return true;
+}
+
+bool dump_complete(std::span<const std::byte> bytes)
+{
+    using prism::profile::sync_marker;
+    const auto sync = std::ranges::search(bytes, sync_marker);
+    if (sync.empty())
+        return false;
+    // The end chunk has an empty payload, so its framing is fixed: type 0x04, length 0, then
+    // the CRC-32 of those five bytes, little-endian.
+    static constexpr std::array<std::byte, 5> head{std::byte{0x04}, std::byte{0}, std::byte{0},
+                                                   std::byte{0}, std::byte{0}};
+    static constexpr std::uint32_t crc = prism::profile::crc32(head);
+    static constexpr std::array<std::byte, 9> end_chunk{
+        head[0], head[1], head[2], head[3], head[4],
+        std::byte(crc & 0xFF), std::byte((crc >> 8) & 0xFF), std::byte((crc >> 16) & 0xFF),
+        std::byte(crc >> 24)};
+    const std::span<const std::byte> after{sync.end(), bytes.end()};
+    return !std::ranges::search(after, end_chunk).empty();
+}
+
+std::string summary(const Trace& trace)
+{
+    std::size_t events = 0;
+    for (const Trace::Thread& thread : trace.threads)
+        events += thread.events.size();
+    // ticks_per_second is an exact integer in the double: print it as one.
+    return std::to_string(trace.threads.size()) + " threads, " + std::to_string(events) + " events, "
+           + std::to_string(trace.warnings.size()) + " warning(s), " + std::to_string(trace.sites.size())
+           + " sites, " + std::to_string(static_cast<std::uint64_t>(trace.ticks_per_second))
+           + " ticks/s";
 }
 
 } // namespace prism_trace

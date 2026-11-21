@@ -894,3 +894,36 @@ TEST_CASE("the CLI predicates pinned for step B: is_serial_path, and read_trace'
     const Trace real = read_trace(dump);
     CHECK(real.found == true);
 }
+
+TEST_CASE("dump_complete: the end chunk has arrived, even with log lines after it")
+{
+    const std::vector<std::byte> dump = two_thread_dump();
+    const std::span<const std::byte> all{dump};
+    CHECK(prism_trace::dump_complete(all));
+    CHECK(!prism_trace::dump_complete(all.first(all.size() - 1)));
+    CHECK(!prism_trace::dump_complete(all.first(all.size() / 2)));
+
+    // The board goes on printing after its dump: one serial read holds both.
+    std::vector<std::byte> with_chatter = dump;
+    for (char c : std::string_view{"\r\nI (5012) app: frame 41 ms\r\n"})
+        with_chatter.push_back(static_cast<std::byte>(c));
+    CHECK(prism_trace::dump_complete(with_chatter));
+
+    // An end chunk with no sync marker before it is not a dump.
+    const std::span<const std::byte> end_only = all.last(9);
+    CHECK(!prism_trace::dump_complete(end_only));
+}
+
+TEST_CASE("summary: threads, events, warnings, sites and the clock in one line")
+{
+    const std::vector<std::byte> dump = two_thread_dump();
+    const Trace trace = read_trace(dump);
+    std::size_t events = 0;
+    for (const Trace::Thread& t : trace.threads)
+        events += t.events.size();
+    const std::string expected = "2 threads, " + std::to_string(events) + " events, 0 warning(s), "
+                                 + std::to_string(trace.sites.size()) + " sites, "
+                                 + std::to_string(prism::platform::profile_ticks_per_second())
+                                 + " ticks/s";
+    CHECK(prism_trace::summary(trace) == expected);
+}
