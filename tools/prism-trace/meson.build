@@ -27,5 +27,7 @@ endif
 executable('prism-trace', 'main.cpp',
   dependencies : prism_trace_deps,
   cpp_args : prism_trace_args,
-  install : true,
+  # Run from the build directory; installing it would put it in the Python wheel, which
+  # auditwheel then rejects (it needs x86-64-v2).
+  install : false,
 )
