@@ -8,7 +8,7 @@ project('cmsis-dsp', 'c', version : '1.16.2')
 
 cmsis_dsp_incs = [include_directories('Include', 'PrivateInclude')]
 cmsis_dsp_args = []
-if host_machine.cpu_family() == 'arm'
+if host_machine.cpu_family() == 'arm' and host_machine.system() == 'none'   # a Cortex-M; a Linux ARM host takes the portable path
   cmsis_dsp_incs += subproject('cmsis-core').get_variable('cmsis_core_inc')
 else
   cmsis_dsp_args += '-D__GNUC_PYTHON__'
