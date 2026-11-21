@@ -358,6 +358,8 @@ jobs:
         run: |
           PYTHONPATH=builddir/python python -c "import prism; print('import ok')"
           meson test -C builddir python_bindings --print-errorlogs
+      - name: Serial port and prism-trace tests (macOS's own serial code path)
+        run: meson test -C builddir io_streams prism_trace --print-errorlogs
 
   # Windows with MSYS2's UCRT64 GCC: it tracks the newest GCC, so C++26 builds as on Linux
   # (MSVC's C++26 support is the open question; this lane is the reference). C++ tests only;
