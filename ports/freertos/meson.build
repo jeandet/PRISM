@@ -10,6 +10,12 @@
 #    INCLUDE_xTaskGetIdleTaskHandle (ulTaskGetIdleRunTimeCounter); configTOTAL_HEAP_SIZE with a
 #    heap_4-style xPortGetFreeHeapSize().
 #  - the link argument alloc_count_link_arg (-Wl,--wrap=_malloc_r), so allocations are counted.
+#  - the profile clock (doc/design/profiling.md, "Clock"): profile_clock.cpp defines
+#    prism::platform::profile_ticks()/_per_second. The board needs either the DWT cycle
+#    counter (TRCENA in DEMCR, CYCCNTENA in DWT_CTRL, extended to 64 bits, at
+#    configCPU_CLOCK_HZ ticks/s) or, when the counter does not advance (QEMU does not
+#    model the DWT), a microsecond clock to fall back on: prism_now_us() (posix_time.c)
+#    at 1 000 000 ticks/s.
 #
 # The POSIX layer (pthreads, clocks, newlib locks, TLS) over FreeRTOS, the allocation counter
 # and guard, newlib's _sbrk, and the platform hooks the frame runtime needs. Compiled by each
@@ -25,6 +31,7 @@ freertos_posix_files = files(
   'tls.c',
   'tls_support.S',
   'system_counters.cpp',
+  'profile_clock.cpp',
   'sbrk.c',
 )
 freertos_posix_inc = include_directories('.')

@@ -25,8 +25,23 @@ prism_tests = executable('prism_tests.elf', 'prism_qemu/main.cpp',
   link_args : qemu_link_args,
 )
 
+# The profile round trip (profile_qemu/main.cpp): libprism's Recorder (profile/recorder.cpp
+# is in libprism unconditionally) + dump() into an io::MemoryStream, read back with
+# prism-trace's read_trace. The cross build never enters tools/ (hosted only), so the reader's
+# source and its include dir (tools/, for <prism-trace/trace_reader.hpp>) are named directly.
+profile_tests = executable('profile_tests.elf', 'profile_qemu/main.cpp',
+  meson.project_source_root() / 'tools' / 'prism-trace' / 'trace_reader.cpp',
+  include_directories : [qemu_freertos_inc, include_directories('../../tools')],
+  dependencies : [prism_core_dep],
+  link_with : qemu_freertos,
+  link_whole : [qemu_posix, qemu_board],
+  link_depends : qemu_ld_dep,
+  link_args : qemu_link_args,
+)
+
 if qemu_system_arm.found()
   qemu_args = ['-M', 'mps2-an500', '-nographic', '-semihosting-config', 'enable=on,target=native']
   test('posix_qemu', qemu_system_arm, args : qemu_args + ['-kernel', posix_tests], timeout : 120)
   test('prism_qemu', qemu_system_arm, args : qemu_args + ['-kernel', prism_tests], timeout : 120)
+  test('profile_qemu', qemu_system_arm, args : qemu_args + ['-kernel', profile_tests], timeout : 120)
 endif

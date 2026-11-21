@@ -102,6 +102,15 @@ Recorder::Slot* Recorder::claim_slot()
 
 void Recorder::record(Kind kind, const Site* site, std::int32_t value)
 {
+#if defined(__ARM_ARCH_7EM__) && !defined(NDEBUG)
+    // No marks in interrupt handlers in v1 (doc/design/profiling.md): an interrupt has no
+    // thread of its own and would write into the interrupted task's ring. On Cortex-M,
+    // IPSR is nonzero exactly in interrupt context (thread mode reads 0).
+    std::uint32_t ipsr;
+    __asm__ volatile("mrs %0, ipsr" : "=r"(ipsr));
+    if (ipsr != 0)
+        __builtin_trap();
+#endif
     Slot* slot = claim_slot();
     if (slot == nullptr)
         return;
