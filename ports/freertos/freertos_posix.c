@@ -94,9 +94,14 @@ void posix_thread_exit(struct posix_thread *t, void *result) {
     t->result = result;
     run_atexit_list(t);
     run_key_destructors(t);
-    if (t->done) xSemaphoreGive(t->done);
+    /* A joiner frees t as soon as `done` is given, and may run at once: with the scheduler
+       suspended, this thread is finished with t before anyone else runs. */
+    vTaskSuspendAll();
     if (__atomic_fetch_or(&t->state, POSIX_THREAD_EXITED, __ATOMIC_ACQ_REL) & POSIX_THREAD_DETACHED)
         thread_block_free(t);
+    else if (t->done)
+        xSemaphoreGive(t->done);
+    (void)xTaskResumeAll();
     vTaskDelete(NULL); /* noreturn */
     for (;;) { }
 }

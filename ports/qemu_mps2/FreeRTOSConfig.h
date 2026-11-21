@@ -24,6 +24,7 @@
 #define INCLUDE_vTaskDelayUntil                 1
 #define INCLUDE_vTaskDelete                     1
 #define INCLUDE_uxTaskPriorityGet               1
+#define INCLUDE_vTaskPrioritySet                1
 #define INCLUDE_xTaskGetSchedulerState          1
 #define INCLUDE_xTaskGetCurrentTaskHandle       1
 #define INCLUDE_xTaskGetIdleTaskHandle          1

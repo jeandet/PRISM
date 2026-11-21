@@ -275,6 +275,26 @@ static void test_printf_two_threads() {
     check("12 printf from 2 threads x50 lines, all out", done.load() == kThreads);
 }
 
+// 13b. join returns the moment the thread signals "done", and frees the thread's block then: a
+//     joiner of higher priority runs at once. The ending thread must be finished with the block
+//     before it signals. The test zeroes the freed block while the thread is still parked
+//     between its signal and its end, lets it end, and checks nothing wrote there.
+static void test_join_while_the_thread_ends() {
+    const UBaseType_t prio = uxTaskPriorityGet(NULL);
+    bool untouched = true;
+    for (int i = 0; i < 10 && untouched; ++i) {
+        std::thread t([] {});
+        auto *block = reinterpret_cast<unsigned char *>(t.native_handle());
+        vTaskPrioritySet(NULL, prio + 1);
+        t.join();
+        std::memset(block, 0, 32);   // freed, and nothing else ran to reuse it
+        vTaskPrioritySet(NULL, prio);
+        vTaskDelay(pdMS_TO_TICKS(5)); // the thread finishes ending
+        for (int b = 0; b < 32; ++b) untouched = untouched && block[b] == 0;
+    }
+    check("13b a joined thread never writes its freed block", untouched);
+}
+
 // The stage timings (app/frame_stats) measure sub-millisecond work: steady_clock must step by
 // less than a tick, and must never go backwards across a tick boundary.
 static void test_clock_resolution() {
@@ -372,6 +392,7 @@ static void test_task(void *) {
     test_malloc_stress();
     test_printf_two_threads();
     test_clock_resolution();
+    test_join_while_the_thread_ends();
     test_allocation_count();
     test_allocation_guard();
     test_system_counters();
