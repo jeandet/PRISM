@@ -109,8 +109,8 @@ The upgrade, later and in PRISM: a rasterizer compiled for RGB565 (porting-and-d
 - Touch: the BSP's GT1151 handle, read in `TouchSource::read()`.
 - Microphones: the BSP's codec device (`esp_codec_dev`), 16 kHz (the BSP's recommendation),
   read in blocks into the scope's sample source on its own thread, as the STM32's ADC is.
-- Profiler: the dump goes out through `UartStream` over UART0 (the USB-UART bridge) at
-  921600; one of the four ADC buttons (PLAY) triggers it.
+- Profiler: the dump goes out through `UartStream` over UART0 (the USB-UART bridge, the same
+  port and speed as the console, see "Using it"); one of the four ADC buttons (PLAY) triggers it.
 
 ### PRISM's build for this target
 
@@ -146,9 +146,11 @@ ESP-IDF or knowing it exists.
 - **Flash from the host, not the container.** USB does not reach a container on macOS, so
   flashing is always the host's step (the web flasher, or `esptool.py`), never `idf.py flash`
   inside Docker. `scripts/flash.sh` wraps `esptool.py` and finds the board's port itself.
-- **Read the console with anything.** UART0 at 115200 for logs (any serial terminal, or the web
-  flasher's console). The profiler's dump shares the port at 921600: `prism-trace` switches
-  the speed itself.
+- **Read the console with anything.** UART0 runs at 921600 for everything: logs (any serial
+  terminal, or the web flasher's console, set to 921600) and the profiler's dump, which
+  `prism-trace` reads from the same port, skipping the log lines around it (it resyncs on its
+  framing). One speed, no switching. Only the chip's ROM bootloader prints its first lines at
+  115200, which a 921600 terminal shows as a little garbage at reset.
 - **The README is the manual:** what the board is, which image does what, flash, see the console,
   take a trace; screenshots of both apps. Every error the board can print on the console says
   what to do next (e.g. "no PSRAM found: is this a WROOM-3 module?").
