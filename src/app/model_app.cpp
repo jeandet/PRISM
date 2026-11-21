@@ -134,7 +134,10 @@ void AppContext::schedule_drain() {
     bool expected = false;
     if (scheduled_->compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
         exec::start_detached(stdexec::schedule(sched_)
-                             | stdexec::then([this] { drain_queue(); }));
+                             | stdexec::then([this] {
+                                   PRISM_PROFILE_SCOPE("logic loop"); // one block per loop turn
+                                   drain_queue();
+                               }));
     }
 }
 
@@ -314,6 +317,7 @@ void AppRun::schedule_tick() {
     exec::start_detached(
         stdexec::schedule(sched_)
         | stdexec::then([this, logic_wrapper_holder = logic_wrapper_holder_] {
+            PRISM_PROFILE_SCOPE("logic loop"); // one block per loop turn
             auto do_tick = [this] {
                 tick_scheduled_ = false;
                 last_tick_ = AnimationClock::clock::now();
@@ -333,6 +337,7 @@ void AppRun::publish_after_input(std::optional<WindowId> resized_window) {
     exec::start_detached(
         stdexec::schedule(sched_)
         | stdexec::then([this, logic_wrapper_holder = logic_wrapper_holder_, closed = mutation_closed_] {
+            PRISM_PROFILE_SCOPE("logic loop"); // one block per loop turn
             AppContext::apply_wrapper(logic_wrapper_holder, [this, closed] {
                 publish_queued_ = false;
                 if (closed->load(std::memory_order_acquire)) return;
@@ -392,10 +397,10 @@ void AppRun::logic_main(std::function<void(AppContext&)> setup) {
         schedule_tick();
     }
 
-    {
-        PRISM_PROFILE_SCOPE("logic loop");
-        loop_.run();
-    }
+    // Each turn the loop runs is one "logic loop" block (marked where the turn is scheduled:
+    // the queue drain, input dispatch, the tick, publish-after-input), so a block ends before
+    // the loop waits for the next item -- a whole-run block would vanish once the ring wraps.
+    loop_.run();
     core::logic_thread.store(std::thread::id{});   // the model is the caller's again
 }
 
@@ -406,6 +411,7 @@ void AppRun::pump_event(const WindowEvent& we) {
     exec::start_detached(
         stdexec::schedule(sched_)
         | stdexec::then([this, ev, wid, shown = we.shown, wrapper_for_dispatch] {
+            PRISM_PROFILE_SCOPE("logic loop"); // one block per loop turn
             AppContext::apply_wrapper(wrapper_for_dispatch, [this, ev, wid, shown] {
                 dispatch(ev, wid, shown);
             });

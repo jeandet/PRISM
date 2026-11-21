@@ -1,4 +1,5 @@
 #include <prism/platform/frame_stats.hpp>
+#include <prism/profile/profile.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -35,18 +36,32 @@ struct Field160 {
     char text[160];
 };
 
-Field160 system_usage(const std::optional<SystemCounters> &before, const std::optional<SystemCounters> &now,
-                     double elapsed_s)
+// The period's system numbers: the line's text, plus the same values for the profile counters
+// ("cpu %" and "heap KB", recorded once per stats period in tick). cpu is -1 and the text empty
+// without both reads (the constructor's and this tick's); heap_used is valid whenever `now` is.
+struct SystemUsage {
+    Field160 text{}; // zeroed: read as "%s" even when empty
+    long cpu = -1;
+    std::size_t heap_used = 0;
+    bool has_now = false;
+};
+
+SystemUsage system_usage(const std::optional<SystemCounters> &before, const std::optional<SystemCounters> &now,
+                         double elapsed_s)
 {
-    Field160 f{""};
-    if (!before || !now)
-        return f;
+    SystemUsage out;
+    if (!now)
+        return out;
+    out.has_now = true;
+    out.heap_used = now->heap_used;
+    if (!before)
+        return out;
     const double idle_s = double(now->idle_us - before->idle_us) / 1e6;
-    const long cpu = std::lround(100.0 * std::clamp(1.0 - idle_s / elapsed_s, 0.0, 1.0));
+    out.cpu = std::lround(100.0 * std::clamp(1.0 - idle_s / elapsed_s, 0.0, 1.0));
     constexpr std::size_t kb = 1024;
-    std::snprintf(f.text, sizeof f.text, "CPU %ld%% · heap %zu/%zu KB · stacks %zu/%zu KB · ", cpu,
-                  now->heap_used / kb, now->heap_total / kb, now->stacks_used / kb, now->stacks_total / kb);
-    return f;
+    std::snprintf(out.text.text, sizeof out.text.text, "CPU %ld%% · heap %zu/%zu KB · stacks %zu/%zu KB · ",
+                  out.cpu, now->heap_used / kb, now->heap_total / kb, now->stacks_used / kb, now->stacks_total / kb);
+    return out;
 }
 
 } // namespace
@@ -68,12 +83,20 @@ std::optional<std::string_view> FrameStats::tick(std::chrono::steady_clock::time
     if (elapsed.count() < 1.0)
         return std::nullopt;
     const long fps = std::lround(frames_ / elapsed.count());
+    const SystemUsage usage = system_usage(window_system_, system, elapsed.count());
     const int n = std::snprintf(
         line_.data(), line_.size(),
         "%ld fps · %s%s allocs/frame · update %s · snapshot %s · draw %s · present %s ms",
-        fps, system_usage(window_system_, system, elapsed.count()).text, per_frame(allocations - window_allocations_, frames_).text,
+        fps, usage.text.text, per_frame(allocations - window_allocations_, frames_).text,
         average_ms(sum_.update, frames_).text, average_ms(sum_.snapshot, frames_).text,
         average_ms(sum_.draw, frames_).text, average_ms(sum_.present, frames_).text);
+    // Once per stats period: the same numbers the line reports, as counters on the timeline
+    // (with profiling off the macros are sizeof no-ops and nothing extra runs here).
+    if (usage.has_now) {
+        PRISM_PROFILE_COUNTER("heap KB", static_cast<std::int32_t>(usage.heap_used / 1024));
+        if (usage.cpu >= 0)
+            PRISM_PROFILE_COUNTER("cpu %", static_cast<std::int32_t>(usage.cpu));
+    }
     window_start_ = now;
     window_allocations_ = allocations;
     window_system_ = system;

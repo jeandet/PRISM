@@ -622,10 +622,7 @@ void SoftwareBackend::run(std::function<void(const WindowEvent&)> deliver) {
                 }
                 if (win) {
                     const auto t0 = FramePacer::clock::now();
-                    {
-                        PRISM_PROFILE_SCOPE("draw");   // render_snapshot draws, then presents
-                        win->render_snapshot(*snap, fonts_);
-                    }
+                    win->render_snapshot(*snap, fonts_); // "draw" and "present" are marked inside it
                     const auto t1 = FramePacer::clock::now();
                     {
                         std::lock_guard<std::mutex> lk(windows_mutex_);

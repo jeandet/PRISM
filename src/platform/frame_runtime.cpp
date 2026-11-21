@@ -19,10 +19,8 @@
 #include <prism/raster/fonts.hpp>
 #include <prism/render/scene_snapshot.hpp>
 
-#include <algorithm>
 #include <array>
 #include <chrono>
-#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <memory>
@@ -74,12 +72,10 @@ struct Handoff {
     std::chrono::microseconds pending_update_time{}; // the loop hooks before `pending`
     std::chrono::microseconds pending_build_time{};  // how long `pending` took to build
     // The timing summary: the render thread adds each finished frame, the logic thread reads
-    // a line once a second. Fixed-size, so neither side allocates per frame.
+    // a line once a second. Fixed-size, so neither side allocates per frame. The "cpu %" and
+    // "heap KB" profile counters are recorded inside FrameStats::tick, where the period's
+    // numbers are computed.
     FrameStats stats{std::chrono::steady_clock::now(), allocation_count(), system_counters()};
-    // The previous stats period's platform counters, and when they were read: the CPU %
-    // profile counter's before/after (only report_stats, on the logic thread, touches these).
-    std::optional<SystemCounters> prev_system;
-    std::chrono::steady_clock::time_point prev_stats_at{};
 };
 
 using Clock = std::chrono::steady_clock;
@@ -138,10 +134,10 @@ void publish(WidgetTree& tree, Handoff& h, core::Size size, std::uint64_t versio
     }
     const auto start = Clock::now();
     {
-        PRISM_PROFILE_SCOPE("snapshot");
+        PRISM_PROFILE_SCOPE("snapshot"); // the build and the clear_dirty that ends it
         tree.build_snapshot(h.slots[std::size_t(slot)], size.w.raw(), size.h.raw(), version);
+        tree.clear_dirty();
     }
-    tree.clear_dirty();
     const auto build_time = since(start);
     {
         std::lock_guard lock{h.mu};
@@ -161,7 +157,8 @@ bool snapshot_waiting(Handoff& h)
     return h.pending >= 0;
 }
 
-// Hands the timing line to the app once a second (the render thread fed the frames into h.stats).
+// Hands the timing line to the app once a second (the render thread fed the frames into
+// h.stats). The cpu % and heap KB counters are recorded inside FrameStats::tick.
 void report_stats(Handoff& h, const FrameContext& ctx)
 {
     std::optional<std::string_view> line; // in h.stats' buffer: shown before the next tick
@@ -170,26 +167,8 @@ void report_stats(Handoff& h, const FrameContext& ctx)
         std::lock_guard lock{h.mu};
         line = h.stats.tick(Clock::now(), allocation_count(), system);
     }
-    if (line) {
-        // Once per stats period (not per frame): heap and CPU as counters on the timeline.
-        if (system) {
-            const std::int32_t heap_kb = static_cast<std::int32_t>(system->heap_used / 1024);
-            PRISM_PROFILE_COUNTER("heap KB", heap_kb);
-            if (h.prev_system) {
-                const auto now = Clock::now();
-                // CPU % over the period: the share of it the idle task did not run (the same
-                // computation the stats line's CPU field makes).
-                const long cpu = std::lround(100.0 * std::clamp(
-                    1.0 - (double(system->idle_us - h.prev_system->idle_us) / 1e6)
-                          / std::chrono::duration<double>(now - h.prev_stats_at).count(),
-                    0.0, 1.0));
-                PRISM_PROFILE_COUNTER("cpu %", static_cast<std::int32_t>(cpu));
-                h.prev_stats_at = now;
-            }
-            h.prev_system = system;
-        }
+    if (line)
         ContextAccess::stats(ctx, *line);
-    }
 }
 
 struct RunArgs {
@@ -212,9 +191,11 @@ void logic_loop(const RunArgs& a, WidgetTree& tree, const FrameContext& ctx)
 
     const std::stop_token stop = a.stop.get_token();
     std::optional<Point> last_touch;
-    {
-        PRISM_PROFILE_SCOPE("logic loop");
-        while (!stop.stop_requested()) {
+    while (!stop.stop_requested()) {
+        {
+            // One block per loop turn (the ring wraps: a whole-run block would vanish), and it
+            // ends before the sleep below.
+            PRISM_PROFILE_SCOPE("logic loop");
             route_touch(tree, *a.h, a.touch->read(), last_touch);
             const auto update_start = Clock::now();
             {
@@ -225,8 +206,8 @@ void logic_loop(const RunArgs& a, WidgetTree& tree, const FrameContext& ctx)
             report_stats(*a.h, ctx);
             if (tree.any_dirty() && !snapshot_waiting(*a.h))
                 publish(tree, *a.h, a.size, ++version, update_time);
-            std::this_thread::sleep_for(kPollPeriod);
         }
+        std::this_thread::sleep_for(kPollPeriod);
     }
 }
 
@@ -270,9 +251,9 @@ void render_main(const RunArgs& a)
         const SceneSnapshot* snap = &h.slots[std::size_t(h.drawing)];
         canvas.retarget(a.sink->back());
         auto start = Clock::now();
-        canvas.clear(snap->window.background); // clearing is the caller's job, as with SDL
         {
-            PRISM_PROFILE_SCOPE("draw");
+            PRISM_PROFILE_SCOPE("draw"); // the clear is part of drawing the frame, as the stats count it
+            canvas.clear(snap->window.background); // clearing is the caller's job, as with SDL
             raster::draw(canvas, *snap, *a.fonts);
         }
         times.draw = since(start);

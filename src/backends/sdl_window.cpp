@@ -308,48 +308,51 @@ void SdlWindow::render_snapshot(const SceneSnapshot& snap, SdlFontSet& fonts, bo
     }
     if (!renderer_) return;
 
-    // Re-read every frame rather than caching at creation time -- dragging the window to a
-    // display with a different backing scale (e.g. Retina <-> external monitor) changes this
-    // without any dedicated event we currently handle.
-    float density = forced_scale_ > 0.f ? forced_scale_ : SDL_GetWindowPixelDensity(sdl_window_);
-    device_scale_ = density > 0.f ? density : 1.0f;
-    SDL_SetRenderScale(renderer_, device_scale_, device_scale_);
+    {
+        PRISM_PROFILE_SCOPE("draw"); // drawing only: the "present" below is its sibling
+        // Re-read every frame rather than caching at creation time -- dragging the window to a
+        // display with a different backing scale (e.g. Retina <-> external monitor) changes this
+        // without any dedicated event we currently handle.
+        float density = forced_scale_ > 0.f ? forced_scale_ : SDL_GetWindowPixelDensity(sdl_window_);
+        device_scale_ = density > 0.f ? density : 1.0f;
+        SDL_SetRenderScale(renderer_, device_scale_, device_scale_);
 
-    SDL_SetRenderDrawColor(renderer_, theme.canvas_bg.r, theme.canvas_bg.g,
-                           theme.canvas_bg.b, theme.canvas_bg.a);
-    SDL_RenderClear(renderer_);
+        SDL_SetRenderDrawColor(renderer_, theme.canvas_bg.r, theme.canvas_bg.g,
+                               theme.canvas_bg.b, theme.canvas_bg.a);
+        SDL_RenderClear(renderer_);
 
-    if (decoration_ == DecorationMode::Custom) {
-        // Offset content below the title bar via viewport
-        int w, h;
-        SDL_GetWindowSize(sdl_window_, &w, &h);
-        int offset = static_cast<int>(WindowChrome::title_bar_h.raw());
-        SDL_Rect viewport = {0, offset, w, h - offset};
-        SDL_SetRenderViewport(renderer_, &viewport);
+        if (decoration_ == DecorationMode::Custom) {
+            // Offset content below the title bar via viewport
+            int w, h;
+            SDL_GetWindowSize(sdl_window_, &w, &h);
+            int offset = static_cast<int>(WindowChrome::title_bar_h.raw());
+            SDL_Rect viewport = {0, offset, w, h - offset};
+            SDL_SetRenderViewport(renderer_, &viewport);
+        }
+
+        for (uint32_t idx : snap.z_order) {
+            render_draw_list(*snap.draw_lists[idx], fonts);
+        }
+        if (!snap.overlay.empty()) {
+            SDL_SetRenderClipRect(renderer_, nullptr);
+            render_draw_list(snap.overlay, fonts);
+        }
+
+        if (decoration_ == DecorationMode::Custom) {
+            // Reset viewport and draw chrome on top
+            SDL_SetRenderViewport(renderer_, nullptr);
+            SDL_SetRenderClipRect(renderer_, nullptr);
+            int w, h;
+            SDL_GetWindowSize(sdl_window_, &w, &h);
+            DrawList chrome_dl;
+            WindowChrome::render(chrome_dl, w, title_, theme);
+            render_draw_list(chrome_dl, fonts);
+        }
+
+        // Text shown in neither this frame nor the previous one is released.
+        text_cache_.end_frame(2, [](const CachedText& t) { SDL_DestroyTexture(t.texture); });
+        image_cache_.end_frame(2, [](SDL_Texture* t) { SDL_DestroyTexture(t); });
     }
-
-    for (uint32_t idx : snap.z_order) {
-        render_draw_list(*snap.draw_lists[idx], fonts);
-    }
-    if (!snap.overlay.empty()) {
-        SDL_SetRenderClipRect(renderer_, nullptr);
-        render_draw_list(snap.overlay, fonts);
-    }
-
-    if (decoration_ == DecorationMode::Custom) {
-        // Reset viewport and draw chrome on top
-        SDL_SetRenderViewport(renderer_, nullptr);
-        SDL_SetRenderClipRect(renderer_, nullptr);
-        int w, h;
-        SDL_GetWindowSize(sdl_window_, &w, &h);
-        DrawList chrome_dl;
-        WindowChrome::render(chrome_dl, w, title_, theme);
-        render_draw_list(chrome_dl, fonts);
-    }
-
-    // Text shown in neither this frame nor the previous one is released.
-    text_cache_.end_frame(2, [](const CachedText& t) { SDL_DestroyTexture(t.texture); });
-    image_cache_.end_frame(2, [](SDL_Texture* t) { SDL_DestroyTexture(t); });
     if (present) {
         PRISM_PROFILE_SCOPE("present");
         SDL_RenderPresent(renderer_);
