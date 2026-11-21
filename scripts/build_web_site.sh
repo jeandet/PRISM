@@ -25,4 +25,8 @@ for entry in "${examples[@]}"; do
     cp "doc/screenshots/$shot.svg" "$outdir/screenshots/"
 done
 
+# prism-trace's page: reads a board's profile dump over Web Serial, hands it to Perfetto.
+cp tools/prism-trace/web/trace.html "$outdir/"
+cp "$builddir/tools/prism-trace/web/prism-trace-web".{js,wasm} "$outdir/"
+
 echo "Site assembled in $outdir/"

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRISM trace</title>
+<style>
+  :root { --bg: #fafafa; --fg: #1d1d1f; --muted: #6e6e73; --line: #d2d2d7; --accent: #0a62c9;
+          --console: #fff; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --line: #3a3a3f; --accent: #5ea2ff;
+            --console: #0e0e10; --bad: #ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0; }
+  button, select, label.file { font: inherit; padding: 6px 14px; border-radius: 8px;
+         border: 1px solid var(--line); background: var(--console); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  label.file input { display: none; }
+  #status { font-weight: 600; }
+  #status.bad, #report.bad { color: var(--bad); }
+  #report { white-space: pre-wrap; margin: 0 0 12px; font: 13px/1.4 ui-monospace, Menlo, monospace; }
+  #console { height: 50vh; overflow: auto; margin: 0; padding: 10px; border: 1px solid var(--line);
+             border-radius: 8px; background: var(--console);
+             font: 12px/1.35 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+  ol { padding-left: 20px; margin: 0 0 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PRISM trace</h1>
+  <p class="muted">Reads a profile dump from a board over USB and opens it in Perfetto. Nothing is uploaded: the
+    trace goes from this page straight to the Perfetto tab.</p>
+  <ol>
+    <li><b>Connect</b> and pick the board's serial port. Its console appears below.</li>
+    <li>Press the board's dump button (MODE on the ESP32-S31-Korvo-1, the blue user button on the STM32H7B3I-DK).</li>
+    <li><b>Open in Perfetto</b> when the dump has arrived.</li>
+  </ol>
+
+  <div class="bar">
+    <button id="connect" class="primary">Connect</button>
+    <select id="baud" title="Baud rate">
+      <option>115200</option><option>460800</option><option selected>921600</option><option>2000000</option>
+    </select>
+    <button id="perfetto" disabled>Open in Perfetto</button>
+    <button id="save" disabled>Save trace.json</button>
+    <label class="file">Open a dump file…<input id="file" type="file"></label>
+  </div>
+
+  <p id="status" class="muted">Not connected.</p>
+  <pre id="report"></pre>
+  <pre id="console"></pre>
+</main>
+
+<script src="prism-trace-web.js"></script>
+<script>
+"use strict";
+
+const PERFETTO = "https://ui.perfetto.dev";
+const SYNC = [0x50, 0x52, 0x54, 0x52];   // "PRTR", the dump's sync marker (trace_format.hpp)
+const QUIET_MS = 5000;                   // a dump that stops this long without its end is read as is
+const CONSOLE_CHARS = 200000;
+
+const $ = (id) => document.getElementById(id);
+let trace = null;                        // the last trace's JSON, as bytes
+
+function setStatus(text, bad = false) {
+  $("status").textContent = text;
+  $("status").className = bad ? "bad" : "";
+}
+
+function showReport(text, bad) {
+  $("report").textContent = text;
+  $("report").className = bad ? "bad" : "";
+}
+
+// --- the decoder (prism-trace's reader, compiled to WebAssembly) ------------------------------
+
+const decoder = PrismTrace();
+
+async function convert(bytes) {
+  const m = await decoder;
+  const ptr = m._malloc(bytes.length);
+  m.HEAPU8.set(bytes, ptr);
+  const found = m._prism_trace_convert(ptr, bytes.length);
+  m._free(ptr);
+  const report = m.UTF8ToString(m._prism_trace_report());
+  if (!found) return { report, json: null };
+  const at = m._prism_trace_json();
+  return { report, json: m.HEAPU8.slice(at, at + m._prism_trace_json_size()) };
+}
+
+async function dumpComplete(bytes) {
+  const m = await decoder;
+  const ptr = m._malloc(bytes.length);
+  m.HEAPU8.set(bytes, ptr);
+  const done = m._prism_trace_dump_complete(ptr, bytes.length);
+  m._free(ptr);
+  return done === 1;
+}
+
+async function finish(bytes) {
+  const { report, json } = await convert(bytes);
+  trace = json;
+  showReport(report, !json);
+  $("perfetto").disabled = $("save").disabled = !json;
+  return json !== null;
+}
+
+// --- the serial port ---------------------------------------------------------------------------
+
+class Bytes {                            // a growable byte array
+  constructor() { this.data = new Uint8Array(1 << 16); this.length = 0; }
+  push(chunk) {
+    if (this.length + chunk.length > this.data.length) {
+      const bigger = new Uint8Array(Math.max(this.data.length * 2, this.length + chunk.length));
+      bigger.set(this.view());
+      this.data = bigger;
+    }
+    this.data.set(chunk, this.length);
+    this.length += chunk.length;
+  }
+  view() { return this.data.subarray(0, this.length); }
+}
+
+function findSync(bytes) {
+  outer: for (let i = 0; i + SYNC.length <= bytes.length; ++i) {
+    for (let k = 0; k < SYNC.length; ++k) if (bytes[i + k] !== SYNC[k]) continue outer;
+    return i;
+  }
+  return -1;
+}
+
+const text = new TextDecoder();
+let tail = new Uint8Array(0);            // held back, not yet printed: a sync marker may span two reads
+let capture = null;                      // the dump's bytes while one arrives
+let quietTimer = 0;
+
+function print(bytes) {
+  const pre = $("console");
+  const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+  let s = pre.textContent + text.decode(bytes, { stream: true }).replace(/\r/g, "");
+  if (s.length > CONSOLE_CHARS) s = s.slice(s.length - CONSOLE_CHARS);
+  pre.textContent = s;
+  if (atBottom) pre.scrollTop = pre.scrollHeight;
+}
+
+async function endCapture(reason) {
+  clearTimeout(quietTimer);
+  if (!capture) return;                  // the quiet timer and the end chunk both ended it
+  const bytes = capture.view();
+  capture = null;
+  const ok = await finish(bytes);
+  setStatus(ok ? `Trace received (${(bytes.length / 1024).toFixed(0)} KB${reason}). Open it in Perfetto.`
+               : "The dump could not be read. See below.", !ok);
+}
+
+async function received(chunk) {
+  if (capture) {
+    capture.push(chunk);
+    clearTimeout(quietTimer);
+    quietTimer = setTimeout(() => endCapture(", incomplete: the board went quiet"), QUIET_MS);
+    setStatus(`Receiving the dump… ${(capture.length / 1024).toFixed(0)} KB`);
+    if (await dumpComplete(capture.view())) await endCapture("");
+    return;
+  }
+  const bytes = new Uint8Array(tail.length + chunk.length);
+  bytes.set(tail);
+  bytes.set(chunk, tail.length);
+  const at = findSync(bytes);
+  if (at < 0) {
+    // The last bytes wait for the next read (the tail is never printed before it is cleared).
+    const keep = Math.min(SYNC.length - 1, bytes.length);
+    print(bytes.subarray(0, bytes.length - keep));
+    tail = bytes.slice(bytes.length - keep);
+    return;
+  }
+  print(bytes.subarray(0, at));
+  tail = new Uint8Array(0);
+  capture = new Bytes();
+  setStatus("Receiving the dump…");
+  await received(bytes.subarray(at));
+}
+
+async function connect() {
+  let port;
+  try {
+    port = await navigator.serial.requestPort();
+  } catch {
+    return;                              // the person closed the picker
+  }
+  const baudRate = Number($("baud").value);
+  try {
+    await port.open({ baudRate, bufferSize: 1 << 20 });
+  } catch (e) {
+    setStatus(`Could not open the port: ${e.message}. Is another program (a serial terminal) using it?`, true);
+    return;
+  }
+  // Both lines off: the boards' auto-reset circuit then leaves the chip running.
+  await port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => {});
+  $("connect").disabled = $("baud").disabled = true;
+  setStatus(`Connected at ${baudRate} baud. Press the board's dump button to take a trace.`);
+  const reader = port.readable.getReader();
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      await received(value);
+    }
+  } catch (e) {
+    setStatus(`The port closed: ${e.message}. Unplugged? Connect again.`, true);
+  } finally {
+    reader.releaseLock();
+    await port.close().catch(() => {});
+    $("connect").disabled = $("baud").disabled = false;
+  }
+}
+
+// --- Perfetto, saving, files -------------------------------------------------------------------
+
+// ui.perfetto.dev takes a trace from the page that opened it: PING until it answers PONG, then
+// post the bytes (perfetto.dev/docs/visualization/deep-linking-to-perfetto-ui).
+function openInPerfetto() {
+  const win = window.open(PERFETTO);
+  if (!win) { setStatus("The browser blocked the Perfetto tab: allow pop-ups for this page.", true); return; }
+  const buffer = trace.slice().buffer;
+  const ping = setInterval(() => win.postMessage("PING", PERFETTO), 50);
+  const onMessage = (e) => {
+    if (e.origin !== PERFETTO || e.data !== "PONG") return;
+    clearInterval(ping);
+    window.removeEventListener("message", onMessage);
+    win.postMessage({ perfetto: { buffer, title: "PRISM trace", fileName: "trace.json" } }, PERFETTO);
+  };
+  window.addEventListener("message", onMessage);
+  setTimeout(() => clearInterval(ping), 30000);
+}
+
+function save() {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([trace], { type: "application/json" }));
+  a.download = "trace.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function openFile(file) {
+  const ok = await finish(new Uint8Array(await file.arrayBuffer()));
+  setStatus(ok ? `${file.name} read. Open it in Perfetto.` : `${file.name}: no trace in it. See below.`, !ok);
+}
+
+$("perfetto").onclick = openInPerfetto;
+$("save").onclick = save;
+$("file").onchange = (e) => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ""; };
+
+if ("serial" in navigator) {
+  $("connect").onclick = connect;
+} else {
+  $("connect").disabled = $("baud").disabled = true;
+  setStatus("This browser cannot open serial ports: use Chrome or Edge (Safari and Firefox cannot). " +
+            "You can still open a dump file.", true);
+}
+</script>
+</body>
+</html>

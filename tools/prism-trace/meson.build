@@ -31,3 +31,7 @@ executable('prism-trace', 'main.cpp',
   # auditwheel then rejects (it needs x86-64-v2).
   install : false,
 )
+
+if host_machine.system() == 'emscripten'
+  subdir('web')
+endif

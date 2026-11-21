@@ -137,6 +137,11 @@ from a serial port with PRISM's `io::SerialPort`), writes Chrome trace-event JSO
 `"i"`, `"C"`, thread names as metadata). The binary format is one header shared by the recorder
 and the tool, so they cannot drift.
 
+The same reader also runs in the browser: `trace.html` on the web demo site (`tools/prism-trace/web/`)
+opens the board's port with Web Serial (Chrome, Edge), shows its console, picks the dump out of
+the log lines and hands the JSON to ui.perfetto.dev (`postMessage`). Its WebAssembly module is
+built without threads: a cross-origin isolated page could not post to the Perfetto tab.
+
 ### Marks PRISM places itself
 
 `frame_app` (logic loop, update hooks, snapshot build, draw, present, frame boundary),
