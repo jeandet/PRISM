@@ -102,6 +102,14 @@ else
   sdl_enabled = sdl_opt.enabled()
 endif
 
+# PRISM's own FreeRTOS kernel and POSIX layer (ports/): only for a bare-metal target with no OS
+# of its own. auto means on when host_machine.system() == 'none'; a target whose SDK brings its
+# own FreeRTOS (ESP-IDF, doc/design/esp32-port.md) passes -Dfreertos_port=disabled.
+if get_option('freertos_port').enabled() and host_machine.system() != 'none'
+  error('freertos_port=enabled only makes sense on a bare-metal target (host_machine.system() == \'none\'): ports/ would clash with the hosted system\'s own threads')
+endif
+freertos_port_on = get_option('freertos_port').enabled() or (get_option('freertos_port').auto() and host_machine.system() == 'none')
+
 subdir('src')
 
 # The prism-trace host tool (tools/prism-trace, doc/design/profiling.md): reads a profile dump
@@ -111,7 +119,10 @@ if host_machine.system() != 'none'
   subdir('tools/prism-trace')
 endif
 
-if host_machine.system() == 'none'
+# The FreeRTOS port and the QEMU firmwares that exercise it. tests/embedded needs ports'
+# variables, so both go together; with -Dfreertos_port=disabled neither is entered and the
+# freertos_* variables are not defined (a board with its own SDK, e.g. ESP-IDF, provides them).
+if host_machine.system() == 'none' and freertos_port_on
   subdir('ports')
   if not get_option('tests').disabled()
     subdir('tests/embedded')

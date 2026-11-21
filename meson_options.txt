@@ -3,6 +3,8 @@ option('prism_debug_tools', type : 'feature', value : 'auto',
        description : 'Compile in the live debug-tools hotkey (Ctrl+Shift+I) and its supporting infrastructure')
 option('sdl', type : 'feature', value : 'auto',
        description : 'Build the SDL backend, Python bindings, tests, examples and benchmarks (auto: off on a bare-metal host)')
+option('freertos_port', type : 'feature', value : 'auto',
+       description : 'PRISM FreeRTOS kernel and POSIX layer (ports/) for a bare-metal target; disable it when the SDK brings its own FreeRTOS (ESP-IDF)')
 option('tests', type : 'feature', value : 'auto',
        description : 'Build the C++/Python test suites (disabled for wheel builds)')
 option('examples', type : 'feature', value : 'auto',

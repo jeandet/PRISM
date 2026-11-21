@@ -105,6 +105,8 @@ meson test -C builddir
   `meson setup builddir-arm --cross-file tests/cross/none-cortex-m7.ini -Dsdl=disabled`; `ports/`
   holds the FreeRTOS POSIX layer and the QEMU MPS2-AN500 test board, and `tests/embedded` runs
   under `qemu-system-arm` when found. The `embedded-qemu` CI job does exactly that.
+- `-Dfreertos_port=disabled` builds PRISM for a bare-metal target whose SDK brings its own
+  FreeRTOS (ESP-IDF): no `ports/`, no QEMU firmwares.
 
 - Requires Meson >= 1.5, GCC 16+ for `-freflection` (auto-detected by the build; without it,
   model structs need a manual `view()` method instead of automatic reflection — most structs in
